@@ -9064,6 +9064,13 @@ L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/ubi/fastmap.c
 
+UNIONFS
+P:	Josef "Jeff" Sipek
+M:	jsipek@cs.sunysb.edu
+L:	unionfs@filesystems.org
+W:	http://www.unionfs.org
+S:	Maintained
+
 USB ACM DRIVER
 M:	Oliver Neukum <oliver@neukum.org>
 L:	linux-usb@vger.kernel.org
