@@ -4,7 +4,7 @@
 #include <linux/dcache.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
-#include <linux/path.h>
+#include <linux/mount.h>
 
 struct vfsmount;
 
