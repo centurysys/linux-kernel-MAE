@@ -1,3 +1,7 @@
+UNIONFS_VERSION="2.1 (for 2.6.23-rc1)"
+
+EXTRA_CFLAGS += -DUNIONFS_VERSION=\"$(UNIONFS_VERSION)\"
+
 obj-$(CONFIG_UNION_FS) += unionfs.o
 
 unionfs-y := subr.o dentry.o file.o inode.o main.o super.o \
