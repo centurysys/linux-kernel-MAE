@@ -227,12 +227,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 		wh_lower_dentry = NULL;
 
 		/* Now do regular lookup; lookup foo */
-		nd->dentry = unionfs_lower_dentry_idx(dentry, bindex);
-		/* FIXME: fix following line for mount point crossing */
-		nd->mnt = unionfs_lower_mnt_idx(parent_dentry, bindex);
-
-		lower_dentry = lookup_one_len_nd(name, lower_dir_dentry,
-						 namelen, nd);
+		lower_dentry = lookup_one_len(name, lower_dir_dentry, namelen);
 		if (IS_ERR(lower_dentry)) {
 			dput(first_lower_dentry);
 			unionfs_mntput(first_dentry, first_dentry_offset);
@@ -323,13 +318,8 @@ out_negative:
 	}
 	/* This should only happen if we found a whiteout. */
 	if (first_dentry_offset == -1) {
-		nd->dentry = dentry;
-		/* FIXME: fix following line for mount point crossing */
-		nd->mnt = unionfs_lower_mnt_idx(parent_dentry, bindex);
-
-		first_lower_dentry =
-			lookup_one_len_nd(name, lower_dir_dentry,
-					  namelen, nd);
+		first_lower_dentry = lookup_one_len(name, lower_dir_dentry,
+						    namelen);
 		first_dentry_offset = bindex;
 		if (IS_ERR(first_lower_dentry)) {
 			err = PTR_ERR(first_lower_dentry);
