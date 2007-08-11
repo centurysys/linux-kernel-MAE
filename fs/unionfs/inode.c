@@ -918,7 +918,7 @@ static void *unionfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	int len = PAGE_SIZE, err;
 	mm_segment_t old_fs;
 
- 	unionfs_read_lock(dentry->d_sb);
+	unionfs_read_lock(dentry->d_sb);
 
 	/* This is freed by the put_link method assuming a successful call. */
 	buf = kmalloc(len, GFP_KERNEL);
@@ -943,7 +943,7 @@ static void *unionfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 out:
 	unionfs_check_dentry(dentry);
- 	unionfs_read_unlock(dentry->d_sb);
+	unionfs_read_unlock(dentry->d_sb);
 	return ERR_PTR(err);
 }
 
@@ -1062,7 +1062,8 @@ static int unionfs_permission(struct inode *inode, int mask,
 		 * We use our own special version of permission, such that
 		 * only the first branch returns -EROFS.
 		 */
-		err = inode_permission(inode->i_sb, lower_inode, mask, nd, bindex);
+		err = inode_permission(inode->i_sb, lower_inode, mask, nd,
+				       bindex);
 
 		/*
 		 * The permissions are an intersection of the overall directory

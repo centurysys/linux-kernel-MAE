@@ -442,8 +442,8 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	struct path *new_lower_paths = NULL, *tmp_lower_paths = NULL;
 	struct inode **new_lower_inodes = NULL;
 	int new_high_branch_id;	/* new high branch ID */
-	int old_ibstart, old_ibend;
 	int size;		/* memory allocation size, temp var */
+	int old_ibstart, old_ibend;
 
 	unionfs_write_lock(sb);
 
@@ -671,7 +671,7 @@ out_no_change:
 	if (!new_lower_paths) {
 		err = -ENOMEM;
 		goto out_release;
- 	}
+	}
 	/* allocate space for new pointers to lower inodes */
 	new_lower_inodes = kcalloc(new_branches,
 				   sizeof(struct inode *), GFP_KERNEL);
