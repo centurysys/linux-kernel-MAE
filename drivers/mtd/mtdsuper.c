@@ -218,5 +218,3 @@ void kill_mtd_super(struct super_block *sb)
 }
 
 EXPORT_SYMBOL_GPL(kill_mtd_super);
-
-MODULE_LICENSE("GPL");
