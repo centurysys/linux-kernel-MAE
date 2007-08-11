@@ -160,7 +160,7 @@ static int unionfs_do_readpage(struct file *file, struct page *page)
 	char *page_data = NULL;
 	loff_t offset;
 
-	if (UNIONFS_F(file) == NULL) {
+	if (!UNIONFS_F(file)) {
 		err = -ENOENT;
 		goto out;
 	}

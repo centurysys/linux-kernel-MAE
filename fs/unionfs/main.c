@@ -438,8 +438,8 @@ out:
  * We want to mount our stackable file system on top of that lower directory.
  */
 static struct unionfs_dentry_info *unionfs_parse_options(
-	struct super_block *sb,
-	char *options)
+					 struct super_block *sb,
+					 char *options)
 {
 	struct unionfs_dentry_info *lower_root_info;
 	char *optname;
