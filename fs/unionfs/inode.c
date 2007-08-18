@@ -223,7 +223,7 @@ out:
 	kfree(name);
 
 	if (!err)
-		unionfs_inherit_mnt(dentry);
+		unionfs_postcopyup_setmnt(dentry);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 
@@ -412,7 +412,7 @@ out:
 
 	kfree(name);
 	if (!err)
-		unionfs_inherit_mnt(new_dentry);
+		unionfs_postcopyup_setmnt(new_dentry);
 
 	unionfs_unlock_dentry(new_dentry);
 	unionfs_unlock_dentry(old_dentry);
@@ -577,7 +577,7 @@ out:
 
 	kfree(name);
 	if (!err)
-		unionfs_inherit_mnt(dentry);
+		unionfs_postcopyup_setmnt(dentry);
 	unionfs_unlock_dentry(dentry);
 
 	unionfs_check_inode(dir);
@@ -856,7 +856,7 @@ out:
 	kfree(name);
 
 	if (!err)
-		unionfs_inherit_mnt(dentry);
+		unionfs_postcopyup_setmnt(dentry);
 	unionfs_unlock_dentry(dentry);
 
 	unionfs_check_inode(dir);

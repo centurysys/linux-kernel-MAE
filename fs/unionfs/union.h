@@ -251,8 +251,8 @@ static inline void unionfs_double_lock_dentry(struct dentry *d1,
 extern int new_dentry_private_data(struct dentry *dentry);
 extern void free_dentry_private_data(struct dentry *dentry);
 extern void update_bstart(struct dentry *dentry);
-extern struct nameidata *alloc_lower_nd(unsigned int flags);
-extern void free_lower_nd(struct nameidata *nd, int err);
+extern int init_lower_nd(struct nameidata *nd, unsigned int flags);
+extern void release_lower_nd(struct nameidata *nd, int err);
 
 /*
  * EXTERNALS:
@@ -283,9 +283,9 @@ extern int copyup_named_file(struct inode *dir, struct file *file,
 extern int copyup_dentry(struct inode *dir, struct dentry *dentry,
 			 int bstart, int new_bindex, const char *name,
 			 int namelen, struct file **copyup_file, loff_t len);
-/* helper functions for post-copyup cleanup */
-extern void unionfs_inherit_mnt(struct dentry *dentry);
-extern void unionfs_purge_extras(struct dentry *dentry);
+/* helper functions for post-copyup actions */
+extern void unionfs_postcopyup_setmnt(struct dentry *dentry);
+extern void unionfs_postcopyup_release(struct dentry *dentry);
 
 extern int remove_whiteouts(struct dentry *dentry,
 			    struct dentry *lower_dentry, int bindex);
@@ -344,7 +344,7 @@ extern struct dentry *unionfs_interpose(struct dentry *this_dentry,
 #ifdef CONFIG_UNION_FS_XATTR
 /* Extended attribute functions. */
 extern void *unionfs_xattr_alloc(size_t size, size_t limit);
-
+static inline void unionfs_xattr_kfree(const void *p) {kfree((p));}
 extern ssize_t unionfs_getxattr(struct dentry *dentry, const char *name,
 				void *value, size_t size);
 extern int unionfs_removexattr(struct dentry *dentry, const char *name);
@@ -460,32 +460,18 @@ static inline struct vfsmount *unionfs_mntget(struct dentry *dentry,
 {
 	struct vfsmount *mnt;
 
-	if (!dentry) {
-		if (bindex < 0)
-			return NULL;
-		if (!dentry && bindex >= 0) {
-#ifdef UNIONFS_DEBUG
-			printk(KERN_DEBUG
-			       "unionfs_mntget: dentry=%p bindex=%d\n",
-			       dentry, bindex);
-#endif /* UNIONFS_DEBUG */
-			return NULL;
-		}
-	}
+	BUG_ON(!dentry);
+	BUG_ON(bindex < 0);
+
 	mnt = unionfs_lower_mnt_idx(dentry, bindex);
-	if (!mnt) {
-		if (bindex < 0)
-			return NULL;
-		if (!mnt && bindex >= 0) {
+	if (mnt)
+		mnt = mntget(mnt);
 #ifdef UNIONFS_DEBUG
-			printk(KERN_DEBUG
-			       "unionfs_mntget: mnt=%p bindex=%d\n",
-			       mnt, bindex);
+	else
+		printk(KERN_DEBUG "unionfs_mntget: mnt=%p bindex=%d\n",
+		       mnt, bindex);
 #endif /* UNIONFS_DEBUG */
-			return NULL;
-		}
-	}
-	mnt = mntget(mnt);
+
 	return mnt;
 }
 
@@ -493,40 +479,28 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 {
 	struct vfsmount *mnt;
 
-	if (!dentry) {
-		if (bindex < 0)
-			return;
-		if (!dentry && bindex >= 0) {
-#ifdef UNIONFS_DEBUG
-			printk(KERN_DEBUG
-			       "unionfs_mntput: dentry=%p bindex=%d\n",
-			       dentry, bindex);
-#endif /* UNIONFS_DEBUG */
-			return;
-		}
-	}
+	if (!dentry && bindex < 0)
+		return;
+	BUG_ON(!dentry);
+	BUG_ON(bindex < 0);
+
 	mnt = unionfs_lower_mnt_idx(dentry, bindex);
 	if (!mnt) {
-		if (bindex < 0)
-			return;
-		if (!mnt && bindex >= 0) {
 #ifdef UNIONFS_DEBUG
-			/*
-			 * Directories can have NULL lower objects in
-			 * between start/end, but NOT if at the start/end
-			 * range.  We cannot verify that this dentry is a
-			 * type=DIR, because it may already be a negative
-			 * dentry.  But if dbstart is greater than dbend, we
-			 * know that this couldn't have been a regular file:
-			 * it had to have been a directory.
-			 */
-			if (!(bindex > dbstart(dentry) && bindex < dbend(dentry)))
-				printk(KERN_WARNING
-				       "unionfs_mntput: mnt=%p bindex=%d\n",
-				       mnt, bindex);
+		/*
+		 * Directories can have NULL lower objects in between
+		 * start/end, but NOT if at the start/end range.  We cannot
+		 * verify that this dentry is a type=DIR, because it may
+		 * already be a negative dentry.  But if dbstart is greater
+		 * than dbend, we know that this couldn't have been a
+		 * regular file: it had to have been a directory.
+		 */
+		if (!(bindex > dbstart(dentry) && bindex < dbend(dentry)))
+			printk(KERN_WARNING
+			       "unionfs_mntput: mnt=%p bindex=%d\n",
+			       mnt, bindex);
 #endif /* UNIONFS_DEBUG */
-			return;
-		}
+		return;
 	}
 	mntput(mnt);
 }

@@ -29,7 +29,7 @@ int create_whiteout(struct dentry *dentry, int start)
 	struct dentry *lower_dir_dentry;
 	struct dentry *lower_dentry;
 	struct dentry *lower_wh_dentry;
-	struct nameidata *nd;
+	struct nameidata nd;
 	char *name = NULL;
 	int err = -EINVAL;
 
@@ -83,20 +83,18 @@ int create_whiteout(struct dentry *dentry, int start)
 			goto out;
 		}
 
-		nd = alloc_lower_nd(LOOKUP_CREATE);
-		if (!nd) {
-			err = -ENOMEM;
+		err = init_lower_nd(&nd, LOOKUP_CREATE);
+		if (err < 0)
 			goto out;
-		}
 		lower_dir_dentry = lock_parent(lower_wh_dentry);
 		if (!(err = is_robranch_super(dentry->d_sb, bindex)))
 			err = vfs_create(lower_dir_dentry->d_inode,
 					 lower_wh_dentry,
 					 ~current->fs->umask & S_IRWXUGO,
-					 nd);
+					 &nd);
 		unlock_dir(lower_dir_dentry);
 		dput(lower_wh_dentry);
-		free_lower_nd(nd, err);
+		release_lower_nd(&nd, err);
 
 		if (!err || !IS_COPYUP_ERR(err))
 			break;
@@ -158,7 +156,7 @@ int make_dir_opaque(struct dentry *dentry, int bindex)
 	int err = 0;
 	struct dentry *lower_dentry, *diropq;
 	struct inode *lower_dir;
-	struct nameidata *nd;
+	struct nameidata nd;
 
 	lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
 	lower_dir = lower_dentry->d_inode;
@@ -173,16 +171,14 @@ int make_dir_opaque(struct dentry *dentry, int bindex)
 		goto out;
 	}
 
-	nd = alloc_lower_nd(LOOKUP_CREATE);
-	if (!nd) {
-		err = -ENOMEM;
+	err = init_lower_nd(&nd, LOOKUP_CREATE);
+	if (err < 0)
 		goto out;
-	}
 	if (!diropq->d_inode)
-		err = vfs_create(lower_dir, diropq, S_IRUGO, nd);
+		err = vfs_create(lower_dir, diropq, S_IRUGO, &nd);
 	if (!err)
 		set_dbopaque(dentry, bindex);
-	free_lower_nd(nd, err);
+	release_lower_nd(&nd, err);
 
 	dput(diropq);
 

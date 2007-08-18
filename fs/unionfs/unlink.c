@@ -89,7 +89,7 @@ int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 	/* call d_drop so the system "forgets" about us */
 	if (!err) {
 		if (!S_ISDIR(dentry->d_inode->i_mode))
-			unionfs_purge_extras(dentry);
+			unionfs_postcopyup_release(dentry);
 		d_drop(dentry);
 		/*
 		 * if unlink/whiteout succeeded, parent dir mtime has

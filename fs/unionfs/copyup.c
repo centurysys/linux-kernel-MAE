@@ -84,21 +84,27 @@ static int copyup_xattrs(struct dentry *old_lower_dentry,
 		/* Don't lock here since vfs_setxattr does it for us. */
 		err = vfs_setxattr(new_lower_dentry, name_list, attr_value,
 				   size, 0);
+		/*
+		 * Selinux depends on "security.*" xattrs, so to maintain
+		 * the security of copied-up files, if Selinux is active,
+		 * then we must copy these xattrs as well.  So we need to
+		 * temporarily get FOWNER privileges.
+		 */
+		if (err == -EPERM && !capable(CAP_FOWNER)) {
+			cap_raise(current->cap_effective, CAP_FOWNER);
+			err = vfs_setxattr(new_lower_dentry, name_list,
+					   attr_value, size, 0);
+			cap_lower(current->cap_effective, CAP_FOWNER);
+		}
 		if (err < 0)
 			goto out;
 		name_list += strlen(name_list) + 1;
 	}
 out:
-	if (name_list_orig)
-		kfree(name_list_orig);
-	if (attr_value)
-		kfree(attr_value);
-	/*
-	 * Ignore if xattr isn't supported.  Also ignore EPERM because that
-	 * requires CAP_SYS_ADMIN for security.* xattrs, but copyup happens
-	 * as normal users.
-	 */
-	if (err == -ENOTSUPP || err == -EOPNOTSUPP || err == -EPERM)
+	unionfs_xattr_kfree(name_list_orig);
+	unionfs_xattr_kfree(attr_value);
+	/* Ignore if xattr isn't supported */
+	if (err == -ENOTSUPP || err == -EOPNOTSUPP)
 		err = 0;
 	return err;
 }
@@ -189,19 +195,18 @@ static int __copyup_ndentry(struct dentry *old_lower_dentry,
 		run_sioq(__unionfs_mknod, &args);
 		err = args.err;
 	} else if (S_ISREG(old_mode)) {
-		struct nameidata *nd = alloc_lower_nd(LOOKUP_CREATE);
-		if (!nd) {
-			err = -ENOMEM;
+		struct nameidata nd;
+		err = init_lower_nd(&nd, LOOKUP_CREATE);
+		if (err < 0)
 			goto out;
-		}
-		args.create.nd = nd;
+		args.create.nd = &nd;
 		args.create.parent = new_lower_parent_dentry->d_inode;
 		args.create.dentry = new_lower_dentry;
 		args.create.mode = old_mode;
 
 		run_sioq(__unionfs_create, &args);
 		err = args.err;
-		free_lower_nd(nd, err);
+		release_lower_nd(&nd, err);
 	} else {
 		printk(KERN_ERR "unionfs: unknown inode type %d\n",
 		       old_mode);
@@ -510,7 +515,7 @@ out_free:
 	if (err)
 		goto out;
 	if (!S_ISDIR(dentry->d_inode->i_mode)) {
-		unionfs_purge_extras(dentry);
+		unionfs_postcopyup_release(dentry);
 		if (!unionfs_lower_inode(dentry->d_inode)) {
 			/*
 			 * If we got here, then we copied up to an
@@ -523,7 +528,7 @@ out_free:
 						    inode);
 		}
 	}
-	unionfs_inherit_mnt(dentry);
+	unionfs_postcopyup_setmnt(dentry);
 	/* sync inode times from copied-up inode to our inode */
 	unionfs_copy_attr_times(dentry->d_inode);
 	unionfs_check_inode(dir);
@@ -837,8 +842,11 @@ out:
 	return lower_dentry;
 }
 
-/* set lower mnt of dentry+parents to the first parent node that has an mnt */
-void unionfs_inherit_mnt(struct dentry *dentry)
+/*
+ * Post-copyup helper to ensure we have valid mnts: set lower mnt of
+ * dentry+parents to the first parent node that has an mnt.
+ */
+void unionfs_postcopyup_setmnt(struct dentry *dentry)
 {
 	struct dentry *parent, *hasone;
 	int bindex = dbstart(dentry);
@@ -847,9 +855,8 @@ void unionfs_inherit_mnt(struct dentry *dentry)
 		return;
 	hasone = dentry->d_parent;
 	/* this loop should stop at root dentry */
-	while (!unionfs_lower_mnt_idx(hasone, bindex)) {
+	while (!unionfs_lower_mnt_idx(hasone, bindex))
 		hasone = hasone->d_parent;
-	}
 	parent = dentry;
 	while (!unionfs_lower_mnt_idx(parent, bindex)) {
 		unionfs_set_lower_mnt_idx(parent, bindex,
@@ -859,11 +866,10 @@ void unionfs_inherit_mnt(struct dentry *dentry)
 }
 
 /*
- * Regular files should have only one lower object(s).  On copyup, we may
- * have leftover objects from previous branches.  So purge all such extra
- * objects and keep only the most recent, leftmost, copied-up one.
+ * Post-copyup helper to release all non-directory source objects of a
+ * copied-up file.  Regular files should have only one lower object.
  */
-void unionfs_purge_extras(struct dentry *dentry)
+void unionfs_postcopyup_release(struct dentry *dentry)
 {
 	int bindex;
 
