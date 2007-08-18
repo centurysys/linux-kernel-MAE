@@ -256,7 +256,7 @@ static int do_unionfs_rename(struct inode *old_dir,
 	 */
 	if ((old_bstart != old_bend) || (do_copyup != -1)) {
 		struct dentry *lower_parent;
-		struct nameidata *nd;
+		struct nameidata nd;
 		if (!wh_old || wh_old->d_inode || bwh_old < 0) {
 			printk(KERN_ERR "unionfs: rename error "
 			       "(wh_old=%p/%p bwh_old=%d)\n", wh_old,
@@ -264,14 +264,12 @@ static int do_unionfs_rename(struct inode *old_dir,
 			err = -EIO;
 			goto out;
 		}
-		nd = alloc_lower_nd(LOOKUP_CREATE);
-		if (!nd) {
-			err = -ENOMEM;
+		err = init_lower_nd(&nd, LOOKUP_CREATE);
+		if (err < 0)
 			goto out;
-		}
 		lower_parent = lock_parent(wh_old);
 		local_err = vfs_create(lower_parent->d_inode, wh_old, S_IRUGO,
-				       nd);
+				       &nd);
 		unlock_dir(lower_parent);
 		if (!local_err)
 			set_dbopaque(old_dentry, bwh_old);
@@ -284,7 +282,7 @@ static int do_unionfs_rename(struct inode *old_dir,
 			       "the source in rename!\n");
 			err = -EIO;
 		}
-		free_lower_nd(nd, local_err);
+		release_lower_nd(&nd, local_err);
 	}
 
 out:
@@ -486,11 +484,11 @@ out:
 		if (S_ISDIR(old_dentry->d_inode->i_mode))
 			atomic_dec(&UNIONFS_D(old_dentry)->generation);
 		else
-			unionfs_purge_extras(old_dentry);
+			unionfs_postcopyup_release(old_dentry);
 		if (new_dentry->d_inode &&
 		    !S_ISDIR(new_dentry->d_inode->i_mode)) {
-			unionfs_purge_extras(new_dentry);
-			unionfs_inherit_mnt(new_dentry);
+			unionfs_postcopyup_release(new_dentry);
+			unionfs_postcopyup_setmnt(new_dentry);
 			if (!unionfs_lower_inode(new_dentry->d_inode)) {
 				/*
 				 * If we get here, it means that no copyup

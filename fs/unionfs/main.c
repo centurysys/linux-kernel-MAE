@@ -143,14 +143,15 @@ skip:
 		spliced = d_splice_alias(inode, dentry);
 		if (IS_ERR(spliced))
 			err = PTR_ERR(spliced);
-
-		/*
-		 * d_splice can return a dentry if it was disconnected and
-		 * had to be moved.  We must ensure that the private data of
-		 * the new dentry is correct and that the inode info was
-		 * filled properly.  Finally we must return this new dentry.
-		 */
 		else if (spliced && spliced != dentry) {
+			/*
+			 * d_splice can return a dentry if it was
+			 * disconnected and had to be moved.  We must ensure
+			 * that the private data of the new dentry is
+			 * correct and that the inode info was filled
+			 * properly.  Finally we must return this new
+			 * dentry.
+			 */
 			spliced->d_op = &unionfs_dops;
 			spliced->d_fsdata = dentry->d_fsdata;
 			dentry->d_fsdata = NULL;

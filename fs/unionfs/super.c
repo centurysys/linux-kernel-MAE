@@ -448,11 +448,12 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	unionfs_write_lock(sb);
 
 	/*
-	 * The VFS will take care of "ro" and "rw" flags, so anything else
-	 * is an error.  So we need to check if any other flags may have
-	 * been passed (none are allowed/supported as of now).
+	 * The VFS will take care of "ro" and "rw" flags, and we can safely
+	 * ignore MS_SILENT, but anything else left over is an error.  So we
+	 * need to check if any other flags may have been passed (none are
+	 * allowed/supported as of now).
 	 */
-	if ((*flags & ~MS_RDONLY) != 0) {
+	if ((*flags & ~(MS_RDONLY | MS_SILENT)) != 0) {
 		printk(KERN_WARNING
 		       "unionfs: remount flags 0x%x unsupported\n", *flags);
 		err = -EINVAL;

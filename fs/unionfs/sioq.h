@@ -3,11 +3,7 @@
  * Copyright (c) 2003-2006 Charles P. Wright
  * Copyright (c) 2005-2007 Josef 'Jeff' Sipek
  * Copyright (c) 2005-2006 Junjiro Okajima
- * Copyright (c) 2005      Arun M. Krishnakumar
  * Copyright (c) 2004-2006 David P. Quigley
- * Copyright (c) 2003-2004 Mohammad Nayyer Zubair
- * Copyright (c) 2003      Puja Gupta
- * Copyright (c) 2003      Harikesavan Krishnan
  * Copyright (c) 2003-2007 Stony Brook University
  * Copyright (c) 2003-2007 The Research Foundation of SUNY
  *
