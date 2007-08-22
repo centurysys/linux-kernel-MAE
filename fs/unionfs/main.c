@@ -20,6 +20,58 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
+static void unionfs_fill_inode(struct dentry *dentry,
+			       struct inode *inode)
+{
+	struct inode *lower_inode;
+	struct dentry *lower_dentry;
+	int bindex, bstart, bend;
+
+	bstart = dbstart(dentry);
+	bend = dbend(dentry);
+
+	for (bindex = bstart; bindex <= bend; bindex++) {
+		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
+		if (!lower_dentry) {
+			unionfs_set_lower_inode_idx(inode, bindex, NULL);
+			continue;
+		}
+
+		/* Initialize the lower inode to the new lower inode. */
+		if (!lower_dentry->d_inode)
+			continue;
+
+		unionfs_set_lower_inode_idx(inode, bindex,
+					    igrab(lower_dentry->d_inode));
+	}
+
+	ibstart(inode) = dbstart(dentry);
+	ibend(inode) = dbend(dentry);
+
+	/* Use attributes from the first branch. */
+	lower_inode = unionfs_lower_inode(inode);
+
+	/* Use different set of inode ops for symlinks & directories */
+	if (S_ISLNK(lower_inode->i_mode))
+		inode->i_op = &unionfs_symlink_iops;
+	else if (S_ISDIR(lower_inode->i_mode))
+		inode->i_op = &unionfs_dir_iops;
+
+	/* Use different set of file ops for directories */
+	if (S_ISDIR(lower_inode->i_mode))
+		inode->i_fop = &unionfs_dir_fops;
+
+	/* properly initialize special inodes */
+	if (S_ISBLK(lower_inode->i_mode) || S_ISCHR(lower_inode->i_mode) ||
+	    S_ISFIFO(lower_inode->i_mode) || S_ISSOCK(lower_inode->i_mode))
+		init_special_inode(inode, lower_inode->i_mode,
+				   lower_inode->i_rdev);
+
+	/* all well, copy inode attributes */
+	unionfs_copy_attr_all(inode, lower_inode);
+	fsstack_copy_inode_size(inode, lower_inode);
+}
+
 /*
  * Connect a unionfs inode dentry/inode with several lower ones.  This is
  * the classic stackable file system "vnode interposition" action.
@@ -29,13 +81,11 @@
 struct dentry *unionfs_interpose(struct dentry *dentry, struct super_block *sb,
 				 int flag)
 {
-	struct inode *lower_inode;
-	struct dentry *lower_dentry;
 	int err = 0;
 	struct inode *inode;
 	int is_negative_dentry = 1;
 	int bindex, bstart, bend;
-	int skipped = 1;
+	int need_fill_inode = 1;
 	struct dentry *spliced = NULL;
 
 	verify_locked(dentry);
@@ -87,51 +137,9 @@ struct dentry *unionfs_interpose(struct dentry *dentry, struct super_block *sb,
 			goto skip;
 	}
 
-fill_i_info:
-	skipped = 0;
-	for (bindex = bstart; bindex <= bend; bindex++) {
-		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-		if (!lower_dentry) {
-			unionfs_set_lower_inode_idx(inode, bindex, NULL);
-			continue;
-		}
+	need_fill_inode = 0;
+	unionfs_fill_inode(dentry, inode);
 
-		/* Initialize the lower inode to the new lower inode. */
-		if (!lower_dentry->d_inode)
-			continue;
-
-		unionfs_set_lower_inode_idx(inode, bindex,
-					    igrab(lower_dentry->d_inode));
-	}
-
-	ibstart(inode) = dbstart(dentry);
-	ibend(inode) = dbend(dentry);
-
-	/* Use attributes from the first branch. */
-	lower_inode = unionfs_lower_inode(inode);
-
-	/* Use different set of inode ops for symlinks & directories */
-	if (S_ISLNK(lower_inode->i_mode))
-		inode->i_op = &unionfs_symlink_iops;
-	else if (S_ISDIR(lower_inode->i_mode))
-		inode->i_op = &unionfs_dir_iops;
-
-	/* Use different set of file ops for directories */
-	if (S_ISDIR(lower_inode->i_mode))
-		inode->i_fop = &unionfs_dir_fops;
-
-	/* properly initialize special inodes */
-	if (S_ISBLK(lower_inode->i_mode) || S_ISCHR(lower_inode->i_mode) ||
-	    S_ISFIFO(lower_inode->i_mode) || S_ISSOCK(lower_inode->i_mode))
-		init_special_inode(inode, lower_inode->i_mode,
-				   lower_inode->i_rdev);
-
-	/* all well, copy inode attributes */
-	unionfs_copy_attr_all(inode, lower_inode);
-	fsstack_copy_inode_size(inode, lower_inode);
-
-	if (spliced)
-		goto out_spliced;
 skip:
 	/* only (our) lookup wants to do a d_add */
 	switch (flag) {
@@ -156,8 +164,10 @@ skip:
 			spliced->d_fsdata = dentry->d_fsdata;
 			dentry->d_fsdata = NULL;
 			dentry = spliced;
-			if (skipped)
-				goto fill_i_info;
+			if (need_fill_inode) {
+				need_fill_inode = 0;
+				unionfs_fill_inode(dentry, inode);
+			}
 			goto out_spliced;
 		}
 		break;

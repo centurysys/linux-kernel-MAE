@@ -1,10 +1,7 @@
-KNOWN Unionfs 2.0 ISSUES:
+KNOWN Unionfs 2.1 ISSUES:
 =========================
 
-1. The NFS server returns -EACCES for read-only exports, instead of -EROFS.
-   This means we can't reliably detect a read-only NFS export.
-
-2. Unionfs should not use lookup_one_len() on the underlying f/s as it
+1. Unionfs should not use lookup_one_len() on the underlying f/s as it
    confuses NFSv4.  Currently, unionfs_lookup() passes lookup intents to the
    lower file-system, this eliminates part of the problem.  The remaining
    calls to lookup_one_len may need to be changed to pass an intent.  We are

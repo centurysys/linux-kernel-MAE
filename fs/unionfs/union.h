@@ -344,7 +344,10 @@ extern struct dentry *unionfs_interpose(struct dentry *this_dentry,
 #ifdef CONFIG_UNION_FS_XATTR
 /* Extended attribute functions. */
 extern void *unionfs_xattr_alloc(size_t size, size_t limit);
-static inline void unionfs_xattr_kfree(const void *p) {kfree((p));}
+static inline void unionfs_xattr_kfree(const void *p)
+{
+	kfree(p);
+}
 extern ssize_t unionfs_getxattr(struct dentry *dentry, const char *name,
 				void *value, size_t size);
 extern int unionfs_removexattr(struct dentry *dentry, const char *name);
@@ -395,14 +398,23 @@ static inline int is_robranch_super(const struct super_block *sb, int index)
 /* Is this file on a read-only branch? */
 static inline int is_robranch_idx(const struct dentry *dentry, int index)
 {
-	int err = 0;
+	struct super_block *lower_sb;
 
 	BUG_ON(index < 0);
 
-	if ((!(branchperms(dentry->d_sb, index) & MAY_WRITE)) ||
-	    IS_RDONLY(unionfs_lower_dentry_idx(dentry, index)->d_inode))
-		err = -EROFS;
-	return err;
+	if (!(branchperms(dentry->d_sb, index) & MAY_WRITE))
+		return -EROFS;
+
+	lower_sb = unionfs_lower_super_idx(dentry->d_sb, index);
+	BUG_ON(lower_sb == NULL);
+	/*
+	 * test sb flags directly, not IS_RDONLY(lower_inode) because the
+	 * lower_dentry could be a negative.
+	 */
+	if (lower_sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	return 0;
 }
 
 static inline int is_robranch(const struct dentry *dentry)
@@ -460,17 +472,14 @@ static inline struct vfsmount *unionfs_mntget(struct dentry *dentry,
 {
 	struct vfsmount *mnt;
 
-	BUG_ON(!dentry);
-	BUG_ON(bindex < 0);
+	BUG_ON(!dentry || bindex < 0);
 
-	mnt = unionfs_lower_mnt_idx(dentry, bindex);
-	if (mnt)
-		mnt = mntget(mnt);
-#ifdef UNIONFS_DEBUG
-	else
+	mnt = mntget(unionfs_lower_mnt_idx(dentry, bindex));
+#ifdef CONFIG_UNION_FS_DEBUG
+	if (!mnt)
 		printk(KERN_DEBUG "unionfs_mntget: mnt=%p bindex=%d\n",
 		       mnt, bindex);
-#endif /* UNIONFS_DEBUG */
+#endif /* CONFIG_UNION_FS_DEBUG */
 
 	return mnt;
 }
@@ -481,31 +490,26 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 
 	if (!dentry && bindex < 0)
 		return;
-	BUG_ON(!dentry);
-	BUG_ON(bindex < 0);
+	BUG_ON(!dentry || bindex < 0);
 
 	mnt = unionfs_lower_mnt_idx(dentry, bindex);
-	if (!mnt) {
-#ifdef UNIONFS_DEBUG
-		/*
-		 * Directories can have NULL lower objects in between
-		 * start/end, but NOT if at the start/end range.  We cannot
-		 * verify that this dentry is a type=DIR, because it may
-		 * already be a negative dentry.  But if dbstart is greater
-		 * than dbend, we know that this couldn't have been a
-		 * regular file: it had to have been a directory.
-		 */
-		if (!(bindex > dbstart(dentry) && bindex < dbend(dentry)))
-			printk(KERN_WARNING
-			       "unionfs_mntput: mnt=%p bindex=%d\n",
-			       mnt, bindex);
-#endif /* UNIONFS_DEBUG */
-		return;
-	}
+#ifdef CONFIG_UNION_FS_DEBUG
+	/*
+	 * Directories can have NULL lower objects in between start/end, but
+	 * NOT if at the start/end range.  We cannot verify that this dentry
+	 * is a type=DIR, because it may already be a negative dentry.  But
+	 * if dbstart is greater than dbend, we know that this couldn't have
+	 * been a regular file: it had to have been a directory.
+	 */
+	if (!mnt && !(bindex > dbstart(dentry) && bindex < dbend(dentry)))
+		printk(KERN_WARNING
+		       "unionfs_mntput: mnt=%p bindex=%d\n",
+		       mnt, bindex);
+#endif /* CONFIG_UNION_FS_DEBUG */
 	mntput(mnt);
 }
 
-#ifdef UNIONFS_DEBUG
+#ifdef CONFIG_UNION_FS_DEBUG
 
 /* useful for tracking code reachability */
 #define UDBG printk("DBG:%s:%s:%d\n",__FILE__,__FUNCTION__,__LINE__)
@@ -541,7 +545,7 @@ extern void __show_dinode_times(const struct dentry *dentry,
 extern void __show_inode_counts(const struct inode *inode,
 			        const char *file, const char *fxn, int line);
 
-#else /* not UNIONFS_DEBUG */
+#else /* not CONFIG_UNION_FS_DEBUG */
 
 /* we leave useful hooks for these check functions throughout the code */
 #define unionfs_check_inode(i)
@@ -552,6 +556,6 @@ extern void __show_inode_counts(const struct inode *inode,
 #define show_dinode_times(d)
 #define show_inode_counts(i)
 
-#endif /* not UNIONFS_DEBUG */
+#endif /* not CONFIG_UNION_FS_DEBUG */
 
 #endif	/* not _UNION_H_ */
