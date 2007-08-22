@@ -586,6 +586,8 @@ int init_lower_nd(struct nameidata *nd, unsigned int flags)
 	struct file *file;
 #endif /* ALLOC_LOWER_ND_FILE */
 
+	memset(nd, 0, sizeof(struct nameidata));
+
 	switch (flags) {
 	case LOOKUP_CREATE:
 		nd->flags = LOOKUP_CREATE;
@@ -613,9 +615,11 @@ int init_lower_nd(struct nameidata *nd, unsigned int flags)
 
 void release_lower_nd(struct nameidata *nd, int err)
 {
-	if (nd->intent.open.file)
+	if (!nd->intent.open.file)
 		return;
 	if (!err)
 		release_open_intent(nd);
+#ifdef ALLOC_LOWER_ND_FILE
 	kfree(nd->intent.open.file);
+#endif /* ALLOC_LOWER_ND_FILE */
 }

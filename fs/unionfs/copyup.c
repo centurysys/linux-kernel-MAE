@@ -32,7 +32,7 @@ static int copyup_xattrs(struct dentry *old_lower_dentry,
 	ssize_t list_size = -1;
 	char *name_list = NULL;
 	char *attr_value = NULL;
-	char *name_list_orig = NULL;
+	char *name_list_buf = NULL;
 
 	/* query the actual size of the xattr list */
 	list_size = vfs_listxattr(old_lower_dentry, NULL, 0);
@@ -48,7 +48,7 @@ static int copyup_xattrs(struct dentry *old_lower_dentry,
 		goto out;
 	}
 
-	name_list_orig = name_list; /* save for kfree at end */
+	name_list_buf = name_list; /* save for kfree at end */
 
 	/* now get the actual xattr list of the source file */
 	list_size = vfs_listxattr(old_lower_dentry, name_list, list_size);
@@ -89,6 +89,7 @@ static int copyup_xattrs(struct dentry *old_lower_dentry,
 		 * the security of copied-up files, if Selinux is active,
 		 * then we must copy these xattrs as well.  So we need to
 		 * temporarily get FOWNER privileges.
+		 * XXX: move entire copyup code to SIOQ.
 		 */
 		if (err == -EPERM && !capable(CAP_FOWNER)) {
 			cap_raise(current->cap_effective, CAP_FOWNER);
@@ -101,7 +102,7 @@ static int copyup_xattrs(struct dentry *old_lower_dentry,
 		name_list += strlen(name_list) + 1;
 	}
 out:
-	unionfs_xattr_kfree(name_list_orig);
+	unionfs_xattr_kfree(name_list_buf);
 	unionfs_xattr_kfree(attr_value);
 	/* Ignore if xattr isn't supported */
 	if (err == -ENOTSUPP || err == -EOPNOTSUPP)
