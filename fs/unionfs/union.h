@@ -143,7 +143,11 @@ struct unionfs_sb_info {
 	 *   2) any new operations do not execute until the currently
 	 *      running branch management operation completes
 	 */
+#ifdef CONFIG_PREEMPT_RT
+	struct compat_rw_semaphore rwsem;
+#else /* not CONFIG_PREEMPT_RT */
 	struct rw_semaphore rwsem;
+#endif /* not CONFIG_PREEMPT_RT */
 	int high_branch_id;	/* last unique branch ID given */
 	struct unionfs_data *data;
 };
