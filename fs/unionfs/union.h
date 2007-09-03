@@ -441,10 +441,6 @@ static inline int is_robranch(const struct dentry *dentry)
 #define UNIONFS_DIR_OPAQUE_NAME "__dir_opaque"
 #define UNIONFS_DIR_OPAQUE UNIONFS_WHPFX UNIONFS_DIR_OPAQUE_NAME
 
-#ifndef DEFAULT_POLLMASK
-#define DEFAULT_POLLMASK (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM)
-#endif /* not DEFAULT_POLLMASK */
-
 /*
  * EXTERNALS:
  */
