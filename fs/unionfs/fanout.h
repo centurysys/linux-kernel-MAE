@@ -320,7 +320,6 @@ static inline void unionfs_copy_attr_times(struct inode *upper)
 			upper->i_ctime = lower->i_ctime;
 		if (timespec_compare(&upper->i_atime, &lower->i_atime) < 0)
 			upper->i_atime = lower->i_atime;
-		/* XXX: should we notify_change on our upper inode? */
 	}
 }
 
