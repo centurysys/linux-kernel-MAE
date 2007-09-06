@@ -262,7 +262,7 @@ static inline void purge_inode_data(struct inode *inode)
  * Revalidate a parent chain of dentries, then the actual node.
  * Assumes that dentry is locked, but will lock all parents if/when needed.
  *
- * If 'willwrite' is 1, and the lower inode times are not in sync, then
+ * If 'willwrite' is true, and the lower inode times are not in sync, then
  * *don't* purge_inode_data, as it could deadlock if ->write calls us and we
  * try to truncate a locked page.  Besides, if unionfs is about to write
  * data to a file, then there's the data unionfs is about to write is more

@@ -211,7 +211,7 @@ static int unionfs_readpage(struct file *file, struct page *page)
 	int err;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if ((err = unionfs_file_revalidate(file, 0)))
+	if ((err = unionfs_file_revalidate(file, false)))
 		goto out;
 	unionfs_check_file(file);
 
@@ -254,7 +254,7 @@ static int unionfs_prepare_write(struct file *file, struct page *page,
 	 * is here, in ->prepare_write.
 	 */
 	unionfs_copy_attr_times(file->f_path.dentry->d_inode);
-	err = unionfs_file_revalidate(file, 1);
+	err = unionfs_file_revalidate(file, true);
 	unionfs_check_file(file);
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
 
@@ -275,7 +275,7 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 	BUG_ON(file == NULL);
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if ((err = unionfs_file_revalidate(file, 1)))
+	if ((err = unionfs_file_revalidate(file, true)))
 		goto out;
 	unionfs_check_file(file);
 
