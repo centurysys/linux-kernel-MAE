@@ -184,7 +184,7 @@ out:
 
 /*
  * Determine if the lower inode objects have changed from below the unionfs
- * inode.  Return 1 if changed, 0 otherwise.
+ * inode.  Return true if changed, false otherwise.
  */
 bool is_newer_lower(const struct dentry *dentry)
 {
@@ -226,7 +226,7 @@ bool is_newer_lower(const struct dentry *dentry)
 			return true; /* ctime changed! */
 		}
 	}
-	return true;		/* default: lower is not newer */
+	return false;		/* default: lower is not newer */
 }
 
 /*
