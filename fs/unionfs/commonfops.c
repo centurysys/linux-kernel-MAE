@@ -68,7 +68,6 @@ retry:
 			err = PTR_ERR(tmp_dentry);
 			goto out;
 		}
-		/* don't dput here because of do-while condition eval order */
 	} while (tmp_dentry->d_inode != NULL);	/* need negative dentry */
 	dput(tmp_dentry);
 
@@ -338,8 +337,8 @@ int unionfs_file_revalidate(struct file *file, int willwrite)
 	 */
 	if (!d_deleted(dentry) &&
 	    (sbgen > fgen || dbstart(dentry) != fbstart(file))) {
-		int orig_brid =	/* save orig branch ID */
-			UNIONFS_F(file)->saved_branch_ids[fbstart(file)];
+		/* save orig branch ID */
+		int orig_brid =	UNIONFS_F(file)->saved_branch_ids[fbstart(file)];
 
 		/* First we throw out the existing files. */
 		cleanup_file(file);
@@ -382,14 +381,13 @@ int unionfs_file_revalidate(struct file *file, int willwrite)
 				 * update the mnt counts of the old and new
 				 * branches accordingly.
 				 */
-				unionfs_mntget(dentry, bstart);	/* new branch */
-				unionfs_mntput(sb->s_root, /* orig branch */
+				unionfs_mntget(dentry, bstart);
+				unionfs_mntput(sb->s_root,
 					       branch_id_to_idx(sb, orig_brid));
 			}
 		}
 		atomic_set(&UNIONFS_F(file)->generation,
-			   atomic_read(&UNIONFS_I(dentry->d_inode)->
-				       generation));
+			   atomic_read(&UNIONFS_I(dentry->d_inode)->generation));
 	}
 
 	/* Copyup on the first write to a file on a readonly branch. */

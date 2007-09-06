@@ -79,7 +79,7 @@ int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, 0)) {
+	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -148,7 +148,7 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, 0)) {
+	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}

@@ -331,9 +331,9 @@ extern int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 extern int unionfs_unlink(struct inode *dir, struct dentry *dentry);
 extern int unionfs_rmdir(struct inode *dir, struct dentry *dentry);
 
-extern int __unionfs_d_revalidate_chain(struct dentry *dentry,
-					struct nameidata *nd, int willwrite);
-extern int is_newer_lower(const struct dentry *dentry);
+extern bool __unionfs_d_revalidate_chain(struct dentry *dentry,
+					 struct nameidata *nd, bool willwrite);
+extern bool is_newer_lower(const struct dentry *dentry);
 
 /* The values for unionfs_interpose's flag. */
 #define INTERPOSE_DEFAULT	0
@@ -548,13 +548,13 @@ extern void __show_inode_counts(const struct inode *inode,
 #else /* not CONFIG_UNION_FS_DEBUG */
 
 /* we leave useful hooks for these check functions throughout the code */
-#define unionfs_check_inode(i)
-#define unionfs_check_dentry(d)
-#define unionfs_check_file(f)
-#define show_branch_counts(sb)
-#define show_inode_times(i)
-#define show_dinode_times(d)
-#define show_inode_counts(i)
+#define unionfs_check_inode(i)		do { } while(0)
+#define unionfs_check_dentry(d)	do { } while(0)
+#define unionfs_check_file(f)		do { } while(0)
+#define show_branch_counts(sb)		do { } while(0)
+#define show_inode_times(i)		do { } while(0)
+#define show_dinode_times(d)		do { } while(0)
+#define show_inode_counts(i)		do { } while(0)
 
 #endif /* not CONFIG_UNION_FS_DEBUG */
 
