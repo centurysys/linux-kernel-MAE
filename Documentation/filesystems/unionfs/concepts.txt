@@ -104,7 +104,7 @@ longer in sync with its lower counterparts, then we rebuild that object
 similarly to how we do so for branch-management.
 
 While rebuilding Unionfs's objects, we also purge any page mappings and
-truncate inode pages (see fs/Unionfs/dentry.c:purge_inode_data).  This is to
+truncate inode pages (see fs/unionfs/dentry.c:purge_inode_data).  This is to
 ensure that Unionfs will re-get the newer data from the lower branches.  We
 perform this purging only if the Unionfs operation in question is a reading
 operation; if Unionfs is performing a data writing operation (e.g., ->write,
