@@ -32,13 +32,13 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 	unionfs_lock_dentry(dentry);
 
 	unionfs_lock_dentry(dentry->d_parent);
-	valid = __unionfs_d_revalidate_chain(dentry->d_parent, nd, 0);
+	valid = __unionfs_d_revalidate_chain(dentry->d_parent, nd, false);
 	unionfs_unlock_dentry(dentry->d_parent);
 	if (!valid) {
 		err = -ESTALE;	/* same as what real_lookup does */
 		goto out;
 	}
-	valid = __unionfs_d_revalidate_chain(dentry, nd, 0);
+	valid = __unionfs_d_revalidate_chain(dentry, nd, false);
 	/*
 	 * It's only a bug if this dentry was not negative and couldn't be
 	 * revalidated (shouldn't happen).
@@ -199,12 +199,12 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 	unionfs_read_lock(old_dentry->d_sb);
 	unionfs_double_lock_dentry(new_dentry, old_dentry);
 
-	if (!__unionfs_d_revalidate_chain(old_dentry, NULL, 0)) {
+	if (!__unionfs_d_revalidate_chain(old_dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
 	if (new_dentry->d_inode &&
-	    !__unionfs_d_revalidate_chain(new_dentry, NULL, 0)) {
+	    !__unionfs_d_revalidate_chain(new_dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -349,7 +349,7 @@ static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
 	unionfs_lock_dentry(dentry);
 
 	if (dentry->d_inode &&
-	    !__unionfs_d_revalidate_chain(dentry, NULL, 0)) {
+	    !__unionfs_d_revalidate_chain(dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -510,7 +510,7 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 	unionfs_lock_dentry(dentry);
 
 	if (dentry->d_inode &&
-	    !__unionfs_d_revalidate_chain(dentry, NULL, 0)) {
+	    !__unionfs_d_revalidate_chain(dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -660,7 +660,7 @@ static int unionfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	unionfs_lock_dentry(dentry);
 
 	if (dentry->d_inode &&
-	    !__unionfs_d_revalidate_chain(dentry, NULL, 0)) {
+	    !__unionfs_d_revalidate_chain(dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -784,7 +784,7 @@ static int unionfs_readlink(struct dentry *dentry, char __user *buf,
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, 0)) {
+	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -863,7 +863,7 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
 	unionfs_read_lock(dentry->d_sb);
 
 	unionfs_lock_dentry(dentry);
-	if (!__unionfs_d_revalidate_chain(dentry, nd, 0))
+	if (!__unionfs_d_revalidate_chain(dentry, nd, false))
 		printk("unionfs: put_link failed to revalidate dentry\n");
 	unionfs_unlock_dentry(dentry);
 
@@ -1012,7 +1012,7 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, 0)) {
+	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}

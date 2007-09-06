@@ -416,12 +416,12 @@ int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	unionfs_read_lock(old_dentry->d_sb);
 	unionfs_double_lock_dentry(old_dentry, new_dentry);
 
-	if (!__unionfs_d_revalidate_chain(old_dentry, NULL, 0)) {
+	if (!__unionfs_d_revalidate_chain(old_dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
 	if (!d_deleted(new_dentry) && new_dentry->d_inode &&
-	    !__unionfs_d_revalidate_chain(new_dentry, NULL, 0)) {
+	    !__unionfs_d_revalidate_chain(new_dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -501,7 +501,7 @@ out:
 				struct inode *inode;
 				inode = unionfs_lower_inode(
 					old_dentry->d_inode);
-				atomic_inc(&inode->i_count);
+				igrab(inode);
 				unionfs_set_lower_inode_idx(
 					new_dentry->d_inode,
 					dbstart(new_dentry), inode);

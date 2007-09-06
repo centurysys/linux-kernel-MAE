@@ -23,12 +23,12 @@
  * Assume that dentry's info node is locked.
  * Assume that parent(s) are all valid already, but
  * the child may not yet be valid.
- * Returns 1 if valid, 0 otherwise.
+ * Returns true if valid, false otherwise.
  */
-static int __unionfs_d_revalidate_one(struct dentry *dentry,
+static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 				      struct nameidata *nd)
 {
-	int valid = 1;		/* default is valid (1); invalid is 0. */
+	bool valid = true;	/* default is valid */
 	struct dentry *lower_dentry;
 	int bindex, bstart, bend;
 	int sbgen, dgen;
@@ -127,7 +127,7 @@ static int __unionfs_d_revalidate_one(struct dentry *dentry,
 						interpose_flag);
 		if (result) {
 			if (IS_ERR(result)) {
-				valid = 0;
+				valid = false;
 				goto out;
 			}
 			/*
@@ -141,7 +141,7 @@ static int __unionfs_d_revalidate_one(struct dentry *dentry,
 		if (positive && UNIONFS_I(dentry->d_inode)->stale) {
 			make_bad_inode(dentry->d_inode);
 			d_drop(dentry);
-			valid = 0;
+			valid = false;
 			goto out;
 		}
 		goto out;
@@ -158,11 +158,11 @@ static int __unionfs_d_revalidate_one(struct dentry *dentry,
 			continue;
 		if (!lower_dentry->d_op->d_revalidate(lower_dentry,
 						      &lowernd))
-			valid = 0;
+			valid = false;
 	}
 
 	if (!dentry->d_inode)
-		valid = 0;
+		valid = false;
 
 	if (valid) {
 		/*
@@ -186,7 +186,7 @@ out:
  * Determine if the lower inode objects have changed from below the unionfs
  * inode.  Return 1 if changed, 0 otherwise.
  */
-int is_newer_lower(const struct dentry *dentry)
+bool is_newer_lower(const struct dentry *dentry)
 {
 	int bindex;
 	struct inode *inode;
@@ -194,11 +194,11 @@ int is_newer_lower(const struct dentry *dentry)
 
 	/* ignore if we're called on semi-initialized dentries/inodes */
 	if (!dentry || !UNIONFS_D(dentry))
-		return 0;
+		return false;
 	inode = dentry->d_inode;
 	if (!inode || !UNIONFS_I(inode) ||
 	    ibstart(inode) < 0 || ibend(inode) < 0)
-		return 0;
+		return false;
 
 	for (bindex = ibstart(inode); bindex <= ibend(inode); bindex++) {
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
@@ -215,7 +215,7 @@ int is_newer_lower(const struct dentry *dentry)
 			       "(bindex=%d, name=%s)\n", bindex,
 			       dentry->d_name.name);
 			show_dinode_times(dentry);
-			return 1; /* mtime changed! */
+			return true; /* mtime changed! */
 		}
 		if (timespec_compare(&inode->i_ctime,
 				     &lower_inode->i_ctime) < 0) {
@@ -223,10 +223,10 @@ int is_newer_lower(const struct dentry *dentry)
 			       "(bindex=%d, name=%s)\n", bindex,
 			       dentry->d_name.name);
 			show_dinode_times(dentry);
-			return 1; /* ctime changed! */
+			return true; /* ctime changed! */
 		}
 	}
-	return 0;		/* default: lower is not newer */
+	return true;		/* default: lower is not newer */
 }
 
 /*
@@ -249,13 +249,13 @@ int is_newer_lower(const struct dentry *dentry)
  * active mappings and force a ->readpage, let us know please
  * (invalidate_inode_pages2 doesn't do the trick).
  */
-static inline void purge_inode_data(struct dentry *dentry)
+static inline void purge_inode_data(struct inode *inode)
 {
 	/* remove all non-private mappings */
-	unmap_mapping_range(dentry->d_inode->i_mapping, 0, 0, 0);
+	unmap_mapping_range(inode->i_mapping, 0, 0, 0);
 
-	if (dentry->d_inode->i_data.nrpages)
-		truncate_inode_pages(&dentry->d_inode->i_data, 0);
+	if (inode->i_data.nrpages)
+		truncate_inode_pages(&inode->i_data, 0);
 }
 
 /*
@@ -269,10 +269,10 @@ static inline void purge_inode_data(struct dentry *dentry)
  * authoritative than what's below, therefore we can safely overwrite the
  * lower inode times and data.
  */
-int __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
-				 int willwrite)
+bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
+				  bool willwrite)
 {
-	int valid = 0;		/* default is invalid (0); valid is 1. */
+	bool valid = false;	/* default is invalid */
 	struct dentry **chain = NULL; /* chain of dentries to reval */
 	int chain_len = 0;
 	struct dentry *dtmp;
@@ -302,7 +302,7 @@ int __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 			dgen = 0;
 			atomic_set(&UNIONFS_D(dtmp)->generation, dgen);
 		}
-		purge_inode_data(dtmp);
+		purge_inode_data(dtmp->d_inode);
 	}
 	while (sbgen != dgen) {
 		/* The root entry should always be valid */
@@ -379,7 +379,7 @@ out_this:
 			atomic_set(&UNIONFS_D(dentry)->generation, dgen);
 		}
 		if (!willwrite)
-			purge_inode_data(dentry);
+			purge_inode_data(dentry->d_inode);
 	}
 	valid = __unionfs_d_revalidate_one(dentry, nd);
 
@@ -416,7 +416,7 @@ static int unionfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	unionfs_read_lock(dentry->d_sb);
 
 	unionfs_lock_dentry(dentry);
-	err = __unionfs_d_revalidate_chain(dentry, nd, 0);
+	err = __unionfs_d_revalidate_chain(dentry, nd, false);
 	unionfs_unlock_dentry(dentry);
 	unionfs_check_dentry(dentry);
 

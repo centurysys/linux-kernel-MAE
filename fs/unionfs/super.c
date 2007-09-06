@@ -126,7 +126,7 @@ static int unionfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	unionfs_read_lock(sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, 0)) {
+	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -666,6 +666,7 @@ out_no_change:
 		err = -ENOMEM;
 		goto out_release;
 	}
+
 	/* allocate space for new pointers to lower paths */
 	size = new_branches * sizeof(struct path);
 	new_lower_paths = krealloc(tmp_lower_paths, size, GFP_KERNEL);
@@ -673,6 +674,7 @@ out_no_change:
 		err = -ENOMEM;
 		goto out_release;
 	}
+
 	/* allocate space for new pointers to lower inodes */
 	new_lower_inodes = kcalloc(new_branches,
 				   sizeof(struct inode *), GFP_KERNEL);
