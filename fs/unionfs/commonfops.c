@@ -190,7 +190,7 @@ out:
 }
 
 /* open the highest priority file for a given upper file */
-static int open_highest_file(struct file *file, int willwrite)
+static int open_highest_file(struct file *file, bool willwrite)
 {
 	int bindex, bstart, bend, err = 0;
 	struct file *lower_file;
@@ -298,9 +298,9 @@ out:
 /*
  * Revalidate the struct file
  * @file: file to revalidate
- * @willwrite: 1 if caller may cause changes to the file; 0 otherwise.
+ * @willwrite: true if caller may cause changes to the file; false otherwise.
  */
-int unionfs_file_revalidate(struct file *file, int willwrite)
+int unionfs_file_revalidate(struct file *file, bool willwrite)
 {
 	struct super_block *sb;
 	struct dentry *dentry;
@@ -612,7 +612,7 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	 * This is important for open-but-unlinked files, as well as mmap
 	 * support.
 	 */
-	if ((err = unionfs_file_revalidate(file, 1)))
+	if ((err = unionfs_file_revalidate(file, true)))
 		goto out;
 	unionfs_check_file(file);
 	fileinfo = UNIONFS_F(file);
@@ -753,7 +753,7 @@ long unionfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
 
-	if ((err = unionfs_file_revalidate(file, 1)))
+	if ((err = unionfs_file_revalidate(file, true)))
 		goto out;
 
 	/* check if asked for local commands */
@@ -791,7 +791,7 @@ int unionfs_flush(struct file *file, fl_owner_t id)
 
 	unionfs_read_lock(dentry->d_sb);
 
-	if ((err = unionfs_file_revalidate(file, 1)))
+	if ((err = unionfs_file_revalidate(file, true)))
 		goto out;
 	unionfs_check_file(file);
 

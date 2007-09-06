@@ -24,7 +24,7 @@ static ssize_t unionfs_read(struct file *file, char __user *buf,
 	int err;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if ((err = unionfs_file_revalidate(file, 0)))
+	if ((err = unionfs_file_revalidate(file, false)))
 		goto out;
 	unionfs_check_file(file);
 
@@ -47,7 +47,7 @@ static ssize_t unionfs_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if ((err = unionfs_file_revalidate(file, 0)))
+	if ((err = unionfs_file_revalidate(file, false)))
 		goto out;
 	unionfs_check_file(file);
 
@@ -72,7 +72,7 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 	int err = 0;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if ((err = unionfs_file_revalidate(file, 1)))
+	if ((err = unionfs_file_revalidate(file, true)))
 		goto out;
 	unionfs_check_file(file);
 
@@ -97,7 +97,7 @@ static int unionfs_file_readdir(struct file *file, void *dirent,
 static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int err = 0;
-	int willwrite;
+	bool willwrite;
 	struct file *lower_file;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
@@ -149,7 +149,7 @@ int unionfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	int err = -EINVAL;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if ((err = unionfs_file_revalidate(file, 1)))
+	if ((err = unionfs_file_revalidate(file, true)))
 		goto out;
 	unionfs_check_file(file);
 
@@ -196,7 +196,7 @@ int unionfs_fasync(int fd, struct file *file, int flag)
 	int err = 0;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if ((err = unionfs_file_revalidate(file, 1)))
+	if ((err = unionfs_file_revalidate(file, true)))
 		goto out;
 	unionfs_check_file(file);
 
