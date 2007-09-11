@@ -411,18 +411,19 @@ out:
 
 static int unionfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	int err;
+	bool valid;
 
 	unionfs_read_lock(dentry->d_sb);
 
 	unionfs_lock_dentry(dentry);
-	err = __unionfs_d_revalidate_chain(dentry, nd, false);
+	valid = __unionfs_d_revalidate_chain(dentry, nd, false);
 	unionfs_unlock_dentry(dentry);
-	unionfs_check_dentry(dentry);
+	if (valid)
+		unionfs_check_dentry(dentry);
 
 	unionfs_read_unlock(dentry->d_sb);
 
-	return err;
+	return valid;
 }
 
 /*
