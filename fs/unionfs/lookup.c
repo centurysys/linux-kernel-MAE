@@ -77,6 +77,11 @@ out:
  *
  * Returns: NULL (ok), ERR_PTR if an error occurred, or a non-null non-error
  * PTR if d_splice returned a different dentry.
+ *
+ * If lookupmode is INTERPOSE_PARTIAL/REVAL/REVAL_NEG, the passed dentry's
+ * inode info must be locked.  If lookupmode is INTERPOSE_LOOKUP (i.e., a
+ * newly looked-up dentry), then unionfs_lookup_backend will return a locked
+ * dentry's info, which the caller must unlock.
  */
 struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 				      struct nameidata *nd, int lookupmode)
@@ -94,8 +99,6 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 	struct dentry *first_lower_dentry = NULL;
 	struct vfsmount *first_lower_mnt = NULL;
 	int locked_parent = 0;
-	int locked_child = 0;
-	int allocated_new_info = 0;
 	int opaque;
 	char *whname = NULL;
 	const char *name;
@@ -109,24 +112,21 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 	if (lookupmode == INTERPOSE_PARTIAL || lookupmode == INTERPOSE_REVAL ||
 	    lookupmode == INTERPOSE_REVAL_NEG)
 		verify_locked(dentry);
-	else {
+	else			/* this could only be INTERPOSE_LOOKUP */
 		BUG_ON(UNIONFS_D(dentry) != NULL);
-		locked_child = 1;
-	}
 
-	switch(lookupmode) {
-		case INTERPOSE_PARTIAL:
-			break;
-		case INTERPOSE_LOOKUP:
-			if ((err = new_dentry_private_data(dentry)))
-				goto out;
-			allocated_new_info = 1;
-			break;
-		default:
-			if ((err = realloc_dentry_private_data(dentry)))
-				goto out;
-			allocated_new_info = 1;
-			break;
+	switch (lookupmode) {
+	case INTERPOSE_PARTIAL:
+		break;
+	case INTERPOSE_LOOKUP:
+		if ((err = new_dentry_private_data(dentry)))
+			goto out;
+		break;
+	default:
+		/* default: can only be INTERPOSE_REVAL/REVAL_NEG */
+		if ((err = realloc_dentry_private_data(dentry)))
+			goto out;
+		break;
 	}
 
 	/* must initialize dentry operations */
@@ -419,7 +419,7 @@ out:
 	if (locked_parent)
 		unionfs_unlock_dentry(parent_dentry);
 	dput(parent_dentry);
-	if (locked_child || (err && allocated_new_info))
+	if (err && (lookupmode == INTERPOSE_LOOKUP))
 		unionfs_unlock_dentry(dentry);
 	if (!err && d_interposed)
 		return d_interposed;
