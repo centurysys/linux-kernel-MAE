@@ -92,7 +92,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 	struct dentry *lower_dir_dentry = NULL;
 	struct dentry *parent_dentry = NULL;
 	struct dentry *d_interposed = NULL;
-	int bindex, bstart, bend, bopaque;
+	int bindex, bstart = -1, bend, bopaque;
 	int dentry_count = 0;	/* Number of positive dentries. */
 	int first_dentry_offset = -1; /* -1 is uninitialized */
 	struct dentry *first_dentry = NULL;
@@ -413,7 +413,14 @@ out:
 	if (!err && UNIONFS_D(dentry)) {
 		BUG_ON(dbend(dentry) > UNIONFS_D(dentry)->bcount);
 		BUG_ON(dbend(dentry) > sbmax(dentry->d_sb));
-		BUG_ON(dbstart(dentry) < 0);
+		if (dbstart(dentry) < 0 &&
+		    dentry->d_inode && bstart >= 0 &&
+		    (!UNIONFS_I(dentry->d_inode) ||
+		     !UNIONFS_I(dentry->d_inode)->lower_inodes)) {
+			unionfs_mntput(dentry->d_sb->s_root, bstart);
+			dput(first_lower_dentry);
+			UNIONFS_I(dentry->d_inode)->stale = 1;
+		}
 	}
 	kfree(whname);
 	if (locked_parent)
@@ -423,6 +430,9 @@ out:
 		unionfs_unlock_dentry(dentry);
 	if (!err && d_interposed)
 		return d_interposed;
+	if (dentry->d_inode && UNIONFS_I(dentry->d_inode)->stale &&
+	    first_dentry_offset >= 0)
+		unionfs_mntput(dentry->d_sb->s_root, first_dentry_offset);
 	return ERR_PTR(err);
 }
 
