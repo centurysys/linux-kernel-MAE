@@ -438,13 +438,13 @@ static void unionfs_d_release(struct dentry *dentry)
 	unionfs_check_dentry(dentry);
 	/* this could be a negative dentry, so check first */
 	if (!UNIONFS_D(dentry)) {
-		printk(KERN_DEBUG "unionfs: dentry without private data: %.*s",
+		printk(KERN_DEBUG "unionfs: dentry without private data: %.*s\n",
 		       dentry->d_name.len, dentry->d_name.name);
 		goto out;
 	} else if (dbstart(dentry) < 0) {
 		/* this is due to a failed lookup */
 		printk(KERN_DEBUG "unionfs: dentry without lower "
-		       "dentries: %.*s",
+		       "dentries: %.*s\n",
 		       dentry->d_name.len, dentry->d_name.name);
 		goto out_free;
 	}
