@@ -163,7 +163,10 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 		path_save.mnt = nd->mnt;
 	}
 
-	/* The locking is done by unionfs_lookup_backend. */
+	/*
+	 * unionfs_lookup_backend returns a locked dentry upon success,
+	 * so we'll have to unlock it below.
+	 */
 	ret = unionfs_lookup_backend(dentry, nd, INTERPOSE_LOOKUP);
 
 	/* restore the dentry & vfsmnt in namei */
@@ -176,6 +179,7 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 			dentry = ret;
 		/* parent times may have changed */
 		unionfs_copy_attr_times(dentry->d_parent->d_inode);
+		unionfs_unlock_dentry(dentry);
 	}
 
 	unionfs_check_inode(parent);
