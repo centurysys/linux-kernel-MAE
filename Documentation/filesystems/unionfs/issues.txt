@@ -17,7 +17,7 @@ KNOWN Unionfs 2.1 ISSUES:
    an upper object, and then a lower object, in a strict order to avoid
    locking problems; in addition, Unionfs, as a fan-out file system, may
    have to lock several lower inodes.  We are currently looking into Lockdep
-   to see how to make it aware of stackable file systems.  In the mean time,
+   to see how to make it aware of stackable file systems.  In the meantime,
    if you get any warnings from Lockdep, you can safely ignore them (or feel
    free to report them to the Unionfs maintainers, just to be sure).
 

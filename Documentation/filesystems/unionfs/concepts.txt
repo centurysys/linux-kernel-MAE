@@ -1,4 +1,4 @@
-Unionfs 2.0 CONCEPTS:
+Unionfs 2.1 CONCEPTS:
 =====================
 
 This file describes the concepts needed by a namespace unification file
@@ -92,7 +92,7 @@ Maintaining Invariants:
 The way Unionfs ensures cache coherency is as follows.  At each entry point
 to a Unionfs file system method, we call a utility function to validate the
 primary objects of this method.  Generally, we call unionfs_file_revalidate
-on open files, and __Unionfs_d_revalidate_chain on dentries (which also
+on open files, and __unionfs_d_revalidate_chain on dentries (which also
 validates inodes).  These utility functions check to see whether the upper
 Unionfs object is in sync with any of the lower objects that it represents.
 The checks we perform include whether the Unionfs superblock has a newer
