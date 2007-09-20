@@ -308,7 +308,7 @@ static inline void unionfs_copy_attr_times(struct inode *upper)
 	int bindex;
 	struct inode *lower;
 
-	if (!upper)
+	if (!upper || ibstart(upper) < 0)
 		return;
 	for (bindex=ibstart(upper); bindex <= ibend(upper); bindex++) {
 		lower = unionfs_lower_inode_idx(upper, bindex);
