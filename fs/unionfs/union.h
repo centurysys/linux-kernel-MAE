@@ -511,6 +511,8 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 
 #ifdef CONFIG_UNION_FS_DEBUG
 
+#define dprintk		printk
+
 /* useful for tracking code reachability */
 #define UDBG printk("DBG:%s:%s:%d\n",__FILE__,__FUNCTION__,__LINE__)
 
@@ -546,6 +548,8 @@ extern void __show_inode_counts(const struct inode *inode,
 			        const char *file, const char *fxn, int line);
 
 #else /* not CONFIG_UNION_FS_DEBUG */
+
+#define dprintk(x...)		do { ; } while (0)
 
 /* we leave useful hooks for these check functions throughout the code */
 #define unionfs_check_inode(i)		do { } while(0)

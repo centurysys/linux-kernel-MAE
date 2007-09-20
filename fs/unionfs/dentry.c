@@ -46,9 +46,9 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 
 	/* if the dentry is unhashed, do NOT revalidate */
 	if (d_deleted(dentry)) {
-		printk(KERN_DEBUG "unionfs: unhashed dentry being "
-		       "revalidated: %*s\n",
-		       dentry->d_name.len, dentry->d_name.name);
+		dprintk(KERN_DEBUG "unionfs: unhashed dentry being "
+			"revalidated: %*s\n",
+			dentry->d_name.len, dentry->d_name.name);
 		goto out;
 	}
 
