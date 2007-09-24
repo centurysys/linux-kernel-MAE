@@ -28,7 +28,7 @@ int __init init_sioq(void)
 	int err;
 
 	superio_workqueue = create_workqueue("unionfs_siod");
-	if (!IS_ERR(superio_workqueue))
+	if (unlikely(!IS_ERR(superio_workqueue)))
 		return 0;
 
 	err = PTR_ERR(superio_workqueue);
@@ -39,7 +39,7 @@ int __init init_sioq(void)
 
 void stop_sioq(void)
 {
-	if (superio_workqueue)
+	if (likely(superio_workqueue))
 		destroy_workqueue(superio_workqueue);
 }
 
