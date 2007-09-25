@@ -27,6 +27,7 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 	struct dentry *lower_parent_dentry = NULL;
 	char *name = NULL;
 	int valid = 0;
+	struct nameidata lower_nd;
 
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
@@ -113,7 +114,12 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 		goto out;
 	}
 
-	err = vfs_create(lower_parent_dentry->d_inode, lower_dentry, mode, nd);
+	err = init_lower_nd(&lower_nd, LOOKUP_CREATE);
+	if (err < 0)
+		goto out;
+	err = vfs_create(lower_parent_dentry->d_inode, lower_dentry, mode,
+			 &lower_nd);
+	release_lower_nd(&lower_nd, err);
 
 	if (!err) {
 		err = PTR_ERR(unionfs_interpose(dentry, parent->i_sb, 0));
