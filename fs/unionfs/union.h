@@ -553,7 +553,7 @@ extern void __show_inode_counts(const struct inode *inode,
 
 /* we leave useful hooks for these check functions throughout the code */
 #define unionfs_check_inode(i)		do { } while(0)
-#define unionfs_check_dentry(d)	do { } while(0)
+#define unionfs_check_dentry(d)		do { } while(0)
 #define unionfs_check_file(f)		do { } while(0)
 #define show_branch_counts(sb)		do { } while(0)
 #define show_inode_times(i)		do { } while(0)
