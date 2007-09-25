@@ -23,14 +23,14 @@ void *unionfs_xattr_alloc(size_t size, size_t limit)
 {
 	void *ptr;
 
-	if (size > limit)
+	if (unlikely(size > limit))
 		return ERR_PTR(-E2BIG);
 
 	if (!size)		/* size request, no buffer is needed */
 		return NULL;
 
 	ptr = kmalloc(size, GFP_KERNEL);
-	if (!ptr)
+	if (unlikely(!ptr))
 		return ERR_PTR(-ENOMEM);
 	return ptr;
 }
@@ -48,7 +48,7 @@ ssize_t unionfs_getxattr(struct dentry *dentry, const char *name, void *value,
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
+	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -77,7 +77,7 @@ int unionfs_setxattr(struct dentry *dentry, const char *name,
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
+	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -106,7 +106,7 @@ int unionfs_removexattr(struct dentry *dentry, const char *name)
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
+	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -135,7 +135,7 @@ ssize_t unionfs_listxattr(struct dentry *dentry, char *list, size_t size)
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	if (!__unionfs_d_revalidate_chain(dentry, NULL, false)) {
+	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;
 		goto out;
 	}
