@@ -138,8 +138,10 @@ out:
 	unionfs_read_unlock(dentry->d_sb);
 
 	unionfs_check_inode(parent);
-	if (!err)
+	if (!err) {
 		unionfs_check_dentry(dentry->d_parent);
+		unionfs_check_nd(nd);
+	}
 	unionfs_check_dentry(dentry);
 	return err;
 }
@@ -186,6 +188,7 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 	unionfs_check_inode(parent);
 	unionfs_check_dentry(dentry);
 	unionfs_check_dentry(dentry->d_parent);
+	unionfs_check_nd(nd);
 	unionfs_read_unlock(dentry->d_sb);
 
 	return ret;
@@ -856,6 +859,7 @@ static void *unionfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 out:
 	unionfs_check_dentry(dentry);
+	unionfs_check_nd(nd);
 	unionfs_read_unlock(dentry->d_sb);
 	return ERR_PTR(err);
 }
@@ -872,6 +876,7 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
 	unionfs_unlock_dentry(dentry);
 
 	unionfs_check_dentry(dentry);
+	unionfs_check_nd(nd);
 	kfree(nd_get_link(nd));
 	unionfs_read_unlock(dentry->d_sb);
 }
@@ -1002,6 +1007,7 @@ static int unionfs_permission(struct inode *inode, int mask,
 
 out:
 	unionfs_check_inode(inode);
+	unionfs_check_nd(nd);
 	return err;
 }
 

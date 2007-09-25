@@ -522,6 +522,8 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 	__FILE__,__FUNCTION__,__LINE__)
 #define unionfs_check_file(f)	__unionfs_check_file((f),	\
 	__FILE__,__FUNCTION__,__LINE__)
+#define unionfs_check_nd(n)	__unionfs_check_nd((n),		\
+	__FILE__,__FUNCTION__,__LINE__)
 #define show_branch_counts(sb)	__show_branch_counts((sb),	\
 	__FILE__,__FUNCTION__,__LINE__)
 #define show_inode_times(i)	__show_inode_times((i),		\
@@ -538,6 +540,8 @@ extern void __unionfs_check_dentry(const struct dentry *dentry,
 				   int line);
 extern void __unionfs_check_file(const struct file *file,
 				 const char *fname, const char *fxn, int line);
+extern void __unionfs_check_nd(const struct nameidata *nd,
+			       const char *fname, const char *fxn, int line);
 extern void __show_branch_counts(const struct super_block *sb,
 				 const char *file, const char *fxn, int line);
 extern void __show_inode_times(const struct inode *inode,
