@@ -156,8 +156,15 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 		if (!lower_dentry || !lower_dentry->d_op
 		    || !lower_dentry->d_op->d_revalidate)
 			continue;
-		if (!lower_dentry->d_op->d_revalidate(lower_dentry,
-						      &lowernd))
+		/*
+		 * Don't pass nameidata to lower file system, because we
+		 * don't want an arbitrary lower file being opened or
+		 * returned to us: it may be useless to us because of the
+		 * fanout nature of unionfs (cf. file/directory open-file
+		 * invariants).  We will open lower files as and when needed
+		 * later on.
+		 */
+		if (!lower_dentry->d_op->d_revalidate(lower_dentry, NULL))
 			valid = false;
 	}
 
