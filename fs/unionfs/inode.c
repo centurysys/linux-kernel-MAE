@@ -99,7 +99,8 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 		 * if lower_dentry is NULL, create the entire
 		 * dentry directory structure in branch 0.
 		 */
-		lower_dentry = create_parents(parent, dentry, dentry->d_name.name, 0);
+		lower_dentry = create_parents(parent, dentry,
+					      dentry->d_name.name, 0);
 		if (IS_ERR(lower_dentry)) {
 			err = PTR_ERR(lower_dentry);
 			goto out;
@@ -447,9 +448,8 @@ static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
 
 		if (!(err = is_robranch_super(dentry->d_sb, bindex))) {
 			mode = S_IALLUGO;
-			err =
-				vfs_symlink(lower_dir_dentry->d_inode,
-					    lower_dentry, symname, mode);
+			err = vfs_symlink(lower_dir_dentry->d_inode,
+					  lower_dentry, symname, mode);
 		}
 		unlock_dir(lower_dir_dentry);
 
@@ -884,9 +884,11 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
  *       readonly, to allow copyup to work.
  *   (3) we do call security_inode_permission, and therefore security inside
  *       SELinux, etc. are performed.
+ *
+ * @inode: the lower inode we're checking permission on
  */
-static int inode_permission(struct super_block *sb, struct inode *inode, int mask,
-			    struct nameidata *nd, int bindex)
+static int inode_permission(struct super_block *sb, struct inode *inode,
+			    int mask, struct nameidata *nd, int bindex)
 {
 	int retval, submask;
 

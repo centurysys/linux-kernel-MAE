@@ -275,14 +275,14 @@ int __parse_branch_mode(const char *name)
  */
 int parse_branch_mode(const char *name)
 {
-	int perms =  __parse_branch_mode(name);
+	int perms = __parse_branch_mode(name);
 
 	if (perms == 0)
 		perms = MAY_READ | MAY_WRITE;
 	return perms;
 }
 
-/* 
+/*
  * parse the dirs= mount argument
  *
  * We don't need to lock the superblock private data's rwsem, as we get

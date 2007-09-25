@@ -467,7 +467,8 @@ void __show_dinode_times(const struct dentry *dentry,
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (!lower_inode)
 			continue;
-		printk("DT(%s:%lu:%d): ", dentry->d_name.name, inode->i_ino, bindex);
+		printk("DT(%s:%lu:%d): ", dentry->d_name.name, inode->i_ino,
+		       bindex);
 		printk("%s:%s:%d ",file,fxn,line);
 		printk("um=%lu/%lu lm=%lu/%lu ",
 		       inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
@@ -490,7 +491,8 @@ void __show_inode_counts(const struct inode *inode,
 		printk("SiC: Null inode\n");
 		return;
 	}
-	for (bindex=sbstart(inode->i_sb); bindex <= sbend(inode->i_sb); bindex++) {
+	for (bindex=sbstart(inode->i_sb); bindex <= sbend(inode->i_sb);
+	     bindex++) {
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (!lower_inode)
 			continue;

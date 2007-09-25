@@ -26,7 +26,7 @@
  * Returns true if valid, false otherwise.
  */
 static bool __unionfs_d_revalidate_one(struct dentry *dentry,
-				      struct nameidata *nd)
+				       struct nameidata *nd)
 {
 	bool valid = true;	/* default is valid */
 	struct dentry *lower_dentry;
