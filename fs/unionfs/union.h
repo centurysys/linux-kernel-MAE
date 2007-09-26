@@ -43,6 +43,7 @@
 #include <linux/fs_stack.h>
 #include <linux/magic.h>
 #include <linux/log2.h>
+#include <linux/poison.h>
 
 #include <asm/mman.h>
 #include <asm/system.h>
