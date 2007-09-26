@@ -25,14 +25,6 @@
 		}							\
 	} while (0)
 
-#if BITS_PER_LONG == 32
-#define POISONED_PTR		((void*) 0x5a5a5a5a)
-#elif BITS_PER_LONG == 64
-#define POISONED_PTR		((void*) 0x5a5a5a5a5a5a5a5a)
-#else
-#error Unknown BITS_PER_LONG value
-#endif /* BITS_PER_LONG != known */
-
 /*
  * __unionfs_check_{inode,dentry,file} perform exhaustive sanity checking on
  * the fan-out of various Unionfs objects.  We check that no lower objects
@@ -50,6 +42,7 @@ void __unionfs_check_inode(const struct inode *inode,
 	struct inode *lower_inode;
 	struct super_block *sb;
 	int printed_caller = 0;
+	void *poison_ptr;
 
 	/* for inodes now */
 	BUG_ON(!inode);
@@ -88,12 +81,13 @@ void __unionfs_check_inode(const struct inode *inode,
 		}
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (lower_inode) {
+			memset(&poison_ptr, POISON_INUSE, sizeof(void *));
 			if (unlikely(bindex < istart || bindex > iend)) {
 				PRINT_CALLER(fname, fxn, line);
 				printk(" Ci5: inode/linode=%p:%p bindex=%d "
 				       "istart/end=%d:%d\n", inode,
 				       lower_inode, bindex, istart, iend);
-			} else if (unlikely(lower_inode == POISONED_PTR)) {
+			} else if (unlikely(lower_inode == poison_ptr)) {
 				/* freed inode! */
 				PRINT_CALLER(fname, fxn, line);
 				printk(" Ci6: inode/linode=%p:%p bindex=%d "
@@ -131,6 +125,7 @@ void __unionfs_check_dentry(const struct dentry *dentry,
 	struct super_block *sb;
 	struct vfsmount *lower_mnt;
 	int printed_caller = 0;
+	void *poison_ptr;
 
 	BUG_ON(!dentry);
 	sb = dentry->d_sb;
@@ -257,12 +252,13 @@ void __unionfs_check_dentry(const struct dentry *dentry,
 	for (bindex = sbstart(sb); bindex < sbmax(sb); bindex++) {
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (lower_inode) {
+			memset(&poison_ptr, POISON_INUSE, sizeof(void *));
 			if (unlikely(bindex < istart || bindex > iend)) {
 				PRINT_CALLER(fname, fxn, line);
 				printk(" CI5: dentry/linode=%p:%p bindex=%d "
 				       "istart/end=%d:%d\n", dentry,
 				       lower_inode, bindex, istart, iend);
-			} else if (unlikely(lower_inode == POISONED_PTR)) {
+			} else if (unlikely(lower_inode == poison_ptr)) {
 				/* freed inode! */
 				PRINT_CALLER(fname, fxn, line);
 				printk(" CI6: dentry/linode=%p:%p bindex=%d "
