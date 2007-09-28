@@ -477,7 +477,7 @@ static inline struct vfsmount *unionfs_mntget(struct dentry *dentry,
 
 	mnt = mntget(unionfs_lower_mnt_idx(dentry, bindex));
 #ifdef CONFIG_UNION_FS_DEBUG
-	if (unlikely(!mnt))
+	if (!mnt)
 		printk(KERN_DEBUG "unionfs_mntget: mnt=%p bindex=%d\n",
 		       mnt, bindex);
 #endif /* CONFIG_UNION_FS_DEBUG */
@@ -489,7 +489,7 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 {
 	struct vfsmount *mnt;
 
-	if (unlikely(!dentry && bindex < 0))
+	if (!dentry && bindex < 0)
 		return;
 	BUG_ON(!dentry || bindex < 0);
 

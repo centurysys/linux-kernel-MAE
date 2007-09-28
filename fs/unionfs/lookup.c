@@ -59,7 +59,7 @@ static noinline int is_opaque_dir(struct dentry *dentry, int bindex)
 
 	mutex_unlock(&lower_inode->i_mutex);
 
-	if (unlikely(IS_ERR(wh_lower_dentry))) {
+	if (IS_ERR(wh_lower_dentry)) {
 		err = PTR_ERR(wh_lower_dentry);
 		goto out;
 	}
@@ -147,7 +147,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 	namelen = dentry->d_name.len;
 
 	/* No dentries should get created for possible whiteout names. */
-	if (unlikely(!is_validname(name))) {
+	if (!is_validname(name)) {
 		err = -EPERM;
 		goto out_free;
 	}
@@ -179,7 +179,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 			unionfs_lower_dentry_idx(parent_dentry, bindex);
 
 		/* if the parent lower dentry does not exist skip this */
-		if (unlikely(!(lower_dir_dentry && lower_dir_dentry->d_inode)))
+		if (!(lower_dir_dentry && lower_dir_dentry->d_inode))
 			continue;
 
 		/* also skip it if the parent isn't a directory. */
@@ -198,7 +198,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 		/* check if whiteout exists in this branch: lookup .wh.foo */
 		wh_lower_dentry = lookup_one_len(whname, lower_dir_dentry,
 						 namelen + UNIONFS_WHLEN);
-		if (unlikely(IS_ERR(wh_lower_dentry))) {
+		if (IS_ERR(wh_lower_dentry)) {
 			dput(first_lower_dentry);
 			unionfs_mntput(first_dentry, first_dentry_offset);
 			err = PTR_ERR(wh_lower_dentry);
@@ -207,7 +207,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 
 		if (wh_lower_dentry->d_inode) {
 			/* We found a whiteout so lets give up. */
-			if (likely(S_ISREG(wh_lower_dentry->d_inode->i_mode))) {
+			if (S_ISREG(wh_lower_dentry->d_inode->i_mode)) {
 				set_dbend(dentry, bindex);
 				set_dbopaque(dentry, bindex);
 				dput(wh_lower_dentry);
@@ -228,7 +228,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 
 		/* Now do regular lookup; lookup foo */
 		lower_dentry = lookup_one_len(name, lower_dir_dentry, namelen);
-		if (unlikely(IS_ERR(lower_dentry))) {
+		if (IS_ERR(lower_dentry)) {
 			dput(first_lower_dentry);
 			unionfs_mntput(first_dentry, first_dentry_offset);
 			err = PTR_ERR(lower_dentry);
@@ -321,7 +321,7 @@ out_negative:
 		first_lower_dentry = lookup_one_len(name, lower_dir_dentry,
 						    namelen);
 		first_dentry_offset = bindex;
-		if (unlikely(IS_ERR(first_lower_dentry))) {
+		if (IS_ERR(first_lower_dentry)) {
 			err = PTR_ERR(first_lower_dentry);
 			goto out;
 		}
@@ -381,12 +381,12 @@ out_positive:
 	 * dentry.
 	 */
 	d_interposed = unionfs_interpose(dentry, dentry->d_sb, lookupmode);
-	if (unlikely(IS_ERR(d_interposed)))
+	if (IS_ERR(d_interposed))
 		err = PTR_ERR(d_interposed);
 	else if (d_interposed)
 		dentry = d_interposed;
 
-	if (unlikely(err))
+	if (err)
 		goto out_drop;
 
 	goto out;
@@ -452,7 +452,7 @@ int unionfs_partial_lookup(struct dentry *dentry)
 		err = 0;
 		goto out;
 	}
-	if (unlikely(IS_ERR(tmp))) {
+	if (IS_ERR(tmp)) {
 		err = PTR_ERR(tmp);
 		goto out;
 	}
@@ -476,13 +476,13 @@ int unionfs_init_dentry_cache(void)
 
 void unionfs_destroy_dentry_cache(void)
 {
-	if (likely(unionfs_dentry_cachep))
+	if (unionfs_dentry_cachep)
 		kmem_cache_destroy(unionfs_dentry_cachep);
 }
 
 void free_dentry_private_data(struct dentry *dentry)
 {
-	if (unlikely(!dentry || !dentry->d_fsdata))
+	if (!dentry || !dentry->d_fsdata)
 		return;
 	kmem_cache_free(unionfs_dentry_cachep, dentry->d_fsdata);
 	dentry->d_fsdata = NULL;
@@ -518,7 +518,7 @@ static inline int __realloc_dentry_private_data(struct dentry *dentry)
 /* UNIONFS_D(dentry)->lock must be locked */
 static int realloc_dentry_private_data(struct dentry *dentry)
 {
-	if (likely(!__realloc_dentry_private_data(dentry)))
+	if (!__realloc_dentry_private_data(dentry))
 		return 0;
 
 	kfree(UNIONFS_D(dentry)->lower_paths);
@@ -544,7 +544,7 @@ int new_dentry_private_data(struct dentry *dentry)
 
 	dentry->d_fsdata = info;
 
-	if (likely(!__realloc_dentry_private_data(dentry)))
+	if (!__realloc_dentry_private_data(dentry))
 		return 0;
 
 	mutex_unlock(&info->lock);
@@ -602,7 +602,7 @@ int init_lower_nd(struct nameidata *nd, unsigned int flags)
 #endif /* ALLOC_LOWER_ND_FILE */
 
 	memset(nd, 0, sizeof(struct nameidata));
-	if (unlikely(!flags))
+	if (!flags)
 		return err;
 
 	switch (flags) {
@@ -641,7 +641,7 @@ void release_lower_nd(struct nameidata *nd, int err)
 {
 	if (!nd->intent.open.file)
 		return;
-	else if (likely(!err))
+	else if (!err)
 		release_open_intent(nd);
 #ifdef ALLOC_LOWER_ND_FILE
 	kfree(nd->intent.open.file);

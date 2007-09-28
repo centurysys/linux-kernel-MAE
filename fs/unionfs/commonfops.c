@@ -64,7 +64,7 @@ retry:
 
 		tmp_dentry = lookup_one_len(name, lower_dentry->d_parent,
 					    nlen);
-		if (unlikely(IS_ERR(tmp_dentry))) {
+		if (IS_ERR(tmp_dentry)) {
 			err = PTR_ERR(tmp_dentry);
 			goto out;
 		}
@@ -73,7 +73,7 @@ retry:
 
 	err = copyup_named_file(dentry->d_parent->d_inode, file, name, bstart,
 				bindex, file->f_path.dentry->d_inode->i_size);
-	if (unlikely(err)) {
+	if (err) {
 		if (unlikely(err == -EEXIST))
 			goto retry;
 		goto out;
@@ -91,7 +91,7 @@ retry:
 	unlock_dir(lower_dir_dentry);
 
 out:
-	if (likely(!err))
+	if (!err)
 		unionfs_check_dentry(dentry);
 	return err;
 }
@@ -179,7 +179,7 @@ static int open_all_files(struct file *file)
 			dentry_open(lower_dentry,
 				    unionfs_lower_mnt_idx(dentry, bindex),
 				    file->f_flags);
-		if (unlikely(IS_ERR(lower_file))) {
+		if (IS_ERR(lower_file)) {
 			err = PTR_ERR(lower_file);
 			goto out;
 		} else
@@ -208,7 +208,7 @@ static int open_highest_file(struct file *file, bool willwrite)
 		for (bindex = bstart - 1; bindex >= 0; bindex--) {
 			err = copyup_file(parent_inode, file, bstart, bindex,
 					  inode_size);
-			if (likely(!err))
+			if (!err)
 				break;
 		}
 		atomic_set(&UNIONFS_F(file)->generation,
@@ -222,7 +222,7 @@ static int open_highest_file(struct file *file, bool willwrite)
 	lower_file = dentry_open(lower_dentry,
 				 unionfs_lower_mnt_idx(dentry, bstart),
 				 file->f_flags);
-	if (unlikely(IS_ERR(lower_file))) {
+	if (IS_ERR(lower_file)) {
 		err = PTR_ERR(lower_file);
 		goto out;
 	}
@@ -252,17 +252,17 @@ static int do_delayed_copyup(struct file *file)
 	unionfs_check_file(file);
 	unionfs_check_dentry(dentry);
 	for (bindex = bstart - 1; bindex >= 0; bindex--) {
-		if (likely(!d_deleted(dentry)))
+		if (!d_deleted(dentry))
 			err = copyup_file(parent_inode, file, bstart,
 					  bindex, inode_size);
 		else
 			err = copyup_deleted_file(file, dentry, bstart,
 						  bindex);
 
-		if (likely(!err))
+		if (!err)
 			break;
 	}
-	if (unlikely(err || (bstart <= fbstart(file))))
+	if (err || (bstart <= fbstart(file)))
 		goto out;
 	bend = fbend(file);
 	for (bindex = bstart; bindex <= bend; bindex++) {
@@ -363,13 +363,13 @@ int unionfs_file_revalidate(struct file *file, bool willwrite)
 		if (S_ISDIR(dentry->d_inode->i_mode)) {
 			/* We need to open all the files. */
 			err = open_all_files(file);
-			if (unlikely(err))
+			if (err)
 				goto out;
 		} else {
 			int new_brid;
 			/* We only open the highest priority branch. */
 			err = open_highest_file(file, willwrite);
-			if (unlikely(err))
+			if (err)
 				goto out;
 			new_brid = UNIONFS_F(file)->
 			  saved_branch_ids[fbstart(file)];
@@ -400,12 +400,12 @@ int unionfs_file_revalidate(struct file *file, bool willwrite)
 	}
 
 out:
-	if (unlikely(err)) {
+	if (err) {
 		kfree(UNIONFS_F(file)->lower_files);
 		kfree(UNIONFS_F(file)->saved_branch_ids);
 	}
 out_nofree:
-	if (unlikely(!err))
+	if (!err)
 		unionfs_check_file(file);
 	unionfs_unlock_dentry(dentry);
 	return err;
@@ -424,7 +424,7 @@ static int __open_dir(struct inode *inode, struct file *file)
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_dentry =
 			unionfs_lower_dentry_idx(file->f_path.dentry, bindex);
-		if (unlikely(!lower_dentry))
+		if (!lower_dentry)
 			continue;
 
 		dget(lower_dentry);
@@ -433,7 +433,7 @@ static int __open_dir(struct inode *inode, struct file *file)
 					 unionfs_lower_mnt_idx(file->f_path.dentry,
 							       bindex),
 					 file->f_flags);
-		if (unlikely(IS_ERR(lower_file)))
+		if (IS_ERR(lower_file))
 			return PTR_ERR(lower_file);
 
 		unionfs_set_lower_file_idx(file, bindex, lower_file);
@@ -480,7 +480,7 @@ static int __open_file(struct inode *inode, struct file *file)
 				err = copyup_file(
 					file->f_path.dentry->d_parent->d_inode,
 					file, bstart, bindex, size);
-				if (likely(!err))
+				if (!err)
 					break;
 			}
 			return err;
@@ -499,7 +499,7 @@ static int __open_file(struct inode *inode, struct file *file)
 		dentry_open(lower_dentry,
 			    unionfs_lower_mnt_idx(file->f_path.dentry, bstart),
 			    lower_flags);
-	if (unlikely(IS_ERR(lower_file)))
+	if (IS_ERR(lower_file))
 		return PTR_ERR(lower_file);
 
 	unionfs_set_lower_file(file, lower_file);
@@ -561,11 +561,11 @@ int unionfs_open(struct inode *inode, struct file *file)
 		err = __open_file(inode, file);	/* open a file */
 
 	/* freeing the allocated resources, and fput the opened files */
-	if (unlikely(err)) {
+	if (err) {
 		atomic_dec(&UNIONFS_I(dentry->d_inode)->totalopens);
 		for (bindex = bstart; bindex <= bend; bindex++) {
 			lower_file = unionfs_lower_file_idx(file, bindex);
-			if (unlikely(!lower_file))
+			if (!lower_file)
 				continue;
 
 			branchput(file->f_path.dentry->d_sb, bindex);
@@ -577,7 +577,7 @@ int unionfs_open(struct inode *inode, struct file *file)
 	unionfs_unlock_dentry(dentry);
 
 out:
-	if (unlikely(err)) {
+	if (err) {
 		kfree(UNIONFS_F(file)->lower_files);
 		kfree(UNIONFS_F(file)->saved_branch_ids);
 		kfree(UNIONFS_F(file));
@@ -585,7 +585,7 @@ out:
 out_nofree:
 	unionfs_read_unlock(inode->i_sb);
 	unionfs_check_inode(inode);
-	if (likely(!err)) {
+	if (!err) {
 		unionfs_check_file(file);
 		unionfs_check_dentry(file->f_path.dentry->d_parent);
 	}
@@ -627,7 +627,7 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_file = unionfs_lower_file_idx(file, bindex);
 
-		if (likely(lower_file)) {
+		if (lower_file) {
 			fput(lower_file);
 			branchput(sb, bindex);
 		}
@@ -635,7 +635,7 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	kfree(fileinfo->lower_files);
 	kfree(fileinfo->saved_branch_ids);
 
-	if (unlikely(fileinfo->rdstate)) {
+	if (fileinfo->rdstate) {
 		fileinfo->rdstate->access = jiffies;
 		printk(KERN_DEBUG "unionfs: saving rdstate with cookie "
 		       "%u [%d.%lld]\n",
@@ -666,15 +666,15 @@ static long do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	lower_file = unionfs_lower_file(file);
 
 	err = security_file_ioctl(lower_file, cmd, arg);
-	if (unlikely(err))
+	if (err)
 		goto out;
 
 	err = -ENOTTY;
-	if (unlikely(!lower_file || !lower_file->f_op))
+	if (!lower_file || !lower_file->f_op)
 		goto out;
 	if (lower_file->f_op->unlocked_ioctl) {
 		err = lower_file->f_op->unlocked_ioctl(lower_file, cmd, arg);
-	} else if (likely(lower_file->f_op->ioctl)) {
+	} else if (lower_file->f_op->ioctl) {
 		lock_kernel();
 		err = lower_file->f_op->ioctl(lower_file->f_path.dentry->d_inode,
 					      lower_file, cmd, arg);
@@ -705,7 +705,7 @@ static int unionfs_ioctl_queryfile(struct file *file, unsigned int cmd,
 	unionfs_lock_dentry(dentry);
 	orig_bstart = dbstart(dentry);
 	orig_bend = dbend(dentry);
-	if (unlikely((err = unionfs_partial_lookup(dentry))))
+	if ((err = unionfs_partial_lookup(dentry)))
 		goto out;
 	bstart = dbstart(dentry);
 	bend = dbend(dentry);
@@ -714,7 +714,7 @@ static int unionfs_ioctl_queryfile(struct file *file, unsigned int cmd,
 
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-		if (unlikely(!lower_dentry))
+		if (!lower_dentry)
 			continue;
 		if (likely(lower_dentry->d_inode))
 			FD_SET(bindex, &branchlist);
@@ -726,7 +726,7 @@ static int unionfs_ioctl_queryfile(struct file *file, unsigned int cmd,
 			unionfs_set_lower_inode_idx(dentry->d_inode, bindex,
 						    NULL);
 			mnt = unionfs_lower_mnt_idx(dentry, bindex);
-			if (unlikely(!mnt))
+			if (!mnt)
 				continue;
 			unionfs_mntput(dentry, bindex);
 			unionfs_set_lower_mnt_idx(dentry, bindex, NULL);
@@ -808,7 +808,7 @@ int unionfs_flush(struct file *file, fl_owner_t id)
 		if (lower_file && lower_file->f_op &&
 		    lower_file->f_op->flush) {
 			err = lower_file->f_op->flush(lower_file, id);
-			if (unlikely(err))
+			if (err)
 				goto out_lock;
 
 			/* if there are no more refs to the dentry, dput it */

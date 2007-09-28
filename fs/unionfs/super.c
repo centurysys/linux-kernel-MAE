@@ -90,7 +90,7 @@ static void unionfs_put_super(struct super_block *sb)
 	int leaks = 0;
 
 	spd = UNIONFS_SB(sb);
-	if (unlikely(!spd))
+	if (!spd)
 		return;
 
 	bstart = sbstart(sb);
@@ -170,17 +170,17 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 	struct nameidata nd;
 
 	/* by now, optarg contains the branch name */
-	if (unlikely(!*optarg)) {
+	if (!*optarg) {
 		printk("unionfs: no branch specified for mode change.\n");
 		goto out;
 	}
-	if (unlikely(!modename)) {
+	if (!modename) {
 		printk("unionfs: branch \"%s\" requires a mode.\n", optarg);
 		goto out;
 	}
 	*modename++ = '\0';
 	perms = __parse_branch_mode(modename);
-	if (unlikely(perms == 0)) {
+	if (perms == 0) {
 		printk("unionfs: invalid mode \"%s\" for \"%s\".\n",
 		       modename, optarg);
 		goto out;
@@ -193,7 +193,7 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 	 * uniqueness.
 	 */
 	err = path_lookup(optarg, LOOKUP_FOLLOW, &nd);
-	if (unlikely(err)) {
+	if (err) {
 		printk(KERN_WARNING "unionfs: error accessing "
 		       "lower directory \"%s\" (error %d)\n",
 		       optarg, err);
@@ -204,7 +204,7 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
 	path_release(&nd);	/* no longer needed */
-	if (unlikely(idx == cur_branches)) {
+	if (idx == cur_branches) {
 		err = -ENOENT;	/* err may have been reset above */
 		printk(KERN_WARNING "unionfs: branch \"%s\" "
 		       "not found\n", optarg);
@@ -236,7 +236,7 @@ static noinline int do_remount_del_option(char *optarg, int cur_branches,
 	 * uniqueness.
 	 */
 	err = path_lookup(optarg, LOOKUP_FOLLOW, &nd);
-	if (unlikely(err)) {
+	if (err) {
 		printk(KERN_WARNING "unionfs: error accessing "
 		       "lower directory \"%s\" (error %d)\n",
 		       optarg, err);
@@ -247,14 +247,14 @@ static noinline int do_remount_del_option(char *optarg, int cur_branches,
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
 	path_release(&nd);	/* no longer needed */
-	if (unlikely(idx == cur_branches)) {
+	if (idx == cur_branches) {
 		printk(KERN_WARNING "unionfs: branch \"%s\" "
 		       "not found\n", optarg);
 		err = -ENOENT;
 		goto out;
 	}
 	/* check if there are any open files on the branch to be deleted */
-	if (unlikely(atomic_read(&new_data[idx].open_files) > 0)) {
+	if (atomic_read(&new_data[idx].open_files) > 0) {
 		err = -EBUSY;
 		goto out;
 	}
@@ -320,7 +320,7 @@ static noinline int do_remount_add_option(char *optarg, int cur_branches,
 	 * uniqueness.
 	 */
 	err = path_lookup(optarg, LOOKUP_FOLLOW, &nd);
-	if (unlikely(err)) {
+	if (err) {
 		printk(KERN_WARNING "unionfs: error accessing "
 		       "lower directory \"%s\" (error %d)\n",
 		       optarg, err);
@@ -331,7 +331,7 @@ static noinline int do_remount_add_option(char *optarg, int cur_branches,
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
 	path_release(&nd);	/* no longer needed */
-	if (unlikely(idx == cur_branches)) {
+	if (idx == cur_branches) {
 		printk(KERN_WARNING "unionfs: branch \"%s\" "
 		       "not found\n", optarg);
 		err = -ENOENT;
@@ -350,13 +350,13 @@ found_insertion_point:
 		*modename++ = '\0';
 	perms = parse_branch_mode(modename);
 
-	if (unlikely(!new_branch || !*new_branch)) {
+	if (!new_branch || !*new_branch) {
 		printk(KERN_WARNING "unionfs: null new branch\n");
 		err = -EINVAL;
 		goto out;
 	}
 	err = path_lookup(new_branch, LOOKUP_FOLLOW, &nd);
-	if (unlikely(err)) {
+	if (err) {
 		printk(KERN_WARNING "unionfs: error accessing "
 		       "lower directory \"%s\" (error %d)\n",
 		       new_branch, err);
@@ -369,7 +369,7 @@ found_insertion_point:
 	 * because this code base doesn't support stacking unionfs: the ODF
 	 * code base supports that correctly.
 	 */
-	if (unlikely((err = check_branch(&nd)))) {
+	if ((err = check_branch(&nd))) {
 		printk(KERN_WARNING "unionfs: lower directory "
 		       "\"%s\" is not a valid branch\n", optarg);
 		path_release(&nd);
@@ -453,7 +453,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	 * need to check if any other flags may have been passed (none are
 	 * allowed/supported as of now).
 	 */
-	if (unlikely((*flags & ~(MS_RDONLY | MS_SILENT)) != 0)) {
+	if ((*flags & ~(MS_RDONLY | MS_SILENT)) != 0) {
 		printk(KERN_WARNING
 		       "unionfs: remount flags 0x%x unsupported\n", *flags);
 		err = -EINVAL;
@@ -465,7 +465,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	 * the union to a "ro" or "rw" and the VFS took care of it.  So
 	 * nothing to do and we're done.
 	 */
-	if (unlikely(!options || options[0] == '\0'))
+	if (!options || options[0] == '\0')
 		goto out_error;
 
 	/*
@@ -484,7 +484,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	while ((optname = strsep(&optionstmp, ",")) != NULL) {
 		char *optarg;
 
-		if (unlikely(!optname || !*optname))
+		if (!optname || !*optname)
 			continue;
 
 		optarg = strchr(optname, '=');
@@ -498,7 +498,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	}
 	kfree(tmp_to_free);
 	/* after all changes, will we have at least one branch left? */
-	if (unlikely((new_branches + add_branches - del_branches) < 1)) {
+	if ((new_branches + add_branches - del_branches) < 1) {
 		printk(KERN_WARNING
 		       "unionfs: no branches left after remount\n");
 		err = -EINVAL;
@@ -556,7 +556,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	while ((optname = strsep(&options, ",")) != NULL) {
 		char *optarg;
 
-		if (unlikely(!optname || !*optname))
+		if (!optname || !*optname)
 			continue;
 		/*
 		 * At this stage optname holds a comma-delimited option, but
@@ -579,7 +579,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 		 * that don't above this check.)  So at this stage optname
 		 * contains the CMD part and optarg contains the ARG part.
 		 */
-		if (unlikely(!optarg || !*optarg)) {
+		if (!optarg || !*optarg) {
 			printk("unionfs: all remount options require "
 			       "an argument (%s).\n", optname);
 			err = -EINVAL;
@@ -591,10 +591,10 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 						    tmp_data,
 						    tmp_lower_paths,
 						    &new_high_branch_id);
-			if (unlikely(err))
+			if (err)
 				goto out_release;
 			new_branches++;
-			if (unlikely(new_branches > UNIONFS_MAX_BRANCHES)) {
+			if (new_branches > UNIONFS_MAX_BRANCHES) {
 				printk("unionfs: command exceeds "
 				       "%d branches\n", UNIONFS_MAX_BRANCHES);
 				err = -E2BIG;
@@ -606,7 +606,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 			err = do_remount_del_option(optarg, new_branches,
 						    tmp_data,
 						    tmp_lower_paths);
-			if (unlikely(err))
+			if (err)
 				goto out_release;
 			new_branches--;
 			continue;
@@ -615,7 +615,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 			err = do_remount_mode_option(optarg, new_branches,
 						     tmp_data,
 						     tmp_lower_paths);
-			if (unlikely(err))
+			if (err)
 				goto out_release;
 			continue;
 		}
@@ -629,7 +629,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 		 * actually process the ro/rw remount options, we have to
 		 * return 0 from this function.
 		 */
-		if (unlikely(!strcmp("dirs", optname))) {
+		if (!strcmp("dirs", optname)) {
 			printk(KERN_WARNING
 			       "unionfs: remount ignoring option \"%s\".\n",
 			       optname);
@@ -652,7 +652,7 @@ out_no_change:
 	 * have to be re-read.
 	 *******************************************************************/
 
-	if (unlikely(!(tmp_data[0].branchperms & MAY_WRITE))) {
+	if (!(tmp_data[0].branchperms & MAY_WRITE)) {
 		printk("unionfs: leftmost branch cannot be read-only "
 		       "(use \"remount,ro\" to create a read-only union)\n");
 		err = -EINVAL;
@@ -765,7 +765,7 @@ out_no_change:
 	i = atomic_inc_return(&UNIONFS_SB(sb)->generation);
 	atomic_set(&UNIONFS_D(sb->s_root)->generation, i);
 	atomic_set(&UNIONFS_I(sb->s_root->d_inode)->generation, i);
-	if (likely(!(*flags & MS_SILENT)))
+	if (!(*flags & MS_SILENT))
 		printk("unionfs: new generation number %d\n", i);
 	/* finally, update the root dentry's times */
 	unionfs_copy_attr_times(sb->s_root->d_inode);
@@ -781,7 +781,7 @@ out_no_change:
 	 */
 out_release:
 	/* no need to cleanup/release anything in tmp_data */
-	if (likely(tmp_lower_paths))
+	if (tmp_lower_paths)
 		for (i=0; i<new_branches; i++)
 			pathput(&tmp_lower_paths[i]);
 out_free:
@@ -823,10 +823,10 @@ static void unionfs_clear_inode(struct inode *inode)
 	 */
 	bstart = ibstart(inode);
 	bend = ibend(inode);
-	if (likely(bstart >= 0)) {
+	if (bstart >= 0) {
 		for (bindex = bstart; bindex <= bend; bindex++) {
 			lower_inode = unionfs_lower_inode_idx(inode, bindex);
-			if (unlikely(!lower_inode))
+			if (!lower_inode)
 				continue;
 			iput(lower_inode);
 		}
@@ -880,7 +880,7 @@ int unionfs_init_inode_cache(void)
 /* unionfs inode cache destructor */
 void unionfs_destroy_inode_cache(void)
 {
-	if (likely(unionfs_inode_cachep))
+	if (unionfs_inode_cachep)
 		kmem_cache_destroy(unionfs_inode_cachep);
 }
 
@@ -920,7 +920,7 @@ static void unionfs_umount_begin(struct vfsmount *mnt, int flags)
 	struct vfsmount *lower_mnt;
 	int bindex, bstart, bend;
 
-	if (likely(!(flags & MNT_FORCE)))
+	if (!(flags & MNT_FORCE))
 		/*
 		 * we are not being MNT_FORCE'd, therefore we should emulate
 		 * old behavior
@@ -972,7 +972,7 @@ static int unionfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 		path = d_path(unionfs_lower_dentry_idx(sb->s_root, bindex),
 			      unionfs_lower_mnt_idx(sb->s_root, bindex),
 			      tmp_page, PAGE_SIZE);
-		if (unlikely(IS_ERR(path))) {
+		if (IS_ERR(path)) {
 			ret = PTR_ERR(path);
 			goto out;
 		}

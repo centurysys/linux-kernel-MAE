@@ -32,13 +32,13 @@ static void unionfs_fill_inode(struct dentry *dentry,
 
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-		if (unlikely(!lower_dentry)) {
+		if (!lower_dentry) {
 			unionfs_set_lower_inode_idx(inode, bindex, NULL);
 			continue;
 		}
 
 		/* Initialize the lower inode to the new lower inode. */
-		if (unlikely(!lower_dentry->d_inode))
+		if (!lower_dentry->d_inode)
 			continue;
 
 		unionfs_set_lower_inode_idx(inode, bindex,
@@ -52,7 +52,7 @@ static void unionfs_fill_inode(struct dentry *dentry,
 	lower_inode = unionfs_lower_inode(inode);
 
 	/* Use different set of inode ops for symlinks & directories */
-	if (unlikely(S_ISLNK(lower_inode->i_mode)))
+	if (S_ISLNK(lower_inode->i_mode))
 		inode->i_op = &unionfs_symlink_iops;
 	else if (S_ISDIR(lower_inode->i_mode))
 		inode->i_op = &unionfs_dir_iops;
@@ -62,10 +62,8 @@ static void unionfs_fill_inode(struct dentry *dentry,
 		inode->i_fop = &unionfs_dir_fops;
 
 	/* properly initialize special inodes */
-	if (unlikely(S_ISBLK(lower_inode->i_mode) ||
-		     S_ISCHR(lower_inode->i_mode) ||
-		     S_ISFIFO(lower_inode->i_mode) ||
-		     S_ISSOCK(lower_inode->i_mode)))
+	if (S_ISBLK(lower_inode->i_mode) || S_ISCHR(lower_inode->i_mode) ||
+	    S_ISFIFO(lower_inode->i_mode) || S_ISSOCK(lower_inode->i_mode))
 		init_special_inode(inode, lower_inode->i_mode,
 				   lower_inode->i_rdev);
 
@@ -131,7 +129,7 @@ struct dentry *unionfs_interpose(struct dentry *dentry, struct super_block *sb,
 	} else {
 		/* get unique inode number for unionfs */
 		inode = iget(sb, iunique(sb, UNIONFS_ROOT_INO));
-		if (unlikely(!inode)) {
+		if (!inode) {
 			err = -EACCES;
 			goto out;
 		}
@@ -151,7 +149,7 @@ skip:
 		break;
 	case INTERPOSE_LOOKUP:
 		spliced = d_splice_alias(inode, dentry);
-		if (unlikely(IS_ERR(spliced)))
+		if (IS_ERR(spliced))
 			err = PTR_ERR(spliced);
 		else if (spliced && spliced != dentry) {
 			/*
@@ -183,7 +181,7 @@ skip:
 	goto out;
 
 out_spliced:
-	if (likely(!err))
+	if (!err)
 		return spliced;
 out:
 	return ERR_PTR(err);
@@ -205,12 +203,12 @@ void unionfs_reinterpose(struct dentry *dentry)
 	bend = dbend(dentry);
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-		if (unlikely(!lower_dentry))
+		if (!lower_dentry)
 			continue;
 
-		if (unlikely(!lower_dentry->d_inode))
+		if (!lower_dentry->d_inode)
 			continue;
-		if (unlikely(unionfs_lower_inode_idx(inode, bindex)))
+		if (unionfs_lower_inode_idx(inode, bindex))
 			continue;
 		unionfs_set_lower_inode_idx(inode, bindex,
 					    igrab(lower_dentry->d_inode));
@@ -229,11 +227,11 @@ void unionfs_reinterpose(struct dentry *dentry)
 int check_branch(struct nameidata *nd)
 {
 	/* XXX: remove in ODF code -- stacking unions allowed there */
-	if (unlikely(!strcmp(nd->dentry->d_sb->s_type->name, "unionfs")))
+	if (!strcmp(nd->dentry->d_sb->s_type->name, "unionfs"))
 		return -EINVAL;
-	if (unlikely(!nd->dentry->d_inode))
+	if (!nd->dentry->d_inode)
 		return -ENOENT;
-	if (unlikely(!S_ISDIR(nd->dentry->d_inode->i_mode)))
+	if (!S_ISDIR(nd->dentry->d_inode->i_mode))
 		return -ENOTDIR;
 	return 0;
 }
@@ -247,7 +245,7 @@ static int is_branch_overlap(struct dentry *dent1, struct dentry *dent2)
 	while ((dent != dent2) && (dent->d_parent != dent))
 		dent = dent->d_parent;
 
-	if (unlikely(dent == dent2))
+	if (dent == dent2)
 		return 1;
 
 	dent = dent2;
@@ -262,7 +260,7 @@ static int is_branch_overlap(struct dentry *dent1, struct dentry *dent2)
  */
 int __parse_branch_mode(const char *name)
 {
-	if (unlikely(!name))
+	if (!name)
 		return 0;
 	if (!strcmp(name, "ro"))
 		return MAY_READ;
@@ -304,7 +302,7 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 	struct dentry *dent1;
 	struct dentry *dent2;
 
-	if (unlikely(options[0] == '\0')) {
+	if (options[0] == '\0') {
 		printk(KERN_WARNING "unionfs: no branches specified\n");
 		err = -EINVAL;
 		goto out;
@@ -341,7 +339,7 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 
 		if (!name)
 			continue;
-		if (unlikely(!*name)) { /* bad use of ':' (extra colons)) */
+		if (!*name) {	/* bad use of ':' (extra colons) */
 			err = -EINVAL;
 			goto out;
 		}
@@ -353,20 +351,20 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 			*mode++ = '\0';
 
 		perms = parse_branch_mode(mode);
-		if (unlikely(!bindex && !(perms & MAY_WRITE))) {
+		if (!bindex && !(perms & MAY_WRITE)) {
 			err = -EINVAL;
 			goto out;
 		}
 
 		err = path_lookup(name, LOOKUP_FOLLOW, &nd);
-		if (unlikely(err)) {
+		if (err) {
 			printk(KERN_WARNING "unionfs: error accessing "
 			       "lower directory '%s' (error %d)\n",
 			       name, err);
 			goto out;
 		}
 
-		if (unlikely((err = check_branch(&nd)))) {
+		if ((err = check_branch(&nd))) {
 			printk(KERN_WARNING "unionfs: lower directory "
 			       "'%s' is not a valid branch\n", name);
 			path_release(&nd);
@@ -386,7 +384,7 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 		bindex++;
 	}
 
-	if (unlikely(branches == 0)) {
+	if (branches == 0) {
 		printk(KERN_WARNING "unionfs: no branches specified\n");
 		err = -EINVAL;
 		goto out;
@@ -413,7 +411,7 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 		dent1 = lower_root_info->lower_paths[i].dentry;
 		for (j = i + 1; j < branches; j++) {
 			dent2 = lower_root_info->lower_paths[j].dentry;
-			if (unlikely(is_branch_overlap(dent1, dent2))) {
+			if (is_branch_overlap(dent1, dent2)) {
 				printk(KERN_WARNING "unionfs: branches %d and "
 				       "%d overlap\n", i, j);
 				err = -EINVAL;
@@ -423,7 +421,7 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 	}
 
 out:
-	if (unlikely(err)) {
+	if (err) {
 		for (i = 0; i < branches; i++)
 			if (lower_root_info->lower_paths[i].dentry) {
 				dput(lower_root_info->lower_paths[i].dentry);
@@ -475,7 +473,7 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 		char *endptr;
 		int intval;
 
-		if (unlikely(!optname || !*optname))
+		if (!optname || !*optname)
 			continue;
 
 		optarg = strchr(optname, '=');
@@ -486,28 +484,28 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 		 * All of our options take an argument now. Insert ones that
 		 * don't, above this check.
 		 */
-		if (unlikely(!optarg)) {
+		if (!optarg) {
 			printk("unionfs: %s requires an argument.\n", optname);
 			err = -EINVAL;
 			goto out_error;
 		}
 
 		if (!strcmp("dirs", optname)) {
-			if (unlikely(++dirsfound > 1)) {
+			if (++dirsfound > 1) {
 				printk(KERN_WARNING
 				       "unionfs: multiple dirs specified\n");
 				err = -EINVAL;
 				goto out_error;
 			}
 			err = parse_dirs_option(sb, lower_root_info, optarg);
-			if (unlikely(err))
+			if (err)
 				goto out_error;
 			continue;
 		}
 
 		/* All of these options require an integer argument. */
 		intval = simple_strtoul(optarg, &endptr, 0);
-		if (unlikely(*endptr)) {
+		if (*endptr) {
 			printk(KERN_WARNING
 			       "unionfs: invalid %s option '%s'\n",
 			       optname, optarg);
@@ -520,7 +518,7 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 		       "unionfs: unrecognized option '%s'\n", optname);
 		goto out_error;
 	}
-	if (unlikely(dirsfound != 1)) {
+	if (dirsfound != 1) {
 		printk(KERN_WARNING "unionfs: dirs option required\n");
 		err = -EINVAL;
 		goto out_error;
@@ -565,7 +563,7 @@ static struct dentry *unionfs_d_alloc_root(struct super_block *sb)
 {
 	struct dentry *ret = NULL;
 
-	if (likely(sb)) {
+	if (sb) {
 		static const struct qstr name = {.name = "/",.len = 1 };
 
 		ret = d_alloc(NULL, &name);
@@ -589,7 +587,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	struct unionfs_dentry_info *lower_root_info = NULL;
 	int bindex, bstart, bend;
 
-	if (unlikely(!raw_data)) {
+	if (!raw_data) {
 		printk(KERN_WARNING
 		       "unionfs: read_super: missing data argument\n");
 		err = -EINVAL;
@@ -610,7 +608,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	UNIONFS_SB(sb)->high_branch_id = -1; /* -1 == invalid branch ID */
 
 	lower_root_info = unionfs_parse_options(sb, raw_data);
-	if (unlikely(IS_ERR(lower_root_info))) {
+	if (IS_ERR(lower_root_info)) {
 		printk(KERN_WARNING
 		       "unionfs: read_super: error while parsing options "
 		       "(err = %ld)\n", PTR_ERR(lower_root_info));
@@ -618,7 +616,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 		lower_root_info = NULL;
 		goto out_free;
 	}
-	if (unlikely(lower_root_info->bstart == -1)) {
+	if (lower_root_info->bstart == -1) {
 		err = -ENOENT;
 		goto out_free;
 	}
@@ -672,7 +670,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	 */
 	err = PTR_ERR(unionfs_interpose(sb->s_root, sb, 0));
 	unionfs_unlock_dentry(sb->s_root);
-	if (likely(!err))
+	if (!err)
 		goto out;
 	/* else fall through */
 
