@@ -45,7 +45,7 @@ int unionfs_init_filldir_cache(void)
 
 void unionfs_destroy_filldir_cache(void)
 {
-	if (likely(unionfs_filldir_cachep))
+	if (unionfs_filldir_cachep)
 		kmem_cache_destroy(unionfs_filldir_cachep);
 }
 
@@ -72,8 +72,7 @@ static int guesstimate_hash_size(struct inode *inode)
 		return UNIONFS_I(inode)->hashsize;
 
 	for (bindex = ibstart(inode); bindex <= ibend(inode); bindex++) {
-		lower_inode = unionfs_lower_inode_idx(inode, bindex);
-		if (unlikely(!lower_inode))
+		if (!(lower_inode = unionfs_lower_inode_idx(inode, bindex)))
 			continue;
 
 		if (lower_inode->i_size == DENTPAGE)
@@ -228,7 +227,7 @@ struct filldir_node *find_filldir_node(struct unionfs_dir_state *rdstate,
 		}
 	}
 
-	if (unlikely(!found))
+	if (!found)
 		cursor = NULL;
 
 	return cursor;

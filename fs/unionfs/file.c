@@ -30,7 +30,7 @@ static ssize_t unionfs_read(struct file *file, char __user *buf,
 
 	err = do_sync_read(file, buf, count, ppos);
 
-	if (likely(err >= 0))
+	if (err >= 0)
 		touch_atime(unionfs_lower_mnt(file->f_path.dentry),
 			    unionfs_lower_dentry(file->f_path.dentry));
 
@@ -53,10 +53,10 @@ static ssize_t unionfs_aio_read(struct kiocb *iocb, const struct iovec *iov,
 
 	err = generic_file_aio_read(iocb, iov, nr_segs, pos);
 
-	if (unlikely(err == -EIOCBQUEUED))
+	if (err == -EIOCBQUEUED)
 		err = wait_on_sync_kiocb(iocb);
 
-	if (likely(err >= 0))
+	if (err >= 0)
 		touch_atime(unionfs_lower_mnt(file->f_path.dentry),
 			    unionfs_lower_dentry(file->f_path.dentry));
 
@@ -78,7 +78,7 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 
 	err = do_sync_write(file, buf, count, ppos);
 	/* update our inode times upon a successful lower write */
-	if (likely(err >= 0)) {
+	if (err >= 0) {
 		unionfs_copy_attr_times(file->f_path.dentry->d_inode);
 		unionfs_check_file(file);
 	}
@@ -119,19 +119,19 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 	 * generic_file_readonly_mmap returns in that case).
 	 */
 	lower_file = unionfs_lower_file(file);
-	if (unlikely(willwrite && !lower_file->f_mapping->a_ops->writepage)) {
+	if (willwrite && !lower_file->f_mapping->a_ops->writepage) {
 		err = -EINVAL;
 		printk("unionfs: branch %d file system does not support "
 		       "writeable mmap\n", fbstart(file));
 	} else {
 		err = generic_file_mmap(file, vma);
-		if (unlikely(err))
+		if (err)
 			printk("unionfs: generic_file_mmap failed %d\n", err);
 	}
 
 out:
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
-	if (likely(!err)) {
+	if (!err) {
 		/* copyup could cause parent dir times to change */
 		unionfs_copy_attr_times(file->f_path.dentry->d_parent->d_inode);
 		unionfs_check_file(file);
@@ -166,7 +166,7 @@ int unionfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	}
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
-		if (unlikely(!lower_inode || !lower_inode->i_fop->fsync))
+		if (!lower_inode || !lower_inode->i_fop->fsync)
 			continue;
 		lower_file = unionfs_lower_file_idx(file, bindex);
 		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
@@ -175,7 +175,7 @@ int unionfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 						lower_dentry,
 						datasync);
 		mutex_unlock(&lower_inode->i_mutex);
-		if (unlikely(err))
+		if (err)
 			goto out;
 	}
 
@@ -214,13 +214,13 @@ int unionfs_fasync(int fd, struct file *file, int flag)
 	}
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
-		if (unlikely(!lower_inode || !lower_inode->i_fop->fasync))
+		if (!lower_inode || !lower_inode->i_fop->fasync)
 			continue;
 		lower_file = unionfs_lower_file_idx(file, bindex);
 		mutex_lock(&lower_inode->i_mutex);
 		err = lower_inode->i_fop->fasync(fd, lower_file, flag);
 		mutex_unlock(&lower_inode->i_mutex);
-		if (unlikely(err))
+		if (err)
 			goto out;
 	}
 

@@ -65,14 +65,14 @@ int do_delete_whiteouts(struct dentry *dentry, int bindex,
 				lookup_one_len(name, lower_dir_dentry,
 					       cursor->namelen +
 					       UNIONFS_WHLEN);
-			if (unlikely(IS_ERR(lower_dentry))) {
+			if (IS_ERR(lower_dentry)) {
 				err = PTR_ERR(lower_dentry);
 				break;
 			}
-			if (likely(lower_dentry->d_inode))
+			if (lower_dentry->d_inode)
 				err = vfs_unlink(lower_dir, lower_dentry);
 			dput(lower_dentry);
-			if (unlikely(err))
+			if (err)
 				break;
 		}
 	}
@@ -102,7 +102,7 @@ int delete_whiteouts(struct dentry *dentry, int bindex,
 	BUG_ON(bindex < dbstart(dentry));
 	BUG_ON(bindex > dbend(dentry));
 	err = is_robranch_super(sb, bindex);
-	if (unlikely(err))
+	if (err)
 		goto out;
 
 	lower_dir_dentry = unionfs_lower_dentry_idx(dentry, bindex);
@@ -160,7 +160,7 @@ static int readdir_util_callback(void *dirent, const char *name, int namelen,
 
 	found = find_filldir_node(buf->rdstate, name, namelen);
 	/* If it was found in the table there was a previous whiteout. */
-	if (likely(found))
+	if (found)
 		goto out;
 
 	/*
@@ -168,7 +168,7 @@ static int readdir_util_callback(void *dirent, const char *name, int namelen,
 	 * empty.
 	 */
 	err = -ENOTEMPTY;
-	if (unlikely((buf->mode == RD_CHECK_EMPTY) && !whiteout))
+	if ((buf->mode == RD_CHECK_EMPTY) && !whiteout)
 		goto out;
 
 	err = add_filldir_node(buf->rdstate, name, namelen,
@@ -194,7 +194,7 @@ int check_empty(struct dentry *dentry, struct unionfs_dir_state **namelist)
 
 	BUG_ON(!S_ISDIR(dentry->d_inode->i_mode));
 
-	if (unlikely((err = unionfs_partial_lookup(dentry))))
+	if ((err = unionfs_partial_lookup(dentry)))
 		goto out;
 
 	bstart = dbstart(dentry);
@@ -233,7 +233,7 @@ int check_empty(struct dentry *dentry, struct unionfs_dir_state **namelist)
 			dentry_open(lower_dentry,
 				    unionfs_lower_mnt_idx(dentry, bindex),
 				    O_RDONLY);
-		if (unlikely(IS_ERR(lower_file))) {
+		if (IS_ERR(lower_file)) {
 			err = PTR_ERR(lower_file);
 			dput(lower_dentry);
 			branchput(sb, bindex);
@@ -245,7 +245,7 @@ int check_empty(struct dentry *dentry, struct unionfs_dir_state **namelist)
 			buf->rdstate->bindex = bindex;
 			err = vfs_readdir(lower_file,
 					  readdir_util_callback, buf);
-			if (unlikely(buf->err))
+			if (buf->err)
 				err = buf->err;
 		} while ((err >= 0) && buf->filldir_called);
 
@@ -253,15 +253,15 @@ int check_empty(struct dentry *dentry, struct unionfs_dir_state **namelist)
 		fput(lower_file);
 		branchput(sb, bindex);
 
-		if (unlikely(err < 0))
+		if (err < 0)
 			goto out;
 	}
 
 out:
-	if (likely(buf)) {
+	if (buf) {
 		if (namelist && !err)
 			*namelist = buf->rdstate;
-		else if (likely(buf->rdstate))
+		else if (buf->rdstate)
 			free_rdstate(buf->rdstate);
 		kfree(buf);
 	}

@@ -60,7 +60,7 @@ int create_whiteout(struct dentry *dentry, int start)
 						      dentry,
 						      dentry->d_name.name,
 						      bindex);
-			if (unlikely(!lower_dentry || IS_ERR(lower_dentry))) {
+			if (!lower_dentry || IS_ERR(lower_dentry)) {
 				printk(KERN_DEBUG "unionfs: create_parents "
 				       "failed for bindex = %d\n", bindex);
 				continue;
@@ -70,7 +70,7 @@ int create_whiteout(struct dentry *dentry, int start)
 		lower_wh_dentry =
 			lookup_one_len(name, lower_dentry->d_parent,
 				       dentry->d_name.len + UNIONFS_WHLEN);
-		if (unlikely(IS_ERR(lower_wh_dentry)))
+		if (IS_ERR(lower_wh_dentry))
 			continue;
 
 		/*
@@ -96,12 +96,12 @@ int create_whiteout(struct dentry *dentry, int start)
 		dput(lower_wh_dentry);
 		release_lower_nd(&nd, err);
 
-		if (unlikely(!err || !IS_COPYUP_ERR(err)))
+		if (!err || !IS_COPYUP_ERR(err))
 			break;
 	}
 
 	/* set dbopaque so that lookup will not proceed after this branch */
-	if (likely(!err))
+	if (!err)
 		set_dbopaque(dentry, bindex);
 
 out:
@@ -129,7 +129,7 @@ int unionfs_refresh_lower_dentry(struct dentry *dentry, int bindex)
 
 	lower_dentry = lookup_one_len(dentry->d_name.name, lower_parent,
 				      dentry->d_name.len);
-	if (unlikely(IS_ERR(lower_dentry))) {
+	if (IS_ERR(lower_dentry)) {
 		err = PTR_ERR(lower_dentry);
 		goto out;
 	}
@@ -138,7 +138,7 @@ int unionfs_refresh_lower_dentry(struct dentry *dentry, int bindex)
 	iput(unionfs_lower_inode_idx(dentry->d_inode, bindex));
 	unionfs_set_lower_inode_idx(dentry->d_inode, bindex, NULL);
 
-	if (unlikely(!lower_dentry->d_inode)) {
+	if (!lower_dentry->d_inode) {
 		dput(lower_dentry);
 		unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
 	} else {
@@ -166,7 +166,7 @@ int make_dir_opaque(struct dentry *dentry, int bindex)
 	mutex_lock(&lower_dir->i_mutex);
 	diropq = lookup_one_len(UNIONFS_DIR_OPAQUE, lower_dentry,
 				sizeof(UNIONFS_DIR_OPAQUE) - 1);
-	if (unlikely(IS_ERR(diropq))) {
+	if (IS_ERR(diropq)) {
 		err = PTR_ERR(diropq);
 		goto out;
 	}
@@ -176,7 +176,7 @@ int make_dir_opaque(struct dentry *dentry, int bindex)
 		goto out;
 	if (!diropq->d_inode)
 		err = vfs_create(lower_dir, diropq, S_IRUGO, &nd);
-	if (likely(!err))
+	if (!err)
 		set_dbopaque(dentry, bindex);
 	release_lower_nd(&nd, err);
 
@@ -193,7 +193,7 @@ out:
 int unionfs_get_nlinks(const struct inode *inode)
 {
 	/* don't bother to do all the work since we're unlinked */
-	if (unlikely(inode->i_nlink == 0))
+	if (inode->i_nlink == 0)
 		return 0;
 
 	if (!S_ISDIR(inode->i_mode))

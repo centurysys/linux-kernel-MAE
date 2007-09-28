@@ -23,7 +23,7 @@ void *unionfs_xattr_alloc(size_t size, size_t limit)
 {
 	void *ptr;
 
-	if (unlikely(size > limit))
+	if (size > limit)
 		return ERR_PTR(-E2BIG);
 
 	if (!size)		/* size request, no buffer is needed */

@@ -26,13 +26,13 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 	int bindex;
 	int err = 0;
 
-	if (unlikely((err = unionfs_partial_lookup(dentry))))
+	if ((err = unionfs_partial_lookup(dentry)))
 		goto out;
 
 	bindex = dbstart(dentry);
 
 	lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-	if (unlikely(!lower_dentry))
+	if (!lower_dentry)
 		goto out;
 
 	lower_dir_dentry = lock_parent(lower_dentry);
@@ -42,13 +42,13 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 	if (!(err = is_robranch_super(dentry->d_sb, bindex)))
 		err = vfs_unlink(lower_dir_dentry->d_inode, lower_dentry);
 	/* if vfs_unlink succeeded, update our inode's times */
-	if (likely(!err))
+	if (!err)
 		unionfs_copy_attr_times(dentry->d_inode);
 	dput(lower_dentry);
 	fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
 	unlock_dir(lower_dir_dentry);
 
-	if (unlikely(err && !IS_COPYUP_ERR(err)))
+	if (err && !IS_COPYUP_ERR(err))
 		goto out;
 
 	if (err) {
@@ -62,11 +62,11 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 		err = create_whiteout(dentry, dbstart(dentry));
 
 out:
-	if (likely(!err))
+	if (!err)
 		dentry->d_inode->i_nlink--;
 
 	/* We don't want to leave negative leftover dentries for revalidate. */
-	if (likely(!err && (dbopaque(dentry) != -1)))
+	if (!err && (dbopaque(dentry) != -1))
 		update_bstart(dentry);
 
 	return err;
@@ -87,7 +87,7 @@ int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	err = unionfs_unlink_whiteout(dir, dentry);
 	/* call d_drop so the system "forgets" about us */
-	if (likely(!err)) {
+	if (!err) {
 		if (!S_ISDIR(dentry->d_inode->i_mode))
 			unionfs_postcopyup_release(dentry);
 		d_drop(dentry);
@@ -99,7 +99,7 @@ int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 
 out:
-	if (likely(!err)) {
+	if (!err) {
 		unionfs_check_dentry(dentry);
 		unionfs_check_inode(dir);
 	}
@@ -117,7 +117,7 @@ static int unionfs_rmdir_first(struct inode *dir, struct dentry *dentry,
 
 	/* Here we need to remove whiteout entries. */
 	err = delete_whiteouts(dentry, dbstart(dentry), namelist);
-	if (unlikely(err))
+	if (err)
 		goto out;
 
 	lower_dentry = unionfs_lower_dentry(dentry);
@@ -135,7 +135,7 @@ static int unionfs_rmdir_first(struct inode *dir, struct dentry *dentry,
 	dentry->d_inode->i_nlink = unionfs_get_nlinks(dentry->d_inode);
 
 out:
-	if (likely(lower_dir_dentry))
+	if (lower_dir_dentry)
 		unlock_dir(lower_dir_dentry);
 	return err;
 }
@@ -156,7 +156,7 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	/* check if this unionfs directory is empty or not */
 	err = check_empty(dentry, &namelist);
-	if (unlikely(err))
+	if (err)
 		goto out;
 
 	err = unionfs_rmdir_first(dir, dentry, namelist);
@@ -170,7 +170,7 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 			goto out;
 
 		/* exit if the error returned was NOT -EROFS */
-		if (unlikely(!IS_COPYUP_ERR(err)))
+		if (!IS_COPYUP_ERR(err))
 			goto out;
 
 		new_err = create_whiteout(dentry, dbstart(dentry) - 1);
@@ -180,10 +180,10 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 out:
 	/* call d_drop so the system "forgets" about us */
-	if (likely(!err))
+	if (!err)
 		d_drop(dentry);
 
-	if (likely(namelist))
+	if (namelist)
 		free_rdstate(namelist);
 
 	unionfs_unlock_dentry(dentry);

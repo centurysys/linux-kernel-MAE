@@ -84,7 +84,7 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 	 * resort to RAIF's page pointer flipping trick.)
 	 */
 	lower_page = find_lock_page(lower_inode->i_mapping, page->index);
-	if (unlikely(!lower_page)) {
+	if (!lower_page) {
 		err = AOP_WRITEPAGE_ACTIVATE;
 		set_page_dirty(page);
 		goto out;
@@ -102,7 +102,7 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 	BUG_ON(!lower_inode->i_mapping->a_ops->writepage);
 
 	/* workaround for some lower file systems: see big comment on top */
-	if (unlikely(wbc->for_writepages && !wbc->fs_private))
+	if (wbc->for_writepages && !wbc->fs_private)
 		wbc->for_writepages = 0;
 
 	/* call lower writepage (expects locked page) */
@@ -111,12 +111,12 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 	wbc->for_writepages = saved_for_writepages; /* restore value */
 
 	/* b/c find_lock_page locked it and ->writepage unlocks on success */
-	if (unlikely(err))
+	if (err)
 		unlock_page(lower_page);
 	/* b/c grab_cache_page increased refcnt */
 	page_cache_release(lower_page);
 
-	if (unlikely(err < 0)) {
+	if (err < 0) {
 		ClearPageUptodate(page);
 		goto out;
 	}
@@ -160,7 +160,7 @@ static int unionfs_do_readpage(struct file *file, struct page *page)
 	char *page_data = NULL;
 	loff_t offset;
 
-	if (unlikely(!UNIONFS_F(file))) {
+	if (!UNIONFS_F(file)) {
 		err = -ENOENT;
 		goto out;
 	}
@@ -189,7 +189,7 @@ static int unionfs_do_readpage(struct file *file, struct page *page)
 
 	kunmap(page);
 
-	if (unlikely(err < 0))
+	if (err < 0)
 		goto out;
 	err = 0;
 
@@ -199,7 +199,7 @@ static int unionfs_do_readpage(struct file *file, struct page *page)
 	flush_dcache_page(page);
 
 out:
-	if (likely(err == 0))
+	if (err == 0)
 		SetPageUptodate(page);
 	else
 		ClearPageUptodate(page);
@@ -218,7 +218,7 @@ static int unionfs_readpage(struct file *file, struct page *page)
 
 	err = unionfs_do_readpage(file, page);
 
-	if (likely(!err)) {
+	if (!err) {
 		touch_atime(unionfs_lower_mnt(file->f_path.dentry),
 			    unionfs_lower_dentry(file->f_path.dentry));
 		unionfs_copy_attr_times(file->f_path.dentry->d_inode);
@@ -283,7 +283,7 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 	inode = page->mapping->host;
 	lower_inode = unionfs_lower_inode(inode);
 
-	if (likely(UNIONFS_F(file) != NULL))
+	if (UNIONFS_F(file) != NULL)
 		lower_file = unionfs_lower_file(file);
 
 	/* FIXME: is this assertion right here? */
@@ -307,7 +307,7 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 
 	kunmap(page);
 
-	if (unlikely(err < 0))
+	if (err < 0)
 		goto out;
 
 	inode->i_blocks = lower_inode->i_blocks;
@@ -320,7 +320,7 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 	mark_inode_dirty_sync(inode);
 
 out:
-	if (unlikely(err < 0))
+	if (err < 0)
 		ClearPageUptodate(page);
 
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
@@ -347,7 +347,7 @@ static void unionfs_sync_page(struct page *page)
 	 * do is ensure that pending I/O gets done.
 	 */
 	lower_page = find_lock_page(lower_inode->i_mapping, page->index);
-	if (unlikely(!lower_page)) {
+	if (!lower_page) {
 		printk(KERN_DEBUG "unionfs: find_lock_page failed\n");
 		goto out;
 	}
