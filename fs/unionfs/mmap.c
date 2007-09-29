@@ -293,7 +293,7 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 	lower_file->f_pos = ((loff_t) page->index << PAGE_CACHE_SHIFT) + from;
 
 	/*
-	 * SP: I use vfs_write instead of copying page data and the
+	 * We use vfs_write instead of copying page data and the
 	 * prepare_write/commit_write combo because file system's like
 	 * GFS/OCFS2 don't like things touching those directly,
 	 * calling the underlying write op, while a little bit slower, will

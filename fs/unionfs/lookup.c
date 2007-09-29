@@ -206,7 +206,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 		}
 
 		if (wh_lower_dentry->d_inode) {
-			/* We found a whiteout so lets give up. */
+			/* We found a whiteout so let's give up. */
 			if (S_ISREG(wh_lower_dentry->d_inode->i_mode)) {
 				set_dbend(dentry, bindex);
 				set_dbopaque(dentry, bindex);
