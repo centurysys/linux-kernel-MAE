@@ -629,7 +629,7 @@ int init_lower_nd(struct nameidata *nd, unsigned int flags)
 		 * We should never get here, for now.
 		 * We can add new cases here later on.
 		 */
-		dprintk("unionfs: unknown nameidata flag 0x%x\n", flags);
+		pr_debug("unionfs: unknown nameidata flag 0x%x\n", flags);
 		BUG();
 		break;
 	}
