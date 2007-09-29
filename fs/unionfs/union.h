@@ -478,8 +478,8 @@ static inline struct vfsmount *unionfs_mntget(struct dentry *dentry,
 	mnt = mntget(unionfs_lower_mnt_idx(dentry, bindex));
 #ifdef CONFIG_UNION_FS_DEBUG
 	if (!mnt)
-		printk(KERN_DEBUG "unionfs: mntget: mnt=%p bindex=%d\n",
-		       mnt, bindex);
+		pr_debug("unionfs: mntget: mnt=%p bindex=%d\n",
+			 mnt, bindex);
 #endif /* CONFIG_UNION_FS_DEBUG */
 
 	return mnt;
@@ -503,9 +503,7 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 	 * been a regular file: it had to have been a directory.
 	 */
 	if (!mnt && !(bindex > dbstart(dentry) && bindex < dbend(dentry)))
-		printk(KERN_WARNING
-		       "unionfs: mntput: mnt=%p bindex=%d\n",
-		       mnt, bindex);
+		pr_debug("unionfs: mntput: mnt=%p bindex=%d\n", mnt, bindex);
 #endif /* CONFIG_UNION_FS_DEBUG */
 	mntput(mnt);
 }
