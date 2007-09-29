@@ -59,8 +59,8 @@ retry:
 		counter++;
 		sprintf(suffix, "%*.*x", countersize, countersize, counter);
 
-		printk(KERN_DEBUG "unionfs: trying to rename %s to %s\n",
-		       dentry->d_name.name, name);
+		pr_debug("unionfs: trying to rename %s to %s\n",
+			 dentry->d_name.name, name);
 
 		tmp_dentry = lookup_one_len(name, lower_dentry->d_parent,
 					    nlen);
@@ -637,11 +637,11 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 
 	if (fileinfo->rdstate) {
 		fileinfo->rdstate->access = jiffies;
-		printk(KERN_DEBUG "unionfs: saving rdstate with cookie "
-		       "%u [%d.%lld]\n",
-		       fileinfo->rdstate->cookie,
-		       fileinfo->rdstate->bindex,
-		       (long long)fileinfo->rdstate->dirpos);
+		pr_debug("unionfs: saving rdstate with cookie "
+			 "%u [%d.%lld]\n",
+			 fileinfo->rdstate->cookie,
+			 fileinfo->rdstate->bindex,
+			 (long long)fileinfo->rdstate->dirpos);
 		spin_lock(&inodeinfo->rdlock);
 		inodeinfo->rdcount++;
 		list_add_tail(&fileinfo->rdstate->cache,
