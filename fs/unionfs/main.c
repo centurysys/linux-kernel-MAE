@@ -364,7 +364,8 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 			goto out;
 		}
 
-		if ((err = check_branch(&nd))) {
+		err = check_branch(&nd);
+		if (err) {
 			printk(KERN_ERR "unionfs: lower directory "
 			       "'%s' is not a valid branch\n", name);
 			path_release(&nd);
@@ -648,7 +649,8 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 
 	/* link the upper and lower dentries */
 	sb->s_root->d_fsdata = NULL;
-	if (unlikely((err = new_dentry_private_data(sb->s_root))))
+	err = new_dentry_private_data(sb->s_root);
+	if (unlikely(err))
 		goto out_freedpd;
 
 	/* Set the lower dentries for s_root */
@@ -738,13 +740,17 @@ static int __init init_unionfs_fs(void)
 
 	pr_info("Registering unionfs " UNIONFS_VERSION "\n");
 
-	if (unlikely((err = unionfs_init_filldir_cache())))
+	err = unionfs_init_filldir_cache();
+	if (unlikely(err))
 		goto out;
-	if (unlikely((err = unionfs_init_inode_cache())))
+	err = unionfs_init_inode_cache();
+	if (unlikely(err))
 		goto out;
-	if (unlikely((err = unionfs_init_dentry_cache())))
+	err = unionfs_init_dentry_cache();
+	if (unlikely(err))
 		goto out;
-	if (unlikely((err = init_sioq())))
+	err = init_sioq();
+	if (unlikely(err))
 		goto out;
 	err = register_filesystem(&unionfs_fs_type);
 out:

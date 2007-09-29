@@ -26,7 +26,8 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 	int bindex;
 	int err = 0;
 
-	if ((err = unionfs_partial_lookup(dentry)))
+	err = unionfs_partial_lookup(dentry);
+	if (err)
 		goto out;
 
 	bindex = dbstart(dentry);
@@ -39,7 +40,8 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 
 	/* avoid destroying the lower inode if the file is in use */
 	dget(lower_dentry);
-	if (!(err = is_robranch_super(dentry->d_sb, bindex)))
+	err = is_robranch_super(dentry->d_sb, bindex);
+	if (!err)
 		err = vfs_unlink(lower_dir_dentry->d_inode, lower_dentry);
 	/* if vfs_unlink succeeded, update our inode's times */
 	if (!err)
@@ -127,7 +129,8 @@ static int unionfs_rmdir_first(struct inode *dir, struct dentry *dentry,
 
 	/* avoid destroying the lower inode if the file is in use */
 	dget(lower_dentry);
-	if (!(err = is_robranch(dentry)))
+	err = is_robranch(dentry);
+	if (!err)
 		err = vfs_rmdir(lower_dir_dentry->d_inode, lower_dentry);
 	dput(lower_dentry);
 

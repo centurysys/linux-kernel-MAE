@@ -24,7 +24,8 @@ static ssize_t unionfs_read(struct file *file, char __user *buf,
 	int err;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if (unlikely((err = unionfs_file_revalidate(file, false))))
+	err = unionfs_file_revalidate(file, false);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 
@@ -47,7 +48,8 @@ static ssize_t unionfs_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if (unlikely((err = unionfs_file_revalidate(file, false))))
+	err = unionfs_file_revalidate(file, false);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 
@@ -72,7 +74,8 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 	int err = 0;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if (unlikely((err = unionfs_file_revalidate(file, true))))
+	err = unionfs_file_revalidate(file, true);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 
@@ -104,7 +107,8 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 
 	/* This might be deferred to mmap's writepage */
 	willwrite = ((vma->vm_flags | VM_SHARED | VM_WRITE) == vma->vm_flags);
-	if (unlikely((err = unionfs_file_revalidate(file, willwrite))))
+	err = unionfs_file_revalidate(file, willwrite);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 
@@ -150,7 +154,8 @@ int unionfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	int err = -EINVAL;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if (unlikely((err = unionfs_file_revalidate(file, true))))
+	err = unionfs_file_revalidate(file, true);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 
@@ -197,7 +202,8 @@ int unionfs_fasync(int fd, struct file *file, int flag)
 	int err = 0;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if (unlikely((err = unionfs_file_revalidate(file, true))))
+	err = unionfs_file_revalidate(file, true);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 

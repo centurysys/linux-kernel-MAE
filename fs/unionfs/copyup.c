@@ -394,7 +394,8 @@ int copyup_dentry(struct inode *dir, struct dentry *dentry, int bstart,
 
 	sb = dir->i_sb;
 
-	if ((err = is_robranch_super(sb, new_bindex)))
+	err = is_robranch_super(sb, new_bindex);
+	if (err)
 		goto out;
 
 	/* Create the directory structure above this dentry. */
@@ -465,7 +466,8 @@ int copyup_dentry(struct inode *dir, struct dentry *dentry, int bstart,
 
 #ifdef CONFIG_UNION_FS_XATTR
 	/* Selinux uses extended attributes for permissions. */
-	if ((err = copyup_xattrs(old_lower_dentry, new_lower_dentry)))
+	err = copyup_xattrs(old_lower_dentry, new_lower_dentry);
+	if (err)
 		goto out_unlink;
 #endif /* CONFIG_UNION_FS_XATTR */
 
@@ -679,7 +681,8 @@ struct dentry *create_parents(struct inode *dir, struct dentry *dentry,
 
 	verify_locked(dentry);
 
-	if ((err = is_robranch_super(dir->i_sb, bindex))) {
+	err = is_robranch_super(dir->i_sb, bindex);
+	if (err) {
 		lower_dentry = ERR_PTR(err);
 		goto out;
 	}

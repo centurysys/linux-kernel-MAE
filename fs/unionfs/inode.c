@@ -51,7 +51,8 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 	 * bit redundant as we don't allow branch 0 to be read-only at the
 	 * moment
 	 */
-	if ((err = is_robranch_super(dentry->d_sb, 0))) {
+	err = is_robranch_super(dentry->d_sb, 0);
+	if (err) {
 		err = -EROFS;
 		goto out;
 	}
@@ -278,7 +279,8 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	BUG_ON(dbstart(old_dentry) != dbstart(new_dentry));
 	lower_dir_dentry = lock_parent(lower_new_dentry);
-	if (!(err = is_robranch(old_dentry)))
+	err = is_robranch(old_dentry);
+	if (!err)
 		err = vfs_link(lower_old_dentry, lower_dir_dentry->d_inode,
 			       lower_new_dentry);
 	unlock_dir(lower_dir_dentry);
@@ -401,7 +403,8 @@ static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
 		 */
 		lower_dir_dentry = lock_parent(whiteout_dentry);
 
-		if (!(err = is_robranch_super(dentry->d_sb, bstart)))
+		err = is_robranch_super(dentry->d_sb, bstart);
+		if (!err)
 			err = vfs_unlink(lower_dir_dentry->d_inode,
 					 whiteout_dentry);
 		dput(whiteout_dentry);
@@ -455,7 +458,8 @@ static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
 
 		lower_dir_dentry = lock_parent(lower_dentry);
 
-		if (!(err = is_robranch_super(dentry->d_sb, bindex))) {
+		err = is_robranch_super(dentry->d_sb, bindex);
+		if (!err) {
 			mode = S_IALLUGO;
 			err = vfs_symlink(lower_dir_dentry->d_inode,
 					  lower_dentry, symname, mode);
@@ -556,7 +560,8 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 		lower_parent_dentry = lock_parent(whiteout_dentry);
 
 		/* found a.wh.foo entry, remove it then do vfs_mkdir */
-		if (!(err = is_robranch_super(dentry->d_sb, bstart))) {
+		err = is_robranch_super(dentry->d_sb, bstart);
+		if (!err) {
 			args.unlink.parent = lower_parent_dentry->d_inode;
 			args.unlink.dentry = whiteout_dentry;
 			run_sioq(__unionfs_unlink, &args);
@@ -708,7 +713,8 @@ static int unionfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 		lower_parent_dentry = lock_parent(whiteout_dentry);
 
 		/* found a.wh.foo entry, remove it then do vfs_mkdir */
-		if (!(err = is_robranch_super(dentry->d_sb, bstart)))
+		err = is_robranch_super(dentry->d_sb, bstart);
+		if (!err)
 			err = vfs_unlink(lower_parent_dentry->d_inode,
 					 whiteout_dentry);
 		dput(whiteout_dentry);
