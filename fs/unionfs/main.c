@@ -175,7 +175,7 @@ skip:
 		/* Do nothing. */
 		break;
 	default:
-		printk(KERN_ERR "unionfs: invalid interpose flag passed!");
+		printk(KERN_ERR "unionfs: invalid interpose flag passed!\n");
 		BUG();
 	}
 	goto out;
