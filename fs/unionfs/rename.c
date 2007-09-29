@@ -40,7 +40,7 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 				       new_dentry, new_dentry->d_name.name,
 				       bindex);
 		if (IS_ERR(lower_new_dentry)) {
-			printk(KERN_DEBUG "unionfs: error creating directory "
+			printk(KERN_ERR "unionfs: error creating directory "
 			       "tree for rename, bindex = %d, err = %ld\n",
 			       bindex, PTR_ERR(lower_new_dentry));
 			err = PTR_ERR(lower_new_dentry);
@@ -66,7 +66,7 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (lower_wh_dentry->d_inode) {
 		/* get rid of the whiteout that is existing */
 		if (lower_new_dentry->d_inode) {
-			printk(KERN_WARNING "unionfs: both a whiteout and a "
+			printk(KERN_ERR "unionfs: both a whiteout and a "
 			       "dentry exist when doing a rename!\n");
 			err = -EIO;
 
@@ -293,14 +293,14 @@ revert:
 	/* Do revert here. */
 	local_err = unionfs_refresh_lower_dentry(new_dentry, old_bstart);
 	if (local_err) {
-		printk(KERN_WARNING "unionfs: revert failed in rename: "
+		printk(KERN_ERR "unionfs: revert failed in rename: "
 		       "the new refresh failed.\n");
 		eio = -EIO;
 	}
 
 	local_err = unionfs_refresh_lower_dentry(old_dentry, old_bstart);
 	if (local_err) {
-		printk(KERN_WARNING "unionfs: revert failed in rename: "
+		printk(KERN_ERR "unionfs: revert failed in rename: "
 		       "the old refresh failed.\n");
 		eio = -EIO;
 		goto revert_out;
@@ -308,7 +308,7 @@ revert:
 
 	if (!unionfs_lower_dentry_idx(new_dentry, bindex) ||
 	    !unionfs_lower_dentry_idx(new_dentry, bindex)->d_inode) {
-		printk(KERN_WARNING "unionfs: revert failed in rename: "
+		printk(KERN_ERR "unionfs: revert failed in rename: "
 		       "the object disappeared from under us!\n");
 		eio = -EIO;
 		goto revert_out;
@@ -316,7 +316,7 @@ revert:
 
 	if (unionfs_lower_dentry_idx(old_dentry, bindex) &&
 	    unionfs_lower_dentry_idx(old_dentry, bindex)->d_inode) {
-		printk(KERN_WARNING "unionfs: revert failed in rename: "
+		printk(KERN_ERR "unionfs: revert failed in rename: "
 		       "the object was created underneath us!\n");
 		eio = -EIO;
 		goto revert_out;
@@ -327,7 +327,7 @@ revert:
 
 	/* If we can't fix it, then we cop-out with -EIO. */
 	if (local_err) {
-		printk(KERN_WARNING "unionfs: revert failed in rename!\n");
+		printk(KERN_ERR "unionfs: revert failed in rename!\n");
 		eio = -EIO;
 	}
 

@@ -121,12 +121,13 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 	lower_file = unionfs_lower_file(file);
 	if (willwrite && !lower_file->f_mapping->a_ops->writepage) {
 		err = -EINVAL;
-		printk("unionfs: branch %d file system does not support "
-		       "writeable mmap\n", fbstart(file));
+		printk(KERN_ERR "unionfs: branch %d file system does not "
+		       "support writeable mmap\n", fbstart(file));
 	} else {
 		err = generic_file_mmap(file, vma);
 		if (err)
-			printk("unionfs: generic_file_mmap failed %d\n", err);
+			printk(KERN_ERR
+			       "unionfs: generic_file_mmap failed %d\n", err);
 	}
 
 out:

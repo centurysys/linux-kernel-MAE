@@ -45,7 +45,7 @@ static void unionfs_read_inode(struct inode *inode)
 	size = sbmax(inode->i_sb) * sizeof(struct inode *);
 	info->lower_inodes = kzalloc(size, GFP_KERNEL);
 	if (unlikely(!info->lower_inodes)) {
-		printk(KERN_ERR "unionfs: no kernel memory when allocating "
+		printk(KERN_CRIT "unionfs: no kernel memory when allocating "
 		       "lower-pointer array!\n");
 		BUG();
 	}
@@ -99,7 +99,8 @@ static void unionfs_put_super(struct super_block *sb)
 	/* Make sure we have no leaks of branchget/branchput. */
 	for (bindex = bstart; bindex <= bend; bindex++)
 		if (unlikely(branch_count(sb, bindex) != 0)) {
-			printk("unionfs: branch %d has %d references left!\n",
+			printk(KERN_CRIT
+			       "unionfs: branch %d has %d references left!\n",
 			       bindex, branch_count(sb, bindex));
 			leaks = 1;
 		}
@@ -171,17 +172,19 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 
 	/* by now, optarg contains the branch name */
 	if (!*optarg) {
-		printk("unionfs: no branch specified for mode change.\n");
+		printk(KERN_ERR
+		       "unionfs: no branch specified for mode change.\n");
 		goto out;
 	}
 	if (!modename) {
-		printk("unionfs: branch \"%s\" requires a mode.\n", optarg);
+		printk(KERN_ERR "unionfs: branch \"%s\" requires a mode.\n",
+		       optarg);
 		goto out;
 	}
 	*modename++ = '\0';
 	perms = __parse_branch_mode(modename);
 	if (perms == 0) {
-		printk("unionfs: invalid mode \"%s\" for \"%s\".\n",
+		printk(KERN_ERR "unionfs: invalid mode \"%s\" for \"%s\".\n",
 		       modename, optarg);
 		goto out;
 	}
@@ -194,7 +197,7 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 	 */
 	err = path_lookup(optarg, LOOKUP_FOLLOW, &nd);
 	if (err) {
-		printk(KERN_WARNING "unionfs: error accessing "
+		printk(KERN_ERR "unionfs: error accessing "
 		       "lower directory \"%s\" (error %d)\n",
 		       optarg, err);
 		goto out;
@@ -206,7 +209,7 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 	path_release(&nd);	/* no longer needed */
 	if (idx == cur_branches) {
 		err = -ENOENT;	/* err may have been reset above */
-		printk(KERN_WARNING "unionfs: branch \"%s\" "
+		printk(KERN_ERR "unionfs: branch \"%s\" "
 		       "not found\n", optarg);
 		goto out;
 	}
@@ -237,7 +240,7 @@ static noinline int do_remount_del_option(char *optarg, int cur_branches,
 	 */
 	err = path_lookup(optarg, LOOKUP_FOLLOW, &nd);
 	if (err) {
-		printk(KERN_WARNING "unionfs: error accessing "
+		printk(KERN_ERR "unionfs: error accessing "
 		       "lower directory \"%s\" (error %d)\n",
 		       optarg, err);
 		goto out;
@@ -248,7 +251,7 @@ static noinline int do_remount_del_option(char *optarg, int cur_branches,
 			break;
 	path_release(&nd);	/* no longer needed */
 	if (idx == cur_branches) {
-		printk(KERN_WARNING "unionfs: branch \"%s\" "
+		printk(KERN_ERR "unionfs: branch \"%s\" "
 		       "not found\n", optarg);
 		err = -ENOENT;
 		goto out;
@@ -321,7 +324,7 @@ static noinline int do_remount_add_option(char *optarg, int cur_branches,
 	 */
 	err = path_lookup(optarg, LOOKUP_FOLLOW, &nd);
 	if (err) {
-		printk(KERN_WARNING "unionfs: error accessing "
+		printk(KERN_ERR "unionfs: error accessing "
 		       "lower directory \"%s\" (error %d)\n",
 		       optarg, err);
 		goto out;
@@ -332,7 +335,7 @@ static noinline int do_remount_add_option(char *optarg, int cur_branches,
 			break;
 	path_release(&nd);	/* no longer needed */
 	if (idx == cur_branches) {
-		printk(KERN_WARNING "unionfs: branch \"%s\" "
+		printk(KERN_ERR "unionfs: branch \"%s\" "
 		       "not found\n", optarg);
 		err = -ENOENT;
 		goto out;
@@ -351,13 +354,13 @@ found_insertion_point:
 	perms = parse_branch_mode(modename);
 
 	if (!new_branch || !*new_branch) {
-		printk(KERN_WARNING "unionfs: null new branch\n");
+		printk(KERN_ERR "unionfs: null new branch\n");
 		err = -EINVAL;
 		goto out;
 	}
 	err = path_lookup(new_branch, LOOKUP_FOLLOW, &nd);
 	if (err) {
-		printk(KERN_WARNING "unionfs: error accessing "
+		printk(KERN_ERR "unionfs: error accessing "
 		       "lower directory \"%s\" (error %d)\n",
 		       new_branch, err);
 		goto out;
@@ -370,7 +373,7 @@ found_insertion_point:
 	 * code base supports that correctly.
 	 */
 	if ((err = check_branch(&nd))) {
-		printk(KERN_WARNING "unionfs: lower directory "
+		printk(KERN_ERR "unionfs: lower directory "
 		       "\"%s\" is not a valid branch\n", optarg);
 		path_release(&nd);
 		goto out;
@@ -454,7 +457,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	 * allowed/supported as of now).
 	 */
 	if ((*flags & ~(MS_RDONLY | MS_SILENT)) != 0) {
-		printk(KERN_WARNING
+		printk(KERN_ERR
 		       "unionfs: remount flags 0x%x unsupported\n", *flags);
 		err = -EINVAL;
 		goto out_error;
@@ -499,7 +502,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	kfree(tmp_to_free);
 	/* after all changes, will we have at least one branch left? */
 	if ((new_branches + add_branches - del_branches) < 1) {
-		printk(KERN_WARNING
+		printk(KERN_ERR
 		       "unionfs: no branches left after remount\n");
 		err = -EINVAL;
 		goto out_free;
@@ -580,7 +583,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 		 * contains the CMD part and optarg contains the ARG part.
 		 */
 		if (!optarg || !*optarg) {
-			printk("unionfs: all remount options require "
+			printk(KERN_ERR "unionfs: all remount options require "
 			       "an argument (%s).\n", optname);
 			err = -EINVAL;
 			goto out_release;
@@ -595,7 +598,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 				goto out_release;
 			new_branches++;
 			if (new_branches > UNIONFS_MAX_BRANCHES) {
-				printk("unionfs: command exceeds "
+				printk(KERN_ERR "unionfs: command exceeds "
 				       "%d branches\n", UNIONFS_MAX_BRANCHES);
 				err = -E2BIG;
 				goto out_release;
@@ -637,7 +640,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 		}
 
 		err = -EINVAL;
-		printk(KERN_WARNING
+		printk(KERN_ERR
 		       "unionfs: unrecognized option \"%s\"\n", optname);
 		goto out_release;
 	}
@@ -653,7 +656,7 @@ out_no_change:
 	 *******************************************************************/
 
 	if (!(tmp_data[0].branchperms & MAY_WRITE)) {
-		printk("unionfs: leftmost branch cannot be read-only "
+		printk(KERN_ERR "unionfs: leftmost branch cannot be read-only "
 		       "(use \"remount,ro\" to create a read-only union)\n");
 		err = -EINVAL;
 		goto out_release;
@@ -766,7 +769,7 @@ out_no_change:
 	atomic_set(&UNIONFS_D(sb->s_root)->generation, i);
 	atomic_set(&UNIONFS_I(sb->s_root->d_inode)->generation, i);
 	if (!(*flags & MS_SILENT))
-		printk("unionfs: new generation number %d\n", i);
+		pr_info("unionfs: new generation number %d\n", i);
 	/* finally, update the root dentry's times */
 	unionfs_copy_attr_times(sb->s_root->d_inode);
 	err = 0;		/* reset to success */

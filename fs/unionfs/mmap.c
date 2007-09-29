@@ -347,7 +347,7 @@ static void unionfs_sync_page(struct page *page)
 	 */
 	lower_page = find_lock_page(lower_inode->i_mapping, page->index);
 	if (!lower_page) {
-		printk(KERN_DEBUG "unionfs: find_lock_page failed\n");
+		printk(KERN_ERR "unionfs: find_lock_page failed\n");
 		goto out;
 	}
 

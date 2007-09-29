@@ -90,8 +90,8 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 			unlock_dir(lower_dir_dentry);
 
 			if (err) {
-				printk("unionfs: create: could not unlink "
-				       "whiteout, err = %d\n", err);
+				printk(KERN_ERR "unionfs: create: could not "
+				       "unlink whiteout, err = %d\n", err);
 				goto out;
 			}
 		}
@@ -446,7 +446,7 @@ static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
 				if (IS_ERR(lower_dentry))
 					err = PTR_ERR(lower_dentry);
 
-				printk(KERN_DEBUG "unionfs: lower dentry "
+				printk(KERN_ERR "unionfs: lower dentry "
 				       "NULL (or error) for bindex = %d\n",
 				       bindex);
 				continue;
@@ -588,7 +588,7 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 						      dentry->d_name.name,
 						      bindex);
 			if (!lower_dentry || IS_ERR(lower_dentry)) {
-				printk(KERN_DEBUG "unionfs: lower dentry "
+				printk(KERN_ERR "unionfs: lower dentry "
 				       " NULL for bindex = %d\n", bindex);
 				continue;
 			}
@@ -732,7 +732,7 @@ static int unionfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 						      dentry->d_name.name,
 						      bindex);
 			if (IS_ERR(lower_dentry)) {
-				printk(KERN_DEBUG "unionfs: failed to create "
+				printk(KERN_ERR "unionfs: failed to create "
 				       "parents on %d, err = %ld\n",
 				       bindex, PTR_ERR(lower_dentry));
 				continue;
@@ -878,7 +878,8 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
 
 	unionfs_lock_dentry(dentry);
 	if (unlikely(!__unionfs_d_revalidate_chain(dentry, nd, false)))
-		printk("unionfs: put_link failed to revalidate dentry\n");
+		printk(KERN_ERR
+		       "unionfs: put_link failed to revalidate dentry\n");
 	unionfs_unlock_dentry(dentry);
 
 	unionfs_check_dentry(dentry);
@@ -1088,7 +1089,8 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 		if (ia->ia_size != i_size_read(inode)) {
 			err = vmtruncate(inode, ia->ia_size);
 			if (err)
-				printk("unionfs: setattr: vmtruncate failed\n");
+				printk(KERN_ERR
+				       "unionfs: setattr: vmtruncate failed\n");
 		}
 	}
 
