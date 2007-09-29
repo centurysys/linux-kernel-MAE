@@ -218,17 +218,17 @@ bool is_newer_lower(const struct dentry *dentry)
 		 */
 		if (unlikely(timespec_compare(&inode->i_mtime,
 					      &lower_inode->i_mtime) < 0)) {
-			printk("unionfs: new lower inode mtime "
-			       "(bindex=%d, name=%s)\n", bindex,
-			       dentry->d_name.name);
+			pr_info("unionfs: new lower inode mtime "
+				"(bindex=%d, name=%s)\n", bindex,
+				dentry->d_name.name);
 			show_dinode_times(dentry);
 			return true; /* mtime changed! */
 		}
 		if (unlikely(timespec_compare(&inode->i_ctime,
 					      &lower_inode->i_ctime) < 0)) {
-			printk("unionfs: new lower inode ctime "
-			       "(bindex=%d, name=%s)\n", bindex,
-			       dentry->d_name.name);
+			pr_info("unionfs: new lower inode ctime "
+				"(bindex=%d, name=%s)\n", bindex,
+				dentry->d_name.name);
 			show_dinode_times(dentry);
 			return true; /* ctime changed! */
 		}
@@ -328,7 +328,7 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 	 */
 	chain = kzalloc(chain_len * sizeof(struct dentry *), GFP_KERNEL);
 	if (unlikely(!chain)) {
-		printk("unionfs: no more memory in %s\n", __FUNCTION__);
+		printk(KERN_CRIT "unionfs: no more memory in %s\n", __FUNCTION__);
 		goto out;
 	}
 
@@ -449,12 +449,12 @@ static void unionfs_d_release(struct dentry *dentry)
 	unionfs_check_dentry(dentry);
 	/* this could be a negative dentry, so check first */
 	if (unlikely(!UNIONFS_D(dentry))) {
-		printk(KERN_DEBUG "unionfs: dentry without private data: %.*s\n",
+		printk(KERN_ERR "unionfs: dentry without private data: %.*s\n",
 		       dentry->d_name.len, dentry->d_name.name);
 		goto out;
 	} else if (dbstart(dentry) < 0) {
 		/* this is due to a failed lookup */
-		printk(KERN_DEBUG "unionfs: dentry without lower "
+		printk(KERN_ERR "unionfs: dentry without lower "
 		       "dentries: %.*s\n",
 		       dentry->d_name.len, dentry->d_name.name);
 		goto out_free;

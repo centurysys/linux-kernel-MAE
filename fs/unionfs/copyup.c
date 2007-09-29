@@ -209,7 +209,7 @@ static int __copyup_ndentry(struct dentry *old_lower_dentry,
 		err = args.err;
 		release_lower_nd(&nd, err);
 	} else {
-		printk(KERN_ERR "unionfs: unknown inode type %d\n",
+		printk(KERN_CRIT "unionfs: unknown inode type %d\n",
 		       old_mode);
 		BUG();
 	}

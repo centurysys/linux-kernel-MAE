@@ -760,8 +760,8 @@ long unionfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case UNIONFS_IOCTL_INCGEN:
 		/* Increment the superblock generation count */
-		printk("unionfs: incgen ioctl deprecated; "
-		       "use \"-o remount,incgen\"\n");
+		pr_info("unionfs: incgen ioctl deprecated; "
+			"use \"-o remount,incgen\"\n");
 		err = -ENOSYS;
 		break;
 

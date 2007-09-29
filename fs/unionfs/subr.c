@@ -61,7 +61,7 @@ int create_whiteout(struct dentry *dentry, int start)
 						      dentry->d_name.name,
 						      bindex);
 			if (!lower_dentry || IS_ERR(lower_dentry)) {
-				printk(KERN_DEBUG "unionfs: create_parents "
+				printk(KERN_ERR "unionfs: create_parents "
 				       "failed for bindex = %d\n", bindex);
 				continue;
 			}

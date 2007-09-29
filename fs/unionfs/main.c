@@ -175,7 +175,7 @@ skip:
 		/* Do nothing. */
 		break;
 	default:
-		printk(KERN_ERR "unionfs: invalid interpose flag passed!\n");
+		printk(KERN_CRIT "unionfs: invalid interpose flag passed!\n");
 		BUG();
 	}
 	goto out;
@@ -303,7 +303,7 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 	struct dentry *dent2;
 
 	if (options[0] == '\0') {
-		printk(KERN_WARNING "unionfs: no branches specified\n");
+		printk(KERN_ERR "unionfs: no branches specified\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -358,14 +358,14 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 
 		err = path_lookup(name, LOOKUP_FOLLOW, &nd);
 		if (err) {
-			printk(KERN_WARNING "unionfs: error accessing "
+			printk(KERN_ERR "unionfs: error accessing "
 			       "lower directory '%s' (error %d)\n",
 			       name, err);
 			goto out;
 		}
 
 		if ((err = check_branch(&nd))) {
-			printk(KERN_WARNING "unionfs: lower directory "
+			printk(KERN_ERR "unionfs: lower directory "
 			       "'%s' is not a valid branch\n", name);
 			path_release(&nd);
 			goto out;
@@ -385,7 +385,7 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 	}
 
 	if (branches == 0) {
-		printk(KERN_WARNING "unionfs: no branches specified\n");
+		printk(KERN_ERR "unionfs: no branches specified\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -412,7 +412,7 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 		for (j = i + 1; j < branches; j++) {
 			dent2 = lower_root_info->lower_paths[j].dentry;
 			if (is_branch_overlap(dent1, dent2)) {
-				printk(KERN_WARNING "unionfs: branches %d and "
+				printk(KERN_ERR "unionfs: branches %d and "
 				       "%d overlap\n", i, j);
 				err = -EINVAL;
 				goto out;
@@ -485,14 +485,15 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 		 * don't, above this check.
 		 */
 		if (!optarg) {
-			printk("unionfs: %s requires an argument.\n", optname);
+			printk(KERN_ERR "unionfs: %s requires an argument.\n",
+			       optname);
 			err = -EINVAL;
 			goto out_error;
 		}
 
 		if (!strcmp("dirs", optname)) {
 			if (++dirsfound > 1) {
-				printk(KERN_WARNING
+				printk(KERN_ERR
 				       "unionfs: multiple dirs specified\n");
 				err = -EINVAL;
 				goto out_error;
@@ -506,7 +507,7 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 		/* All of these options require an integer argument. */
 		intval = simple_strtoul(optarg, &endptr, 0);
 		if (*endptr) {
-			printk(KERN_WARNING
+			printk(KERN_ERR
 			       "unionfs: invalid %s option '%s'\n",
 			       optname, optarg);
 			err = -EINVAL;
@@ -514,12 +515,12 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 		}
 
 		err = -EINVAL;
-		printk(KERN_WARNING
+		printk(KERN_ERR
 		       "unionfs: unrecognized option '%s'\n", optname);
 		goto out_error;
 	}
 	if (dirsfound != 1) {
-		printk(KERN_WARNING "unionfs: dirs option required\n");
+		printk(KERN_ERR "unionfs: dirs option required\n");
 		err = -EINVAL;
 		goto out_error;
 	}
@@ -591,7 +592,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	int bindex, bstart, bend;
 
 	if (!raw_data) {
-		printk(KERN_WARNING
+		printk(KERN_ERR
 		       "unionfs: read_super: missing data argument\n");
 		err = -EINVAL;
 		goto out;
@@ -600,7 +601,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	/* Allocate superblock private data */
 	sb->s_fs_info = kzalloc(sizeof(struct unionfs_sb_info), GFP_KERNEL);
 	if (unlikely(!UNIONFS_SB(sb))) {
-		printk(KERN_WARNING "unionfs: read_super: out of memory\n");
+		printk(KERN_CRIT "unionfs: read_super: out of memory\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -612,7 +613,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 
 	lower_root_info = unionfs_parse_options(sb, raw_data);
 	if (IS_ERR(lower_root_info)) {
-		printk(KERN_WARNING
+		printk(KERN_ERR
 		       "unionfs: read_super: error while parsing options "
 		       "(err = %ld)\n", PTR_ERR(lower_root_info));
 		err = PTR_ERR(lower_root_info);
@@ -735,7 +736,7 @@ static int __init init_unionfs_fs(void)
 {
 	int err;
 
-	printk("Registering unionfs " UNIONFS_VERSION "\n");
+	pr_info("Registering unionfs " UNIONFS_VERSION "\n");
 
 	if (unlikely((err = unionfs_init_filldir_cache())))
 		goto out;
@@ -763,7 +764,7 @@ static void __exit exit_unionfs_fs(void)
 	unionfs_destroy_inode_cache();
 	unionfs_destroy_dentry_cache();
 	unregister_filesystem(&unionfs_fs_type);
-	printk("Completed unionfs module unload.\n");
+	pr_info("Completed unionfs module unload\n");
 }
 
 MODULE_AUTHOR("Erez Zadok, Filesystems and Storage Lab, Stony Brook University"

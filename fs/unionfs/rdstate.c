@@ -218,7 +218,7 @@ struct filldir_node *find_filldir_node(struct unionfs_dir_state *rdstate,
 			 * system is corrupted.
 			 */
 			if (unlikely(cursor->bindex == rdstate->bindex)) {
-				printk(KERN_DEBUG "unionfs: filldir: possible "
+				printk(KERN_ERR "unionfs: filldir: possible "
 				       "I/O error: a file is duplicated "
 				       "in the same branch %d: %s\n",
 				       rdstate->bindex, cursor->name);
