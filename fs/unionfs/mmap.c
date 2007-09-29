@@ -179,7 +179,8 @@ static int unionfs_do_readpage(struct file *file, struct page *page)
 	 * may be a little slower, but a lot safer, as the VFS does a lot of
 	 * the necessary magic for us.
 	 */
-	offset = lower_file->f_pos = page_offset(page);
+	lower_file->f_pos = page_offset(page);
+	offset = page_offset(page);
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 	err = vfs_read(lower_file, page_data, PAGE_CACHE_SIZE,
