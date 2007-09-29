@@ -478,7 +478,7 @@ static inline struct vfsmount *unionfs_mntget(struct dentry *dentry,
 	mnt = mntget(unionfs_lower_mnt_idx(dentry, bindex));
 #ifdef CONFIG_UNION_FS_DEBUG
 	if (!mnt)
-		printk(KERN_DEBUG "unionfs_mntget: mnt=%p bindex=%d\n",
+		printk(KERN_DEBUG "unionfs: mntget: mnt=%p bindex=%d\n",
 		       mnt, bindex);
 #endif /* CONFIG_UNION_FS_DEBUG */
 
@@ -504,7 +504,7 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 	 */
 	if (!mnt && !(bindex > dbstart(dentry) && bindex < dbend(dentry)))
 		printk(KERN_WARNING
-		       "unionfs_mntput: mnt=%p bindex=%d\n",
+		       "unionfs: mntput: mnt=%p bindex=%d\n",
 		       mnt, bindex);
 #endif /* CONFIG_UNION_FS_DEBUG */
 	mntput(mnt);
