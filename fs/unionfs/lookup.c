@@ -47,11 +47,11 @@ static noinline int is_opaque_dir(struct dentry *dentry, int bindex)
 
 	mutex_lock(&lower_inode->i_mutex);
 
-	if (!permission(lower_inode, MAY_EXEC, NULL))
+	if (!permission(lower_inode, MAY_EXEC, NULL)) {
 		wh_lower_dentry =
 			lookup_one_len(UNIONFS_DIR_OPAQUE, lower_dentry,
 				       sizeof(UNIONFS_DIR_OPAQUE) - 1);
-	else {
+	} else {
 		args.is_opaque.dentry = lower_dentry;
 		run_sioq(__is_opaque_dir, &args);
 		wh_lower_dentry = args.ret;
@@ -250,8 +250,9 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 				first_lower_mnt =
 					unionfs_mntget(parent_dentry, bindex);
 				first_dentry_offset = bindex;
-			} else
+			} else {
 				dput(lower_dentry);
+			}
 
 			continue;
 		}
