@@ -90,7 +90,7 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 			unlock_dir(lower_dir_dentry);
 
 			if (err) {
-				printk("unionfs_create: could not unlink "
+				printk("unionfs: create: could not unlink "
 				       "whiteout, err = %d\n", err);
 				goto out;
 			}
@@ -1088,7 +1088,7 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 		if (ia->ia_size != i_size_read(inode)) {
 			err = vmtruncate(inode, ia->ia_size);
 			if (err)
-				printk("unionfs_setattr: vmtruncate failed\n");
+				printk("unionfs: setattr: vmtruncate failed\n");
 		}
 	}
 
