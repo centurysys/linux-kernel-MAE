@@ -560,6 +560,7 @@ extern void __show_inode_counts(const struct inode *inode,
 #define unionfs_check_inode(i)		do { } while(0)
 #define unionfs_check_dentry(d)		do { } while(0)
 #define unionfs_check_file(f)		do { } while(0)
+#define unionfs_check_nd(n)		do { } while(0)
 #define show_branch_counts(sb)		do { } while(0)
 #define show_inode_times(i)		do { } while(0)
 #define show_dinode_times(d)		do { } while(0)
