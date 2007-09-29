@@ -485,7 +485,7 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 		 * don't, above this check.
 		 */
 		if (!optarg) {
-			printk(KERN_ERR "unionfs: %s requires an argument.\n",
+			printk(KERN_ERR "unionfs: %s requires an argument\n",
 			       optname);
 			err = -EINVAL;
 			goto out_error;
