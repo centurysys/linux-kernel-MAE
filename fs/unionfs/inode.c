@@ -571,8 +571,9 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 			if (!IS_COPYUP_ERR(err))
 				goto out;
 			bstart--;
-		} else
+		} else {
 			whiteout_unlinked = 1;
+		}
 	}
 
 	for (bindex = bstart; bindex >= 0; bindex--) {
@@ -718,8 +719,9 @@ static int unionfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 			if (!IS_COPYUP_ERR(err))
 				goto out;
 			bstart--;
-		} else
+		} else {
 			whiteout_unlinked = 1;
+		}
 	}
 
 	for (bindex = bstart; bindex >= 0; bindex--) {

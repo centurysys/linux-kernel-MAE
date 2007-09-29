@@ -174,8 +174,9 @@ static int unionfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 		free_rdstate(uds);
 		UNIONFS_F(file)->rdstate = NULL;
 		file->f_pos = DIREOF;
-	} else
+	} else {
 		file->f_pos = rdstate2offset(uds);
+	}
 
 out:
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
@@ -242,8 +243,9 @@ static loff_t unionfs_dir_llseek(struct file *file, loff_t offset, int origin)
 				if (rdstate) {
 					UNIONFS_F(file)->rdstate = rdstate;
 					err = rdstate->offset;
-				} else
+				} else {
 					err = -EINVAL;
+				}
 			}
 			break;
 		case SEEK_CUR:

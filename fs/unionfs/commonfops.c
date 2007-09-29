@@ -182,8 +182,9 @@ static int open_all_files(struct file *file)
 		if (IS_ERR(lower_file)) {
 			err = PTR_ERR(lower_file);
 			goto out;
-		} else
+		} else {
 			unionfs_set_lower_file_idx(file, bindex, lower_file);
+		}
 	}
 out:
 	return err;
@@ -484,8 +485,9 @@ static int __open_file(struct inode *inode, struct file *file)
 					break;
 			}
 			return err;
-		} else
+		} else {
 			lower_flags &= ~(OPEN_WRITE_FLAGS);
+		}
 	}
 
 	dget(lower_dentry);

@@ -55,11 +55,12 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 		if (dbstart(dentry) == 0)
 			goto out;
 		err = create_whiteout(dentry, dbstart(dentry) - 1);
-	} else if (dbopaque(dentry) != -1)
+	} else if (dbopaque(dentry) != -1) {
 		/* There is a lower lower-priority file with the same name. */
 		err = create_whiteout(dentry, dbopaque(dentry));
-	else
+	} else {
 		err = create_whiteout(dentry, dbstart(dentry));
+	}
 
 out:
 	if (!err)
@@ -161,9 +162,9 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	err = unionfs_rmdir_first(dir, dentry, namelist);
 	/* create whiteout */
-	if (!err)
+	if (!err) {
 		err = create_whiteout(dentry, dbstart(dentry));
-	else {
+	} else {
 		int new_err;
 
 		if (dbstart(dentry) == 0)

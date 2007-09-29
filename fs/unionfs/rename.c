@@ -83,8 +83,9 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		unlock_dir(lower_wh_dir_dentry);
 		if (err)
 			goto out;
-	} else
+	} else {
 		dput(lower_wh_dentry);
+	}
 
 	dget(lower_old_dentry);
 	lower_old_dir_dentry = dget_parent(lower_old_dentry);
@@ -178,8 +179,9 @@ static int do_unionfs_rename(struct inode *old_dir,
 		if (!IS_COPYUP_ERR(err))
 			goto out;
 		do_copyup = old_bstart - 1;
-	} else
+	} else {
 		revert = 1;
+	}
 
 	/*
 	 * Unlink all instances of destination that exist to the left of
@@ -271,9 +273,9 @@ static int do_unionfs_rename(struct inode *old_dir,
 		local_err = vfs_create(lower_parent->d_inode, wh_old, S_IRUGO,
 				       &nd);
 		unlock_dir(lower_parent);
-		if (!local_err)
+		if (!local_err) {
 			set_dbopaque(old_dentry, bwh_old);
-		else {
+		} else {
 			/*
 			 * we can't fix anything now, so we cop-out and use
 			 * -EIO.
@@ -392,8 +394,9 @@ static int may_rename_dir(struct dentry *dentry)
 	if (err == -ENOTEMPTY) {
 		if (is_robranch(dentry))
 			return -EXDEV;
-	} else if (err)
+	} else if (err) {
 		return err;
+	}
 
 	bstart = dbstart(dentry);
 	if (dbend(dentry) == bstart || dbopaque(dentry) == bstart)
@@ -443,9 +446,9 @@ int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * simply override it even if the whited-out dir is not empty.
 	 */
 	wh_dentry = lookup_whiteout(new_dentry);
-	if (!IS_ERR(wh_dentry))
+	if (!IS_ERR(wh_dentry)) {
 		dput(wh_dentry);
-	else if (new_dentry->d_inode) {
+	} else if (new_dentry->d_inode) {
 		if (S_ISDIR(old_dentry->d_inode->i_mode) !=
 		    S_ISDIR(new_dentry->d_inode->i_mode)) {
 			err = S_ISDIR(old_dentry->d_inode->i_mode) ?
@@ -473,10 +476,10 @@ int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 	err = do_unionfs_rename(old_dir, old_dentry, new_dir, new_dentry);
 out:
-	if (err)
+	if (err) {
 		/* clear the new_dentry stuff created */
 		d_drop(new_dentry);
-	else {
+	} else {
 		/*
 		 * force re-lookup since the dir on ro branch is not renamed,
 		 * and lower dentries still indicate the un-renamed ones.

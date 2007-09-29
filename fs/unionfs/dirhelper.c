@@ -111,9 +111,9 @@ int delete_whiteouts(struct dentry *dentry, int bindex,
 	BUG_ON(!S_ISDIR(lower_dir->i_mode));
 
 	mutex_lock(&lower_dir->i_mutex);
-	if (!permission(lower_dir, MAY_WRITE | MAY_EXEC, NULL))
+	if (!permission(lower_dir, MAY_WRITE | MAY_EXEC, NULL)) {
 		err = do_delete_whiteouts(dentry, bindex, namelist);
-	else {
+	} else {
 		args.deletewh.namelist = namelist;
 		args.deletewh.dentry = dentry;
 		args.deletewh.bindex = bindex;

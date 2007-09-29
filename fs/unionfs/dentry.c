@@ -299,9 +299,9 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 		 * always be valid, but its lower inode times don't have to
 		 * be, so sync up the times only.
 		 */
-		if (IS_ROOT(dtmp))
+		if (IS_ROOT(dtmp)) {
 			unionfs_copy_attr_times(dtmp->d_inode);
-		else {
+		} else {
 			/*
 			 * reset generation number to zero, guaranteed to be
 			 * "old"
@@ -376,9 +376,9 @@ out_this:
 
 	if (unlikely(is_newer_lower(dentry))) {
 		/* root dentry special case as aforementioned */
-		if (IS_ROOT(dentry))
+		if (IS_ROOT(dentry)) {
 			unionfs_copy_attr_times(dentry->d_inode);
-		else {
+		} else {
 			/*
 			 * reset generation number to zero, guaranteed to be
 			 * "old"

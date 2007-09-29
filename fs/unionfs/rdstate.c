@@ -260,9 +260,9 @@ int add_filldir_node(struct unionfs_dir_state *rdstate, const char *name,
 	new->bindex = bindex;
 	new->whiteout = whiteout;
 
-	if (namelen < DNAME_INLINE_LEN_MIN)
+	if (namelen < DNAME_INLINE_LEN_MIN) {
 		new->name = new->iname;
-	else {
+	} else {
 		new->name = kmalloc(namelen + 1, GFP_KERNEL);
 		if (unlikely(!new->name)) {
 			kmem_cache_free(unionfs_filldir_cachep, new);

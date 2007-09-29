@@ -149,9 +149,9 @@ skip:
 		break;
 	case INTERPOSE_LOOKUP:
 		spliced = d_splice_alias(inode, dentry);
-		if (IS_ERR(spliced))
+		if (IS_ERR(spliced)) {
 			err = PTR_ERR(spliced);
-		else if (spliced && spliced != dentry) {
+		} else if (spliced && spliced != dentry) {
 			/*
 			 * d_splice can return a dentry if it was
 			 * disconnected and had to be moved.  We must ensure
