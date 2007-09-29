@@ -63,12 +63,10 @@ static int unionfs_filldir(void *dirent, const char *name, int namelen,
 		off_t pos = rdstate2offset(buf->rdstate);
 		u64 unionfs_ino = ino;
 
-		if (!err) {
-			err = buf->filldir(buf->dirent, name, namelen, pos,
-					   unionfs_ino, d_type);
-			buf->rdstate->offset++;
-			verify_rdstate_offset(buf->rdstate);
-		}
+		err = buf->filldir(buf->dirent, name, namelen, pos,
+				   unionfs_ino, d_type);
+		buf->rdstate->offset++;
+		verify_rdstate_offset(buf->rdstate);
 	}
 	/*
 	 * If we did fill it, stuff it in our hash, otherwise return an
