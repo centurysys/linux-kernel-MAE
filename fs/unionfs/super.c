@@ -477,13 +477,16 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	 * "add" and "del" commands.  Copy the "options" string because
 	 * strsep modifies the string and we need it later.
 	 */
-	optionstmp = tmp_to_free = kstrdup(options, GFP_KERNEL);
+	tmp_to_free = kstrdup(options, GFP_KERNEL);
+	optionstmp = tmp_to_free;
 	if (unlikely(!optionstmp)) {
 		err = -ENOMEM;
 		goto out_free;
 	}
-	new_branches = cur_branches = sbmax(sb); /* current no. branches */
-	add_branches = del_branches = 0;
+	cur_branches = sbmax(sb); /* current no. branches */
+	new_branches = sbmax(sb);
+	del_branches = 0;
+	add_branches = 0;
 	new_high_branch_id = sbhbid(sb); /* save current high_branch_id */
 	while ((optname = strsep(&optionstmp, ",")) != NULL) {
 		char *optarg;
