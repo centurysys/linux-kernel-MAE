@@ -44,8 +44,8 @@
 #include <linux/magic.h>
 #include <linux/log2.h>
 #include <linux/poison.h>
+#include <linux/mman.h>
 
-#include <asm/mman.h>
 #include <asm/system.h>
 
 #include <linux/union_fs.h>
@@ -70,6 +70,7 @@ extern struct inode_operations unionfs_dir_iops;
 extern struct inode_operations unionfs_symlink_iops;
 extern struct super_operations unionfs_sops;
 extern struct dentry_operations unionfs_dops;
+extern struct address_space_operations unionfs_aops;
 
 /* How long should an entry be allowed to persist */
 #define RDCACHE_JIFFIES	(5*HZ)

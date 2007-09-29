@@ -55,7 +55,7 @@ ssize_t unionfs_getxattr(struct dentry *dentry, const char *name, void *value,
 
 	lower_dentry = unionfs_lower_dentry(dentry);
 
-	err = vfs_getxattr(lower_dentry, (char*) name, value, size);
+	err = vfs_getxattr(lower_dentry, (char *) name, value, size);
 
 out:
 	unionfs_unlock_dentry(dentry);
@@ -84,7 +84,7 @@ int unionfs_setxattr(struct dentry *dentry, const char *name,
 
 	lower_dentry = unionfs_lower_dentry(dentry);
 
-	err = vfs_setxattr(lower_dentry, (char*) name, (void*) value,
+	err = vfs_setxattr(lower_dentry, (char *) name, (void *) value,
 			   size, flags);
 
 out:
@@ -113,7 +113,7 @@ int unionfs_removexattr(struct dentry *dentry, const char *name)
 
 	lower_dentry = unionfs_lower_dentry(dentry);
 
-	err = vfs_removexattr(lower_dentry, (char*) name);
+	err = vfs_removexattr(lower_dentry, (char *) name);
 
 out:
 	unionfs_unlock_dentry(dentry);
