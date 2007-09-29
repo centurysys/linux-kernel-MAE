@@ -227,7 +227,7 @@ void unionfs_reinterpose(struct dentry *dentry)
 int check_branch(struct nameidata *nd)
 {
 	/* XXX: remove in ODF code -- stacking unions allowed there */
-	if (!strcmp(nd->dentry->d_sb->s_type->name, "unionfs"))
+	if (!strcmp(nd->dentry->d_sb->s_type->name, UNIONFS_NAME))
 		return -EINVAL;
 	if (!nd->dentry->d_inode)
 		return -ENOENT;
@@ -722,7 +722,7 @@ static int unionfs_get_sb(struct file_system_type *fs_type,
 
 static struct file_system_type unionfs_fs_type = {
 	.owner		= THIS_MODULE,
-	.name		= "unionfs",
+	.name		= UNIONFS_NAME,
 	.get_sb		= unionfs_get_sb,
 	.kill_sb	= generic_shutdown_super,
 	.fs_flags	= FS_REVAL_DOT,
