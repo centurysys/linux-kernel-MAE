@@ -26,7 +26,6 @@ static struct kmem_cache *unionfs_inode_cachep;
 
 static void unionfs_read_inode(struct inode *inode)
 {
-	extern struct address_space_operations unionfs_aops;
 	int size;
 	struct unionfs_inode_info *info = UNIONFS_I(inode);
 
@@ -965,7 +964,7 @@ static int unionfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	unionfs_lock_dentry(sb->s_root);
 
-	tmp_page = (char*) __get_free_page(GFP_KERNEL);
+	tmp_page = (char *) __get_free_page(GFP_KERNEL);
 	if (unlikely(!tmp_page)) {
 		ret = -ENOMEM;
 		goto out;
