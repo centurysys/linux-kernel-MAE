@@ -11,3 +11,7 @@ unionfs-y := subr.o dentry.o file.o inode.o main.o super.o \
 unionfs-$(CONFIG_UNION_FS_XATTR) += xattr.o
 
 unionfs-$(CONFIG_UNION_FS_DEBUG) += debug.o
+
+ifeq ($(CONFIG_UNION_FS_DEBUG),y)
+EXTRA_CFLAGS += -DDEBUG
+endif
