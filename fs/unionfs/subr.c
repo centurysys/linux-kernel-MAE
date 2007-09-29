@@ -87,7 +87,8 @@ int create_whiteout(struct dentry *dentry, int start)
 		if (unlikely(err < 0))
 			goto out;
 		lower_dir_dentry = lock_parent(lower_wh_dentry);
-		if (!(err = is_robranch_super(dentry->d_sb, bindex)))
+		err = is_robranch_super(dentry->d_sb, bindex);
+		if (!err)
 			err = vfs_create(lower_dir_dentry->d_inode,
 					 lower_wh_dentry,
 					 ~current->fs->umask & S_IRWXUGO,

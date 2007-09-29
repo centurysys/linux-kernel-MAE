@@ -614,7 +614,8 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	 * This is important for open-but-unlinked files, as well as mmap
 	 * support.
 	 */
-	if (unlikely((err = unionfs_file_revalidate(file, true))))
+	err = unionfs_file_revalidate(file, true);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 	fileinfo = UNIONFS_F(file);
@@ -707,7 +708,8 @@ static int unionfs_ioctl_queryfile(struct file *file, unsigned int cmd,
 	unionfs_lock_dentry(dentry);
 	orig_bstart = dbstart(dentry);
 	orig_bend = dbend(dentry);
-	if ((err = unionfs_partial_lookup(dentry)))
+	err = unionfs_partial_lookup(dentry);
+	if (err)
 		goto out;
 	bstart = dbstart(dentry);
 	bend = dbend(dentry);
@@ -755,7 +757,8 @@ long unionfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
 
-	if (unlikely((err = unionfs_file_revalidate(file, true))))
+	err = unionfs_file_revalidate(file, true);
+	if (unlikely(err))
 		goto out;
 
 	/* check if asked for local commands */
@@ -793,7 +796,8 @@ int unionfs_flush(struct file *file, fl_owner_t id)
 
 	unionfs_read_lock(dentry->d_sb);
 
-	if (unlikely((err = unionfs_file_revalidate(file, true))))
+	err = unionfs_file_revalidate(file, true);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 

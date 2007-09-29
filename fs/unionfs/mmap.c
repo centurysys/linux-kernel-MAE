@@ -211,7 +211,8 @@ static int unionfs_readpage(struct file *file, struct page *page)
 	int err;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if (unlikely((err = unionfs_file_revalidate(file, false))))
+	err = unionfs_file_revalidate(file, false);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 
@@ -275,7 +276,8 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 	BUG_ON(file == NULL);
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
-	if (unlikely((err = unionfs_file_revalidate(file, true))))
+	err = unionfs_file_revalidate(file, true);
+	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
 

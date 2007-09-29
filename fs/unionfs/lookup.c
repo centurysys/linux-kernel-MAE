@@ -119,12 +119,14 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 	case INTERPOSE_PARTIAL:
 		break;
 	case INTERPOSE_LOOKUP:
-		if (unlikely((err = new_dentry_private_data(dentry))))
+		err = new_dentry_private_data(dentry);
+		if (unlikely(err))
 			goto out;
 		break;
 	default:
 		/* default: can only be INTERPOSE_REVAL/REVAL_NEG */
-		if (unlikely((err = realloc_dentry_private_data(dentry))))
+		err = realloc_dentry_private_data(dentry);
+		if (unlikely(err))
 			goto out;
 		break;
 	}

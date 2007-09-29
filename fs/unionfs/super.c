@@ -372,7 +372,8 @@ found_insertion_point:
 	 * because this code base doesn't support stacking unionfs: the ODF
 	 * code base supports that correctly.
 	 */
-	if ((err = check_branch(&nd))) {
+	err = check_branch(&nd);
+	if (err) {
 		printk(KERN_ERR "unionfs: lower directory "
 		       "\"%s\" is not a valid branch\n", optarg);
 		path_release(&nd);

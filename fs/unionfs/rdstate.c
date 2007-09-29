@@ -72,7 +72,8 @@ static int guesstimate_hash_size(struct inode *inode)
 		return UNIONFS_I(inode)->hashsize;
 
 	for (bindex = ibstart(inode); bindex <= ibend(inode); bindex++) {
-		if (!(lower_inode = unionfs_lower_inode_idx(inode, bindex)))
+		lower_inode = unionfs_lower_inode_idx(inode, bindex);
+		if (!lower_inode)
 			continue;
 
 		if (lower_inode->i_size == DENTPAGE)

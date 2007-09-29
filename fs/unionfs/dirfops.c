@@ -97,7 +97,8 @@ static int unionfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
 
-	if (unlikely((err = unionfs_file_revalidate(file, false))))
+	err = unionfs_file_revalidate(file, false);
+	if (unlikely(err))
 		goto out;
 
 	inode = file->f_path.dentry->d_inode;
@@ -200,7 +201,8 @@ static loff_t unionfs_dir_llseek(struct file *file, loff_t offset, int origin)
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
 
-	if (unlikely((err = unionfs_file_revalidate(file, false))))
+	err = unionfs_file_revalidate(file, false);
+	if (unlikely(err))
 		goto out;
 
 	rdstate = UNIONFS_F(file)->rdstate;

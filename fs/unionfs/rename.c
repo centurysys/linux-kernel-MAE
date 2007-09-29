@@ -75,7 +75,8 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 
 		lower_wh_dir_dentry = lock_parent(lower_wh_dentry);
-		if (!(err = is_robranch_super(old_dentry->d_sb, bindex)))
+		err = is_robranch_super(old_dentry->d_sb, bindex);
+		if (!err)
 			err = vfs_unlink(lower_wh_dir_dentry->d_inode,
 					 lower_wh_dentry);
 
@@ -196,7 +197,8 @@ static int do_unionfs_rename(struct inode *old_dir,
 			continue;
 
 		unlink_dir_dentry = lock_parent(unlink_dentry);
-		if (!(err = is_robranch_super(old_dir->i_sb, bindex)))
+		err = is_robranch_super(old_dir->i_sb, bindex);
+		if (!err)
 			err = vfs_unlink(unlink_dir_dentry->d_inode,
 					 unlink_dentry);
 

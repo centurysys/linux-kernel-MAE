@@ -194,7 +194,8 @@ int check_empty(struct dentry *dentry, struct unionfs_dir_state **namelist)
 
 	BUG_ON(!S_ISDIR(dentry->d_inode->i_mode));
 
-	if ((err = unionfs_partial_lookup(dentry)))
+	err = unionfs_partial_lookup(dentry);
+	if (err)
 		goto out;
 
 	bstart = dbstart(dentry);
