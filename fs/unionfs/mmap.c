@@ -179,8 +179,7 @@ static int unionfs_do_readpage(struct file *file, struct page *page)
 	 * may be a little slower, but a lot safer, as the VFS does a lot of
 	 * the necessary magic for us.
 	 */
-	offset = lower_file->f_pos =
-		((loff_t) page->index << PAGE_CACHE_SHIFT);
+	offset = lower_file->f_pos = page_offset(page);
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 	err = vfs_read(lower_file, page_data, PAGE_CACHE_SIZE,
@@ -290,7 +289,7 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 	BUG_ON(lower_file == NULL);
 
 	page_data = (char *)kmap(page);
-	lower_file->f_pos = ((loff_t) page->index << PAGE_CACHE_SHIFT) + from;
+	lower_file->f_pos = page_offset(page) + from;
 
 	/*
 	 * We use vfs_write instead of copying page data and the
@@ -312,7 +311,7 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 
 	inode->i_blocks = lower_inode->i_blocks;
 	/* we may have to update i_size */
-	pos = ((loff_t) page->index << PAGE_CACHE_SHIFT) + to;
+	pos = page_offset(page) + to;
 	if (pos > i_size_read(inode))
 		i_size_write(inode, pos);
 	/* if vfs_write succeeded above, sync up our times */
