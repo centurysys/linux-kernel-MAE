@@ -294,14 +294,14 @@ revert:
 	local_err = unionfs_refresh_lower_dentry(new_dentry, old_bstart);
 	if (local_err) {
 		printk(KERN_ERR "unionfs: revert failed in rename: "
-		       "the new refresh failed.\n");
+		       "the new refresh failed\n");
 		eio = -EIO;
 	}
 
 	local_err = unionfs_refresh_lower_dentry(old_dentry, old_bstart);
 	if (local_err) {
 		printk(KERN_ERR "unionfs: revert failed in rename: "
-		       "the old refresh failed.\n");
+		       "the old refresh failed\n");
 		eio = -EIO;
 		goto revert_out;
 	}

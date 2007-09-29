@@ -173,18 +173,18 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 	/* by now, optarg contains the branch name */
 	if (!*optarg) {
 		printk(KERN_ERR
-		       "unionfs: no branch specified for mode change.\n");
+		       "unionfs: no branch specified for mode change\n");
 		goto out;
 	}
 	if (!modename) {
-		printk(KERN_ERR "unionfs: branch \"%s\" requires a mode.\n",
+		printk(KERN_ERR "unionfs: branch \"%s\" requires a mode\n",
 		       optarg);
 		goto out;
 	}
 	*modename++ = '\0';
 	perms = __parse_branch_mode(modename);
 	if (perms == 0) {
-		printk(KERN_ERR "unionfs: invalid mode \"%s\" for \"%s\".\n",
+		printk(KERN_ERR "unionfs: invalid mode \"%s\" for \"%s\"\n",
 		       modename, optarg);
 		goto out;
 	}
@@ -584,7 +584,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 		 */
 		if (!optarg || !*optarg) {
 			printk(KERN_ERR "unionfs: all remount options require "
-			       "an argument (%s).\n", optname);
+			       "an argument (%s)\n", optname);
 			err = -EINVAL;
 			goto out_release;
 		}
@@ -634,7 +634,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 		 */
 		if (!strcmp("dirs", optname)) {
 			printk(KERN_WARNING
-			       "unionfs: remount ignoring option \"%s\".\n",
+			       "unionfs: remount ignoring option \"%s\"\n",
 			       optname);
 			continue;
 		}
