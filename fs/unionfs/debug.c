@@ -157,27 +157,26 @@ void __unionfs_check_dentry(const struct dentry *dentry,
 					 bindex, dstart, dend);
 			}
 		} else {	/* lower_dentry == NULL */
-			if (bindex >= dstart && bindex <= dend) {
-				/*
-				 * Directories can have NULL lower inodes in
-				 * b/t start/end, but NOT if at the
-				 * start/end range.  Ignore this rule,
-				 * however, if this is a NULL dentry or a
-				 * deleted dentry.
-				 */
-				if (unlikely(!d_deleted((struct dentry *) dentry) &&
-					     inode &&
-					     !(inode && S_ISDIR(inode->i_mode) &&
-					       bindex > dstart && bindex < dend))) {
-					PRINT_CALLER(fname, fxn, line);
-					pr_debug(" CD2: dentry/lower=%p:%p(%p) "
-						 "bindex=%d dstart/end=%d:%d\n",
-						 dentry, lower_dentry,
-						 (lower_dentry ?
-						  lower_dentry->d_inode :
-						  (void *) -1L),
-						 bindex, dstart, dend);
-				}
+			if (bindex < dstart || bindex > dend)
+				continue;
+			/*
+			 * Directories can have NULL lower inodes in b/t
+			 * start/end, but NOT if at the start/end range.
+			 * Ignore this rule, however, if this is a NULL
+			 * dentry or a deleted dentry.
+			 */
+			if (unlikely(!d_deleted((struct dentry *) dentry) &&
+				     inode &&
+				     !(inode && S_ISDIR(inode->i_mode) &&
+				       bindex > dstart && bindex < dend))) {
+				PRINT_CALLER(fname, fxn, line);
+				pr_debug(" CD2: dentry/lower=%p:%p(%p) "
+					 "bindex=%d dstart/end=%d:%d\n",
+					 dentry, lower_dentry,
+					 (lower_dentry ?
+					  lower_dentry->d_inode :
+					  (void *) -1L),
+					 bindex, dstart, dend);
 			}
 		}
 	}
@@ -193,22 +192,22 @@ void __unionfs_check_dentry(const struct dentry *dentry,
 					 lower_mnt, bindex, dstart, dend);
 			}
 		} else {	/* lower_mnt == NULL */
-			if (bindex >= dstart && bindex <= dend) {
-				/*
-				 * Directories can have NULL lower inodes in
-				 * b/t start/end, but NOT if at the
-				 * start/end range.  Ignore this rule,
-				 * however, if this is a NULL dentry.
-				 */
-				if (unlikely(inode &&
-					     !(inode && S_ISDIR(inode->i_mode) &&
-					       bindex > dstart && bindex < dend))) {
-					PRINT_CALLER(fname, fxn, line);
-					pr_debug(" CM1: dentry/lmnt=%p:%p "
-						 "bindex=%d dstart/end=%d:%d\n",
-						 dentry, lower_mnt, bindex,
-						 dstart, dend);
-				}
+			if (bindex < dstart || bindex > dend)
+				continue;
+			/*
+			 * Directories can have NULL lower inodes in b/t
+			 * start/end, but NOT if at the start/end range.
+			 * Ignore this rule, however, if this is a NULL
+			 * dentry.
+			 */
+			if (unlikely(inode &&
+				     !(inode && S_ISDIR(inode->i_mode) &&
+				       bindex > dstart && bindex < dend))) {
+				PRINT_CALLER(fname, fxn, line);
+				pr_debug(" CM1: dentry/lmnt=%p:%p "
+					 "bindex=%d dstart/end=%d:%d\n",
+					 dentry, lower_mnt, bindex,
+					 dstart, dend);
 			}
 		}
 	}
@@ -310,7 +309,8 @@ void __unionfs_check_dentry(const struct dentry *dentry,
 	/* check if lower inode is newer than upper one (it shouldn't) */
 	if (unlikely(is_newer_lower(dentry))) {
 		PRINT_CALLER(fname, fxn, line);
-		for (bindex = ibstart(inode); bindex <= ibend(inode); bindex++) {
+		for (bindex = ibstart(inode); bindex <= ibend(inode);
+		     bindex++) {
 			lower_inode = unionfs_lower_inode_idx(inode, bindex);
 			if (unlikely(!lower_inode))
 				continue;
@@ -390,8 +390,8 @@ void __unionfs_check_file(const struct file *file,
 			if (unlikely(bindex < fstart || bindex > fend)) {
 				PRINT_CALLER(fname, fxn, line);
 				pr_debug(" CF5: file/lower=%p:%p bindex=%d "
-					 "fstart/end=%d:%d\n",
-					 file, lower_file, bindex, fstart, fend);
+					 "fstart/end=%d:%d\n", file,
+					 lower_file, bindex, fstart, fend);
 			}
 		} else {	/* lower_file == NULL */
 			if (bindex >= fstart && bindex <= fend) {

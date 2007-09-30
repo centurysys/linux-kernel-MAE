@@ -339,7 +339,8 @@ int unionfs_file_revalidate(struct file *file, bool willwrite)
 	if (unlikely(!d_deleted(dentry) &&
 		     (sbgen > fgen || dbstart(dentry) != fbstart(file)))) {
 		/* save orig branch ID */
-		int orig_brid =	UNIONFS_F(file)->saved_branch_ids[fbstart(file)];
+		int orig_brid =
+			UNIONFS_F(file)->saved_branch_ids[fbstart(file)];
 
 		/* First we throw out the existing files. */
 		cleanup_file(file);
@@ -388,7 +389,8 @@ int unionfs_file_revalidate(struct file *file, bool willwrite)
 			}
 		}
 		atomic_set(&UNIONFS_F(file)->generation,
-			   atomic_read(&UNIONFS_I(dentry->d_inode)->generation));
+			   atomic_read(
+				   &UNIONFS_I(dentry->d_inode)->generation));
 	}
 
 	/* Copyup on the first write to a file on a readonly branch. */
@@ -418,6 +420,7 @@ static int __open_dir(struct inode *inode, struct file *file)
 	struct dentry *lower_dentry;
 	struct file *lower_file;
 	int bindex, bstart, bend;
+	struct vfsmount *mnt;
 
 	bstart = fbstart(file) = dbstart(file->f_path.dentry);
 	bend = fbend(file) = dbend(file->f_path.dentry);
@@ -430,10 +433,8 @@ static int __open_dir(struct inode *inode, struct file *file)
 
 		dget(lower_dentry);
 		unionfs_mntget(file->f_path.dentry, bindex);
-		lower_file = dentry_open(lower_dentry,
-					 unionfs_lower_mnt_idx(file->f_path.dentry,
-							       bindex),
-					 file->f_flags);
+		mnt = unionfs_lower_mnt_idx(file->f_path.dentry, bindex);
+		lower_file = dentry_open(lower_dentry, mnt, file->f_flags);
 		if (IS_ERR(lower_file))
 			return PTR_ERR(lower_file);
 
@@ -679,8 +680,9 @@ static long do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		err = lower_file->f_op->unlocked_ioctl(lower_file, cmd, arg);
 	} else if (lower_file->f_op->ioctl) {
 		lock_kernel();
-		err = lower_file->f_op->ioctl(lower_file->f_path.dentry->d_inode,
-					      lower_file, cmd, arg);
+		err = lower_file->f_op->ioctl(
+			lower_file->f_path.dentry->d_inode,
+			lower_file, cmd, arg);
 		unlock_kernel();
 	}
 

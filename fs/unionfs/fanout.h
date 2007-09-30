@@ -314,11 +314,14 @@ static inline void unionfs_copy_attr_times(struct inode *upper)
 		lower = unionfs_lower_inode_idx(upper, bindex);
 		if (!lower)
 			continue; /* not all lower dir objects may exist */
-		if (unlikely(timespec_compare(&upper->i_mtime, &lower->i_mtime) < 0))
+		if (unlikely(timespec_compare(&upper->i_mtime,
+					      &lower->i_mtime) < 0))
 			upper->i_mtime = lower->i_mtime;
-		if (unlikely(timespec_compare(&upper->i_ctime, &lower->i_ctime) < 0))
+		if (unlikely(timespec_compare(&upper->i_ctime,
+					      &lower->i_ctime) < 0))
 			upper->i_ctime = lower->i_ctime;
-		if (unlikely(timespec_compare(&upper->i_atime, &lower->i_atime) < 0))
+		if (unlikely(timespec_compare(&upper->i_atime,
+					      &lower->i_atime) < 0))
 			upper->i_atime = lower->i_atime;
 	}
 }

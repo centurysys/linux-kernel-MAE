@@ -328,7 +328,8 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 	 */
 	chain = kzalloc(chain_len * sizeof(struct dentry *), GFP_KERNEL);
 	if (unlikely(!chain)) {
-		printk(KERN_CRIT "unionfs: no more memory in %s\n", __FUNCTION__);
+		printk(KERN_CRIT "unionfs: no more memory in %s\n",
+		       __FUNCTION__);
 		goto out;
 	}
 
