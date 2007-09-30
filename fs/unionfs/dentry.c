@@ -337,7 +337,7 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 	 * if failed, then sleep for a little, then retry.
 	 */
 	dtmp = dentry->d_parent;
-	for (i=chain_len-1; i>=0; i--) {
+	for (i = chain_len-1; i >= 0; i--) {
 		chain[i] = dget(dtmp);
 		dtmp = dtmp->d_parent;
 	}
@@ -346,7 +346,7 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 	 * call __unionfs_d_revalidate_one() on each dentry, but in parent
 	 * to child order.
 	 */
-	for (i=0; i<chain_len; i++) {
+	for (i = 0; i < chain_len; i++) {
 		unionfs_lock_dentry(chain[i]);
 		saved_bstart = dbstart(chain[i]);
 		saved_bend = dbend(chain[i]);
@@ -409,7 +409,7 @@ out_this:
 out_free:
 	/* unlock/dput all dentries in chain and return status */
 	if (chain_len > 0) {
-		for (i=0; i<chain_len; i++)
+		for (i = 0; i < chain_len; i++)
 			dput(chain[i]);
 		kfree(chain);
 	}
@@ -467,7 +467,7 @@ static void unionfs_d_release(struct dentry *dentry)
 		dput(unionfs_lower_dentry_idx(dentry, bindex));
 		unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
 		/* NULL lower mnt is ok if this is a negative dentry */
-		if (!dentry->d_inode && !unionfs_lower_mnt_idx(dentry,bindex))
+		if (!dentry->d_inode && !unionfs_lower_mnt_idx(dentry, bindex))
 			continue;
 		unionfs_mntput(dentry, bindex);
 		unionfs_set_lower_mnt_idx(dentry, bindex, NULL);

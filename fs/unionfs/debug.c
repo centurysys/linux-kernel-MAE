@@ -20,7 +20,7 @@
 #define PRINT_CALLER(fname, fxn, line)					\
 	do {								\
 		if (!printed_caller) {					\
-			pr_debug("PC:%s:%s:%d\n",(fname),(fxn),(line));	\
+			pr_debug("PC:%s:%s:%d\n", (fname), (fxn), (line)); \
 			printed_caller = 1;				\
 		}							\
 	} while (0)
@@ -310,7 +310,7 @@ void __unionfs_check_dentry(const struct dentry *dentry,
 	/* check if lower inode is newer than upper one (it shouldn't) */
 	if (unlikely(is_newer_lower(dentry))) {
 		PRINT_CALLER(fname, fxn, line);
-		for (bindex=ibstart(inode); bindex <= ibend(inode); bindex++) {
+		for (bindex = ibstart(inode); bindex <= ibend(inode); bindex++) {
 			lower_inode = unionfs_lower_inode_idx(inode, bindex);
 			if (unlikely(!lower_inode))
 				continue;
@@ -413,7 +413,7 @@ void __unionfs_check_file(const struct file *file,
 		}
 	}
 
-	__unionfs_check_dentry(dentry,fname,fxn,line);
+	__unionfs_check_dentry(dentry, fname, fxn, line);
 }
 
 void __unionfs_check_nd(const struct nameidata *nd,
@@ -445,14 +445,14 @@ void __show_branch_counts(const struct super_block *sb,
 	struct vfsmount *mnt;
 
 	pr_debug("BC:");
-	for (i=0; i<sbmax(sb); i++) {
+	for (i = 0; i < sbmax(sb); i++) {
 		if (likely(sb->s_root))
 			mnt = UNIONFS_D(sb->s_root)->lower_paths[i].mnt;
 		else
 			mnt = NULL;
 		pr_debug("%d:", (mnt ? atomic_read(&mnt->mnt_count) : -99));
 	}
-	pr_debug("%s:%s:%d\n",file,fxn,line);
+	pr_debug("%s:%s:%d\n", file, fxn, line);
 }
 
 void __show_inode_times(const struct inode *inode,
@@ -461,12 +461,12 @@ void __show_inode_times(const struct inode *inode,
 	struct inode *lower_inode;
 	int bindex;
 
-	for (bindex=ibstart(inode); bindex <= ibend(inode); bindex++) {
+	for (bindex = ibstart(inode); bindex <= ibend(inode); bindex++) {
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (unlikely(!lower_inode))
 			continue;
 		pr_debug("IT(%lu:%d): ", inode->i_ino, bindex);
-		pr_debug("%s:%s:%d ",file,fxn,line);
+		pr_debug("%s:%s:%d ", file, fxn, line);
 		pr_debug("um=%lu/%lu lm=%lu/%lu ",
 			 inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
 			 lower_inode->i_mtime.tv_sec,
@@ -485,13 +485,13 @@ void __show_dinode_times(const struct dentry *dentry,
 	struct inode *lower_inode;
 	int bindex;
 
-	for (bindex=ibstart(inode); bindex <= ibend(inode); bindex++) {
+	for (bindex = ibstart(inode); bindex <= ibend(inode); bindex++) {
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (!lower_inode)
 			continue;
 		pr_debug("DT(%s:%lu:%d): ", dentry->d_name.name, inode->i_ino,
 			 bindex);
-		pr_debug("%s:%s:%d ",file,fxn,line);
+		pr_debug("%s:%s:%d ", file, fxn, line);
 		pr_debug("um=%lu/%lu lm=%lu/%lu ",
 			 inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
 			 lower_inode->i_mtime.tv_sec,
@@ -513,7 +513,7 @@ void __show_inode_counts(const struct inode *inode,
 		pr_debug("SiC: Null inode\n");
 		return;
 	}
-	for (bindex=sbstart(inode->i_sb); bindex <= sbend(inode->i_sb);
+	for (bindex = sbstart(inode->i_sb); bindex <= sbend(inode->i_sb);
 	     bindex++) {
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (unlikely(!lower_inode))
@@ -521,6 +521,6 @@ void __show_inode_counts(const struct inode *inode,
 		pr_debug("SIC(%lu:%d:%d): ", inode->i_ino, bindex,
 			 atomic_read(&(inode)->i_count));
 		pr_debug("lc=%d ", atomic_read(&(lower_inode)->i_count));
-		pr_debug("%s:%s:%d\n",file,fxn,line);
+		pr_debug("%s:%s:%d\n", file, fxn, line);
 	}
 }
