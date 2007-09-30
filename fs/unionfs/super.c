@@ -202,7 +202,7 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 		       optarg, err);
 		goto out;
 	}
-	for (idx=0; idx<cur_branches; idx++)
+	for (idx = 0; idx < cur_branches; idx++)
 		if (nd.mnt == new_lower_paths[idx].mnt &&
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
@@ -245,7 +245,7 @@ static noinline int do_remount_del_option(char *optarg, int cur_branches,
 		       optarg, err);
 		goto out;
 	}
-	for (idx=0; idx < cur_branches; idx++)
+	for (idx = 0; idx < cur_branches; idx++)
 		if (nd.mnt == new_lower_paths[idx].mnt &&
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
@@ -329,7 +329,7 @@ static noinline int do_remount_add_option(char *optarg, int cur_branches,
 		       optarg, err);
 		goto out;
 	}
-	for (idx=0; idx < cur_branches; idx++)
+	for (idx = 0; idx < cur_branches; idx++)
 		if (nd.mnt == new_lower_paths[idx].mnt &&
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
@@ -540,7 +540,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	       cur_branches * sizeof(struct unionfs_data));
 	memcpy(tmp_lower_paths, UNIONFS_D(sb->s_root)->lower_paths,
 	       cur_branches * sizeof(struct path));
-	for (i=0; i<cur_branches; i++)
+	for (i = 0; i < cur_branches; i++)
 		pathget(&tmp_lower_paths[i]); /* drop refs at end of fxn */
 
 	/*******************************************************************
@@ -743,14 +743,14 @@ out_no_change:
 	 * Update lower inodes: 3 steps
 	 * 1. grab ref on all new lower inodes
 	 */
-	for (i=dbstart(sb->s_root); i<=dbend(sb->s_root); i++) {
+	for (i = dbstart(sb->s_root); i <= dbend(sb->s_root); i++) {
 		struct dentry *lower_dentry =
 			unionfs_lower_dentry_idx(sb->s_root, i);
 		igrab(lower_dentry->d_inode);
 		new_lower_inodes[i] = lower_dentry->d_inode;
 	}
 	/* 2. release reference on all older lower inodes */
-	for (i=old_ibstart; i<=old_ibend; i++) {
+	for (i = old_ibstart; i <= old_ibend; i++) {
 		iput(unionfs_lower_inode_idx(sb->s_root->d_inode, i));
 		unionfs_set_lower_inode_idx(sb->s_root->d_inode, i, NULL);
 	}
@@ -785,7 +785,7 @@ out_no_change:
 out_release:
 	/* no need to cleanup/release anything in tmp_data */
 	if (tmp_lower_paths)
-		for (i=0; i<new_branches; i++)
+		for (i = 0; i < new_branches; i++)
 			pathput(&tmp_lower_paths[i]);
 out_free:
 	kfree(tmp_lower_paths);

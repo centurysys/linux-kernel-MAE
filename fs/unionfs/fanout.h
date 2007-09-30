@@ -310,7 +310,7 @@ static inline void unionfs_copy_attr_times(struct inode *upper)
 
 	if (!upper || ibstart(upper) < 0)
 		return;
-	for (bindex=ibstart(upper); bindex <= ibend(upper); bindex++) {
+	for (bindex = ibstart(upper); bindex <= ibend(upper); bindex++) {
 		lower = unionfs_lower_inode_idx(upper, bindex);
 		if (!lower)
 			continue; /* not all lower dir objects may exist */

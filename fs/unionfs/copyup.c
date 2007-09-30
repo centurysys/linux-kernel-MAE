@@ -875,7 +875,7 @@ void unionfs_postcopyup_release(struct dentry *dentry)
 	int bindex;
 
 	BUG_ON(S_ISDIR(dentry->d_inode->i_mode));
-	for (bindex=dbstart(dentry)+1; bindex<=dbend(dentry); bindex++) {
+	for (bindex = dbstart(dentry)+1; bindex <= dbend(dentry); bindex++) {
 		if (unionfs_lower_mnt_idx(dentry, bindex)) {
 			unionfs_mntput(dentry, bindex);
 			unionfs_set_lower_mnt_idx(dentry, bindex, NULL);

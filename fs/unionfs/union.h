@@ -396,7 +396,7 @@ static inline int is_robranch_super(const struct super_block *sb, int index)
 {
 	int ret;
 
-  	ret = (!(branchperms(sb, index) & MAY_WRITE)) ? -EROFS : 0;
+	ret = (!(branchperms(sb, index) & MAY_WRITE)) ? -EROFS : 0;
 	return ret;
 }
 
@@ -511,24 +511,24 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 #ifdef CONFIG_UNION_FS_DEBUG
 
 /* useful for tracking code reachability */
-#define UDBG pr_debug("DBG:%s:%s:%d\n",__FILE__,__FUNCTION__,__LINE__)
+#define UDBG pr_debug("DBG:%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__)
 
 #define unionfs_check_inode(i)	__unionfs_check_inode((i),	\
-	__FILE__,__FUNCTION__,__LINE__)
+	__FILE__, __FUNCTION__, __LINE__)
 #define unionfs_check_dentry(d)	__unionfs_check_dentry((d),	\
-	__FILE__,__FUNCTION__,__LINE__)
+	__FILE__, __FUNCTION__, __LINE__)
 #define unionfs_check_file(f)	__unionfs_check_file((f),	\
-	__FILE__,__FUNCTION__,__LINE__)
+	__FILE__, __FUNCTION__, __LINE__)
 #define unionfs_check_nd(n)	__unionfs_check_nd((n),		\
-	__FILE__,__FUNCTION__,__LINE__)
+	__FILE__, __FUNCTION__, __LINE__)
 #define show_branch_counts(sb)	__show_branch_counts((sb),	\
-	__FILE__,__FUNCTION__,__LINE__)
+	__FILE__, __FUNCTION__, __LINE__)
 #define show_inode_times(i)	__show_inode_times((i),		\
-	__FILE__,__FUNCTION__,__LINE__)
+	__FILE__, __FUNCTION__, __LINE__)
 #define show_dinode_times(d)	__show_dinode_times((d),	\
-	__FILE__,__FUNCTION__,__LINE__)
+	__FILE__, __FUNCTION__, __LINE__)
 #define show_inode_counts(i)	__show_inode_counts((i),	\
-	__FILE__,__FUNCTION__,__LINE__)
+	__FILE__, __FUNCTION__, __LINE__)
 
 extern void __unionfs_check_inode(const struct inode *inode, const char *fname,
 				  const char *fxn, int line);
@@ -546,19 +546,19 @@ extern void __show_inode_times(const struct inode *inode,
 extern void __show_dinode_times(const struct dentry *dentry,
 				const char *file, const char *fxn, int line);
 extern void __show_inode_counts(const struct inode *inode,
-			        const char *file, const char *fxn, int line);
+				const char *file, const char *fxn, int line);
 
 #else /* not CONFIG_UNION_FS_DEBUG */
 
 /* we leave useful hooks for these check functions throughout the code */
-#define unionfs_check_inode(i)		do { } while(0)
-#define unionfs_check_dentry(d)		do { } while(0)
-#define unionfs_check_file(f)		do { } while(0)
-#define unionfs_check_nd(n)		do { } while(0)
-#define show_branch_counts(sb)		do { } while(0)
-#define show_inode_times(i)		do { } while(0)
-#define show_dinode_times(d)		do { } while(0)
-#define show_inode_counts(i)		do { } while(0)
+#define unionfs_check_inode(i)		do { } while (0)
+#define unionfs_check_dentry(d)		do { } while (0)
+#define unionfs_check_file(f)		do { } while (0)
+#define unionfs_check_nd(n)		do { } while (0)
+#define show_branch_counts(sb)		do { } while (0)
+#define show_inode_times(i)		do { } while (0)
+#define show_dinode_times(d)		do { } while (0)
+#define show_inode_counts(i)		do { } while (0)
 
 #endif /* not CONFIG_UNION_FS_DEBUG */
 
