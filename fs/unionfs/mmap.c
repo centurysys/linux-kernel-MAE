@@ -144,6 +144,28 @@ out:
 	return err;
 }
 
+static int unionfs_writepages(struct address_space *mapping,
+			      struct writeback_control *wbc)
+{
+	int err = 0;
+	struct inode *lower_inode;
+	struct inode *inode;
+
+	inode = mapping->host;
+	lower_inode = unionfs_lower_inode(inode);
+	BUG_ON(!lower_inode);
+
+	if (!mapping_cap_writeback_dirty(lower_inode->i_mapping))
+		goto out;
+
+	/* Note: generic_writepages may return AOP_WRITEPAGE_ACTIVATE */
+	err = generic_writepages(mapping, wbc);
+	if (err == 0)
+		unionfs_copy_attr_times(inode);
+out:
+	return err;
+}
+
 /*
  * readpage is called from generic_page_read and the fault handler.
  * If your file system uses generic_page_read for the read op, it
@@ -374,6 +396,7 @@ out:
 
 struct address_space_operations unionfs_aops = {
 	.writepage	= unionfs_writepage,
+	.writepages	= unionfs_writepages,
 	.readpage	= unionfs_readpage,
 	.prepare_write	= unionfs_prepare_write,
 	.commit_write	= unionfs_commit_write,

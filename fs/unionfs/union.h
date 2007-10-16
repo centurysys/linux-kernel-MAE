@@ -45,6 +45,7 @@
 #include <linux/log2.h>
 #include <linux/poison.h>
 #include <linux/mman.h>
+#include <linux/backing-dev.h>
 
 #include <asm/system.h>
 
