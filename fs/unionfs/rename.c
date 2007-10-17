@@ -40,10 +40,12 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 				       new_dentry, new_dentry->d_name.name,
 				       bindex);
 		if (IS_ERR(lower_new_dentry)) {
-			printk(KERN_ERR "unionfs: error creating directory "
-			       "tree for rename, bindex = %d, err = %ld\n",
-			       bindex, PTR_ERR(lower_new_dentry));
 			err = PTR_ERR(lower_new_dentry);
+			if (err == -EROFS)
+				goto out;
+			printk(KERN_ERR "unionfs: error creating directory "
+			       "tree for rename, bindex=%d err=%d\n",
+			       bindex, err);
 			goto out;
 		}
 	}
