@@ -132,6 +132,9 @@ void __unionfs_check_dentry(const struct dentry *dentry,
 	inode = dentry->d_inode;
 	dstart = dbstart(dentry);
 	dend = dbend(dentry);
+	/* don't check dentry/mnt if no lower branches */
+	if (dstart < 0 && dend < 0)
+		goto check_inode;
 	BUG_ON(dstart > dend);
 
 	if (unlikely((dstart == -1 && dend != -1) ||
@@ -212,6 +215,7 @@ void __unionfs_check_dentry(const struct dentry *dentry,
 		}
 	}
 
+check_inode:
 	/* for inodes now */
 	if (!inode)
 		return;
