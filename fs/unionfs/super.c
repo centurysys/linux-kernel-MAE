@@ -863,9 +863,9 @@ static void unionfs_destroy_inode(struct inode *inode)
 }
 
 /* unionfs inode cache constructor */
-static void init_once(void *v, struct kmem_cache *cachep, unsigned long flags)
+static void init_once(struct kmem_cache *cachep, void *obj)
 {
-	struct unionfs_inode_info *i = v;
+	struct unionfs_inode_info *i = obj;
 
 	inode_init_once(&i->vfs_inode);
 }
