@@ -455,9 +455,9 @@ static void unionfs_d_release(struct dentry *dentry)
 		goto out;
 	} else if (dbstart(dentry) < 0) {
 		/* this is due to a failed lookup */
-		printk(KERN_ERR "unionfs: dentry without lower "
-		       "dentries: %.*s\n",
-		       dentry->d_name.len, dentry->d_name.name);
+		pr_debug("unionfs: dentry without lower "
+			 "dentries: %.*s\n",
+			 dentry->d_name.len, dentry->d_name.name);
 		goto out_free;
 	}
 
