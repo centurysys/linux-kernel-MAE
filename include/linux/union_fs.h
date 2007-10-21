@@ -18,8 +18,5 @@
 # define UNIONFS_IOCTL_INCGEN		_IOR(0x15, 11, int)
 # define UNIONFS_IOCTL_QUERYFILE	_IOR(0x15, 15, int)
 
-/* We don't support normal remount, but unionctl uses it. */
-# define UNIONFS_REMOUNT_MAGIC		0x4a5a4380
-
 #endif /* _LINUX_UNIONFS_H */
 
