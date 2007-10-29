@@ -90,6 +90,23 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 			err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry);
 			unlock_dir(lower_dir_dentry);
 
+			/*
+			 * Whiteouts are special files and should be deleted
+			 * no matter what (as if they never existed), in
+			 * order to allow this create operation to succeed.
+			 * This is especially important in sticky
+			 * directories: a whiteout may have been created by
+			 * one user, but the newly created file may be
+			 * created by another user.  Therefore, in order to
+			 * maintain Unix semantics, if the vfs_unlink above
+			 * ailed, then we have to try to directly unlink the
+			 * whiteout.  Note: in the ODF version of unionfs,
+			 * whiteout are handled much more cleanly.
+			 */
+			if (err == -EPERM) {
+				struct inode *inode = lower_dir_dentry->d_inode;
+				err = inode->i_op->unlink(inode, wh_dentry);
+			}
 			if (err) {
 				printk(KERN_ERR "unionfs: create: could not "
 				       "unlink whiteout, err = %d\n", err);
