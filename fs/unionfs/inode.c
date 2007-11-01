@@ -465,10 +465,11 @@ static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
 			if (!lower_dentry || IS_ERR(lower_dentry)) {
 				if (IS_ERR(lower_dentry))
 					err = PTR_ERR(lower_dentry);
-
-				printk(KERN_ERR "unionfs: lower dentry "
-				       "NULL (or error) for bindex = %d\n",
-				       bindex);
+				if (!IS_COPYUP_ERR(err))
+					printk(KERN_ERR
+					       "unionfs: create_parents for "
+					       "symlink failed: bindex=%d "
+					       "err=%d\n", bindex, err);
 				continue;
 			}
 		}
