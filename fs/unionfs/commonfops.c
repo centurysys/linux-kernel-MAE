@@ -669,10 +669,6 @@ static long do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	lower_file = unionfs_lower_file(file);
 
-	err = security_file_ioctl(lower_file, cmd, arg);
-	if (err)
-		goto out;
-
 	err = -ENOTTY;
 	if (!lower_file || !lower_file->f_op)
 		goto out;
