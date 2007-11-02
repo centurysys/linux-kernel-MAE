@@ -142,15 +142,22 @@ struct unionfs_sb_info {
 	 * This rwsem is used to make sure that a branch management
 	 * operation...
 	 *   1) will not begin before all currently in-flight operations
-	 *      complete
+	 *      complete.
 	 *   2) any new operations do not execute until the currently
-	 *      running branch management operation completes
+	 *      running branch management operation completes.
+	 *
+	 * The write_lock_owner records the PID of the task which grabbed
+	 * the rw_sem for writing.  If the same task also tries to grab the
+	 * read lock, we allow it.  This prevents a self-deadlock when
+	 * branch-management is used on a pivot_root'ed union, because we
+	 * have to ->lookup paths which belong to the same union.
 	 */
 #ifdef CONFIG_PREEMPT_RT
 	struct compat_rw_semaphore rwsem;
 #else /* not CONFIG_PREEMPT_RT */
 	struct rw_semaphore rwsem;
 #endif /* not CONFIG_PREEMPT_RT */
+	pid_t write_lock_owner;	/* PID of rw_sem owner (write lock) */
 	int high_branch_id;	/* last unique branch ID given */
 	struct unionfs_data *data;
 };
@@ -238,10 +245,30 @@ static inline off_t rdstate2offset(struct unionfs_dir_state *buf)
 	return tmp;
 }
 
-#define unionfs_read_lock(sb)	 down_read(&UNIONFS_SB(sb)->rwsem)
-#define unionfs_read_unlock(sb)	 up_read(&UNIONFS_SB(sb)->rwsem)
-#define unionfs_write_lock(sb)	 down_write(&UNIONFS_SB(sb)->rwsem)
-#define unionfs_write_unlock(sb) up_write(&UNIONFS_SB(sb)->rwsem)
+static inline void unionfs_read_lock(struct super_block *sb)
+{
+	if (UNIONFS_SB(sb)->write_lock_owner &&
+	    UNIONFS_SB(sb)->write_lock_owner == current->pid)
+		return;
+	down_read(&UNIONFS_SB(sb)->rwsem);
+}
+static inline void unionfs_read_unlock(struct super_block *sb)
+{
+	if (UNIONFS_SB(sb)->write_lock_owner &&
+	    UNIONFS_SB(sb)->write_lock_owner == current->pid)
+		return;
+	up_read(&UNIONFS_SB(sb)->rwsem);
+}
+static inline void unionfs_write_lock(struct super_block *sb)
+{
+	down_write(&UNIONFS_SB(sb)->rwsem);
+	UNIONFS_SB(sb)->write_lock_owner = current->pid;
+}
+static inline void unionfs_write_unlock(struct super_block *sb)
+{
+	up_write(&UNIONFS_SB(sb)->rwsem);
+	UNIONFS_SB(sb)->write_lock_owner = 0;
+}
 
 static inline void unionfs_double_lock_dentry(struct dentry *d1,
 					      struct dentry *d2)
