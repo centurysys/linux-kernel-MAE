@@ -178,7 +178,8 @@ static int unionfs_do_readpage(struct file *file, struct page *page)
 	err = vfs_read(lower_file, page_data, PAGE_CACHE_SIZE,
 		       &lower_file->f_pos);
 	set_fs(old_fs);
-
+	if (err >= 0 && err < PAGE_CACHE_SIZE)
+		memset(page_data + err, 0, PAGE_CACHE_SIZE - err);
 	kunmap(page);
 
 	if (err < 0)
