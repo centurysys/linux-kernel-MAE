@@ -72,7 +72,8 @@ retry:
 	dput(tmp_dentry);
 
 	err = copyup_named_file(dentry->d_parent->d_inode, file, name, bstart,
-				bindex, file->f_path.dentry->d_inode->i_size);
+				bindex,
+				i_size_read(file->f_path.dentry->d_inode));
 	if (err) {
 		if (unlikely(err == -EEXIST))
 			goto retry;
@@ -199,7 +200,6 @@ static int open_highest_file(struct file *file, bool willwrite)
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *parent_inode = dentry->d_parent->d_inode;
 	struct super_block *sb = dentry->d_sb;
-	size_t inode_size = dentry->d_inode->i_size;
 
 	bstart = dbstart(dentry);
 	bend = dbend(dentry);
@@ -208,7 +208,7 @@ static int open_highest_file(struct file *file, bool willwrite)
 	if (willwrite && IS_WRITE_FLAG(file->f_flags) && is_robranch(dentry)) {
 		for (bindex = bstart - 1; bindex >= 0; bindex--) {
 			err = copyup_file(parent_inode, file, bstart, bindex,
-					  inode_size);
+					  i_size_read(dentry->d_inode));
 			if (!err)
 				break;
 		}
@@ -243,7 +243,6 @@ static int do_delayed_copyup(struct file *file)
 	int bindex, bstart, bend, err = 0;
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *parent_inode = dentry->d_parent->d_inode;
-	loff_t inode_size = dentry->d_inode->i_size;
 
 	bstart = fbstart(file);
 	bend = fbend(file);
@@ -255,7 +254,8 @@ static int do_delayed_copyup(struct file *file)
 	for (bindex = bstart - 1; bindex >= 0; bindex--) {
 		if (!d_deleted(dentry))
 			err = copyup_file(parent_inode, file, bstart,
-					  bindex, inode_size);
+					  bindex,
+					  i_size_read(dentry->d_inode));
 		else
 			err = copyup_deleted_file(file, dentry, bstart,
 						  bindex);

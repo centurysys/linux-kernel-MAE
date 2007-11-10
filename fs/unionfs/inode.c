@@ -312,7 +312,7 @@ docopyup:
 					    old_dentry, old_bstart,
 					    bindex, old_dentry->d_name.name,
 					    old_dentry->d_name.len, NULL,
-					    old_dentry->d_inode->i_size);
+					    i_size_read(old_dentry->d_inode));
 			if (!err) {
 				lower_new_dentry =
 					create_parents(dir, new_dentry,
@@ -1043,7 +1043,7 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 				continue;
 			/* Only if its the leftmost file, copyup the file */
 			for (i = bstart - 1; i >= 0; i--) {
-				loff_t size = dentry->d_inode->i_size;
+				loff_t size = i_size_read(dentry->d_inode);
 				if (ia->ia_valid & ATTR_SIZE)
 					size = ia->ia_size;
 				err = copyup_dentry(dentry->d_parent->d_inode,
