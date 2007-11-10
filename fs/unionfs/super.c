@@ -69,7 +69,7 @@ static void unionfs_read_inode(struct inode *inode)
  */
 static void unionfs_delete_inode(struct inode *inode)
 {
-	inode->i_size = 0;	/* every f/s seems to do that */
+	i_size_write(inode, 0);	/* every f/s seems to do that */
 
 	if (inode->i_data.nrpages)
 		truncate_inode_pages(&inode->i_data, 0);
