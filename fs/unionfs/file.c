@@ -31,10 +31,6 @@ static ssize_t unionfs_read(struct file *file, char __user *buf,
 
 	err = do_sync_read(file, buf, count, ppos);
 
-	if (err >= 0)
-		touch_atime(unionfs_lower_mnt(file->f_path.dentry),
-			    unionfs_lower_dentry(file->f_path.dentry));
-
 out:
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
 	unionfs_check_file(file);
@@ -57,10 +53,6 @@ static ssize_t unionfs_aio_read(struct kiocb *iocb, const struct iovec *iov,
 
 	if (err == -EIOCBQUEUED)
 		err = wait_on_sync_kiocb(iocb);
-
-	if (err >= 0)
-		touch_atime(unionfs_lower_mnt(file->f_path.dentry),
-			    unionfs_lower_dentry(file->f_path.dentry));
 
 out:
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
