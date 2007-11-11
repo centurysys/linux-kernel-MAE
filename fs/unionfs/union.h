@@ -63,6 +63,9 @@
 /* maximum number of branches we support, to avoid memory blowup */
 #define UNIONFS_MAX_BRANCHES	128
 
+/* minimum time (seconds) required for time-based cache-coherency */
+#define UNIONFS_MIN_CC_TIME	3
+
 /* Operations vectors defined in specific files. */
 extern struct file_operations unionfs_main_fops;
 extern struct file_operations unionfs_dir_fops;
