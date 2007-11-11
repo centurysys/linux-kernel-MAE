@@ -102,8 +102,6 @@ struct unionfs_inode_info {
 
 	/* The lower inodes */
 	struct inode **lower_inodes;
-	/* to keep track of reads/writes for unlinks before closes */
-	atomic_t totalopens;
 
 	struct inode vfs_inode;
 };
