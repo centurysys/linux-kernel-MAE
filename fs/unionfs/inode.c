@@ -158,8 +158,6 @@ out:
 
 	if (!err)
 		unionfs_postcopyup_setmnt(dentry);
-	unionfs_unlock_dentry(dentry);
-	unionfs_read_unlock(dentry->d_sb);
 
 	unionfs_check_inode(parent);
 	if (!err) {
@@ -167,6 +165,8 @@ out:
 		unionfs_check_nd(nd);
 	}
 	unionfs_check_dentry(dentry);
+	unionfs_unlock_dentry(dentry);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
 
@@ -206,13 +206,14 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 			dentry = ret;
 		/* parent times may have changed */
 		unionfs_copy_attr_times(dentry->d_parent->d_inode);
-		unionfs_unlock_dentry(dentry);
 	}
 
 	unionfs_check_inode(parent);
 	unionfs_check_dentry(dentry);
 	unionfs_check_dentry(dentry->d_parent);
 	unionfs_check_nd(nd);
+	if (!IS_ERR(ret))
+		unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 
 	return ret;
@@ -356,12 +357,12 @@ out:
 	if (!err)
 		unionfs_postcopyup_setmnt(new_dentry);
 
-	unionfs_unlock_dentry(new_dentry);
-	unionfs_unlock_dentry(old_dentry);
-
 	unionfs_check_inode(dir);
 	unionfs_check_dentry(new_dentry);
 	unionfs_check_dentry(old_dentry);
+
+	unionfs_unlock_dentry(new_dentry);
+	unionfs_unlock_dentry(old_dentry);
 	unionfs_read_unlock(old_dentry->d_sb);
 
 	return err;
@@ -522,10 +523,10 @@ out:
 	kfree(name);
 	if (!err)
 		unionfs_postcopyup_setmnt(dentry);
-	unionfs_unlock_dentry(dentry);
 
 	unionfs_check_inode(dir);
 	unionfs_check_dentry(dentry);
+	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 
 	return err;
@@ -675,9 +676,9 @@ out:
 
 	if (!err)
 		unionfs_copy_attr_times(dentry->d_inode);
-	unionfs_unlock_dentry(dentry);
 	unionfs_check_inode(parent);
 	unionfs_check_dentry(dentry);
+	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 
 	return err;
@@ -805,10 +806,10 @@ out:
 
 	if (!err)
 		unionfs_postcopyup_setmnt(dentry);
-	unionfs_unlock_dentry(dentry);
 
 	unionfs_check_inode(dir);
 	unionfs_check_dentry(dentry);
+	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 
 	return err;
@@ -843,8 +844,8 @@ static int unionfs_readlink(struct dentry *dentry, char __user *buf,
 					lower_dentry->d_inode);
 
 out:
-	unionfs_unlock_dentry(dentry);
 	unionfs_check_dentry(dentry);
+	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 
 	return err;
@@ -906,11 +907,11 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
 	if (unlikely(!__unionfs_d_revalidate_chain(dentry, nd, false)))
 		printk(KERN_ERR
 		       "unionfs: put_link failed to revalidate dentry\n");
-	unionfs_unlock_dentry(dentry);
 
 	unionfs_check_dentry(dentry);
 	unionfs_check_nd(nd);
 	kfree(nd_get_link(nd));
+	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 }
 
@@ -1090,9 +1091,9 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	/* if setattr succeeded, then parent dir may have changed */
 	unionfs_copy_attr_times(dentry->d_parent->d_inode);
 out:
-	unionfs_unlock_dentry(dentry);
 	unionfs_check_dentry(dentry);
 	unionfs_check_dentry(dentry->d_parent);
+	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 
 	return err;

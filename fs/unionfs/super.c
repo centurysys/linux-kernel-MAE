@@ -153,8 +153,8 @@ static int unionfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	memset(&buf->f_spare, 0, sizeof(buf->f_spare));
 
 out:
-	unionfs_unlock_dentry(dentry);
 	unionfs_check_dentry(dentry);
+	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(sb);
 	return err;
 }
@@ -797,8 +797,8 @@ out_free:
 	kfree(new_data);
 	kfree(new_lower_inodes);
 out_error:
-	unionfs_write_unlock(sb);
 	unionfs_check_dentry(sb->s_root);
+	unionfs_write_unlock(sb);
 	return err;
 }
 

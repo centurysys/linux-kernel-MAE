@@ -573,6 +573,7 @@ int unionfs_open(struct inode *inode, struct file *file)
 		}
 	}
 
+	/* XXX: should this unlock be moved to the function bottom? */
 	unionfs_unlock_dentry(dentry);
 
 out:
@@ -582,12 +583,12 @@ out:
 		kfree(UNIONFS_F(file));
 	}
 out_nofree:
-	unionfs_read_unlock(inode->i_sb);
 	unionfs_check_inode(inode);
 	if (!err) {
 		unionfs_check_file(file);
 		unionfs_check_dentry(file->f_path.dentry->d_parent);
 	}
+	unionfs_read_unlock(inode->i_sb);
 	return err;
 }
 
@@ -786,8 +787,8 @@ long unionfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 out:
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
 	unionfs_check_file(file);
+	unionfs_read_unlock(file->f_path.dentry->d_sb);
 	return err;
 }
 
@@ -825,7 +826,7 @@ int unionfs_flush(struct file *file, fl_owner_t id)
 	unionfs_copy_attr_times(dentry->d_parent->d_inode);
 
 out:
-	unionfs_read_unlock(dentry->d_sb);
 	unionfs_check_file(file);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
