@@ -296,8 +296,8 @@ out:
 	if (err < 0)
 		ClearPageUptodate(page);
 
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
 	unionfs_check_file(file);
+	unionfs_read_unlock(file->f_path.dentry->d_sb);
 	return err;		/* assume all is ok */
 }
 

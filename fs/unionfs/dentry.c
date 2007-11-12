@@ -433,11 +433,11 @@ static int unionfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 
 	unionfs_lock_dentry(dentry);
 	err = __unionfs_d_revalidate_chain(dentry, nd, false);
-	unionfs_unlock_dentry(dentry);
 	if (likely(err > 0)) { /* true==1: dentry is valid */
 		unionfs_check_dentry(dentry);
 		unionfs_check_nd(nd);
 	}
+	unionfs_unlock_dentry(dentry);
 
 	unionfs_read_unlock(dentry->d_sb);
 
