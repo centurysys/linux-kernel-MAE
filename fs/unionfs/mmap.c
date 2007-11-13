@@ -136,21 +136,21 @@ out:
 	return err;
 }
 
-/*
- * readpage is called from generic_page_read and the fault handler.
- * If your file system uses generic_page_read for the read op, it
- * must implement readpage.
- *
- * Readpage expects a locked page, and must unlock it.
- */
-static int unionfs_do_readpage(struct file *file, struct page *page)
+/* Readpage expects a locked page, and must unlock it */
+static int unionfs_readpage(struct file *file, struct page *page)
 {
-	int err = -EIO;
+	int err;
 	struct file *lower_file;
 	struct inode *inode;
 	mm_segment_t old_fs;
 	char *page_data = NULL;
 	loff_t offset;
+
+	unionfs_read_lock(file->f_path.dentry->d_sb);
+	err = unionfs_file_revalidate(file, false);
+	if (unlikely(err))
+		goto out;
+	unionfs_check_file(file);
 
 	if (!UNIONFS_F(file)) {
 		err = -ENOENT;
@@ -191,33 +191,17 @@ static int unionfs_do_readpage(struct file *file, struct page *page)
 
 	flush_dcache_page(page);
 
-out:
-	if (err == 0)
-		SetPageUptodate(page);
-	else
-		ClearPageUptodate(page);
-
-	return err;
-}
-
-static int unionfs_readpage(struct file *file, struct page *page)
-{
-	int err;
-
-	unionfs_read_lock(file->f_path.dentry->d_sb);
-	err = unionfs_file_revalidate(file, false);
-	if (unlikely(err))
-		goto out;
-	unionfs_check_file(file);
-
-	err = unionfs_do_readpage(file, page);
-
 	/*
 	 * we have to unlock our page, b/c we _might_ have gotten a locked
 	 * page.  but we no longer have to wakeup on our page here, b/c
 	 * UnlockPage does it
 	 */
 out:
+	if (err == 0)
+		SetPageUptodate(page);
+	else
+		ClearPageUptodate(page);
+
 	unlock_page(page);
 	unionfs_check_file(file);
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
