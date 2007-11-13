@@ -299,7 +299,7 @@ check_inode:
 	 * be NULL.  But, check that all three are NULL: lower dentry, mnt,
 	 * and inode.
 	 */
-	if (S_ISDIR(inode->i_mode))
+	if (dstart >= 0 && dend >= 0 && S_ISDIR(inode->i_mode))
 		for (bindex = dstart+1; bindex < dend; bindex++) {
 			lower_inode = unionfs_lower_inode_idx(inode, bindex);
 			lower_dentry = unionfs_lower_dentry_idx(dentry,
