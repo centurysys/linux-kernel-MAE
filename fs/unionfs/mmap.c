@@ -28,6 +28,7 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 	struct address_space *lower_mapping; /* lower inode mapping */
 	gfp_t mask;
 
+	BUG_ON(!PageUptodate(page));
 	inode = page->mapping->host;
 	lower_inode = unionfs_lower_inode(inode);
 	lower_mapping = lower_inode->i_mapping;
@@ -53,6 +54,8 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 
 	/* copy page data from our upper page to the lower page */
 	copy_highpage(lower_page, page);
+	flush_dcache_page(lower_page);
+	SetPageUptodate(lower_page);
 
 	/*
 	 * Call lower writepage (expects locked page).  However, if we are
@@ -68,12 +71,11 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 		goto out_release;
 	}
 	BUG_ON(!lower_mapping->a_ops->writepage);
+	set_page_dirty(lower_page);
 	clear_page_dirty_for_io(lower_page); /* emulate VFS behavior */
 	err = lower_mapping->a_ops->writepage(lower_page, wbc);
-	if (err < 0) {
-		ClearPageUptodate(page);
+	if (err < 0)
 		goto out_release;
-	}
 
 	/*
 	 * Lower file systems such as ramfs and tmpfs, may return
@@ -97,7 +99,7 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 	}
 
 	/* all is well */
-	SetPageUptodate(page);
+
 	/* lower mtimes have changed: update ours */
 	unionfs_copy_attr_times(inode);
 
