@@ -56,6 +56,7 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 	copy_highpage(lower_page, page);
 	flush_dcache_page(lower_page);
 	SetPageUptodate(lower_page);
+	set_page_dirty(lower_page);
 
 	/*
 	 * Call lower writepage (expects locked page).  However, if we are
@@ -66,12 +67,11 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 	 * success.
 	 */
 	if (wbc->for_reclaim) {
-		set_page_dirty(lower_page);
 		unlock_page(lower_page);
 		goto out_release;
 	}
+
 	BUG_ON(!lower_mapping->a_ops->writepage);
-	set_page_dirty(lower_page);
 	clear_page_dirty_for_io(lower_page); /* emulate VFS behavior */
 	err = lower_mapping->a_ops->writepage(lower_page, wbc);
 	if (err < 0)
