@@ -106,7 +106,7 @@ static inline void unionfs_set_lower_file_idx(struct file *f, int index,
 	UNIONFS_F(f)->lower_files[index] = val;
 	/* save branch ID (may be redundant?) */
 	UNIONFS_F(f)->saved_branch_ids[index] =
-		branch_id((f)->f_dentry->d_sb, index);
+		branch_id((f)->f_path.dentry->d_sb, index);
 }
 
 static inline void unionfs_set_lower_file(struct file *f, struct file *val)
