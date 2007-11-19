@@ -77,8 +77,9 @@ static int unionfs_filldir(void *dirent, const char *name, int namelen,
 		goto out;
 	}
 	buf->entries_written++;
-	if ((err = add_filldir_node(buf->rdstate, name, namelen,
-				    buf->rdstate->bindex, is_wh_entry)))
+	err = add_filldir_node(buf->rdstate, name, namelen,
+			       buf->rdstate->bindex, is_wh_entry);
+	if (err)
 		buf->filldir_error = err;
 
 out:
