@@ -460,8 +460,8 @@ int copyup_dentry(struct inode *dir, struct dentry *dentry, int bstart,
 		goto out_unlink;
 
 	/* Set permissions. */
-	if ((err = copyup_permissions(sb, old_lower_dentry,
-				      new_lower_dentry)))
+	err = copyup_permissions(sb, old_lower_dentry, new_lower_dentry);
+	if (err)
 		goto out_unlink;
 
 #ifdef CONFIG_UNION_FS_XATTR
