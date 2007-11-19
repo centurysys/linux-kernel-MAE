@@ -437,7 +437,7 @@ void __unionfs_check_nd(const struct nameidata *nd,
 	if (nd->flags & LOOKUP_OPEN) {
 		file = nd->intent.open.file;
 		if (unlikely(file->f_path.dentry &&
-			     strcmp(file->f_dentry->d_sb->s_type->name,
+			     strcmp(file->f_path.dentry->d_sb->s_type->name,
 				    UNIONFS_NAME))) {
 			PRINT_CALLER(fname, fxn, line);
 			pr_debug(" CND1: lower_file of type %s\n",
