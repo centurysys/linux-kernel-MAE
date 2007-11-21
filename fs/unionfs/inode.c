@@ -674,8 +674,10 @@ out:
 
 	kfree(name);
 
-	if (!err)
+	if (!err) {
 		unionfs_copy_attr_times(dentry->d_inode);
+		unionfs_postcopyup_setmnt(dentry);
+	}
 	unionfs_check_inode(parent);
 	unionfs_check_dentry(dentry);
 	unionfs_unlock_dentry(dentry);
