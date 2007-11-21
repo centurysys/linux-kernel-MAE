@@ -53,10 +53,17 @@ static int unionfs_filldir(void *dirent, const char *name, int namelen,
 		is_wh_entry = 1;
 	}
 
-	found = find_filldir_node(buf->rdstate, name, namelen);
+	found = find_filldir_node(buf->rdstate, name, namelen, is_wh_entry);
 
-	if (found)
+	if (found) {
+		/*
+		 * If we had non-whiteout entry in dir cache, then mark it
+		 * as a whiteout and but leave it in the dir cache.
+		 */
+		if (is_wh_entry && !found->whiteout)
+			found->whiteout = is_wh_entry;
 		goto out;
+	}
 
 	/* if 'name' isn't a whiteout, filldir it. */
 	if (!is_wh_entry) {

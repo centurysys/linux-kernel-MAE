@@ -230,7 +230,8 @@ extern int add_filldir_node(struct unionfs_dir_state *rdstate,
 			    const char *name, int namelen, int bindex,
 			    int whiteout);
 extern struct filldir_node *find_filldir_node(struct unionfs_dir_state *rdstate,
-					      const char *name, int namelen);
+					      const char *name, int namelen,
+					      int is_whiteout);
 
 extern struct dentry **alloc_new_dentries(int objs);
 extern struct unionfs_data *alloc_new_data(int objs);

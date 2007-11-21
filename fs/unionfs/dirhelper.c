@@ -158,7 +158,7 @@ static int readdir_util_callback(void *dirent, const char *name, int namelen,
 		whiteout = 1;
 	}
 
-	found = find_filldir_node(buf->rdstate, name, namelen);
+	found = find_filldir_node(buf->rdstate, name, namelen, whiteout);
 	/* If it was found in the table there was a previous whiteout. */
 	if (found)
 		goto out;
