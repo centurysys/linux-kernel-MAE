@@ -79,6 +79,13 @@ extern struct address_space_operations unionfs_aops;
 /* How long should an entry be allowed to persist */
 #define RDCACHE_JIFFIES	(5*HZ)
 
+/* compatibility with Real-Time patches */
+#ifdef CONFIG_PREEMPT_RT
+# define unionfs_rw_semaphore	compat_rw_semaphore
+#else /* not CONFIG_PREEMPT_RT */
+# define unionfs_rw_semaphore	rw_semaphore
+#endif /* not CONFIG_PREEMPT_RT */
+
 /* file private data. */
 struct unionfs_file_info {
 	int bstart;
@@ -153,11 +160,7 @@ struct unionfs_sb_info {
 	 * branch-management is used on a pivot_root'ed union, because we
 	 * have to ->lookup paths which belong to the same union.
 	 */
-#ifdef CONFIG_PREEMPT_RT
-	struct compat_rw_semaphore rwsem;
-#else /* not CONFIG_PREEMPT_RT */
-	struct rw_semaphore rwsem;
-#endif /* not CONFIG_PREEMPT_RT */
+	struct unionfs_rw_semaphore rwsem;
 	pid_t write_lock_owner;	/* PID of rw_sem owner (write lock) */
 	int high_branch_id;	/* last unique branch ID given */
 	struct unionfs_data *data;
