@@ -45,12 +45,8 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 	verify_locked(dentry);
 
 	/* if the dentry is unhashed, do NOT revalidate */
-	if (d_deleted(dentry)) {
-		pr_debug("unionfs: unhashed dentry being "
-			 "revalidated: %*s\n",
-			 dentry->d_name.len, dentry->d_name.name);
+	if (d_deleted(dentry))
 		goto out;
-	}
 
 	BUG_ON(dbstart(dentry) == -1);
 	if (dentry->d_inode)
@@ -460,13 +456,8 @@ static void unionfs_d_release(struct dentry *dentry)
 		printk(KERN_ERR "unionfs: dentry without private data: %.*s\n",
 		       dentry->d_name.len, dentry->d_name.name);
 		goto out;
-	} else if (dbstart(dentry) < 0) {
-		/* this is due to a failed lookup */
-		pr_debug("unionfs: dentry without lower "
-			 "dentries: %.*s\n",
-			 dentry->d_name.len, dentry->d_name.name);
-		goto out_free;
-	}
+	} else if (dbstart(dentry) < 0)
+		goto out_free;  /* due to a (normal) failed lookup */
 
 	/* Release all the lower dentries */
 	bstart = dbstart(dentry);

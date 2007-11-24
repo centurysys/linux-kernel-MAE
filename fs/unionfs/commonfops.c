@@ -648,11 +648,6 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 
 	if (fileinfo->rdstate) {
 		fileinfo->rdstate->access = jiffies;
-		pr_debug("unionfs: saving rdstate with cookie "
-			 "%u [%d.%lld]\n",
-			 fileinfo->rdstate->cookie,
-			 fileinfo->rdstate->bindex,
-			 (long long)fileinfo->rdstate->dirpos);
 		spin_lock(&inodeinfo->rdlock);
 		inodeinfo->rdcount++;
 		list_add_tail(&fileinfo->rdstate->cache,
