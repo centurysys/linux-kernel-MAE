@@ -97,24 +97,22 @@ void __unionfs_check_inode(const struct inode *inode,
 					 "istart/end=%d:%d\n", inode,
 					 lower_inode, bindex, istart, iend);
 			}
-		} else {	/* lower_inode == NULL */
-			if (bindex >= istart && bindex <= iend) {
-				/*
-				 * directories can have NULL lower inodes in
-				 * b/t start/end, but NOT if at the
-				 * start/end range.
-				 */
-				if (unlikely(!(S_ISDIR(inode->i_mode) &&
-					       bindex > istart &&
-					       bindex < iend))) {
-					PRINT_CALLER(fname, fxn, line);
-					pr_debug(" Ci7: inode/linode=%p:%p "
-						 "bindex=%d istart/end=%d:%d\n",
-						 inode, lower_inode, bindex,
-						 istart, iend);
-				}
-			}
+			continue;
 		}
+		/* if we get here, then lower_inode == NULL */
+		if (bindex < istart || bindex > iend)
+			continue;
+		/*
+		 * directories can have NULL lower inodes in b/t start/end,
+		 * but NOT if at the start/end range.
+		 */
+		if (unlikely(S_ISDIR(inode->i_mode) &&
+			     bindex > istart && bindex < iend))
+			continue;
+		PRINT_CALLER(fname, fxn, line);
+		pr_debug(" Ci7: inode/linode=%p:%p "
+			 "bindex=%d istart/end=%d:%d\n",
+			 inode, lower_inode, bindex, istart, iend);
 	}
 }
 
@@ -274,24 +272,22 @@ check_inode:
 					 "istart/end=%d:%d\n", dentry,
 					 lower_inode, bindex, istart, iend);
 			}
-		} else {	/* lower_inode == NULL */
-			if (bindex >= istart && bindex <= iend) {
-				/*
-				 * directories can have NULL lower inodes in
-				 * b/t start/end, but NOT if at the
-				 * start/end range.
-				 */
-				if (unlikely(!(S_ISDIR(inode->i_mode) &&
-					       bindex > istart &&
-					       bindex < iend))) {
-					PRINT_CALLER(fname, fxn, line);
-					pr_debug(" CI7: dentry/linode=%p:%p "
-						 "bindex=%d istart/end=%d:%d\n",
-						 dentry, lower_inode, bindex,
-						 istart, iend);
-				}
-			}
+			continue;
 		}
+		/* if we get here, then lower_inode == NULL */
+		if (bindex < istart || bindex > iend)
+			continue;
+		/*
+		 * directories can have NULL lower inodes in b/t start/end,
+		 * but NOT if at the start/end range.
+		 */
+		if (unlikely(S_ISDIR(inode->i_mode) &&
+			     bindex > istart && bindex < iend))
+			continue;
+		PRINT_CALLER(fname, fxn, line);
+		pr_debug(" CI7: dentry/linode=%p:%p "
+			 "bindex=%d istart/end=%d:%d\n",
+			 dentry, lower_inode, bindex, istart, iend);
 	}
 
 	/*
