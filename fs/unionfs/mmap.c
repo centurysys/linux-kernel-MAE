@@ -304,10 +304,33 @@ out:
 	return err;		/* assume all is ok */
 }
 
+/*
+ * Although unionfs isn't a block-based file system, it may stack on one.
+ * ->bmap is needed, for example, to swapon(2) files.
+ */
+sector_t unionfs_bmap(struct address_space *mapping, sector_t block)
+{
+	int err = -EINVAL;
+	struct inode *inode, *lower_inode;
+	sector_t (*bmap)(struct address_space *, sector_t);
+
+	inode = (struct inode *)mapping->host;
+	lower_inode = unionfs_lower_inode(inode);
+	if (!lower_inode)
+		goto out;
+	bmap = lower_inode->i_mapping->a_ops->bmap;
+	if (bmap)
+		err = bmap(lower_inode->i_mapping, block);
+out:
+	return err;
+}
+
+
 struct address_space_operations unionfs_aops = {
 	.writepage	= unionfs_writepage,
 	.writepages	= unionfs_writepages,
 	.readpage	= unionfs_readpage,
 	.prepare_write	= unionfs_prepare_write,
 	.commit_write	= unionfs_commit_write,
+	.bmap		= unionfs_bmap,
 };
