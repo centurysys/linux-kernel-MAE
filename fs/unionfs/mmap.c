@@ -123,8 +123,11 @@ static int unionfs_writepages(struct address_space *mapping,
 	struct inode *inode;
 
 	inode = mapping->host;
+	if (ibstart(inode) < 0 && ibend(inode) < 0)
+		goto out;
 	lower_inode = unionfs_lower_inode(inode);
-	BUG_ON(!lower_inode);
+	if (!lower_inode)
+		goto out;
 
 	if (!mapping_cap_writeback_dirty(lower_inode->i_mapping))
 		goto out;
