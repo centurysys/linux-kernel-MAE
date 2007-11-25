@@ -250,7 +250,6 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 	int err = -ENOMEM;
 	struct inode *inode, *lower_inode;
 	struct file *lower_file = NULL;
-	loff_t pos;
 	unsigned bytes = to - from;
 	char *page_data = NULL;
 	mm_segment_t old_fs;
@@ -293,12 +292,8 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 	if (err < 0)
 		goto out;
 
-	inode->i_blocks = lower_inode->i_blocks;
-	/* we may have to update i_size */
-	pos = page_offset(page) + to;
-	if (pos > i_size_read(inode))
-		i_size_write(inode, pos);
-	/* if vfs_write succeeded above, sync up our times */
+	/* if vfs_write succeeded above, sync up our times/sizes */
+	fsstack_copy_inode_size(inode, lower_inode);
 	unionfs_copy_attr_times(inode);
 	mark_inode_dirty_sync(inode);
 
