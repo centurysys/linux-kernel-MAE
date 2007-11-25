@@ -53,14 +53,23 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 	if (err && !IS_COPYUP_ERR(err))
 		goto out;
 
+	/*
+	 * We create whiteouts if (1) there was an error unlinking the main
+	 * file; (2) there is a lower priority file with the same name
+	 * (dbopaque); (3) the branch in which the file is not the last
+	 * (rightmost0 branch.  The last rule is an optimization to avoid
+	 * creating all those whiteouts if there's no chance they'd be
+	 * masking any lower-priority branch, as well as unionfs is used
+	 * with only one branch (using only one branch, while odd, is still
+	 * possible).
+	 */
 	if (err) {
 		if (dbstart(dentry) == 0)
 			goto out;
 		err = create_whiteout(dentry, dbstart(dentry) - 1);
 	} else if (dbopaque(dentry) != -1) {
-		/* There is a lower lower-priority file with the same name. */
 		err = create_whiteout(dentry, dbopaque(dentry));
-	} else {
+	} else if (dbstart(dentry) < sbend(dentry->d_sb)) {
 		err = create_whiteout(dentry, dbstart(dentry));
 	}
 
@@ -167,9 +176,17 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 	err = unionfs_rmdir_first(dir, dentry, namelist);
 	dstart = dbstart(dentry);
 	dend = dbend(dentry);
-	/* create whiteout */
+	/*
+	 * We create a whiteout for the directory if there was an error to
+	 * rmdir the first directory entry in the union.  Otherwise, we
+	 * create a whiteout only if there is no chance that a lower
+	 * priority branch might also have the same named directory.  IOW,
+	 * if there is not another same-named directory at a lower priority
+	 * branch, then we don't need to create a whiteout for it.
+	 */
 	if (!err) {
-		err = create_whiteout(dentry, dstart);
+		if (dstart < dend)
+			err = create_whiteout(dentry, dstart);
 	} else {
 		int new_err;
 
