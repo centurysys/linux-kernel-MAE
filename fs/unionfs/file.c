@@ -246,4 +246,5 @@ struct file_operations unionfs_main_fops = {
 	.fsync		= unionfs_fsync,
 	.fasync		= unionfs_fasync,
 	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
 };

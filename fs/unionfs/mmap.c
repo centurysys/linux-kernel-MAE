@@ -147,7 +147,7 @@ static int unionfs_readpage(struct file *file, struct page *page)
 	struct inode *inode;
 	mm_segment_t old_fs;
 	char *page_data = NULL;
-	loff_t offset;
+	mode_t orig_mode;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb);
 	err = unionfs_file_revalidate(file, false);
@@ -175,11 +175,17 @@ static int unionfs_readpage(struct file *file, struct page *page)
 	 * the necessary magic for us.
 	 */
 	lower_file->f_pos = page_offset(page);
-	offset = page_offset(page);
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
+	/*
+	 * generic_file_splice_write may call us on a file not opened for
+	 * reading, so temporarily allow reading.
+	 */
+	orig_mode = lower_file->f_mode;
+	lower_file->f_mode |= FMODE_READ;
 	err = vfs_read(lower_file, page_data, PAGE_CACHE_SIZE,
 		       &lower_file->f_pos);
+	lower_file->f_mode = orig_mode;
 	set_fs(old_fs);
 	if (err >= 0 && err < PAGE_CACHE_SIZE)
 		memset(page_data + err, 0, PAGE_CACHE_SIZE - err);
