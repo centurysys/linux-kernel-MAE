@@ -73,6 +73,7 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 
 	BUG_ON(!lower_mapping->a_ops->writepage);
 	clear_page_dirty_for_io(lower_page); /* emulate VFS behavior */
+	wait_on_page_writeback(lower_page); /* prevent multiple writers */
 	err = lower_mapping->a_ops->writepage(lower_page, wbc);
 	if (err < 0)
 		goto out_release;
