@@ -37,29 +37,6 @@ out:
 	return err;
 }
 
-static ssize_t unionfs_aio_read(struct kiocb *iocb, const struct iovec *iov,
-				unsigned long nr_segs, loff_t pos)
-{
-	int err = 0;
-	struct file *file = iocb->ki_filp;
-
-	unionfs_read_lock(file->f_path.dentry->d_sb);
-	err = unionfs_file_revalidate(file, false);
-	if (unlikely(err))
-		goto out;
-	unionfs_check_file(file);
-
-	err = generic_file_aio_read(iocb, iov, nr_segs, pos);
-
-	if (err == -EIOCBQUEUED)
-		err = wait_on_sync_kiocb(iocb);
-
-out:
-	unionfs_check_file(file);
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
-	return err;
-}
-
 static ssize_t unionfs_write(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
 {
@@ -234,9 +211,9 @@ out:
 struct file_operations unionfs_main_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= unionfs_read,
-	.aio_read       = unionfs_aio_read,
+	.aio_read	= generic_file_aio_read,
 	.write		= unionfs_write,
-	.aio_write      = generic_file_aio_write,
+	.aio_write	= generic_file_aio_write,
 	.readdir	= unionfs_file_readdir,
 	.unlocked_ioctl	= unionfs_ioctl,
 	.mmap		= unionfs_mmap,
