@@ -944,7 +944,8 @@ static int unionfs_permission(struct inode *inode, int mask,
 		 * dentry+inode.  This should be equivalent to issuing
 		 * __unionfs_d_revalidate_chain on nd.dentry here.
 		 */
-		err = -ESTALE;	/* force revalidate */
+		if (is_file)	/* dirs can be unlinked but chdir'ed to */
+			err = -ESTALE;	/* force revalidate */
 		goto out;
 	}
 

@@ -148,6 +148,7 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int err = 0;
 	struct unionfs_dir_state *namelist = NULL;
+	int dstart, dend;
 
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
@@ -164,28 +165,50 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 		goto out;
 
 	err = unionfs_rmdir_first(dir, dentry, namelist);
+	dstart = dbstart(dentry);
+	dend = dbend(dentry);
 	/* create whiteout */
 	if (!err) {
-		err = create_whiteout(dentry, dbstart(dentry));
+		err = create_whiteout(dentry, dstart);
 	} else {
 		int new_err;
 
-		if (dbstart(dentry) == 0)
+		if (dstart == 0)
 			goto out;
 
 		/* exit if the error returned was NOT -EROFS */
 		if (!IS_COPYUP_ERR(err))
 			goto out;
 
-		new_err = create_whiteout(dentry, dbstart(dentry) - 1);
+		new_err = create_whiteout(dentry, dstart - 1);
 		if (new_err != -EEXIST)
 			err = new_err;
 	}
 
 out:
-	/* call d_drop so the system "forgets" about us */
-	if (!err)
+	/*
+	 * Drop references to lower dentry/inode so storage space for them
+	 * can be reclaimed.  Then, call d_drop so the system "forgets"
+	 * about us.
+	 */
+	if (!err) {
+		struct inode *inode = dentry->d_inode;
+		BUG_ON(!inode);
+		iput(unionfs_lower_inode_idx(inode, dstart));
+		unionfs_set_lower_inode_idx(inode, dstart, NULL);
+		dput(unionfs_lower_dentry_idx(dentry, dstart));
+		unionfs_set_lower_dentry_idx(dentry, dstart, NULL);
+		/*
+		 * If the last directory is unlinked, then mark istart/end
+		 * as -1, (to maintain the invariant that if there are no
+		 * lower objects, then branch index start and end are set to
+		 * -1).
+		 */
+		if (!unionfs_lower_inode_idx(inode, dstart) &&
+		    !unionfs_lower_inode_idx(inode, dend))
+			ibstart(inode) = ibend(inode) = -1;
 		d_drop(dentry);
+	}
 
 	if (namelist)
 		free_rdstate(namelist);
