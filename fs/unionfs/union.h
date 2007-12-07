@@ -481,8 +481,7 @@ static inline int is_robranch(const struct dentry *dentry)
  */
 extern char *alloc_whname(const char *name, int len);
 extern int check_branch(struct nameidata *nd);
-extern int __parse_branch_mode(const char *name);
-extern int parse_branch_mode(const char *name);
+extern int parse_branch_mode(const char *name, int *perms);
 
 /*
  * These two functions are here because it is kind of daft to copy and paste

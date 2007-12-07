@@ -256,30 +256,21 @@ static int is_branch_overlap(struct dentry *dent1, struct dentry *dent2)
 }
 
 /*
- * Parse branch mode helper function
+ * Parse "ro" or "rw" options, but default to "rw" if no mode options was
+ * specified.  Fill the mode bits in @perms.  If encounter an unknown
+ * string, return -EINVAL.  Otherwise return 0.
  */
-int __parse_branch_mode(const char *name)
+int parse_branch_mode(const char *name, int *perms)
 {
-	if (!name)
+	if (!name || !strcmp(name, "rw")) {
+		*perms = MAY_READ | MAY_WRITE;
 		return 0;
-	if (!strcmp(name, "ro"))
-		return MAY_READ;
-	if (!strcmp(name, "rw"))
-		return (MAY_READ | MAY_WRITE);
-	return 0;
-}
-
-/*
- * Parse "ro" or "rw" options, but default to "rw" of no mode options
- * was specified.
- */
-int parse_branch_mode(const char *name)
-{
-	int perms = __parse_branch_mode(name);
-
-	if (perms == 0)
-		perms = MAY_READ | MAY_WRITE;
-	return perms;
+	}
+	if (!strcmp(name, "ro")) {
+		*perms = MAY_READ;
+		return 0;
+	}
+	return -EINVAL;
 }
 
 /*
@@ -350,8 +341,17 @@ static int parse_dirs_option(struct super_block *sb, struct unionfs_dentry_info
 		if (mode)
 			*mode++ = '\0';
 
-		perms = parse_branch_mode(mode);
+		err = parse_branch_mode(mode, &perms);
+		if (err) {
+			printk(KERN_ERR "unionfs: invalid mode \"%s\" for "
+			       "branch %d\n", mode, bindex);
+			goto out;
+		}
+		/* ensure that leftmost branch is writeable */
 		if (!bindex && !(perms & MAY_WRITE)) {
+			printk(KERN_ERR "unionfs: leftmost branch cannot be "
+			       "read-only (use \"-o ro\" to create a "
+			       "read-only union)\n");
 			err = -EINVAL;
 			goto out;
 		}
