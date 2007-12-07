@@ -181,8 +181,8 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 		goto out;
 	}
 	*modename++ = '\0';
-	perms = __parse_branch_mode(modename);
-	if (perms == 0) {
+	err = parse_branch_mode(modename, &perms);
+	if (err) {
 		printk(KERN_ERR "unionfs: invalid mode \"%s\" for \"%s\"\n",
 		       modename, optarg);
 		goto out;
@@ -350,11 +350,15 @@ found_insertion_point:
 		modename = strchr(new_branch, '=');
 	if (modename)
 		*modename++ = '\0';
-	perms = parse_branch_mode(modename);
-
 	if (!new_branch || !*new_branch) {
 		printk(KERN_ERR "unionfs: null new branch\n");
 		err = -EINVAL;
+		goto out;
+	}
+	err = parse_branch_mode(modename, &perms);
+	if (err) {
+		printk(KERN_ERR "unionfs: invalid mode \"%s\" for "
+		       "branch \"%s\"\n", modename, new_branch);
 		goto out;
 	}
 	err = path_lookup(new_branch, LOOKUP_FOLLOW, &nd);
