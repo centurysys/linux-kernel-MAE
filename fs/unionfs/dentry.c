@@ -195,9 +195,11 @@ out:
  * file system doesn't change its inode times quick enough, resulting in a
  * false positive indication (which is harmless, it just makes unionfs do
  * extra work in re-validating the objects).  To minimize the chances of
- * these situations, we delay the detection of changed times by
- * UNIONFS_MIN_CC_TIME (which defaults to 3 seconds, as with NFS's
- * acregmin).
+ * these situations, we still consider such small time changes valid, but we
+ * don't print debugging messages unless the time changes are greater than
+ * UNIONFS_MIN_CC_TIME (which defaults to 3 seconds, as with NFS's acregmin)
+ * because significant changes are more likely due to users manually
+ * touching lower files.
  */
 bool is_newer_lower(const struct dentry *dentry)
 {
@@ -219,20 +221,26 @@ bool is_newer_lower(const struct dentry *dentry)
 			continue;
 
 		/* check if mtime/ctime have changed */
-		if (unlikely((lower_inode->i_mtime.tv_sec -
-			      inode->i_mtime.tv_sec) > UNIONFS_MIN_CC_TIME)) {
-			pr_info("unionfs: new lower inode mtime "
-				"(bindex=%d, name=%s)\n", bindex,
-				dentry->d_name.name);
-			show_dinode_times(dentry);
+		if (unlikely(timespec_compare(&inode->i_mtime,
+					      &lower_inode->i_mtime) < 0)) {
+			if ((lower_inode->i_mtime.tv_sec -
+			     inode->i_mtime.tv_sec) > UNIONFS_MIN_CC_TIME) {
+				pr_info("unionfs: new lower inode mtime "
+					"(bindex=%d, name=%s)\n", bindex,
+					dentry->d_name.name);
+				show_dinode_times(dentry);
+			}
 			return true;
 		}
-		if (unlikely((lower_inode->i_ctime.tv_sec -
-			      inode->i_ctime.tv_sec) > UNIONFS_MIN_CC_TIME)) {
-			pr_info("unionfs: new lower inode ctime "
-				"(bindex=%d, name=%s)\n", bindex,
-				dentry->d_name.name);
-			show_dinode_times(dentry);
+		if (unlikely(timespec_compare(&inode->i_ctime,
+					      &lower_inode->i_ctime) < 0)) {
+			if ((lower_inode->i_ctime.tv_sec -
+			     inode->i_ctime.tv_sec) > UNIONFS_MIN_CC_TIME) {
+				pr_info("unionfs: new lower inode ctime "
+					"(bindex=%d, name=%s)\n", bindex,
+					dentry->d_name.name);
+				show_dinode_times(dentry);
+			}
 			return true;
 		}
 	}
