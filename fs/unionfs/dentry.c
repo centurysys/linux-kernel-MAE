@@ -276,6 +276,17 @@ static inline void purge_inode_data(struct inode *inode)
 		truncate_inode_pages(&inode->i_data, 0);
 }
 
+void purge_sb_data(struct super_block *sb)
+{
+	struct inode *inode;
+
+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+		if (inode->i_state & (I_FREEING|I_WILL_FREE))
+			continue;
+		purge_inode_data(inode);
+	}
+}
+
 /*
  * Revalidate a parent chain of dentries, then the actual node.
  * Assumes that dentry is locked, but will lock all parents if/when needed.

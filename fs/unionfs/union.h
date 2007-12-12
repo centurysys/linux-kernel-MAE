@@ -369,6 +369,7 @@ extern int unionfs_rmdir(struct inode *dir, struct dentry *dentry);
 extern bool __unionfs_d_revalidate_chain(struct dentry *dentry,
 					 struct nameidata *nd, bool willwrite);
 extern bool is_newer_lower(const struct dentry *dentry);
+extern void purge_sb_data(struct super_block *sb);
 
 /* The values for unionfs_interpose's flag. */
 #define INTERPOSE_DEFAULT	0
