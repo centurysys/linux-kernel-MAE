@@ -704,29 +704,19 @@ out_no_change:
 	 */
 
 	/*
-	 * Now we call drop_pagecache_sb() to invalidate all pages in this
-	 * super.  This function calls invalidate_inode_pages(mapping),
-	 * which calls invalidate_mapping_pages(): the latter, however, will
-	 * not invalidate pages which are dirty, locked, under writeback, or
-	 * mapped into page tables.  We shouldn't have to worry about dirty
-	 * or under-writeback pages, because do_remount_sb() called
-	 * fsync_super() which would not have returned until all dirty pages
-	 * were flushed.
-	 *
-	 * But do we have to worry about locked pages?  Is there any chance
-	 * that in here we'll get locked pages?
-	 *
-	 * XXX: what about pages mapped into pagetables?  Are these pages
-	 * which user processes may have mmap(2)'ed?  If so, then we need to
-	 * invalidate those too, no?  Maybe we'll have to write our own
-	 * version of invalidate_mapping_pages() which also handled mapped
-	 * pages.
-	 *
-	 * XXX: Alternatively, maybe we should call truncate_inode_pages(),
-	 * which use two passes over the pages list, and will truncate all
-	 * pages.
+	 * Once we finish the remounting successfully, our superblock
+	 * generation number will have increased.  This will be detected by
+	 * our dentry-revalidation code upon subsequent f/s operations
+	 * through unionfs.  The revalidation code will rebuild the union of
+	 * lower inodes for a given unionfs inode and invalidate any pages
+	 * of such "stale" inodes (by calling our purge_inode_data
+	 * function).  This revalidation will happen lazily and
+	 * incrementally, as users perform operations on cached inodes.  We
+	 * would like to encourage this revalidation to happen sooner if
+	 * possible, so we try to invalidate as many other pages in our
+	 * superblock as we can.
 	 */
-	drop_pagecache_sb(sb);
+	purge_sb_data(sb);
 
 	/* copy new vectors into their correct place */
 	tmp_data = UNIONFS_SB(sb)->data;
