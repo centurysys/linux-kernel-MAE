@@ -55,6 +55,14 @@ static void unionfs_read_inode(struct inode *inode)
 
 	inode->i_mapping->a_ops = &unionfs_aops;
 
+	/*
+	 * reset times so unionfs_copy_attr_all can keep out time invariants
+	 * right (upper inode time being the max of all lower ones).
+	 */
+	inode->i_atime.tv_sec = inode->i_atime.tv_nsec = 0;
+	inode->i_mtime.tv_sec = inode->i_mtime.tv_nsec = 0;
+	inode->i_ctime.tv_sec = inode->i_ctime.tv_nsec = 0;
+
 	unionfs_read_unlock(inode->i_sb);
 }
 
