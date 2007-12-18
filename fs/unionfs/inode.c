@@ -368,16 +368,16 @@ out:
 	return err;
 }
 
-static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
+static int unionfs_symlink(struct inode *parent, struct dentry *dentry,
 			   const char *symname)
 {
 	int err = 0;
 	struct dentry *lower_dentry = NULL;
-	struct dentry *whiteout_dentry = NULL;
-	struct dentry *lower_dir_dentry = NULL;
-	umode_t mode;
-	int bindex = 0, bstart;
+	struct dentry *wh_dentry = NULL;
+	struct dentry *lower_parent_dentry = NULL;
 	char *name = NULL;
+	int valid = 0;
+	umode_t mode;
 
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
@@ -388,147 +388,127 @@ static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	/* We start out in the leftmost branch. */
-	bstart = dbstart(dentry);
-
-	lower_dentry = unionfs_lower_dentry(dentry);
+	/*
+	 * It's only a bug if this dentry was not negative and couldn't be
+	 * revalidated (shouldn't happen).
+	 */
+	BUG_ON(!valid && dentry->d_inode);
 
 	/*
-	 * check if whiteout exists in this branch, i.e. lookup .wh.foo
-	 * first. If present, delete it
+	 * We shouldn't create things in a read-only branch; this check is a
+	 * bit redundant as we don't allow branch 0 to be read-only at the
+	 * moment
 	 */
-	name = alloc_whname(dentry->d_name.name, dentry->d_name.len);
-	if (unlikely(IS_ERR(name))) {
-		err = PTR_ERR(name);
+	err = is_robranch_super(dentry->d_sb, 0);
+	if (err) {
+		err = -EROFS;
 		goto out;
 	}
 
-	whiteout_dentry =
-		lookup_one_len(name, lower_dentry->d_parent,
-			       dentry->d_name.len + UNIONFS_WHLEN);
-	if (IS_ERR(whiteout_dentry)) {
-		err = PTR_ERR(whiteout_dentry);
-		goto out;
-	}
+	/*
+	 * We _always_ create on branch 0
+	 */
+	lower_dentry = unionfs_lower_dentry_idx(dentry, 0);
+	if (lower_dentry) {
+		/*
+		 * check if whiteout exists in this branch, i.e. lookup .wh.foo
+		 * first.
+		 */
+		name = alloc_whname(dentry->d_name.name, dentry->d_name.len);
+		if (unlikely(IS_ERR(name))) {
+			err = PTR_ERR(name);
+			goto out;
+		}
 
-	if (!whiteout_dentry->d_inode) {
-		dput(whiteout_dentry);
-		whiteout_dentry = NULL;
+		wh_dentry = lookup_one_len(name, lower_dentry->d_parent,
+					   dentry->d_name.len + UNIONFS_WHLEN);
+		if (IS_ERR(wh_dentry)) {
+			err = PTR_ERR(wh_dentry);
+			wh_dentry = NULL;
+			goto out;
+		}
+
+		if (wh_dentry->d_inode) {
+			/*
+			 * .wh.foo has been found, so let's unlink it
+			 */
+			struct dentry *lower_dir_dentry;
+
+			lower_dir_dentry = lock_parent(wh_dentry);
+			err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry);
+			unlock_dir(lower_dir_dentry);
+
+			/*
+			 * Whiteouts are special files and should be deleted
+			 * no matter what (as if they never existed), in
+			 * order to allow this create operation to succeed.
+			 * This is especially important in sticky
+			 * directories: a whiteout may have been created by
+			 * one user, but the newly created file may be
+			 * created by another user.  Therefore, in order to
+			 * maintain Unix semantics, if the vfs_unlink above
+			 * ailed, then we have to try to directly unlink the
+			 * whiteout.  Note: in the ODF version of unionfs,
+			 * whiteout are handled much more cleanly.
+			 */
+			if (err == -EPERM) {
+				struct inode *inode = lower_dir_dentry->d_inode;
+				err = inode->i_op->unlink(inode, wh_dentry);
+			}
+			if (err) {
+				printk(KERN_ERR "unionfs: symlink: could not "
+				       "unlink whiteout, err = %d\n", err);
+				goto out;
+			}
+		}
 	} else {
 		/*
-		 * found a .wh.foo entry, unlink it and then call
-		 * vfs_symlink().
+		 * if lower_dentry is NULL, create the entire
+		 * dentry directory structure in branch 0.
 		 */
-		lower_dir_dentry = lock_parent(whiteout_dentry);
-
-		err = is_robranch_super(dentry->d_sb, bstart);
-		if (!err)
-			err = vfs_unlink(lower_dir_dentry->d_inode,
-					 whiteout_dentry);
-		dput(whiteout_dentry);
-
-		fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
-		/* propagate number of hard-links */
-		dir->i_nlink = unionfs_get_nlinks(dir);
-
-		unlock_dir(lower_dir_dentry);
-
-		if (err) {
-			/* exit if the error returned was NOT -EROFS */
-			if (!IS_COPYUP_ERR(err))
-				goto out;
-			/*
-			 * should now try to create symlink in the another
-			 * branch.
-			 */
-			bstart--;
+		lower_dentry = create_parents(parent, dentry,
+					      dentry->d_name.name, 0);
+		if (IS_ERR(lower_dentry)) {
+			err = PTR_ERR(lower_dentry);
+			goto out;
 		}
 	}
 
-	/*
-	 * deleted whiteout if it was present, now do a normal vfs_symlink()
-	 * with possible recursive directory creation
-	 */
-	for (bindex = bstart; bindex >= 0; bindex--) {
-		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-		if (!lower_dentry) {
-			/*
-			 * if lower_dentry is NULL, create the entire
-			 * dentry directory structure in branch 'bindex'.
-			 * lower_dentry will NOT be null when bindex ==
-			 * bstart because lookup passed as a negative
-			 * unionfs dentry pointing to a lone negative
-			 * underlying dentry
-			 */
-			lower_dentry = create_parents(dir, dentry,
-						      dentry->d_name.name,
-						      bindex);
-			if (!lower_dentry || IS_ERR(lower_dentry)) {
-				if (IS_ERR(lower_dentry))
-					err = PTR_ERR(lower_dentry);
-				if (!IS_COPYUP_ERR(err))
-					printk(KERN_ERR
-					       "unionfs: create_parents for "
-					       "symlink failed: bindex=%d "
-					       "err=%d\n", bindex, err);
-				continue;
-			}
-		}
+	lower_parent_dentry = lock_parent(lower_dentry);
+	if (IS_ERR(lower_parent_dentry)) {
+		err = PTR_ERR(lower_parent_dentry);
+		goto out;
+	}
 
-		lower_dir_dentry = lock_parent(lower_dentry);
-
-		err = is_robranch_super(dentry->d_sb, bindex);
+	mode = S_IALLUGO;
+	err = vfs_symlink(lower_parent_dentry->d_inode, lower_dentry,
+			  symname, mode);
+	if (!err) {
+		err = PTR_ERR(unionfs_interpose(dentry, parent->i_sb, 0));
 		if (!err) {
-			mode = S_IALLUGO;
-			err = vfs_symlink(lower_dir_dentry->d_inode,
-					  lower_dentry, symname, mode);
-		}
-		unlock_dir(lower_dir_dentry);
-
-		if (err || !lower_dentry->d_inode) {
-			/*
-			 * break out of for loop if error returned was NOT
-			 * -EROFS.
-			 */
-			if (!IS_COPYUP_ERR(err))
-				break;
-		} else {
-			/*
-			 * Only INTERPOSE_LOOKUP can return a value other
-			 * than 0 on err.
-			 */
-			err = PTR_ERR(unionfs_interpose(dentry,
-							dir->i_sb, 0));
-			if (!err) {
-				fsstack_copy_attr_times(dir,
-							lower_dir_dentry->
-							d_inode);
-				fsstack_copy_inode_size(dir,
-							lower_dir_dentry->
-							d_inode);
-				/*
-				 * update number of links on parent
-				 * directory.
-				 */
-				dir->i_nlink = unionfs_get_nlinks(dir);
-			}
-			break;
+			unionfs_copy_attr_times(parent);
+			fsstack_copy_inode_size(parent,
+						lower_parent_dentry->d_inode);
+			/* update no. of links on parent directory */
+			parent->i_nlink = unionfs_get_nlinks(parent);
 		}
 	}
+
+	unlock_dir(lower_parent_dentry);
 
 out:
-	if (!dentry->d_inode)
-		d_drop(dentry);
-
+	dput(wh_dentry);
 	kfree(name);
+
 	if (!err)
 		unionfs_postcopyup_setmnt(dentry);
 
-	unionfs_check_inode(dir);
+	unionfs_check_inode(parent);
+	if (!err)
+		unionfs_check_dentry(dentry->d_parent);
 	unionfs_check_dentry(dentry);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
-
 	return err;
 }
 
