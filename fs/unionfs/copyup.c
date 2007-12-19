@@ -505,13 +505,12 @@ out_unlock:
 
 out_free:
 	/*
-	 * If old_lower_dentry was a directory, we need to dput it.  If it
-	 * was a file, then it was already dput indirectly by other
+	 * If old_lower_dentry was not a file, then we need to dput it.  If
+	 * it was a file, then it was already dput indirectly by other
 	 * functions we call above which operate on regular files.
 	 */
 	if (old_lower_dentry && old_lower_dentry->d_inode &&
-	    (S_ISDIR(old_lower_dentry->d_inode->i_mode) ||
-	     S_ISLNK(old_lower_dentry->d_inode->i_mode)))
+	    !S_ISREG(old_lower_dentry->d_inode->i_mode))
 		dput(old_lower_dentry);
 	kfree(symbuf);
 
