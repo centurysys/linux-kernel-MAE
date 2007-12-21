@@ -29,8 +29,6 @@ static void unionfs_read_inode(struct inode *inode)
 	int size;
 	struct unionfs_inode_info *info = UNIONFS_I(inode);
 
-	unionfs_read_lock(inode->i_sb);
-
 	memset(info, 0, offsetof(struct unionfs_inode_info, vfs_inode));
 	info->bstart = -1;
 	info->bend = -1;
@@ -63,7 +61,6 @@ static void unionfs_read_inode(struct inode *inode)
 	inode->i_mtime.tv_sec = inode->i_mtime.tv_nsec = 0;
 	inode->i_ctime.tv_sec = inode->i_ctime.tv_nsec = 0;
 
-	unionfs_read_unlock(inode->i_sb);
 }
 
 /*
