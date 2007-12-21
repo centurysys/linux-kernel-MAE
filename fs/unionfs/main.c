@@ -149,9 +149,7 @@ skip:
 		break;
 	case INTERPOSE_LOOKUP:
 		spliced = d_splice_alias(inode, dentry);
-		if (IS_ERR(spliced)) {
-			err = PTR_ERR(spliced);
-		} else if (spliced && spliced != dentry) {
+		if (spliced && spliced != dentry) {
 			/*
 			 * d_splice can return a dentry if it was
 			 * disconnected and had to be moved.  We must ensure
@@ -169,6 +167,12 @@ skip:
 				unionfs_fill_inode(dentry, inode);
 			}
 			goto out_spliced;
+		} else if (!spliced) {
+			if (need_fill_inode) {
+				need_fill_inode = 0;
+				unionfs_fill_inode(dentry, inode);
+				goto out_spliced;
+			}
 		}
 		break;
 	case INTERPOSE_REVAL:
