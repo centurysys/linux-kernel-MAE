@@ -69,7 +69,13 @@ static void unionfs_read_inode(struct inode *inode)
  */
 static void unionfs_delete_inode(struct inode *inode)
 {
+#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
+	spin_lock(&inode->i_lock);
+#endif
 	i_size_write(inode, 0);	/* every f/s seems to do that */
+#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
+	spin_unlock(&inode->i_lock);
+#endif
 
 	if (inode->i_data.nrpages)
 		truncate_inode_pages(&inode->i_data, 0);
