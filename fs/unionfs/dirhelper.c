@@ -110,7 +110,6 @@ int delete_whiteouts(struct dentry *dentry, int bindex,
 	lower_dir = lower_dir_dentry->d_inode;
 	BUG_ON(!S_ISDIR(lower_dir->i_mode));
 
-	mutex_lock(&lower_dir->i_mutex);
 	if (!permission(lower_dir, MAY_WRITE | MAY_EXEC, NULL)) {
 		err = do_delete_whiteouts(dentry, bindex, namelist);
 	} else {
@@ -120,7 +119,6 @@ int delete_whiteouts(struct dentry *dentry, int bindex,
 		run_sioq(__delete_whiteouts, &args);
 		err = args.err;
 	}
-	mutex_unlock(&lower_dir->i_mutex);
 
 out:
 	return err;
