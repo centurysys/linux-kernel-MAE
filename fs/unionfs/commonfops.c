@@ -583,10 +583,13 @@ out:
 		kfree(UNIONFS_F(file));
 	}
 out_nofree:
-	unionfs_check_inode(inode);
 	if (!err) {
+		dentry = file->f_path.dentry;
+		unionfs_copy_attr_times(dentry->d_parent->d_inode);
+		unionfs_copy_attr_times(inode);
 		unionfs_check_file(file);
-		unionfs_check_dentry(file->f_path.dentry->d_parent);
+		unionfs_check_dentry(dentry->d_parent);
+		unionfs_check_inode(inode);
 	}
 	unionfs_read_unlock(inode->i_sb);
 	return err;
