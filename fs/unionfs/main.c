@@ -642,6 +642,13 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	/* max Bytes is the maximum bytes from highest priority branch */
 	sb->s_maxbytes = unionfs_lower_super_idx(sb, 0)->s_maxbytes;
 
+	/*
+	 * Our c/m/atime granularity is 1 ns because we may stack on file
+	 * systems whose granularity is as good.  This is important for our
+	 * time-based cache coherency.
+	 */
+	sb->s_time_gran = 1;
+
 	sb->s_op = &unionfs_sops;
 
 	/* See comment next to the definition of unionfs_d_alloc_root */
