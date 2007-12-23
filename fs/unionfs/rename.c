@@ -462,7 +462,7 @@ int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 
 		if (S_ISDIR(new_dentry->d_inode->i_mode)) {
-			struct unionfs_dir_state *namelist;
+			struct unionfs_dir_state *namelist = NULL;
 			/* check if this unionfs directory is empty or not */
 			err = check_empty(new_dentry, &namelist);
 			if (err)
