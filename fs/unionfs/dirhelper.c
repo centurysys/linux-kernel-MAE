@@ -182,6 +182,7 @@ int check_empty(struct dentry *dentry, struct unionfs_dir_state **namelist)
 {
 	int err = 0;
 	struct dentry *lower_dentry = NULL;
+	struct vfsmount *mnt;
 	struct super_block *sb;
 	struct file *lower_file;
 	struct unionfs_rdutil_callback *buf = NULL;
@@ -226,15 +227,11 @@ int check_empty(struct dentry *dentry, struct unionfs_dir_state **namelist)
 			continue;
 
 		dget(lower_dentry);
-		unionfs_mntget(dentry, bindex);
+		mnt = unionfs_mntget(dentry, bindex);
 		branchget(sb, bindex);
-		lower_file =
-			dentry_open(lower_dentry,
-				    unionfs_lower_mnt_idx(dentry, bindex),
-				    O_RDONLY);
+		lower_file = dentry_open(lower_dentry, mnt, O_RDONLY);
 		if (IS_ERR(lower_file)) {
 			err = PTR_ERR(lower_file);
-			dput(lower_dentry);
 			branchput(sb, bindex);
 			goto out;
 		}
