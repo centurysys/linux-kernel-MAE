@@ -851,15 +851,14 @@ out:
  * nor do we need to revalidate it either.  It is safe to not lock our
  * dentry here, nor revalidate it, because unionfs_follow_link does not do
  * anything (prior to calling ->readlink) which could become inconsistent
- * due to branch management.
+ * due to branch management.  We also don't need to lock our super because
+ * this function isn't affected by branch-management.
  */
 static void *unionfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	char *buf;
 	int len = PAGE_SIZE, err;
 	mm_segment_t old_fs;
-
-	unionfs_read_lock(dentry->d_sb);
 
 	/* This is freed by the put_link method assuming a successful call. */
 	buf = kmalloc(len, GFP_KERNEL);
@@ -885,7 +884,6 @@ static void *unionfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 out:
 	unionfs_check_dentry(dentry);
 	unionfs_check_nd(nd);
-	unionfs_read_unlock(dentry->d_sb);
 	return ERR_PTR(err);
 }
 
