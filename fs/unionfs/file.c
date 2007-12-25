@@ -18,48 +18,6 @@
 
 #include "union.h"
 
-static ssize_t unionfs_read(struct file *file, char __user *buf,
-			    size_t count, loff_t *ppos)
-{
-	int err;
-
-	unionfs_read_lock(file->f_path.dentry->d_sb);
-	err = unionfs_file_revalidate(file, false);
-	if (unlikely(err))
-		goto out;
-	unionfs_check_file(file);
-
-	err = do_sync_read(file, buf, count, ppos);
-
-out:
-	unionfs_check_file(file);
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
-	return err;
-}
-
-static ssize_t unionfs_write(struct file *file, const char __user *buf,
-			     size_t count, loff_t *ppos)
-{
-	int err = 0;
-
-	unionfs_read_lock(file->f_path.dentry->d_sb);
-	err = unionfs_file_revalidate(file, true);
-	if (unlikely(err))
-		goto out;
-	unionfs_check_file(file);
-
-	err = do_sync_write(file, buf, count, ppos);
-	/* update our inode times upon a successful lower write */
-	if (err >= 0) {
-		unionfs_copy_attr_times(file->f_path.dentry->d_inode);
-		unionfs_check_file(file);
-	}
-
-out:
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
-	return err;
-}
-
 static int unionfs_file_readdir(struct file *file, void *dirent,
 				filldir_t filldir)
 {
@@ -210,9 +168,9 @@ out:
 
 struct file_operations unionfs_main_fops = {
 	.llseek		= generic_file_llseek,
-	.read		= unionfs_read,
+	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
-	.write		= unionfs_write,
+	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,
 	.readdir	= unionfs_file_readdir,
 	.unlocked_ioctl	= unionfs_ioctl,
