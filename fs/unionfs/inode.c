@@ -32,13 +32,6 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
 
-	unionfs_lock_dentry(dentry->d_parent);
-	valid = __unionfs_d_revalidate_chain(dentry->d_parent, nd, false);
-	unionfs_unlock_dentry(dentry->d_parent);
-	if (unlikely(!valid)) {
-		err = -ESTALE;	/* same as what real_lookup does */
-		goto out;
-	}
 	valid = __unionfs_d_revalidate_chain(dentry, nd, false);
 	/*
 	 * It's only a bug if this dentry was not negative and couldn't be
