@@ -30,6 +30,11 @@ static int unionfs_writepage(struct page *page, struct writeback_control *wbc)
 
 	BUG_ON(!PageUptodate(page));
 	inode = page->mapping->host;
+	/* if no lower inode, nothing to do */
+	if (!inode || !UNIONFS_I(inode) || UNIONFS_I(inode)->lower_inodes) {
+		err = 0;
+		goto out;
+	}
 	lower_inode = unionfs_lower_inode(inode);
 	lower_mapping = lower_inode->i_mapping;
 
@@ -130,9 +135,6 @@ static int unionfs_writepages(struct address_space *mapping,
 	if (!lower_inode)
 		goto out;
 
-	if (!mapping_cap_writeback_dirty(lower_inode->i_mapping))
-		goto out;
-
 	err = generic_writepages(mapping, wbc);
 	if (!err)
 		unionfs_copy_attr_times(inode);
@@ -222,26 +224,13 @@ out:
 static int unionfs_prepare_write(struct file *file, struct page *page,
 				 unsigned from, unsigned to)
 {
-	int err;
-
-	unionfs_read_lock(file->f_path.dentry->d_sb);
 	/*
-	 * This is the only place where we unconditionally copy the lower
-	 * attribute times before calling unionfs_file_revalidate.  The
-	 * reason is that our ->write calls do_sync_write which in turn will
-	 * call our ->prepare_write and then ->commit_write.  Before our
-	 * ->write is called, the lower mtimes are in sync, but by the time
-	 * the VFS calls our ->commit_write, the lower mtimes have changed.
-	 * Therefore, the only reasonable time for us to sync up from the
-	 * changed lower mtimes, and avoid an invariant violation warning,
-	 * is here, in ->prepare_write.
+	 * Just copy lower inode attributes and return success.  Not much
+	 * else to do here.  No need to lock either (lockdep won't like it).
+	 * Let commit_write do all the hard work instead.
 	 */
 	unionfs_copy_attr_times(file->f_path.dentry->d_inode);
-	err = unionfs_file_revalidate(file, true);
-	unionfs_check_file(file);
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
-
-	return err;
+	return 0;
 }
 
 static int unionfs_commit_write(struct file *file, struct page *page,
