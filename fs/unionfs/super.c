@@ -839,7 +839,11 @@ static void unionfs_clear_inode(struct inode *inode)
 			lower_inode = unionfs_lower_inode_idx(inode, bindex);
 			if (!lower_inode)
 				continue;
+			unionfs_set_lower_inode_idx(inode, bindex, NULL);
+			/* see Documentation/filesystems/unionfs/issues.txt */
+			lockdep_off();
 			iput(lower_inode);
+			lockdep_on();
 		}
 	}
 
