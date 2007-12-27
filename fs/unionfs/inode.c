@@ -80,7 +80,10 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 			struct dentry *lower_dir_dentry;
 
 			lower_dir_dentry = lock_parent(wh_dentry);
+			/* see Documentation/filesystems/unionfs/issues.txt */
+			lockdep_off();
 			err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry);
+			lockdep_on();
 			unlock_dir(lower_dir_dentry);
 
 			/*
@@ -262,9 +265,13 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 		/* found a .wh.foo entry, unlink it and then call vfs_link() */
 		lower_dir_dentry = lock_parent(whiteout_dentry);
 		err = is_robranch_super(new_dentry->d_sb, dbstart(new_dentry));
-		if (!err)
+		if (!err) {
+			/* see Documentation/filesystems/unionfs/issues.txt */
+			lockdep_off();
 			err = vfs_unlink(lower_dir_dentry->d_inode,
 					 whiteout_dentry);
+			lockdep_on();
+		}
 
 		fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
 		dir->i_nlink = unionfs_get_nlinks(dir);
@@ -291,9 +298,13 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 	BUG_ON(dbstart(old_dentry) != dbstart(new_dentry));
 	lower_dir_dentry = lock_parent(lower_new_dentry);
 	err = is_robranch(old_dentry);
-	if (!err)
+	if (!err) {
+		/* see Documentation/filesystems/unionfs/issues.txt */
+		lockdep_off();
 		err = vfs_link(lower_old_dentry, lower_dir_dentry->d_inode,
 			       lower_new_dentry);
+		lockdep_on();
+	}
 	unlock_dir(lower_dir_dentry);
 
 docopyup:
@@ -316,10 +327,16 @@ docopyup:
 					unionfs_lower_dentry(old_dentry);
 				lower_dir_dentry =
 					lock_parent(lower_new_dentry);
+				/*
+				 * see
+				 * Documentation/filesystems/unionfs/issues.txt
+				 */
+				lockdep_off();
 				/* do vfs_link */
 				err = vfs_link(lower_old_dentry,
 					       lower_dir_dentry->d_inode,
 					       lower_new_dentry);
+				lockdep_on();
 				unlock_dir(lower_dir_dentry);
 				goto check_link;
 			}

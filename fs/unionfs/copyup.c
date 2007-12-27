@@ -297,11 +297,14 @@ static int __copyup_reg_data(struct dentry *dentry,
 			break;
 		}
 
+		/* see Documentation/filesystems/unionfs/issues.txt */
+		lockdep_off();
 		write_bytes =
 			output_file->f_op->write(output_file,
 						 (char __user *)buf,
 						 read_bytes,
 						 &output_file->f_pos);
+		lockdep_on();
 		if ((write_bytes < 0) || (write_bytes < read_bytes)) {
 			err = write_bytes;
 			break;

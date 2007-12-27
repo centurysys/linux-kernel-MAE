@@ -90,15 +90,13 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		dput(lower_wh_dentry);
 	}
 
+	err = is_robranch_super(old_dentry->d_sb, bindex);
+	if (err)
+		goto out;
+
 	dget(lower_old_dentry);
 	lower_old_dir_dentry = dget_parent(lower_old_dentry);
 	lower_new_dir_dentry = dget_parent(lower_new_dentry);
-
-	lock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
-
-	err = is_robranch_super(old_dentry->d_sb, bindex);
-	if (err)
-		goto out_unlock;
 
 	/*
 	 * ready to whiteout for old_dentry. caller will create the actual
@@ -110,7 +108,7 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 				      old_dentry->d_name.len);
 		err = PTR_ERR(whname);
 		if (unlikely(IS_ERR(whname)))
-			goto out_unlock;
+			goto out_dput;
 		*wh_old = lookup_one_len(whname, lower_old_dir_dentry,
 					 old_dentry->d_name.len +
 					 UNIONFS_WHLEN);
@@ -118,16 +116,19 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		err = PTR_ERR(*wh_old);
 		if (IS_ERR(*wh_old)) {
 			*wh_old = NULL;
-			goto out_unlock;
+			goto out_dput;
 		}
 	}
 
+	/* see Documentation/filesystems/unionfs/issues.txt */
+	lockdep_off();
+	lock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
 	err = vfs_rename(lower_old_dir_dentry->d_inode, lower_old_dentry,
 			 lower_new_dir_dentry->d_inode, lower_new_dentry);
-
-out_unlock:
 	unlock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
+	lockdep_on();
 
+out_dput:
 	dput(lower_old_dir_dentry);
 	dput(lower_new_dir_dentry);
 	dput(lower_old_dentry);

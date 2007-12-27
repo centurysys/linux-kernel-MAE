@@ -41,8 +41,12 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 	/* avoid destroying the lower inode if the file is in use */
 	dget(lower_dentry);
 	err = is_robranch_super(dentry->d_sb, bindex);
-	if (!err)
+	if (!err) {
+		/* see Documentation/filesystems/unionfs/issues.txt */
+		lockdep_off();
 		err = vfs_unlink(lower_dir_dentry->d_inode, lower_dentry);
+		lockdep_on();
+	}
 	/* if vfs_unlink succeeded, update our inode's times */
 	if (!err)
 		unionfs_copy_attr_times(dentry->d_inode);
@@ -139,8 +143,12 @@ static int unionfs_rmdir_first(struct inode *dir, struct dentry *dentry,
 	/* avoid destroying the lower inode if the file is in use */
 	dget(lower_dentry);
 	err = is_robranch(dentry);
-	if (!err)
+	if (!err) {
+		/* see Documentation/filesystems/unionfs/issues.txt */
+		lockdep_off();
 		err = vfs_rmdir(lower_dir_dentry->d_inode, lower_dentry);
+		lockdep_on();
+	}
 	dput(lower_dentry);
 
 	fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
