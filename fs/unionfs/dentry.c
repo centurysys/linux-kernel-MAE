@@ -484,7 +484,49 @@ out:
 	return;
 }
 
+/*
+ * Called when we're removing the last reference to our dentry.  So we
+ * should drop all lower references too.
+ */
+static void unionfs_d_iput(struct dentry *dentry, struct inode *inode)
+{
+	int bindex, rc;
+
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+
+	if (dbstart(dentry) < 0)
+		goto drop_lower_inodes;
+	for (bindex = dbstart(dentry); bindex <= dbend(dentry); bindex++) {
+		if (unionfs_lower_mnt_idx(dentry, bindex)) {
+			unionfs_mntput(dentry, bindex);
+			unionfs_set_lower_mnt_idx(dentry, bindex, NULL);
+		}
+		if (unionfs_lower_dentry_idx(dentry, bindex)) {
+			dput(unionfs_lower_dentry_idx(dentry, bindex));
+			unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
+		}
+	}
+	set_dbstart(dentry, -1);
+	set_dbend(dentry, -1);
+
+drop_lower_inodes:
+	rc = atomic_read(&inode->i_count);
+	if (rc == 1 && inode->i_nlink == 1 && ibstart(inode) >= 0) {
+		/* see Documentation/filesystems/unionfs/issues.txt */
+		lockdep_off();
+		iput(unionfs_lower_inode(inode));
+		lockdep_on();
+		unionfs_set_lower_inode(inode, NULL);
+		/* XXX: may need to set start/end to -1? */
+	}
+
+	iput(inode);
+
+	unionfs_read_unlock(dentry->d_sb);
+}
+
 struct dentry_operations unionfs_dops = {
 	.d_revalidate	= unionfs_d_revalidate,
 	.d_release	= unionfs_d_release,
+	.d_iput		= unionfs_d_iput,
 };
