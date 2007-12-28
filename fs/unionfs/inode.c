@@ -157,7 +157,6 @@ out:
 
 	unionfs_check_inode(parent);
 	if (!err) {
-		unionfs_check_dentry(dentry->d_parent);
 		unionfs_check_dentry(dentry);
 		unionfs_check_nd(nd);
 	}
@@ -207,14 +206,16 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 	}
 
 	unionfs_check_inode(parent);
-	unionfs_check_dentry(dentry);
-	unionfs_check_dentry(dentry->d_parent);
-	unionfs_check_nd(nd);
-	if (!IS_ERR(ret))
+	if (!IS_ERR(ret)) {
+		unionfs_check_dentry(dentry);
+		unionfs_check_nd(nd);
 		unionfs_unlock_dentry(dentry);
+	}
 
-	if (dentry != dentry->d_parent)
+	if (dentry != dentry->d_parent) {
+		unionfs_check_dentry(dentry->d_parent);
 		unionfs_unlock_dentry(dentry->d_parent);
+	}
 	unionfs_read_unlock(dentry->d_sb);
 
 	return ret;
@@ -520,8 +521,7 @@ out:
 
 	unionfs_check_inode(parent);
 	if (!err)
-		unionfs_check_dentry(dentry->d_parent);
-	unionfs_check_dentry(dentry);
+		unionfs_check_dentry(dentry);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
@@ -815,8 +815,7 @@ out:
 
 	unionfs_check_inode(parent);
 	if (!err)
-		unionfs_check_dentry(dentry->d_parent);
-	unionfs_check_dentry(dentry);
+		unionfs_check_dentry(dentry);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
@@ -1110,8 +1109,8 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	/* if setattr succeeded, then parent dir may have changed */
 	unionfs_copy_attr_times(dentry->d_parent->d_inode);
 out:
-	unionfs_check_dentry(dentry);
-	unionfs_check_dentry(dentry->d_parent);
+	if (!err)
+		unionfs_check_dentry(dentry);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 

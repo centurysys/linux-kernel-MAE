@@ -66,7 +66,6 @@ out:
 		/* copyup could cause parent dir times to change */
 		unionfs_copy_attr_times(file->f_path.dentry->d_parent->d_inode);
 		unionfs_check_file(file);
-		unionfs_check_dentry(file->f_path.dentry->d_parent);
 	}
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
 	return err;
