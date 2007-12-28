@@ -91,7 +91,9 @@ out:
 int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int err = 0;
+	struct inode *inode = dentry->d_inode;
 
+	BUG_ON(S_ISDIR(inode->i_mode));
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
@@ -104,8 +106,13 @@ int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 	err = unionfs_unlink_whiteout(dir, dentry);
 	/* call d_drop so the system "forgets" about us */
 	if (!err) {
-		if (!S_ISDIR(dentry->d_inode->i_mode))
-			unionfs_postcopyup_release(dentry);
+		unionfs_postcopyup_release(dentry);
+		if (inode->i_nlink == 0) {
+			/* drop lower inodes */
+			iput(unionfs_lower_inode(inode));
+			unionfs_set_lower_inode(inode, NULL);
+			ibstart(inode) = ibend(inode) = -1;
+		}
 		d_drop(dentry);
 		/*
 		 * if unlink/whiteout succeeded, parent dir mtime has
