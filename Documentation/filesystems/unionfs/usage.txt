@@ -12,7 +12,7 @@ GENERAL SYNTAX
 
 # mount -t unionfs -o <OPTIONS>,<BRANCH-OPTIONS> none MOUNTPOINT
 
-OPTIONS can be any legal combination one of:
+OPTIONS can be any legal combination of:
 
 - ro		# mount file system read-only
 - rw		# mount file system read-write
@@ -20,8 +20,9 @@ OPTIONS can be any legal combination one of:
 - incgen	# increment generation no. (see Cache Consistency below)
 
 BRANCH-OPTIONS can be either (1) a list of branches given to the "dirs="
-option, or (2) a list of individual branch manipulation commands, described
-in the "Branch Management" section below.
+option, or (2) a list of individual branch manipulation commands, combined
+with the "remount" option, and is further described in the "Branch
+Management" section below.
 
 The syntax for the "dirs=" mount option is:
 
@@ -32,7 +33,9 @@ the union, with an optional branch mode for each of those directories.
 Directories that come earlier (specified first, on the left) in the list
 have a higher precedence than those which come later.  Additionally,
 read-only or read-write permissions of the branch can be specified by
-appending =ro or =rw (default) to each directory.
+appending =ro or =rw (default) to each directory.  See the Copyup section in
+concepts.txt, for a description of Unionfs's behavior when mixing read-only
+and read-write branches and mounts.
 
 Syntax:
 
@@ -112,7 +115,7 @@ CACHE CONSISTENCY
 =================
 
 If you modify any file on any of the lower branches directly, while there is
-a Unionfs 2.1 mounted above any of those branches, you should tell Unionfs
+a Unionfs 2.x mounted above any of those branches, you should tell Unionfs
 to purge its caches and re-get the objects.  To do that, you have to
 increment the generation number of the superblock using the following
 command:

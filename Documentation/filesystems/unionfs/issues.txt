@@ -1,4 +1,4 @@
-KNOWN Unionfs 2.1 ISSUES:
+KNOWN Unionfs 2.x ISSUES:
 =========================
 
 1. Unionfs should not use lookup_one_len() on the underlying f/s as it
