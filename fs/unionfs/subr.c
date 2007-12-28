@@ -90,7 +90,7 @@ int create_whiteout(struct dentry *dentry, int start)
 		err = init_lower_nd(&nd, LOOKUP_CREATE);
 		if (unlikely(err < 0))
 			goto out;
-		lower_dir_dentry = lock_parent(lower_wh_dentry);
+		lower_dir_dentry = lock_parent_wh(lower_wh_dentry);
 		err = is_robranch_super(dentry->d_sb, bindex);
 		if (!err)
 			err = vfs_create(lower_dir_dentry->d_inode,
@@ -126,7 +126,7 @@ int unionfs_refresh_lower_dentry(struct dentry *dentry, int bindex)
 
 	verify_locked(dentry);
 
-	unionfs_lock_dentry(dentry->d_parent);
+	unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_CHILD);
 	lower_parent = unionfs_lower_dentry_idx(dentry->d_parent, bindex);
 	unionfs_unlock_dentry(dentry->d_parent);
 

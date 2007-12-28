@@ -347,7 +347,7 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 	 * to child order.
 	 */
 	for (i = 0; i < chain_len; i++) {
-		unionfs_lock_dentry(chain[i]);
+		unionfs_lock_dentry(chain[i], UNIONFS_DMUTEX_REVAL+i);
 		saved_bstart = dbstart(chain[i]);
 		saved_bend = dbend(chain[i]);
 		sbgen = atomic_read(&UNIONFS_SB(dentry->d_sb)->generation);
@@ -421,9 +421,9 @@ static int unionfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	int err;
 
-	unionfs_read_lock(dentry->d_sb);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 
-	unionfs_lock_dentry(dentry);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	err = __unionfs_d_revalidate_chain(dentry, nd, false);
 	if (likely(err > 0)) { /* true==1: dentry is valid */
 		unionfs_check_dentry(dentry);
@@ -444,7 +444,7 @@ static void unionfs_d_release(struct dentry *dentry)
 {
 	int bindex, bstart, bend;
 
-	unionfs_read_lock(dentry->d_sb);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 
 	unionfs_check_dentry(dentry);
 	/* this could be a negative dentry, so check first */

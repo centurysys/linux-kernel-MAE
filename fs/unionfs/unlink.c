@@ -92,8 +92,8 @@ int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int err = 0;
 
-	unionfs_read_lock(dentry->d_sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;
@@ -167,8 +167,8 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct unionfs_dir_state *namelist = NULL;
 	int dstart, dend;
 
-	unionfs_read_lock(dentry->d_sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;

@@ -653,7 +653,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 
 	/* link the upper and lower dentries */
 	sb->s_root->d_fsdata = NULL;
-	err = new_dentry_private_data(sb->s_root);
+	err = new_dentry_private_data(sb->s_root, UNIONFS_DMUTEX_ROOT);
 	if (unlikely(err))
 		goto out_freedpd;
 

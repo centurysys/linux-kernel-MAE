@@ -98,7 +98,6 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 	struct dentry *first_dentry = NULL;
 	struct dentry *first_lower_dentry = NULL;
 	struct vfsmount *first_lower_mnt = NULL;
-	int locked_parent = 0;
 	int opaque;
 	char *whname = NULL;
 	const char *name;
@@ -119,7 +118,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 	case INTERPOSE_PARTIAL:
 		break;
 	case INTERPOSE_LOOKUP:
-		err = new_dentry_private_data(dentry);
+		err = new_dentry_private_data(dentry, UNIONFS_DMUTEX_CHILD);
 		if (unlikely(err))
 			goto out;
 		break;
@@ -136,10 +135,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 
 	parent_dentry = dget_parent(dentry);
 	/* We never partial lookup the root directory. */
-	if (parent_dentry != dentry) {
-		unionfs_lock_dentry(parent_dentry);
-		locked_parent = 1;
-	} else {
+	if (parent_dentry == dentry) {
 		dput(parent_dentry);
 		parent_dentry = NULL;
 		goto out;
@@ -426,8 +422,6 @@ out:
 		}
 	}
 	kfree(whname);
-	if (locked_parent)
-		unionfs_unlock_dentry(parent_dentry);
 	dput(parent_dentry);
 	if (err && (lookupmode == INTERPOSE_LOOKUP))
 		unionfs_unlock_dentry(dentry);
@@ -441,6 +435,7 @@ out:
 
 /*
  * This is a utility function that fills in a unionfs dentry.
+ * Caller must lock this dentry with unionfs_lock_dentry.
  *
  * Returns: 0 (ok), or -ERRNO if an error occurred.
  */
@@ -530,7 +525,7 @@ static int realloc_dentry_private_data(struct dentry *dentry)
 }
 
 /* allocate new dentry private data */
-int new_dentry_private_data(struct dentry *dentry)
+int new_dentry_private_data(struct dentry *dentry, int subclass)
 {
 	struct unionfs_dentry_info *info = UNIONFS_D(dentry);
 
@@ -541,7 +536,7 @@ int new_dentry_private_data(struct dentry *dentry)
 		return -ENOMEM;
 
 	mutex_init(&info->lock);
-	mutex_lock(&info->lock);
+	mutex_lock_nested(&info->lock, subclass);
 
 	info->lower_paths = NULL;
 

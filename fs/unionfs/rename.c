@@ -76,7 +76,7 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out;
 		}
 
-		lower_wh_dir_dentry = lock_parent(lower_wh_dentry);
+		lower_wh_dir_dentry = lock_parent_wh(lower_wh_dentry);
 		err = is_robranch_super(old_dentry->d_sb, bindex);
 		if (!err)
 			err = vfs_unlink(lower_wh_dir_dentry->d_inode,
@@ -274,7 +274,7 @@ static int do_unionfs_rename(struct inode *old_dir,
 		err = init_lower_nd(&nd, LOOKUP_CREATE);
 		if (unlikely(err < 0))
 			goto out;
-		lower_parent = lock_parent(wh_old);
+		lower_parent = lock_parent_wh(wh_old);
 		local_err = vfs_create(lower_parent->d_inode, wh_old, S_IRUGO,
 				       &nd);
 		unlock_dir(lower_parent);
@@ -362,7 +362,7 @@ static struct dentry *lookup_whiteout(struct dentry *dentry)
 		return (void *)whname;
 
 	parent = dget_parent(dentry);
-	unionfs_lock_dentry(parent);
+	unionfs_lock_dentry(parent, UNIONFS_DMUTEX_WHITEOUT);
 	bstart = dbstart(parent);
 	bend = dbend(parent);
 	wh_dentry = ERR_PTR(-ENOENT);
@@ -421,7 +421,7 @@ int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int err = 0;
 	struct dentry *wh_dentry;
 
-	unionfs_read_lock(old_dentry->d_sb);
+	unionfs_read_lock(old_dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	unionfs_double_lock_dentry(old_dentry, new_dentry);
 
 	if (unlikely(!__unionfs_d_revalidate_chain(old_dentry, NULL, false))) {

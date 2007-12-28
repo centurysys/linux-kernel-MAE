@@ -152,7 +152,7 @@ static int unionfs_readpage(struct file *file, struct page *page)
 	char *page_data = NULL;
 	mode_t orig_mode;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb);
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 	err = unionfs_file_revalidate(file, false);
 	if (unlikely(err))
 		goto out;
@@ -245,7 +245,7 @@ static int unionfs_commit_write(struct file *file, struct page *page,
 
 	BUG_ON(file == NULL);
 
-	unionfs_read_lock(file->f_path.dentry->d_sb);
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))
 		goto out;

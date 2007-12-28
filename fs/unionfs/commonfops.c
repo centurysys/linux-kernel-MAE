@@ -311,7 +311,7 @@ int unionfs_file_revalidate(struct file *file, bool willwrite)
 	int err = 0;
 
 	dentry = file->f_path.dentry;
-	unionfs_lock_dentry(dentry);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	sb = dentry->d_sb;
 
 	/*
@@ -519,7 +519,7 @@ int unionfs_open(struct inode *inode, struct file *file)
 	int bindex = 0, bstart = 0, bend = 0;
 	int size;
 
-	unionfs_read_lock(inode->i_sb);
+	unionfs_read_lock(inode->i_sb, UNIONFS_SMUTEX_PARENT);
 
 	file->private_data =
 		kzalloc(sizeof(struct unionfs_file_info), GFP_KERNEL);
@@ -546,7 +546,7 @@ int unionfs_open(struct inode *inode, struct file *file)
 	}
 
 	dentry = file->f_path.dentry;
-	unionfs_lock_dentry(dentry);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	bstart = fbstart(file) = dbstart(dentry);
 	bend = fbend(file) = dbend(dentry);
@@ -607,7 +607,7 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	int bindex, bstart, bend;
 	int fgen, err = 0;
 
-	unionfs_read_lock(sb);
+	unionfs_read_lock(sb, UNIONFS_SMUTEX_PARENT);
 	/*
 	 * Yes, we have to revalidate this file even if it's being released.
 	 * This is important for open-but-unlinked files, as well as mmap
@@ -626,7 +626,7 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	bstart = fbstart(file);
 	bend = fbend(file);
 
-	unionfs_lock_dentry(dentry);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_file = unionfs_lower_file_idx(file, bindex);
 
@@ -705,7 +705,7 @@ static int unionfs_ioctl_queryfile(struct file *file, unsigned int cmd,
 	struct vfsmount *mnt;
 
 	dentry = file->f_path.dentry;
-	unionfs_lock_dentry(dentry);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	orig_bstart = dbstart(dentry);
 	orig_bend = dbend(dentry);
 	err = unionfs_partial_lookup(dentry);
@@ -755,7 +755,7 @@ long unionfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long err;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb);
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 
 	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))
@@ -794,7 +794,7 @@ int unionfs_flush(struct file *file, fl_owner_t id)
 	struct dentry *dentry = file->f_path.dentry;
 	int bindex, bstart, bend;
 
-	unionfs_read_lock(dentry->d_sb);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 
 	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))

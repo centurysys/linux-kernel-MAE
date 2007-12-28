@@ -134,8 +134,8 @@ static int unionfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	sb = dentry->d_sb;
 
-	unionfs_read_lock(sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;
@@ -944,7 +944,7 @@ static void unionfs_umount_begin(struct vfsmount *mnt, int flags)
 
 	sb = mnt->mnt_sb;
 
-	unionfs_read_lock(sb);
+	unionfs_read_lock(sb, UNIONFS_SMUTEX_CHILD);
 
 	bstart = sbstart(sb);
 	bend = sbend(sb);
@@ -969,9 +969,9 @@ static int unionfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	int bindex, bstart, bend;
 	int perms;
 
-	unionfs_read_lock(sb);
+	unionfs_read_lock(sb, UNIONFS_SMUTEX_CHILD);
 
-	unionfs_lock_dentry(sb->s_root);
+	unionfs_lock_dentry(sb->s_root, UNIONFS_DMUTEX_CHILD);
 
 	tmp_page = (char *) __get_free_page(GFP_KERNEL);
 	if (unlikely(!tmp_page)) {
