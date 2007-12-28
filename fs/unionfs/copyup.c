@@ -717,7 +717,7 @@ struct dentry *create_parents(struct inode *dir, struct dentry *dentry,
 
 		/* find the parent directory dentry in unionfs */
 		parent_dentry = child_dentry->d_parent;
-		unionfs_lock_dentry(parent_dentry);
+		dget(parent_dentry);
 
 		/* find out the lower_parent_dentry in the given branch */
 		lower_parent_dentry =
@@ -752,7 +752,7 @@ struct dentry *create_parents(struct inode *dir, struct dentry *dentry,
 begin:
 	/* get lower parent dir in the current branch */
 	lower_parent_dentry = unionfs_lower_dentry_idx(parent_dentry, bindex);
-	unionfs_unlock_dentry(parent_dentry);
+	dput(parent_dentry);
 
 	/* init the values to lookup */
 	childname = child_dentry->d_name.name;
@@ -843,7 +843,7 @@ out:
 	/* cleanup any leftover locks from the do/while loop above */
 	if (IS_ERR(lower_dentry))
 		while (count)
-			unionfs_unlock_dentry(path[count--]);
+			dput(path[count--]);
 	kfree(path);
 	return lower_dentry;
 }

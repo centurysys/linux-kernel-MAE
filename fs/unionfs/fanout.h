@@ -284,10 +284,20 @@ static inline struct vfsmount *unionfs_lower_mnt(const struct dentry *dent)
 }
 
 /* Macros for locking a dentry. */
-static inline void unionfs_lock_dentry(struct dentry *d)
+enum unionfs_dentry_lock_class {
+	UNIONFS_DMUTEX_NORMAL,
+	UNIONFS_DMUTEX_ROOT,
+	UNIONFS_DMUTEX_PARENT,
+	UNIONFS_DMUTEX_CHILD,
+	UNIONFS_DMUTEX_WHITEOUT,
+	UNIONFS_DMUTEX_REVAL,	/* for file/dentry revalidate */
+};
+
+static inline void unionfs_lock_dentry(struct dentry *d,
+				       unsigned int subclass)
 {
 	BUG_ON(!d);
-	mutex_lock(&UNIONFS_D(d)->lock);
+	mutex_lock_nested(&UNIONFS_D(d)->lock, subclass);
 }
 
 static inline void unionfs_unlock_dentry(struct dentry *d)

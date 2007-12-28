@@ -103,7 +103,7 @@ static int unionfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	int bend;
 	loff_t offset;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb);
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 
 	err = unionfs_file_revalidate(file, false);
 	if (unlikely(err))
@@ -208,7 +208,7 @@ static loff_t unionfs_dir_llseek(struct file *file, loff_t offset, int origin)
 	struct unionfs_dir_state *rdstate;
 	loff_t err;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb);
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 
 	err = unionfs_file_revalidate(file, false);
 	if (unlikely(err))

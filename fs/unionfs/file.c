@@ -30,7 +30,7 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 	bool willwrite;
 	struct file *lower_file;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb);
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 
 	/* This might be deferred to mmap's writepage */
 	willwrite = ((vma->vm_flags | VM_SHARED | VM_WRITE) == vma->vm_flags);
@@ -80,7 +80,7 @@ int unionfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	struct inode *lower_inode, *inode;
 	int err = -EINVAL;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb);
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))
 		goto out;
@@ -128,7 +128,7 @@ int unionfs_fasync(int fd, struct file *file, int flag)
 	struct inode *lower_inode, *inode;
 	int err = 0;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb);
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))
 		goto out;

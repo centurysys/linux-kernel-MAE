@@ -250,12 +250,18 @@ static inline off_t rdstate2offset(struct unionfs_dir_state *buf)
 	return tmp;
 }
 
-static inline void unionfs_read_lock(struct super_block *sb)
+/* Macros for locking a super_block. */
+enum unionfs_super_lock_class {
+	UNIONFS_SMUTEX_NORMAL,
+	UNIONFS_SMUTEX_PARENT,	/* when locking on behalf of file */
+	UNIONFS_SMUTEX_CHILD,	/* when locking on behalf of dentry */
+};
+static inline void unionfs_read_lock(struct super_block *sb, int subclass)
 {
 	if (UNIONFS_SB(sb)->write_lock_owner &&
 	    UNIONFS_SB(sb)->write_lock_owner == current->pid)
 		return;
-	down_read(&UNIONFS_SB(sb)->rwsem);
+	down_read_nested(&UNIONFS_SB(sb)->rwsem, subclass);
 }
 static inline void unionfs_read_unlock(struct super_block *sb)
 {
@@ -278,16 +284,17 @@ static inline void unionfs_write_unlock(struct super_block *sb)
 static inline void unionfs_double_lock_dentry(struct dentry *d1,
 					      struct dentry *d2)
 {
-	if (d2 < d1) {
-		struct dentry *tmp = d1;
-		d1 = d2;
-		d2 = tmp;
+	BUG_ON(d1 == d2);
+	if (d1 < d2) {
+		unionfs_lock_dentry(d1, UNIONFS_DMUTEX_PARENT);
+		unionfs_lock_dentry(d2, UNIONFS_DMUTEX_CHILD);
+	} else {
+		unionfs_lock_dentry(d2, UNIONFS_DMUTEX_PARENT);
+		unionfs_lock_dentry(d1, UNIONFS_DMUTEX_CHILD);
 	}
-	unionfs_lock_dentry(d1);
-	unionfs_lock_dentry(d2);
 }
 
-extern int new_dentry_private_data(struct dentry *dentry);
+extern int new_dentry_private_data(struct dentry *dentry, int subclass);
 extern void free_dentry_private_data(struct dentry *dentry);
 extern void update_bstart(struct dentry *dentry);
 extern int init_lower_nd(struct nameidata *nd, unsigned int flags);
@@ -484,15 +491,18 @@ extern char *alloc_whname(const char *name, int len);
 extern int check_branch(struct nameidata *nd);
 extern int parse_branch_mode(const char *name, int *perms);
 
-/*
- * These two functions are here because it is kind of daft to copy and paste
- * the contents of the two functions to 32+ places in unionfs
- */
+/* locking helpers */
 static inline struct dentry *lock_parent(struct dentry *dentry)
 {
 	struct dentry *dir = dget(dentry->d_parent);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
+	return dir;
+}
+static inline struct dentry *lock_parent_wh(struct dentry *dentry)
+{
+	struct dentry *dir = dget(dentry->d_parent);
 
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock_nested(&dir->d_inode->i_mutex, UNIONFS_DMUTEX_WHITEOUT);
 	return dir;
 }
 

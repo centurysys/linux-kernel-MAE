@@ -29,8 +29,8 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 	int valid = 0;
 	struct nameidata lower_nd;
 
-	unionfs_read_lock(dentry->d_sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	valid = __unionfs_d_revalidate_chain(dentry, nd, false);
 	/*
@@ -79,7 +79,7 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 			 */
 			struct dentry *lower_dir_dentry;
 
-			lower_dir_dentry = lock_parent(wh_dentry);
+			lower_dir_dentry = lock_parent_wh(wh_dentry);
 			/* see Documentation/filesystems/unionfs/issues.txt */
 			lockdep_off();
 			err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry);
@@ -178,7 +178,9 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 	struct path path_save;
 	struct dentry *ret;
 
-	unionfs_read_lock(dentry->d_sb);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	if (dentry != dentry->d_parent)
+		unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
 
 	/* save the dentry & vfsmnt from namei */
 	if (nd) {
@@ -210,6 +212,9 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 	unionfs_check_nd(nd);
 	if (!IS_ERR(ret))
 		unionfs_unlock_dentry(dentry);
+
+	if (dentry != dentry->d_parent)
+		unionfs_unlock_dentry(dentry->d_parent);
 	unionfs_read_unlock(dentry->d_sb);
 
 	return ret;
@@ -225,7 +230,7 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct dentry *whiteout_dentry;
 	char *name = NULL;
 
-	unionfs_read_lock(old_dentry->d_sb);
+	unionfs_read_lock(old_dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	unionfs_double_lock_dentry(new_dentry, old_dentry);
 
 	if (unlikely(!__unionfs_d_revalidate_chain(old_dentry, NULL, false))) {
@@ -263,7 +268,7 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 		whiteout_dentry = NULL;
 	} else {
 		/* found a .wh.foo entry, unlink it and then call vfs_link() */
-		lower_dir_dentry = lock_parent(whiteout_dentry);
+		lower_dir_dentry = lock_parent_wh(whiteout_dentry);
 		err = is_robranch_super(new_dentry->d_sb, dbstart(new_dentry));
 		if (!err) {
 			/* see Documentation/filesystems/unionfs/issues.txt */
@@ -389,8 +394,8 @@ static int unionfs_symlink(struct inode *parent, struct dentry *dentry,
 	int valid = 0;
 	umode_t mode;
 
-	unionfs_read_lock(dentry->d_sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (unlikely(dentry->d_inode &&
 		     !__unionfs_d_revalidate_chain(dentry, NULL, false))) {
@@ -444,7 +449,7 @@ static int unionfs_symlink(struct inode *parent, struct dentry *dentry,
 			 */
 			struct dentry *lower_dir_dentry;
 
-			lower_dir_dentry = lock_parent(wh_dentry);
+			lower_dir_dentry = lock_parent_wh(wh_dentry);
 			err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry);
 			unlock_dir(lower_dir_dentry);
 
@@ -532,8 +537,8 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 	int whiteout_unlinked = 0;
 	struct sioq_args args;
 
-	unionfs_read_lock(dentry->d_sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (unlikely(dentry->d_inode &&
 		     !__unionfs_d_revalidate_chain(dentry, NULL, false))) {
@@ -566,7 +571,7 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 		dput(whiteout_dentry);
 		whiteout_dentry = NULL;
 	} else {
-		lower_parent_dentry = lock_parent(whiteout_dentry);
+		lower_parent_dentry = lock_parent_wh(whiteout_dentry);
 
 		/* found a.wh.foo entry, remove it then do vfs_mkdir */
 		err = is_robranch_super(dentry->d_sb, bstart);
@@ -686,8 +691,8 @@ static int unionfs_mknod(struct inode *parent, struct dentry *dentry, int mode,
 	char *name = NULL;
 	int valid = 0;
 
-	unionfs_read_lock(dentry->d_sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (unlikely(dentry->d_inode &&
 		     !__unionfs_d_revalidate_chain(dentry, NULL, false))) {
@@ -741,7 +746,7 @@ static int unionfs_mknod(struct inode *parent, struct dentry *dentry, int mode,
 			 */
 			struct dentry *lower_dir_dentry;
 
-			lower_dir_dentry = lock_parent(wh_dentry);
+			lower_dir_dentry = lock_parent_wh(wh_dentry);
 			err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry);
 			unlock_dir(lower_dir_dentry);
 
@@ -823,8 +828,8 @@ static int unionfs_readlink(struct dentry *dentry, char __user *buf,
 	int err;
 	struct dentry *lower_dentry;
 
-	unionfs_read_lock(dentry->d_sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;
@@ -901,9 +906,9 @@ out:
 static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
 			     void *cookie)
 {
-	unionfs_read_lock(dentry->d_sb);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 
-	unionfs_lock_dentry(dentry);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	if (unlikely(!__unionfs_d_revalidate_chain(dentry, nd, false)))
 		printk(KERN_ERR
 		       "unionfs: put_link failed to revalidate dentry\n");
@@ -1011,8 +1016,8 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	int bstart, bend, bindex;
 	loff_t size;
 
-	unionfs_read_lock(dentry->d_sb);
-	unionfs_lock_dentry(dentry);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
 		err = -ESTALE;
