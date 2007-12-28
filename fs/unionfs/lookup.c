@@ -225,6 +225,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 		wh_lower_dentry = NULL;
 
 		/* Now do regular lookup; lookup foo */
+		BUG_ON(!lower_dir_dentry);
 		lower_dentry = lookup_one_len(name, lower_dir_dentry, namelen);
 		if (IS_ERR(lower_dentry)) {
 			dput(first_lower_dentry);
@@ -313,6 +314,10 @@ out_negative:
 	if (lookupmode == INTERPOSE_REVAL) {
 		if (dentry->d_inode)
 			UNIONFS_I(dentry->d_inode)->stale = 1;
+		goto out;
+	}
+	if (!lower_dir_dentry) {
+		err = -ENOENT;
 		goto out;
 	}
 	/* This should only happen if we found a whiteout. */

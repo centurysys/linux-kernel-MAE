@@ -151,8 +151,12 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 			valid = false;
 	}
 
-	if (!dentry->d_inode)
+	if (!dentry->d_inode ||
+	    ibstart(dentry->d_inode) < 0 ||
+	    ibend(dentry->d_inode) < 0) {
 		valid = false;
+		goto out;
+	}
 
 	if (valid) {
 		/*
