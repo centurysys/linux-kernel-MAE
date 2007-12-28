@@ -1,4 +1,4 @@
-Unionfs 2.1 CONCEPTS:
+Unionfs 2.x CONCEPTS:
 =====================
 
 This file describes the concepts needed by a namespace unification file
@@ -66,12 +66,26 @@ Copyup:
 =======
 
 When a change is made to the contents of a file's data or meta-data, they
-have to be stored somewhere. The best way is to create a copy of the
+have to be stored somewhere.  The best way is to create a copy of the
 original file on a branch that is writable, and then redirect the write
-though to this copy. The copy must be made on a higher priority branch so
+though to this copy.  The copy must be made on a higher priority branch so
 that lookup and readdir return this newer "version" of the file rather than
 the original (see duplicate elimination).
 
+An entire unionfs mount can be read-only or read-write.  If it's read-only,
+then none of the branches will be written to, even if some of the branches
+are physically writeable.  If the unionfs mount is read-write, then the
+leftmost (highest priority) branch must be writeable (for copyup to take
+place); the remaining branches can be any mix of read-write and read-only.
+
+In a writeable mount, unionfs will create new files/dir in the leftmost
+branch.  If one tries to modify a file in a read-only branch/media, unionfs
+will copyup the file to the leftmost branch and modify it there.  If you try
+to modify a file from a writeable branch which is not the leftmost branch,
+then unionfs will modify it in that branch; this is useful if you, say,
+unify differnet packages (e.g., apache, sendmail, ftpd, etc.) and you want
+changes to specific package files to remain logically in the directory where
+they came from.
 
 Cache Coherency:
 ================
