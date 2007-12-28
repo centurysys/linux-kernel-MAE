@@ -158,9 +158,9 @@ out:
 	unionfs_check_inode(parent);
 	if (!err) {
 		unionfs_check_dentry(dentry->d_parent);
+		unionfs_check_dentry(dentry);
 		unionfs_check_nd(nd);
 	}
-	unionfs_check_dentry(dentry);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
