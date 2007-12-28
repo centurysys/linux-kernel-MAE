@@ -998,11 +998,10 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 {
 	int err = 0;
 	struct dentry *lower_dentry;
-	struct inode *inode = NULL;
-	struct inode *lower_inode = NULL;
+	struct inode *inode;
+	struct inode *lower_inode;
 	int bstart, bend, bindex;
-	int i;
-	int copyup = 0;
+	loff_t size;
 
 	unionfs_read_lock(dentry->d_sb);
 	unionfs_lock_dentry(dentry);
@@ -1023,62 +1022,64 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	if (ia->ia_valid & (ATTR_KILL_SUID | ATTR_KILL_SGID))
 		ia->ia_valid &= ~ATTR_MODE;
 
-	for (bindex = bstart; (bindex <= bend) || (bindex == bstart);
-	     bindex++) {
-		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-		if (!lower_dentry)
-			continue;
-		BUG_ON(lower_dentry->d_inode == NULL);
+	lower_dentry = unionfs_lower_dentry(dentry);
+	BUG_ON(!lower_dentry);	/* should never happen after above revalidate */
 
-		/* If the file is on a read only branch */
-		if (is_robranch_super(dentry->d_sb, bindex)
-		    || IS_RDONLY(lower_dentry->d_inode)) {
-			if (copyup || (bindex != bstart))
-				continue;
-			/* Only if its the leftmost file, copyup the file */
-			for (i = bstart - 1; i >= 0; i--) {
-				loff_t size = i_size_read(dentry->d_inode);
-				if (ia->ia_valid & ATTR_SIZE)
-					size = ia->ia_size;
-				err = copyup_dentry(dentry->d_parent->d_inode,
-						    dentry, bstart, i,
-						    dentry->d_name.name,
-						    dentry->d_name.len,
-						    NULL, size);
-
-				if (!err) {
-					copyup = 1;
-					lower_dentry =
-						unionfs_lower_dentry(dentry);
-					break;
-				}
-				/*
-				 * if error is in the leftmost branch, pass
-				 * it up.
-				 */
-				if (i == 0)
-					goto out;
-			}
-
+	/* copyup if the file is on a read only branch */
+	if (is_robranch_super(dentry->d_sb, bstart)
+	    || IS_RDONLY(lower_dentry->d_inode)) {
+		/* check if we have a branch to copy up to */
+		if (bstart <= 0) {
+			err = -EACCES;
+			goto out;
 		}
-		err = notify_change(lower_dentry, ia);
+
+		if (ia->ia_valid & ATTR_SIZE)
+			size = ia->ia_size;
+		else
+			size = i_size_read(inode);
+		/* copyup to next available branch */
+		for (bindex = bstart - 1; bindex >= 0; bindex--) {
+			err = copyup_dentry(dentry->d_parent->d_inode,
+					    dentry, bstart, bindex,
+					    dentry->d_name.name,
+					    dentry->d_name.len,
+					    NULL, size);
+			if (!err)
+				break;
+		}
 		if (err)
 			goto out;
-		break;
+		/* get updated lower_dentry after copyup */
+		lower_dentry = unionfs_lower_dentry(dentry);
 	}
 
-	/* for mmap */
+	lower_inode = unionfs_lower_inode(inode);
+
+	/*
+	 * If shrinking, first truncate upper level to cancel writing dirty
+	 * pages beyond the new eof; and also if its' maxbytes is more
+	 * limiting (fail with -EFBIG before making any change to the lower
+	 * level).  There is no need to vmtruncate the upper level
+	 * afterwards in the other cases: we fsstack_copy_inode_size from
+	 * the lower level.
+	 */
 	if (ia->ia_valid & ATTR_SIZE) {
-		if (ia->ia_size != i_size_read(inode)) {
+		size = i_size_read(inode);
+		if (ia->ia_size < size || (ia->ia_size > size &&
+		    inode->i_sb->s_maxbytes < lower_inode->i_sb->s_maxbytes)) {
 			err = vmtruncate(inode, ia->ia_size);
 			if (err)
-				printk(KERN_ERR
-				       "unionfs: setattr: vmtruncate failed\n");
+				goto out;
 		}
 	}
 
-	/* get the size from the first lower inode */
-	lower_inode = unionfs_lower_inode(inode);
+	/* notify the (possibly copied-up) lower inode */
+	err = notify_change(lower_dentry, ia);
+	if (err)
+		goto out;
+
+	/* get attributes from the first lower inode */
 	unionfs_copy_attr_all(inode, lower_inode);
 	/*
 	 * unionfs_copy_attr_all will copy the lower times to our inode if
