@@ -79,7 +79,7 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry)
 
 out:
 	if (!err)
-		dentry->d_inode->i_nlink--;
+		inode_dec_link_count(dentry->d_inode);
 
 	/* We don't want to leave negative leftover dentries for revalidate. */
 	if (!err && (dbopaque(dentry) != -1))
