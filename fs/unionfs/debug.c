@@ -456,9 +456,10 @@ void __show_branch_counts(const struct super_block *sb,
 			mnt = UNIONFS_D(sb->s_root)->lower_paths[i].mnt;
 		else
 			mnt = NULL;
-		pr_debug("%d:", (mnt ? atomic_read(&mnt->mnt_count) : -99));
+		printk(KERN_CONT "%d:",
+		       (mnt ? atomic_read(&mnt->mnt_count) : -99));
 	}
-	pr_debug("%s:%s:%d\n", file, fxn, line);
+	printk(KERN_CONT "%s:%s:%d\n", file, fxn, line);
 }
 
 void __show_inode_times(const struct inode *inode,
@@ -472,15 +473,15 @@ void __show_inode_times(const struct inode *inode,
 		if (unlikely(!lower_inode))
 			continue;
 		pr_debug("IT(%lu:%d): ", inode->i_ino, bindex);
-		pr_debug("%s:%s:%d ", file, fxn, line);
-		pr_debug("um=%lu/%lu lm=%lu/%lu ",
-			 inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
-			 lower_inode->i_mtime.tv_sec,
-			 lower_inode->i_mtime.tv_nsec);
-		pr_debug("uc=%lu/%lu lc=%lu/%lu\n",
-			 inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
-			 lower_inode->i_ctime.tv_sec,
-			 lower_inode->i_ctime.tv_nsec);
+		printk(KERN_CONT "%s:%s:%d ", file, fxn, line);
+		printk(KERN_CONT "um=%lu/%lu lm=%lu/%lu ",
+		       inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
+		       lower_inode->i_mtime.tv_sec,
+		       lower_inode->i_mtime.tv_nsec);
+		printk(KERN_CONT "uc=%lu/%lu lc=%lu/%lu\n",
+		       inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
+		       lower_inode->i_ctime.tv_sec,
+		       lower_inode->i_ctime.tv_nsec);
 	}
 }
 
@@ -497,15 +498,15 @@ void __show_dinode_times(const struct dentry *dentry,
 			continue;
 		pr_debug("DT(%s:%lu:%d): ", dentry->d_name.name, inode->i_ino,
 			 bindex);
-		pr_debug("%s:%s:%d ", file, fxn, line);
-		pr_debug("um=%lu/%lu lm=%lu/%lu ",
-			 inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
-			 lower_inode->i_mtime.tv_sec,
-			 lower_inode->i_mtime.tv_nsec);
-		pr_debug("uc=%lu/%lu lc=%lu/%lu\n",
-			 inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
-			 lower_inode->i_ctime.tv_sec,
-			 lower_inode->i_ctime.tv_nsec);
+		printk(KERN_CONT "%s:%s:%d ", file, fxn, line);
+		printk(KERN_CONT "um=%lu/%lu lm=%lu/%lu ",
+		       inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
+		       lower_inode->i_mtime.tv_sec,
+		       lower_inode->i_mtime.tv_nsec);
+		printk(KERN_CONT "uc=%lu/%lu lc=%lu/%lu\n",
+		       inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
+		       lower_inode->i_ctime.tv_sec,
+		       lower_inode->i_ctime.tv_nsec);
 	}
 }
 
@@ -524,9 +525,10 @@ void __show_inode_counts(const struct inode *inode,
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (unlikely(!lower_inode))
 			continue;
-		pr_debug("SIC(%lu:%d:%d): ", inode->i_ino, bindex,
-			 atomic_read(&(inode)->i_count));
-		pr_debug("lc=%d ", atomic_read(&(lower_inode)->i_count));
-		pr_debug("%s:%s:%d\n", file, fxn, line);
+		printk(KERN_CONT "SIC(%lu:%d:%d): ", inode->i_ino, bindex,
+		       atomic_read(&(inode)->i_count));
+		printk(KERN_CONT "lc=%d ",
+		       atomic_read(&(lower_inode)->i_count));
+		printk(KERN_CONT "%s:%s:%d\n", file, fxn, line);
 	}
 }
