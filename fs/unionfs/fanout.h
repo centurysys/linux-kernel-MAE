@@ -290,7 +290,8 @@ enum unionfs_dentry_lock_class {
 	UNIONFS_DMUTEX_PARENT,
 	UNIONFS_DMUTEX_CHILD,
 	UNIONFS_DMUTEX_WHITEOUT,
-	UNIONFS_DMUTEX_REVAL,	/* for file/dentry revalidate */
+	UNIONFS_DMUTEX_REVAL_PARENT, /* for file/dentry revalidate */
+	UNIONFS_DMUTEX_REVAL_CHILD,   /* for file/dentry revalidate */
 };
 
 static inline void unionfs_lock_dentry(struct dentry *d,

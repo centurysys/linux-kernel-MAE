@@ -42,6 +42,7 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 		memset(&lowernd, 0, sizeof(struct nameidata));
 
 	verify_locked(dentry);
+	verify_locked(dentry->d_parent);
 
 	/* if the dentry is unhashed, do NOT revalidate */
 	if (d_deleted(dentry))
@@ -351,7 +352,10 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 	 * to child order.
 	 */
 	for (i = 0; i < chain_len; i++) {
-		unionfs_lock_dentry(chain[i], UNIONFS_DMUTEX_REVAL+i);
+		unionfs_lock_dentry(chain[i], UNIONFS_DMUTEX_REVAL_CHILD);
+		if (chain[i] != chain[i]->d_parent)
+			unionfs_lock_dentry(chain[i]->d_parent,
+					    UNIONFS_DMUTEX_REVAL_PARENT);
 		saved_bstart = dbstart(chain[i]);
 		saved_bend = dbend(chain[i]);
 		sbgen = atomic_read(&UNIONFS_SB(dentry->d_sb)->generation);
@@ -366,6 +370,8 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 			     bindex++)
 				unionfs_mntput(chain[i], bindex);
 		}
+		if (chain[i] != chain[i]->d_parent)
+			unionfs_unlock_dentry(chain[i]->d_parent);
 		unionfs_unlock_dentry(chain[i]);
 
 		if (unlikely(!valid))
@@ -376,6 +382,9 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 out_this:
 	/* finally, lock this dentry and revalidate it */
 	verify_locked(dentry);
+	if (dentry != dentry->d_parent)
+		unionfs_lock_dentry(dentry->d_parent,
+				    UNIONFS_DMUTEX_REVAL_PARENT);
 	dgen = atomic_read(&UNIONFS_D(dentry)->generation);
 
 	if (unlikely(is_newer_lower(dentry))) {
@@ -394,6 +403,8 @@ out_this:
 			purge_inode_data(dentry->d_inode);
 	}
 	valid = __unionfs_d_revalidate_one(dentry, nd);
+	if (dentry != dentry->d_parent)
+		unionfs_unlock_dentry(dentry->d_parent);
 
 	/*
 	 * If __unionfs_d_revalidate_one() succeeded above, then it will
