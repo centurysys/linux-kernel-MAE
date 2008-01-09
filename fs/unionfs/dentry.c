@@ -203,7 +203,7 @@ bool is_newer_lower(const struct dentry *dentry)
 	if (!dentry || !UNIONFS_D(dentry))
 		return false;
 	inode = dentry->d_inode;
-	if (!inode || !UNIONFS_I(inode) ||
+	if (!inode || !UNIONFS_I(inode)->lower_inodes ||
 	    ibstart(inode) < 0 || ibend(inode) < 0)
 		return false;
 
@@ -295,6 +295,8 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 	chain_len = 0;
 	sbgen = atomic_read(&UNIONFS_SB(dentry->d_sb)->generation);
 	dtmp = dentry->d_parent;
+	if (dentry != dtmp)
+		unionfs_lock_dentry(dtmp, UNIONFS_DMUTEX_REVAL_PARENT);
 	dgen = atomic_read(&UNIONFS_D(dtmp)->generation);
 	/* XXX: should we check if is_newer_lower all the way up? */
 	if (unlikely(is_newer_lower(dtmp))) {
@@ -315,6 +317,8 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 		}
 		purge_inode_data(dtmp->d_inode);
 	}
+	if (dentry != dtmp)
+		unionfs_unlock_dentry(dtmp);
 	while (sbgen != dgen) {
 		/* The root entry should always be valid */
 		BUG_ON(IS_ROOT(dtmp));
