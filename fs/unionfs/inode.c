@@ -30,6 +30,13 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 	struct nameidata lower_nd;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
+	valid = __unionfs_d_revalidate_chain(dentry->d_parent, nd, false);
+	unionfs_unlock_dentry(dentry->d_parent);
+	if (unlikely(!valid)) {
+		err = -ESTALE;	/* same as what real_lookup does */
+		goto out;
+	}
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	valid = __unionfs_d_revalidate_chain(dentry, nd, false);
@@ -936,6 +943,14 @@ static int unionfs_permission(struct inode *inode, int mask,
 	const int is_file = !S_ISDIR(inode->i_mode);
 	const int write_mask = (mask & MAY_WRITE) && !(mask & MAY_READ);
 
+	if (nd)
+		unionfs_lock_dentry(nd->dentry, UNIONFS_DMUTEX_CHILD);
+
+	if (!UNIONFS_I(inode)->lower_inodes) {
+		if (is_file)	/* dirs can be unlinked but chdir'ed to */
+			err = -ESTALE;	/* force revalidate */
+		goto out;
+	}
 	bstart = ibstart(inode);
 	bend = ibend(inode);
 	if (unlikely(bstart < 0 || bend < 0)) {
@@ -1003,6 +1018,8 @@ static int unionfs_permission(struct inode *inode, int mask,
 out:
 	unionfs_check_inode(inode);
 	unionfs_check_nd(nd);
+	if (nd)
+		unionfs_unlock_dentry(nd->dentry);
 	return err;
 }
 
