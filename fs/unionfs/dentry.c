@@ -507,9 +507,10 @@ static void unionfs_d_iput(struct dentry *dentry, struct inode *inode)
 {
 	int bindex, rc;
 
+	BUG_ON(!dentry);
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 
-	if (dbstart(dentry) < 0)
+	if (!UNIONFS_D(dentry) || dbstart(dentry) < 0)
 		goto drop_lower_inodes;
 	for (bindex = dbstart(dentry); bindex <= dbend(dentry); bindex++) {
 		if (unionfs_lower_mnt_idx(dentry, bindex)) {
