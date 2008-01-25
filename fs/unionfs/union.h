@@ -494,13 +494,13 @@ extern int parse_branch_mode(const char *name, int *perms);
 /* locking helpers */
 static inline struct dentry *lock_parent(struct dentry *dentry)
 {
-	struct dentry *dir = dget(dentry->d_parent);
+	struct dentry *dir = dget_parent(dentry);
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 	return dir;
 }
 static inline struct dentry *lock_parent_wh(struct dentry *dentry)
 {
-	struct dentry *dir = dget(dentry->d_parent);
+	struct dentry *dir = dget_parent(dentry);
 
 	mutex_lock_nested(&dir->d_inode->i_mutex, UNIONFS_DMUTEX_WHITEOUT);
 	return dir;
