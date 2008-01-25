@@ -29,6 +29,7 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct dentry *lower_new_dir_dentry;
 	struct dentry *lower_wh_dentry;
 	struct dentry *lower_wh_dir_dentry;
+	struct dentry *trap;
 	char *wh_name = NULL;
 
 	lower_new_dentry = unionfs_lower_dentry_idx(new_dentry, bindex);
@@ -95,6 +96,7 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out;
 
 	dget(lower_old_dentry);
+	dget(lower_new_dentry);
 	lower_old_dir_dentry = dget_parent(lower_old_dentry);
 	lower_new_dir_dentry = dget_parent(lower_new_dentry);
 
@@ -122,9 +124,20 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	/* see Documentation/filesystems/unionfs/issues.txt */
 	lockdep_off();
-	lock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
+	trap = lock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
+	/* source should not be ancenstor of target */
+	if (trap == lower_old_dentry) {
+		err = -EINVAL;
+		goto out_err_unlock;
+	}
+	/* target should not be ancenstor of source */
+	if (trap == lower_new_dentry) {
+		err = -ENOTEMPTY;
+		goto out_err_unlock;
+	}
 	err = vfs_rename(lower_old_dir_dentry->d_inode, lower_old_dentry,
 			 lower_new_dir_dentry->d_inode, lower_new_dentry);
+out_err_unlock:
 	unlock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
 	lockdep_on();
 
@@ -132,6 +145,7 @@ out_dput:
 	dput(lower_old_dir_dentry);
 	dput(lower_new_dir_dentry);
 	dput(lower_old_dentry);
+	dput(lower_new_dentry);
 
 out:
 	if (!err) {
