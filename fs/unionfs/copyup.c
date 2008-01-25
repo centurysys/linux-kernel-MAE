@@ -716,8 +716,7 @@ struct dentry *create_parents(struct inode *dir, struct dentry *dentry,
 		child_dentry = parent_dentry;
 
 		/* find the parent directory dentry in unionfs */
-		parent_dentry = child_dentry->d_parent;
-		dget(parent_dentry);
+		parent_dentry = dget_parent(child_dentry);
 
 		/* find out the lower_parent_dentry in the given branch */
 		lower_parent_dentry =
