@@ -807,19 +807,6 @@ begin:
 						 lower_dentry);
 		unlock_dir(lower_parent_dentry);
 		if (err) {
-			struct inode *inode = lower_dentry->d_inode;
-			/*
-			 * If we get here, it means that we created a new
-			 * dentry+inode, but copying permissions failed.
-			 * Therefore, we should delete this inode and dput
-			 * the dentry so as not to leave cruft behind.
-			 */
-			if (lower_dentry->d_op && lower_dentry->d_op->d_iput)
-				lower_dentry->d_op->d_iput(lower_dentry,
-							   inode);
-			else
-				iput(inode);
-			lower_dentry->d_inode = NULL;
 			dput(lower_dentry);
 			lower_dentry = ERR_PTR(err);
 			goto out;
