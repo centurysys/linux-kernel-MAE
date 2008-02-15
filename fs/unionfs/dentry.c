@@ -363,6 +363,7 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 	chain_len = 0;
 	sbgen = atomic_read(&UNIONFS_SB(dentry->d_sb)->generation);
 	dtmp = dentry->d_parent;
+	verify_locked(dentry);
 	if (dentry != dtmp)
 		unionfs_lock_dentry(dtmp, UNIONFS_DMUTEX_REVAL_PARENT);
 	dgen = atomic_read(&UNIONFS_D(dtmp)->generation);
@@ -453,7 +454,7 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 
 out_this:
 	/* finally, lock this dentry and revalidate it */
-	verify_locked(dentry);
+	verify_locked(dentry);	/* verify child is locked */
 	if (dentry != dentry->d_parent)
 		unionfs_lock_dentry(dentry->d_parent,
 				    UNIONFS_DMUTEX_REVAL_PARENT);
@@ -491,24 +492,20 @@ static int unionfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return err;
 }
 
-/*
- * At this point no one can reference this dentry, so we don't have to be
- * careful about concurrent access.
- */
 static void unionfs_d_release(struct dentry *dentry)
 {
 	int bindex, bstart, bend;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	/* must lock our branch configuration here */
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	unionfs_check_dentry(dentry);
 	/* this could be a negative dentry, so check first */
-	if (unlikely(!UNIONFS_D(dentry))) {
-		printk(KERN_ERR "unionfs: dentry without private data: %.*s\n",
-		       dentry->d_name.len, dentry->d_name.name);
-		goto out;
-	} else if (dbstart(dentry) < 0)
-		goto out_free;  /* due to a (normal) failed lookup */
+	if (unlikely(!UNIONFS_D(dentry) || dbstart(dentry) < 0)) {
+		unionfs_unlock_dentry(dentry);
+		goto out;	/* due to a (normal) failed lookup */
+	}
 
 	/* Release all the lower dentries */
 	bstart = dbstart(dentry);
@@ -526,11 +523,10 @@ static void unionfs_d_release(struct dentry *dentry)
 	kfree(UNIONFS_D(dentry)->lower_paths);
 	UNIONFS_D(dentry)->lower_paths = NULL;
 
-out_free:
-	/* No need to unlock it, because it is disappeared. */
-	free_dentry_private_data(dentry);
+	unionfs_unlock_dentry(dentry);
 
 out:
+	free_dentry_private_data(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return;
 }
@@ -545,6 +541,7 @@ static void unionfs_d_iput(struct dentry *dentry, struct inode *inode)
 
 	BUG_ON(!dentry);
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (!UNIONFS_D(dentry) || dbstart(dentry) < 0)
 		goto drop_lower_inodes;
@@ -574,6 +571,7 @@ drop_lower_inodes:
 
 	iput(inode);
 
+	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 }
 

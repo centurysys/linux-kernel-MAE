@@ -92,12 +92,20 @@ int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int err = 0;
 	struct inode *inode = dentry->d_inode;
+	int valid;
 
 	BUG_ON(S_ISDIR(inode->i_mode));
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+	unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
 
-	if (unlikely(!__unionfs_d_revalidate_chain(dentry, NULL, false))) {
+	valid = __unionfs_d_revalidate_chain(dentry->d_parent, NULL, false);
+	if (unlikely(!valid)) {
+		err = -ESTALE;
+		goto out;
+	}
+	valid = __unionfs_d_revalidate_one_locked(dentry, NULL, false);
+	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -126,6 +134,7 @@ out:
 		unionfs_check_dentry(dentry);
 		unionfs_check_inode(dir);
 	}
+	unionfs_unlock_dentry(dentry->d_parent);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
