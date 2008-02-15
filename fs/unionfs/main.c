@@ -636,6 +636,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	sbend(sb) = bend = lower_root_info->bend;
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		struct dentry *d = lower_root_info->lower_paths[bindex].dentry;
+		atomic_inc(&d->d_sb->s_active);
 		unionfs_set_lower_super_idx(sb, bindex, d->d_sb);
 	}
 
@@ -711,6 +712,8 @@ out_dput:
 			dput(d);
 			/* initializing: can't use unionfs_mntput here */
 			mntput(m);
+			/* drop refs we took earlier */
+			atomic_dec(&d->d_sb->s_active);
 		}
 		kfree(lower_root_info->lower_paths);
 		kfree(lower_root_info);
