@@ -234,7 +234,7 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 		if (nd.mnt == new_lower_paths[idx].mnt &&
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
-	path_release(&nd);	/* no longer needed */
+	path_put(&nd.path);	/* no longer needed */
 	if (idx == cur_branches) {
 		err = -ENOENT;	/* err may have been reset above */
 		printk(KERN_ERR "unionfs: branch \"%s\" "
@@ -277,7 +277,7 @@ static noinline int do_remount_del_option(char *optarg, int cur_branches,
 		if (nd.mnt == new_lower_paths[idx].mnt &&
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
-	path_release(&nd);	/* no longer needed */
+	path_put(&nd.path);	/* no longer needed */
 	if (idx == cur_branches) {
 		printk(KERN_ERR "unionfs: branch \"%s\" "
 		       "not found\n", optarg);
@@ -296,7 +296,7 @@ static noinline int do_remount_del_option(char *optarg, int cur_branches,
 	 * new_data and new_lower_paths one to the left.  Finally, adjust
 	 * cur_branches.
 	 */
-	pathput(&new_lower_paths[idx]);
+	path_put(&new_lower_paths[idx]);
 
 	if (idx < cur_branches - 1) {
 		/* if idx==cur_branches-1, we delete last branch: easy */
@@ -361,7 +361,7 @@ static noinline int do_remount_add_option(char *optarg, int cur_branches,
 		if (nd.mnt == new_lower_paths[idx].mnt &&
 		    nd.dentry == new_lower_paths[idx].dentry)
 			break;
-	path_release(&nd);	/* no longer needed */
+	path_put(&nd.path);	/* no longer needed */
 	if (idx == cur_branches) {
 		printk(KERN_ERR "unionfs: branch \"%s\" "
 		       "not found\n", optarg);
@@ -408,7 +408,7 @@ found_insertion_point:
 	if (err) {
 		printk(KERN_ERR "unionfs: lower directory "
 		       "\"%s\" is not a valid branch\n", optarg);
-		path_release(&nd);
+		path_put(&nd.path);
 		goto out;
 	}
 
@@ -818,7 +818,7 @@ out_release:
 	/* no need to cleanup/release anything in tmp_data */
 	if (tmp_lower_paths)
 		for (i = 0; i < new_branches; i++)
-			pathput(&tmp_lower_paths[i]);
+			path_put(&tmp_lower_paths[i]);
 out_free:
 	kfree(tmp_lower_paths);
 	kfree(tmp_data);
