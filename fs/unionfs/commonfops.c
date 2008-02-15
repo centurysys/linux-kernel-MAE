@@ -604,6 +604,7 @@ out:
 	}
 out_nofree:
 	if (!err) {
+		unionfs_postcopyup_setmnt(dentry);
 		unionfs_copy_attr_times(inode);
 		unionfs_check_file(file);
 		unionfs_check_inode(inode);
@@ -839,13 +840,9 @@ int unionfs_flush(struct file *file, fl_owner_t id)
 
 	}
 
-	/* on success, update our times */
-	unionfs_copy_attr_times(dentry->d_inode);
-	/* parent time could have changed too (async) */
-	unionfs_copy_attr_times(dentry->d_parent->d_inode);
-
 out:
-	unionfs_check_file(file);
+	if (!err)
+		unionfs_check_file(file);
 	unionfs_unlock_dentry(file->f_path.dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;

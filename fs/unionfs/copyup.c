@@ -819,7 +819,8 @@ begin:
 	 * update times of this dentry, but also the parent, because if
 	 * we changed, the parent may have changed too.
 	 */
-	unionfs_copy_attr_times(parent_dentry->d_inode);
+	fsstack_copy_attr_times(parent_dentry->d_inode,
+				lower_parent_dentry->d_inode);
 	unionfs_copy_attr_times(child_dentry->d_inode);
 
 	parent_dentry = child_dentry;

@@ -482,6 +482,7 @@ static int unionfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	err = __unionfs_d_revalidate_chain(dentry, nd, false);
 	if (likely(err > 0)) { /* true==1: dentry is valid */
+		unionfs_postcopyup_setmnt(dentry);
 		unionfs_check_dentry(dentry);
 		unionfs_check_nd(nd);
 	}
