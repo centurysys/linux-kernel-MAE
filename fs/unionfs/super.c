@@ -231,8 +231,8 @@ static noinline int do_remount_mode_option(char *optarg, int cur_branches,
 		goto out;
 	}
 	for (idx = 0; idx < cur_branches; idx++)
-		if (nd.mnt == new_lower_paths[idx].mnt &&
-		    nd.dentry == new_lower_paths[idx].dentry)
+		if (nd.path.mnt == new_lower_paths[idx].mnt &&
+		    nd.path.dentry == new_lower_paths[idx].dentry)
 			break;
 	path_put(&nd.path);	/* no longer needed */
 	if (idx == cur_branches) {
@@ -274,8 +274,8 @@ static noinline int do_remount_del_option(char *optarg, int cur_branches,
 		goto out;
 	}
 	for (idx = 0; idx < cur_branches; idx++)
-		if (nd.mnt == new_lower_paths[idx].mnt &&
-		    nd.dentry == new_lower_paths[idx].dentry)
+		if (nd.path.mnt == new_lower_paths[idx].mnt &&
+		    nd.path.dentry == new_lower_paths[idx].dentry)
 			break;
 	path_put(&nd.path);	/* no longer needed */
 	if (idx == cur_branches) {
@@ -358,8 +358,8 @@ static noinline int do_remount_add_option(char *optarg, int cur_branches,
 		goto out;
 	}
 	for (idx = 0; idx < cur_branches; idx++)
-		if (nd.mnt == new_lower_paths[idx].mnt &&
-		    nd.dentry == new_lower_paths[idx].dentry)
+		if (nd.path.mnt == new_lower_paths[idx].mnt &&
+		    nd.path.dentry == new_lower_paths[idx].dentry)
 			break;
 	path_put(&nd.path);	/* no longer needed */
 	if (idx == cur_branches) {
@@ -425,10 +425,10 @@ found_insertion_point:
 		memmove(&new_lower_paths[idx+1], &new_lower_paths[idx],
 			(cur_branches - idx) * sizeof(struct path));
 	}
-	new_lower_paths[idx].dentry = nd.dentry;
-	new_lower_paths[idx].mnt = nd.mnt;
+	new_lower_paths[idx].dentry = nd.path.dentry;
+	new_lower_paths[idx].mnt = nd.path.mnt;
 
-	new_data[idx].sb = nd.dentry->d_sb;
+	new_data[idx].sb = nd.path.dentry->d_sb;
 	atomic_set(&new_data[idx].open_files, 0);
 	new_data[idx].branchperms = perms;
 	new_data[idx].branch_id = ++*high_branch_id; /* assign new branch ID */
@@ -577,7 +577,7 @@ static int unionfs_remount_fs(struct super_block *sb, int *flags,
 	memcpy(tmp_lower_paths, UNIONFS_D(sb->s_root)->lower_paths,
 	       cur_branches * sizeof(struct path));
 	for (i = 0; i < cur_branches; i++)
-		pathget(&tmp_lower_paths[i]); /* drop refs at end of fxn */
+		path_get(&tmp_lower_paths[i]); /* drop refs at end of fxn */
 
 	/*******************************************************************
 	 * For each branch command, do path_lookup on the requested branch,
@@ -1008,9 +1008,10 @@ static int unionfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	seq_printf(m, ",dirs=");
 	for (bindex = bstart; bindex <= bend; bindex++) {
-		path = d_path(unionfs_lower_dentry_idx(sb->s_root, bindex),
-			      unionfs_lower_mnt_idx(sb->s_root, bindex),
-			      tmp_page, PAGE_SIZE);
+		struct path p;
+		p.dentry = unionfs_lower_dentry_idx(sb->s_root, bindex);
+		p.mnt = unionfs_lower_mnt_idx(sb->s_root, bindex);
+		path = d_path(&p, tmp_page, PAGE_SIZE);
 		if (IS_ERR(path)) {
 			ret = PTR_ERR(path);
 			goto out;
