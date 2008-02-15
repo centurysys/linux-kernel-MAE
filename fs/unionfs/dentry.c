@@ -18,6 +18,39 @@
 
 #include "union.h"
 
+
+static inline void __dput_lowers(struct dentry *dentry, int start, int end)
+{
+	struct dentry *lower_dentry;
+	int bindex;
+
+	if (start < 0)
+		return;
+	for (bindex = start; bindex <= end; bindex++) {
+		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
+		if (!lower_dentry)
+			continue;
+		unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
+		dput(lower_dentry);
+	}
+}
+
+static inline void __iput_lowers(struct inode *inode, int start, int end)
+{
+	struct inode *lower_inode;
+	int bindex;
+
+	if (start < 0)
+		return;
+	for (bindex = start; bindex <= end; bindex++) {
+		lower_inode = unionfs_lower_inode_idx(inode, bindex);
+		if (!lower_inode)
+			continue;
+		unionfs_set_lower_inode_idx(inode, bindex, NULL);
+		iput(lower_inode);
+	}
+}
+
 /*
  * Revalidate a single dentry.
  * Assume that dentry's info node is locked.
@@ -72,15 +105,7 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 		/* Free the pointers for our inodes and this dentry. */
 		bstart = dbstart(dentry);
 		bend = dbend(dentry);
-		if (bstart >= 0) {
-			struct dentry *lower_dentry;
-			for (bindex = bstart; bindex <= bend; bindex++) {
-				lower_dentry =
-					unionfs_lower_dentry_idx(dentry,
-								 bindex);
-				dput(lower_dentry);
-			}
-		}
+		__dput_lowers(dentry, bstart, bend);
 		set_dbstart(dentry, -1);
 		set_dbend(dentry, -1);
 
@@ -90,17 +115,7 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 
 			bstart = ibstart(dentry->d_inode);
 			bend = ibend(dentry->d_inode);
-			if (bstart >= 0) {
-				struct inode *lower_inode;
-				for (bindex = bstart; bindex <= bend;
-				     bindex++) {
-					lower_inode =
-						unionfs_lower_inode_idx(
-							dentry->d_inode,
-							bindex);
-					iput(lower_inode);
-				}
-			}
+			__iput_lowers(dentry->d_inode, bstart, bend);
 			kfree(UNIONFS_I(dentry->d_inode)->lower_inodes);
 			UNIONFS_I(dentry->d_inode)->lower_inodes = NULL;
 			ibstart(dentry->d_inode) = -1;
