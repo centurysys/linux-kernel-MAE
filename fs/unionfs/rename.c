@@ -138,6 +138,11 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	err = vfs_rename(lower_old_dir_dentry->d_inode, lower_old_dentry,
 			 lower_new_dir_dentry->d_inode, lower_new_dentry);
 out_err_unlock:
+	if (!err) {
+		/* update parent dir times */
+		fsstack_copy_attr_times(old_dir, lower_old_dir_dentry->d_inode);
+		fsstack_copy_attr_times(new_dir, lower_new_dir_dentry->d_inode);
+	}
 	unlock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
 	lockdep_on();
 
@@ -526,8 +531,6 @@ int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 	}
 	/* if all of this renaming succeeded, update our times */
-	unionfs_copy_attr_times(old_dir);
-	unionfs_copy_attr_times(new_dir);
 	unionfs_copy_attr_times(old_dentry->d_inode);
 	unionfs_copy_attr_times(new_dentry->d_inode);
 	unionfs_check_inode(old_dir);

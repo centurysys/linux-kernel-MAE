@@ -227,20 +227,11 @@ static int unionfs_prepare_write(struct file *file, struct page *page,
 	int err;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
-	/*
-	 * This is the only place where we unconditionally copy the lower
-	 * attribute times before calling unionfs_file_revalidate.  The
-	 * reason is that our ->write calls do_sync_write which in turn will
-	 * call our ->prepare_write and then ->commit_write.  Before our
-	 * ->write is called, the lower mtimes are in sync, but by the time
-	 * the VFS calls our ->commit_write, the lower mtimes have changed.
-	 * Therefore, the only reasonable time for us to sync up from the
-	 * changed lower mtimes, and avoid an invariant violation warning,
-	 * is here, in ->prepare_write.
-	 */
-	unionfs_copy_attr_times(file->f_path.dentry->d_inode);
 	err = unionfs_file_revalidate(file, true);
-	unionfs_check_file(file);
+	if (!err) {
+		unionfs_copy_attr_times(file->f_path.dentry->d_inode);
+		unionfs_check_file(file);
+	}
 	unionfs_read_unlock(file->f_path.dentry->d_sb);
 
 	return err;
