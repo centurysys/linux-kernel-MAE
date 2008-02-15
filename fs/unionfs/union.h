@@ -206,6 +206,8 @@ struct unionfs_dir_state {
 
 /* externs needed for fanout.h or sioq.h */
 extern int unionfs_get_nlinks(const struct inode *inode);
+extern void unionfs_copy_attr_times(struct inode *upper);
+extern void unionfs_copy_attr_all(struct inode *dest, const struct inode *src);
 
 /* include miscellaneous macros */
 #include "fanout.h"
