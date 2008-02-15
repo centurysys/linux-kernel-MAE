@@ -175,16 +175,16 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 	struct nameidata lower_nd;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
+
 	valid = __unionfs_d_revalidate_chain(dentry->d_parent, nd, false);
-	unionfs_unlock_dentry(dentry->d_parent);
 	if (unlikely(!valid)) {
 		err = -ESTALE;	/* same as what real_lookup does */
 		goto out;
 	}
-	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	valid = __unionfs_d_revalidate_chain(dentry, nd, false);
+	valid = __unionfs_d_revalidate_one_locked(dentry, nd, false);
 	/*
 	 * It's only a bug if this dentry was not negative and couldn't be
 	 * revalidated (shouldn't happen).
@@ -224,14 +224,13 @@ static int unionfs_create(struct inode *parent, struct dentry *dentry,
 	unlock_dir(lower_parent_dentry);
 
 out:
-	if (!err)
-		unionfs_postcopyup_setmnt(dentry);
-
-	unionfs_check_inode(parent);
 	if (!err) {
+		unionfs_postcopyup_setmnt(dentry);
+		unionfs_check_inode(parent);
 		unionfs_check_dentry(dentry);
 		unionfs_check_nd(nd);
 	}
+	unionfs_unlock_dentry(dentry->d_parent);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
@@ -251,7 +250,7 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	if (dentry != dentry->d_parent)
-		unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
+		unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_ROOT);
 
 	/* save the dentry & vfsmnt from namei */
 	if (nd) {
@@ -273,6 +272,7 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 	if (!IS_ERR(ret)) {
 		if (ret)
 			dentry = ret;
+		unionfs_copy_attr_times(dentry->d_inode);
 		/* parent times may have changed */
 		unionfs_copy_attr_times(dentry->d_parent->d_inode);
 	}
@@ -469,9 +469,15 @@ static int unionfs_symlink(struct inode *parent, struct dentry *dentry,
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+	unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
 
+	valid = __unionfs_d_revalidate_chain(dentry->d_parent, NULL, false);
+	if (unlikely(!valid)) {
+		err = -ESTALE;
+		goto out;
+	}
 	if (unlikely(dentry->d_inode &&
-		     !__unionfs_d_revalidate_chain(dentry, NULL, false))) {
+		     !__unionfs_d_revalidate_one_locked(dentry, NULL, false))) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -514,12 +520,12 @@ out:
 	dput(wh_dentry);
 	kfree(name);
 
-	if (!err)
+	if (!err) {
 		unionfs_postcopyup_setmnt(dentry);
-
-	unionfs_check_inode(parent);
-	if (!err)
+		unionfs_check_inode(parent);
 		unionfs_check_dentry(dentry);
+	}
+	unionfs_unlock_dentry(dentry->d_parent);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
@@ -534,12 +540,19 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 	char *name = NULL;
 	int whiteout_unlinked = 0;
 	struct sioq_args args;
+	int valid;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+	unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
 
+	valid = __unionfs_d_revalidate_chain(dentry->d_parent, NULL, false);
+	if (unlikely(!valid)) {
+		err = -ESTALE;	/* same as what real_lookup does */
+		goto out;
+	}
 	if (unlikely(dentry->d_inode &&
-		     !__unionfs_d_revalidate_chain(dentry, NULL, false))) {
+		     !__unionfs_d_revalidate_one_locked(dentry, NULL, false))) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -673,6 +686,7 @@ out:
 	}
 	unionfs_check_inode(parent);
 	unionfs_check_dentry(dentry);
+	unionfs_unlock_dentry(dentry->d_parent);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 
@@ -691,9 +705,15 @@ static int unionfs_mknod(struct inode *parent, struct dentry *dentry, int mode,
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+	unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
 
+	valid = __unionfs_d_revalidate_chain(dentry->d_parent, NULL, false);
+	if (unlikely(!valid)) {
+		err = -ESTALE;
+		goto out;
+	}
 	if (unlikely(dentry->d_inode &&
-		     !__unionfs_d_revalidate_chain(dentry, NULL, false))) {
+		     !__unionfs_d_revalidate_one_locked(dentry, NULL, false))) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -734,12 +754,12 @@ out:
 	dput(wh_dentry);
 	kfree(name);
 
-	if (!err)
+	if (!err) {
 		unionfs_postcopyup_setmnt(dentry);
-
-	unionfs_check_inode(parent);
-	if (!err)
+		unionfs_check_inode(parent);
 		unionfs_check_dentry(dentry);
+	}
+	unionfs_unlock_dentry(dentry->d_parent);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
