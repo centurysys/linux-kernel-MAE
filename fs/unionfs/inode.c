@@ -820,7 +820,11 @@ static void *unionfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	err = 0;
 
 out:
-	unionfs_check_dentry(dentry);
+	if (!err) {
+		unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+		unionfs_check_dentry(dentry);
+		unionfs_unlock_dentry(dentry);
+	}
 	unionfs_check_nd(nd);
 	return ERR_PTR(err);
 }
