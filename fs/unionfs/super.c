@@ -24,11 +24,19 @@
  */
 static struct kmem_cache *unionfs_inode_cachep;
 
-static void unionfs_read_inode(struct inode *inode)
+struct inode *unionfs_iget(struct super_block *sb, unsigned long ino)
 {
 	int size;
-	struct unionfs_inode_info *info = UNIONFS_I(inode);
+	struct unionfs_inode_info *info;
+	struct inode *inode;
 
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+ 	if (!(inode->i_state & I_NEW))
+ 		return inode;
+
+	info = UNIONFS_I(inode);
 	memset(info, 0, offsetof(struct unionfs_inode_info, vfs_inode));
 	info->bstart = -1;
 	info->bend = -1;
@@ -44,7 +52,8 @@ static void unionfs_read_inode(struct inode *inode)
 	if (unlikely(!info->lower_inodes)) {
 		printk(KERN_CRIT "unionfs: no kernel memory when allocating "
 		       "lower-pointer array!\n");
-		BUG();
+		iget_failed(inode);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	inode->i_version++;
@@ -60,7 +69,8 @@ static void unionfs_read_inode(struct inode *inode)
 	inode->i_atime.tv_sec = inode->i_atime.tv_nsec = 0;
 	inode->i_mtime.tv_sec = inode->i_mtime.tv_nsec = 0;
 	inode->i_ctime.tv_sec = inode->i_ctime.tv_nsec = 0;
-
+	unlock_new_inode(inode);
+	return inode;
 }
 
 /*
@@ -1025,7 +1035,6 @@ out:
 }
 
 struct super_operations unionfs_sops = {
-	.read_inode	= unionfs_read_inode,
 	.delete_inode	= unionfs_delete_inode,
 	.put_super	= unionfs_put_super,
 	.statfs		= unionfs_statfs,
