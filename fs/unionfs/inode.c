@@ -246,7 +246,7 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 				     struct dentry *dentry,
 				     struct nameidata *nd)
 {
-	struct path path_save;
+	struct path path_save = {NULL, NULL};
 	struct dentry *ret;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
