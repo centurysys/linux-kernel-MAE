@@ -116,6 +116,14 @@ static void unionfs_put_super(struct super_block *sb)
 		}
 	BUG_ON(leaks != 0);
 
+	/* decrement lower super references */
+	for (bindex = bstart; bindex <= bend; bindex++) {
+		struct super_block *s;
+		s = unionfs_lower_super_idx(sb, bindex);
+		unionfs_set_lower_super_idx(sb, bindex, NULL);
+		atomic_dec(&s->s_active);
+	}
+
 	kfree(spd->data);
 	kfree(spd);
 	sb->s_fs_info = NULL;
@@ -728,6 +736,12 @@ out_no_change:
 	 * superblock as we can.
 	 */
 	purge_sb_data(sb);
+
+	/* grab new lower super references; release old ones */
+	for (i = 0; i < new_branches; i++)
+		atomic_inc(&new_data[i].sb->s_active);
+	for (i = 0; i < new_branches; i++)
+		atomic_dec(&UNIONFS_SB(sb)->data[i].sb->s_active);
 
 	/* copy new vectors into their correct place */
 	tmp_data = UNIONFS_SB(sb)->data;

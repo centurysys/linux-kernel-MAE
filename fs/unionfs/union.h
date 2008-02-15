@@ -134,7 +134,7 @@ struct unionfs_dentry_info {
 
 /* These are the pointers to our various objects. */
 struct unionfs_data {
-	struct super_block *sb;
+	struct super_block *sb;	/* lower super_block */
 	atomic_t open_files;	/* number of open files on branch */
 	int branchperms;
 	int branch_id;		/* unique branch ID at re/mount time */
