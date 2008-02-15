@@ -410,15 +410,10 @@ bool __unionfs_d_revalidate_chain(struct dentry *dentry, struct nameidata *nd,
 		goto out;
 	}
 
-	/*
-	 * lock all dentries in chain, in child to parent order.
-	 * if failed, then sleep for a little, then retry.
-	 */
-	dtmp = dentry->d_parent;
-	for (i = chain_len-1; i >= 0; i--) {
-		chain[i] = dget(dtmp);
-		dtmp = dtmp->d_parent;
-	}
+	/* grab all dentries in chain, in child to parent order */
+	dtmp = dentry;
+	for (i = chain_len-1; i >= 0; i--)
+		dtmp = chain[i] = dget_parent(dtmp);
 
 	/*
 	 * call __unionfs_d_revalidate_one() on each dentry, but in parent
