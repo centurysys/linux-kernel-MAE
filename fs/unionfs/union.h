@@ -375,6 +375,9 @@ extern int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 extern int unionfs_unlink(struct inode *dir, struct dentry *dentry);
 extern int unionfs_rmdir(struct inode *dir, struct dentry *dentry);
 
+extern bool __unionfs_d_revalidate_one_locked(struct dentry *dentry,
+					      struct nameidata *nd,
+					      bool willwrite);
 extern bool __unionfs_d_revalidate_chain(struct dentry *dentry,
 					 struct nameidata *nd, bool willwrite);
 extern bool is_newer_lower(const struct dentry *dentry);
