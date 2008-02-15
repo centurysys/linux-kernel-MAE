@@ -256,6 +256,19 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 			continue;
 		}
 
+		/*
+		 * If we already found at least one positive dentry
+		 * (dentry_count is non-zero), then we skip all remaining
+		 * positive dentries if their type is a non-dir.  This is
+		 * because only directories are allowed to stack on multiple
+		 * branches, but we have to skip non-dirs (to avoid, say,
+		 * calling readdir on a regular file).
+		 */
+		if (!S_ISDIR(lower_dentry->d_inode->i_mode) && dentry_count) {
+			dput(lower_dentry);
+			continue;
+		}
+
 		/* number of positive dentries */
 		dentry_count++;
 
