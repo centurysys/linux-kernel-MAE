@@ -1064,8 +1064,7 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	if (ia->ia_valid & ATTR_ATIME_SET)
 		inode->i_atime = lower_inode->i_atime;
 	fsstack_copy_inode_size(inode, lower_inode);
-	/* if setattr succeeded, then parent dir may have changed */
-	unionfs_copy_attr_times(dentry->d_parent->d_inode);
+
 out:
 	if (!err)
 		unionfs_check_dentry(dentry);
