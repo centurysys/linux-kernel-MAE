@@ -46,6 +46,7 @@
 #include <linux/poison.h>
 #include <linux/mman.h>
 #include <linux/backing-dev.h>
+#include <linux/splice.h>
 
 #include <asm/system.h>
 
