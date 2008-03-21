@@ -165,6 +165,61 @@ out:
 	return err;
 }
 
+static ssize_t unionfs_splice_read(struct file *file, loff_t *ppos,
+				   struct pipe_inode_info *pipe, size_t len,
+				   unsigned int flags)
+{
+	ssize_t err;
+	struct file *lower_file;
+
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	err = unionfs_file_revalidate(file, false);
+	if (unlikely(err))
+		goto out;
+
+	lower_file = unionfs_lower_file(file);
+	err = vfs_splice_to(lower_file, ppos, pipe, len, flags);
+	/* update our inode atime upon a successful lower splice-read */
+	if (err >= 0) {
+		fsstack_copy_attr_atime(file->f_path.dentry->d_inode,
+					lower_file->f_path.dentry->d_inode);
+		unionfs_check_file(file);
+	}
+
+out:
+	unionfs_check_file(file);
+	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	return err;
+}
+
+static ssize_t unionfs_splice_write(struct pipe_inode_info *pipe,
+				    struct file *file, loff_t *ppos,
+				    size_t len, unsigned int flags)
+{
+	ssize_t err = 0;
+	struct file *lower_file;
+
+	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	err = unionfs_file_revalidate(file, true);
+	if (unlikely(err))
+		goto out;
+
+	lower_file = unionfs_lower_file(file);
+	err = vfs_splice_from(pipe, lower_file, ppos, len, flags);
+	/* update our inode times+sizes upon a successful lower write */
+	if (err >= 0) {
+		fsstack_copy_inode_size(file->f_path.dentry->d_inode,
+					lower_file->f_path.dentry->d_inode);
+		fsstack_copy_attr_times(file->f_path.dentry->d_inode,
+					lower_file->f_path.dentry->d_inode);
+		unionfs_check_file(file);
+	}
+
+out:
+	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	return err;
+}
+
 struct file_operations unionfs_main_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
@@ -179,6 +234,6 @@ struct file_operations unionfs_main_fops = {
 	.release	= unionfs_file_release,
 	.fsync		= unionfs_fsync,
 	.fasync		= unionfs_fasync,
-	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_read	= unionfs_splice_read,
+	.splice_write	= unionfs_splice_write,
 };
