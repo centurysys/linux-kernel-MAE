@@ -75,7 +75,8 @@ extern struct inode_operations unionfs_dir_iops;
 extern struct inode_operations unionfs_symlink_iops;
 extern struct super_operations unionfs_sops;
 extern struct dentry_operations unionfs_dops;
-extern struct address_space_operations unionfs_aops;
+extern struct address_space_operations unionfs_aops, unionfs_dummy_aops;
+extern struct vm_operations_struct unionfs_vm_ops;
 
 /* How long should an entry be allowed to persist */
 #define RDCACHE_JIFFIES	(5*HZ)
@@ -96,6 +97,7 @@ struct unionfs_file_info {
 	struct unionfs_dir_state *rdstate;
 	struct file **lower_files;
 	int *saved_branch_ids; /* IDs of branches when file was opened */
+	struct vm_operations_struct *lower_vm_ops;
 };
 
 /* unionfs inode data in memory */
