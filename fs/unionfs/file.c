@@ -18,10 +18,75 @@
 
 #include "union.h"
 
+static ssize_t unionfs_read(struct file *file, char __user *buf,
+			    size_t count, loff_t *ppos)
+{
+	int err;
+	struct file *lower_file;
+	struct dentry *dentry = file->f_path.dentry;
+
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+	err = unionfs_file_revalidate_locked(file, false);
+	if (unlikely(err))
+		goto out;
+
+	lower_file = unionfs_lower_file(file);
+	err = vfs_read(lower_file, buf, count, ppos);
+	/* update our inode atime upon a successful lower read */
+	if (err >= 0) {
+		fsstack_copy_attr_atime(file->f_path.dentry->d_inode,
+					lower_file->f_path.dentry->d_inode);
+		unionfs_check_file(file);
+	}
+
+out:
+	unionfs_unlock_dentry(dentry);
+	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	return err;
+}
+
+static ssize_t unionfs_write(struct file *file, const char __user *buf,
+			     size_t count, loff_t *ppos)
+{
+	int err = 0;
+	struct file *lower_file;
+	struct dentry *dentry = file->f_path.dentry;
+
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+	err = unionfs_file_revalidate_locked(file, true);
+	if (unlikely(err))
+		goto out;
+
+	lower_file = unionfs_lower_file(file);
+	err = vfs_write(lower_file, buf, count, ppos);
+	/* update our inode times+sizes upon a successful lower write */
+	if (err >= 0) {
+		fsstack_copy_inode_size(file->f_path.dentry->d_inode,
+					lower_file->f_path.dentry->d_inode);
+		fsstack_copy_attr_times(file->f_path.dentry->d_inode,
+					lower_file->f_path.dentry->d_inode);
+		unionfs_check_file(file);
+	}
+
+out:
+	unionfs_unlock_dentry(dentry);
+	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	return err;
+}
+
+
 static int unionfs_file_readdir(struct file *file, void *dirent,
 				filldir_t filldir)
 {
 	return -ENOTDIR;
+}
+
+int unionfs_readpage_dummy(struct file *file, struct page *page)
+{
+	BUG();
+	return -EINVAL;
 }
 
 static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
@@ -29,6 +94,7 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 	int err = 0;
 	bool willwrite;
 	struct file *lower_file;
+	struct vm_operations_struct *saved_vm_ops = NULL;
 
 	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 
@@ -54,12 +120,39 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 		err = -EINVAL;
 		printk(KERN_ERR "unionfs: branch %d file system does not "
 		       "support writeable mmap\n", fbstart(file));
-	} else {
-		err = generic_file_mmap(file, vma);
-		if (err)
-			printk(KERN_ERR
-			       "unionfs: generic_file_mmap failed %d\n", err);
+		goto out;
 	}
+
+	/*
+	 * find and save lower vm_ops.
+	 *
+	 * XXX: the VFS should have a cleaner way of finding the lower vm_ops
+	 */
+	if (!UNIONFS_F(file)->lower_vm_ops) {
+		err = lower_file->f_op->mmap(lower_file, vma);
+		if (err) {
+			printk(KERN_ERR "unionfs: lower mmap failed %d\n", err);
+			goto out;
+		}
+		saved_vm_ops = vma->vm_ops;
+		err = do_munmap(current->mm, vma->vm_start,
+				vma->vm_end - vma->vm_start);
+		if (err) {
+			printk(KERN_ERR "unionfs: do_munmap failed %d\n", err);
+			goto out;
+		}
+	}
+
+	file->f_mapping->a_ops = &unionfs_dummy_aops;
+	err = generic_file_mmap(file, vma);
+	file->f_mapping->a_ops = &unionfs_aops;
+	if (err) {
+		printk(KERN_ERR "unionfs: generic_file_mmap failed %d\n", err);
+		goto out;
+	}
+	vma->vm_ops = &unionfs_vm_ops;
+	if (!UNIONFS_F(file)->lower_vm_ops)
+		UNIONFS_F(file)->lower_vm_ops = saved_vm_ops;
 
 out:
 	if (!err) {
@@ -222,10 +315,8 @@ out:
 
 struct file_operations unionfs_main_fops = {
 	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
-	.aio_read	= generic_file_aio_read,
-	.write		= do_sync_write,
-	.aio_write	= generic_file_aio_write,
+	.read		= unionfs_read,
+	.write		= unionfs_write,
 	.readdir	= unionfs_file_readdir,
 	.unlocked_ioctl	= unionfs_ioctl,
 	.mmap		= unionfs_mmap,
