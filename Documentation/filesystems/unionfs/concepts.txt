@@ -62,6 +62,31 @@ simplest solution is to take the instance from the highest priority
 (numerically lowest value) and "hide" the others.
 
 
+Unlinking:
+=========
+
+Unlink operation on non-directory instances is optimized to remove the
+maximum possible objects in case multiple underlying branches have the same
+file name.  The unlink operation will first try to delete file instances
+from highest priority branch and then move further to delete from remaining
+branches in order of their decreasing priority.  Consider a case (F..D..F),
+where F is a file and D is a directory of the same name; here, some
+intermediate branch could have an empty directory instance with the same
+name, so this operation also tries to delete this directory instance and
+proceed further to delete from next possible lower priority branch.  The
+unionfs unlink operation will smoothly delete the files with same name from
+all possible underlying branches.  In case if some error occurs, it creates
+whiteout in highest priority branch that will hide file instance in rest of
+the branches.  An error could occur either if an unlink operations in any of
+the underlying branch failed or if a branch has no write permission.
+
+This unlinking policy is known as "delete all" and it has the benefit of
+overall reducing the number of inodes used by duplicate files, and further
+reducing the total number of inodes consumed by whiteouts.  The cost is of
+extra processing, but testing shows this extra processing is well worth the
+savings.
+
+
 Copyup:
 =======
 
