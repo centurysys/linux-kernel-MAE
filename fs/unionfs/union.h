@@ -564,24 +564,24 @@ static inline void unionfs_mntput(struct dentry *dentry, int bindex)
 #ifdef CONFIG_UNION_FS_DEBUG
 
 /* useful for tracking code reachability */
-#define UDBG pr_debug("DBG:%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__)
+#define UDBG pr_debug("DBG:%s:%s:%d\n", __FILE__, __func__, __LINE__)
 
 #define unionfs_check_inode(i)	__unionfs_check_inode((i),	\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 #define unionfs_check_dentry(d)	__unionfs_check_dentry((d),	\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 #define unionfs_check_file(f)	__unionfs_check_file((f),	\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 #define unionfs_check_nd(n)	__unionfs_check_nd((n),		\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 #define show_branch_counts(sb)	__show_branch_counts((sb),	\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 #define show_inode_times(i)	__show_inode_times((i),		\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 #define show_dinode_times(d)	__show_dinode_times((d),	\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 #define show_inode_counts(i)	__show_inode_counts((i),	\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 
 extern void __unionfs_check_inode(const struct inode *inode, const char *fname,
 				  const char *fxn, int line);
