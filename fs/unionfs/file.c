@@ -27,7 +27,7 @@ static ssize_t unionfs_read(struct file *file, char __user *buf,
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
-	err = unionfs_file_revalidate_locked(file, false);
+	err = unionfs_file_revalidate(file, false);
 	if (unlikely(err))
 		goto out;
 
@@ -55,7 +55,7 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
-	err = unionfs_file_revalidate_locked(file, true);
+	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))
 		goto out;
 
@@ -94,9 +94,11 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 	int err = 0;
 	bool willwrite;
 	struct file *lower_file;
+	struct dentry *dentry = file->f_path.dentry;
 	struct vm_operations_struct *saved_vm_ops = NULL;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	/* This might be deferred to mmap's writepage */
 	willwrite = ((vma->vm_flags | VM_SHARED | VM_WRITE) == vma->vm_flags);
@@ -157,10 +159,11 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 out:
 	if (!err) {
 		/* copyup could cause parent dir times to change */
-		unionfs_copy_attr_times(file->f_path.dentry->d_parent->d_inode);
+		unionfs_copy_attr_times(dentry->d_parent->d_inode);
 		unionfs_check_file(file);
 	}
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	unionfs_unlock_dentry(dentry);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
 
@@ -172,7 +175,8 @@ int unionfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	struct inode *lower_inode, *inode;
 	int err = -EINVAL;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))
 		goto out;
@@ -207,8 +211,10 @@ int unionfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	unionfs_copy_attr_times(inode);
 
 out:
-	unionfs_check_file(file);
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	if (!err)
+		unionfs_check_file(file);
+	unionfs_unlock_dentry(dentry);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
 
@@ -216,11 +222,12 @@ int unionfs_fasync(int fd, struct file *file, int flag)
 {
 	int bindex, bstart, bend;
 	struct file *lower_file;
-	struct dentry *dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *lower_inode, *inode;
 	int err = 0;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))
 		goto out;
@@ -231,7 +238,6 @@ int unionfs_fasync(int fd, struct file *file, int flag)
 	if (bstart < 0 || bend < 0)
 		goto out;
 
-	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	if (unlikely(!inode)) {
 		printk(KERN_ERR
@@ -253,8 +259,10 @@ int unionfs_fasync(int fd, struct file *file, int flag)
 	unionfs_copy_attr_times(inode);
 
 out:
-	unionfs_check_file(file);
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	if (!err)
+		unionfs_check_file(file);
+	unionfs_unlock_dentry(dentry);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
 
@@ -264,8 +272,10 @@ static ssize_t unionfs_splice_read(struct file *file, loff_t *ppos,
 {
 	ssize_t err;
 	struct file *lower_file;
+	struct dentry *dentry = file->f_path.dentry;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	err = unionfs_file_revalidate(file, false);
 	if (unlikely(err))
 		goto out;
@@ -274,14 +284,14 @@ static ssize_t unionfs_splice_read(struct file *file, loff_t *ppos,
 	err = vfs_splice_to(lower_file, ppos, pipe, len, flags);
 	/* update our inode atime upon a successful lower splice-read */
 	if (err >= 0) {
-		fsstack_copy_attr_atime(file->f_path.dentry->d_inode,
+		fsstack_copy_attr_atime(dentry->d_inode,
 					lower_file->f_path.dentry->d_inode);
 		unionfs_check_file(file);
 	}
 
 out:
-	unionfs_check_file(file);
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	unionfs_unlock_dentry(dentry);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
 
@@ -291,8 +301,10 @@ static ssize_t unionfs_splice_write(struct pipe_inode_info *pipe,
 {
 	ssize_t err = 0;
 	struct file *lower_file;
+	struct dentry *dentry = file->f_path.dentry;
 
-	unionfs_read_lock(file->f_path.dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 	err = unionfs_file_revalidate(file, true);
 	if (unlikely(err))
 		goto out;
@@ -301,15 +313,16 @@ static ssize_t unionfs_splice_write(struct pipe_inode_info *pipe,
 	err = vfs_splice_from(pipe, lower_file, ppos, len, flags);
 	/* update our inode times+sizes upon a successful lower write */
 	if (err >= 0) {
-		fsstack_copy_inode_size(file->f_path.dentry->d_inode,
+		fsstack_copy_inode_size(dentry->d_inode,
 					lower_file->f_path.dentry->d_inode);
-		fsstack_copy_attr_times(file->f_path.dentry->d_inode,
+		fsstack_copy_attr_times(dentry->d_inode,
 					lower_file->f_path.dentry->d_inode);
 		unionfs_check_file(file);
 	}
 
 out:
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	unionfs_unlock_dentry(dentry);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
 
