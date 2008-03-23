@@ -264,7 +264,9 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 		 * branches, but we have to skip non-dirs (to avoid, say,
 		 * calling readdir on a regular file).
 		 */
-		if (!S_ISDIR(lower_dentry->d_inode->i_mode) && dentry_count) {
+		if ((lookupmode != INTERPOSE_PARTIAL) &&
+		    !S_ISDIR(lower_dentry->d_inode->i_mode) &&
+		    dentry_count) {
 			dput(lower_dentry);
 			continue;
 		}
@@ -295,10 +297,6 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 				continue;
 			if (dentry_count == 1)
 				goto out_positive;
-			/* This can only happen with mixed D-*-F-* */
-			BUG_ON(!S_ISDIR(unionfs_lower_dentry(dentry)->
-					d_inode->i_mode));
-			continue;
 		}
 
 		opaque = is_opaque_dir(dentry, bindex);
