@@ -134,6 +134,7 @@ static void unionfs_put_super(struct super_block *sb)
 		atomic_dec(&s->s_active);
 	}
 
+	kfree(spd->dev_name);
 	kfree(spd->data);
 	kfree(spd);
 	sb->s_fs_info = NULL;
@@ -805,7 +806,8 @@ out_no_change:
 	atomic_set(&UNIONFS_D(sb->s_root)->generation, i);
 	atomic_set(&UNIONFS_I(sb->s_root->d_inode)->generation, i);
 	if (!(*flags & MS_SILENT))
-		pr_info("unionfs: new generation number %d\n", i);
+		pr_info("unionfs: %s: new generation number %d\n",
+			UNIONFS_SB(sb)->dev_name, i);
 	/* finally, update the root dentry's times */
 	unionfs_copy_attr_times(sb->s_root->d_inode);
 	err = 0;		/* reset to success */
