@@ -166,6 +166,7 @@ struct unionfs_sb_info {
 	struct unionfs_rw_semaphore rwsem;
 	pid_t write_lock_owner;	/* PID of rw_sem owner (write lock) */
 	int high_branch_id;	/* last unique branch ID given */
+	char *dev_name;		/* to identify different unions in pr_debug */
 	struct unionfs_data *data;
 };
 

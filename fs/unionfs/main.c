@@ -736,7 +736,12 @@ static int unionfs_get_sb(struct file_system_type *fs_type,
 			  int flags, const char *dev_name,
 			  void *raw_data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, raw_data, unionfs_read_super, mnt);
+	int err;
+	err = get_sb_nodev(fs_type, flags, raw_data, unionfs_read_super, mnt);
+	if (!err)
+		UNIONFS_SB(mnt->mnt_sb)->dev_name =
+			kstrdup(dev_name, GFP_KERNEL);
+	return err;
 }
 
 static struct file_system_type unionfs_fs_type = {
