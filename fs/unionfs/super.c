@@ -755,7 +755,7 @@ out_no_change:
 	/* grab new lower super references; release old ones */
 	for (i = 0; i < new_branches; i++)
 		atomic_inc(&new_data[i].sb->s_active);
-	for (i = 0; i < new_branches; i++)
+	for (i = 0; i < sbmax(sb); i++)
 		atomic_dec(&UNIONFS_SB(sb)->data[i].sb->s_active);
 
 	/* copy new vectors into their correct place */
