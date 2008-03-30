@@ -273,17 +273,6 @@ static inline void purge_inode_data(struct inode *inode)
 	 */
 }
 
-void purge_sb_data(struct super_block *sb)
-{
-	struct inode *inode;
-
-	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-		if (inode->i_state & (I_FREEING|I_WILL_FREE))
-			continue;
-		purge_inode_data(inode);
-	}
-}
-
 /*
  * Revalidate a single file/symlink/special dentry.  Assume that info nodes
  * of the dentry and its parent are locked.  Assume that parent(s) are all

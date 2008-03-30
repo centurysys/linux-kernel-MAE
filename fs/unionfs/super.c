@@ -747,10 +747,12 @@ out_no_change:
 	 * function).  This revalidation will happen lazily and
 	 * incrementally, as users perform operations on cached inodes.  We
 	 * would like to encourage this revalidation to happen sooner if
-	 * possible, so we try to invalidate as many other pages in our
-	 * superblock as we can.
+	 * possible, so we like to try to invalidate as many other pages in
+	 * our superblock as we can.  We used to call drop_pagecache_sb() or
+	 * a variant thereof, but either method was racy (drop_caches alone
+	 * is known to be racy).  So now we let the revalidation happen on a
+	 * per file basis in ->d_revalidate.
 	 */
-	purge_sb_data(sb);
 
 	/* grab new lower super references; release old ones */
 	for (i = 0; i < new_branches; i++)
