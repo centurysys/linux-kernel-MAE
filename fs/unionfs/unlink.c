@@ -280,6 +280,8 @@ out:
 		    !unionfs_lower_inode_idx(inode, dend))
 			ibstart(inode) = ibend(inode) = -1;
 		d_drop(dentry);
+		/* update our lower vfsmnts, in case a copyup took place */
+		unionfs_postcopyup_setmnt(dentry);
 	}
 
 	if (namelist)
