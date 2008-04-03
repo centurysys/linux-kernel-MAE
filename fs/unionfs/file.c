@@ -196,12 +196,12 @@ int unionfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 		err = lower_inode->i_fop->fsync(lower_file,
 						lower_dentry,
 						datasync);
+		if (!err && bindex == bstart)
+			fsstack_copy_attr_times(inode, lower_inode);
 		mutex_unlock(&lower_inode->i_mutex);
 		if (err)
 			goto out;
 	}
-
-	unionfs_copy_attr_times(inode);
 
 out:
 	if (!err)
@@ -244,12 +244,12 @@ int unionfs_fasync(int fd, struct file *file, int flag)
 		lower_file = unionfs_lower_file_idx(file, bindex);
 		mutex_lock(&lower_inode->i_mutex);
 		err = lower_inode->i_fop->fasync(fd, lower_file, flag);
+		if (!err && bindex == bstart)
+			fsstack_copy_attr_times(inode, lower_inode);
 		mutex_unlock(&lower_inode->i_mutex);
 		if (err)
 			goto out;
 	}
-
-	unionfs_copy_attr_times(inode);
 
 out:
 	if (!err)
