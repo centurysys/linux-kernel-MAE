@@ -128,6 +128,8 @@ begin:
 		err = check_for_whiteout(dentry, lower_dentry);
 		if (err)
 			continue;
+		/* if get here, we can write to the branch */
+		break;
 	}
 	/*
 	 * If istart wasn't already branch 0, and we got any error, then try
