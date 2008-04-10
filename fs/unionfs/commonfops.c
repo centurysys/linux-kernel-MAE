@@ -258,9 +258,13 @@ static int do_delayed_copyup(struct file *file)
 		else
 			err = copyup_deleted_file(file, dentry, bstart,
 						  bindex);
-
-		if (!err)
+		/* if succeeded, set lower open-file flags and break */
+		if (!err) {
+			struct file *lower_file;
+			lower_file = unionfs_lower_file_idx(file, bindex);
+			lower_file->f_flags = file->f_flags;
 			break;
+		}
 	}
 	if (err || (bstart <= fbstart(file)))
 		goto out;
@@ -491,6 +495,10 @@ static int __open_file(struct inode *inode, struct file *file)
 			}
 			return err;
 		} else {
+			/*
+			 * turn off writeable flags, to force delayed copyup
+			 * by caller.
+			 */
 			lower_flags &= ~(OPEN_WRITE_FLAGS);
 		}
 	}
