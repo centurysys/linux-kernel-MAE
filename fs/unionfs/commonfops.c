@@ -250,7 +250,6 @@ static int do_delayed_copyup(struct file *file)
 	BUG_ON(!S_ISREG(dentry->d_inode->i_mode));
 
 	unionfs_check_file(file);
-	unionfs_check_dentry(dentry);
 	for (bindex = bstart - 1; bindex >= 0; bindex--) {
 		if (!d_deleted(dentry))
 			err = copyup_file(parent_inode, file, bstart,
@@ -292,7 +291,6 @@ static int do_delayed_copyup(struct file *file)
 
 out:
 	unionfs_check_file(file);
-	unionfs_check_dentry(dentry);
 	return err;
 }
 
