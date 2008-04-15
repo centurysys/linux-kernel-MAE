@@ -35,14 +35,14 @@ static ssize_t unionfs_read(struct file *file, char __user *buf,
 	err = vfs_read(lower_file, buf, count, ppos);
 	/* update our inode atime upon a successful lower read */
 	if (err >= 0) {
-		fsstack_copy_attr_atime(file->f_path.dentry->d_inode,
+		fsstack_copy_attr_atime(dentry->d_inode,
 					lower_file->f_path.dentry->d_inode);
 		unionfs_check_file(file);
 	}
 
 out:
 	unionfs_unlock_dentry(dentry);
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
 
@@ -63,30 +63,23 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 	err = vfs_write(lower_file, buf, count, ppos);
 	/* update our inode times+sizes upon a successful lower write */
 	if (err >= 0) {
-		fsstack_copy_inode_size(file->f_path.dentry->d_inode,
+		fsstack_copy_inode_size(dentry->d_inode,
 					lower_file->f_path.dentry->d_inode);
-		fsstack_copy_attr_times(file->f_path.dentry->d_inode,
+		fsstack_copy_attr_times(dentry->d_inode,
 					lower_file->f_path.dentry->d_inode);
 		unionfs_check_file(file);
 	}
 
 out:
 	unionfs_unlock_dentry(dentry);
-	unionfs_read_unlock(file->f_path.dentry->d_sb);
+	unionfs_read_unlock(dentry->d_sb);
 	return err;
 }
-
 
 static int unionfs_file_readdir(struct file *file, void *dirent,
 				filldir_t filldir)
 {
 	return -ENOTDIR;
-}
-
-int unionfs_readpage_dummy(struct file *file, struct page *page)
-{
-	BUG();
-	return -EINVAL;
 }
 
 static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
