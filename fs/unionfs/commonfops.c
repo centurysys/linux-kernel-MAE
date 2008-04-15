@@ -635,7 +635,7 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	 * This is important for open-but-unlinked files, as well as mmap
 	 * support.
 	 */
-	err = unionfs_file_revalidate(file, true);
+	err = unionfs_file_revalidate(file, UNIONFS_F(file)->wrote_to_file);
 	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);
@@ -819,7 +819,7 @@ int unionfs_flush(struct file *file, fl_owner_t id)
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	err = unionfs_file_revalidate(file, true);
+	err = unionfs_file_revalidate(file, UNIONFS_F(file)->wrote_to_file);
 	if (unlikely(err))
 		goto out;
 	unionfs_check_file(file);

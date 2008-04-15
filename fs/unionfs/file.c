@@ -67,6 +67,7 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 					lower_file->f_path.dentry->d_inode);
 		fsstack_copy_attr_times(dentry->d_inode,
 					lower_file->f_path.dentry->d_inode);
+		UNIONFS_F(file)->wrote_to_file = true; /* for delayed copyup */
 		unionfs_check_file(file);
 	}
 
