@@ -717,6 +717,7 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 		lower_file = unionfs_lower_file_idx(file, bindex);
 
 		if (lower_file) {
+			unionfs_set_lower_file_idx(file, bindex, NULL);
 			fput(lower_file);
 			branchput(sb, bindex);
 		}
