@@ -55,7 +55,9 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
-	err = unionfs_file_revalidate(file, true);
+	if (dentry != dentry->d_parent)
+		unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_PARENT);
+	err = unionfs_file_revalidate_locked(file, true);
 	if (unlikely(err))
 		goto out;
 
@@ -72,6 +74,8 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 	}
 
 out:
+	if (dentry != dentry->d_parent)
+		unionfs_unlock_dentry(dentry->d_parent);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
