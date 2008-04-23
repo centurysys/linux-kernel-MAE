@@ -365,6 +365,7 @@ extern int unionfs_getlk(struct file *file, struct file_lock *fl);
 
 /* Common file operations. */
 extern int unionfs_file_revalidate(struct file *file, bool willwrite);
+extern int unionfs_file_revalidate_locked(struct file *file, bool willwrite);
 extern int unionfs_open(struct inode *inode, struct file *file);
 extern int unionfs_file_release(struct inode *inode, struct file *file);
 extern int unionfs_flush(struct file *file, fl_owner_t id);
