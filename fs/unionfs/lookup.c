@@ -320,11 +320,9 @@ out_negative:
 		goto out;
 
 	/* If we've only got negative dentries, then use the leftmost one. */
-	if (lookupmode == INTERPOSE_REVAL) {
-		if (dentry->d_inode)
-			UNIONFS_I(dentry->d_inode)->stale = 1;
+	if (lookupmode == INTERPOSE_REVAL)
 		goto out;
-	}
+
 	if (!lower_dir_dentry) {
 		err = -ENOENT;
 		goto out;
@@ -424,7 +422,6 @@ out:
 		     !UNIONFS_I(dentry->d_inode)->lower_inodes)) {
 			unionfs_mntput(dentry->d_sb->s_root, bstart);
 			dput(first_lower_dentry);
-			UNIONFS_I(dentry->d_inode)->stale = 1;
 		}
 	}
 	kfree(whname);
@@ -433,9 +430,6 @@ out:
 		unionfs_unlock_dentry(dentry);
 	if (!err && d_interposed)
 		return d_interposed;
-	if (dentry->d_inode && UNIONFS_I(dentry->d_inode)->stale &&
-	    first_dentry_offset >= 0)
-		unionfs_mntput(dentry->d_sb->s_root, first_dentry_offset);
 	return ERR_PTR(err);
 }
 
