@@ -459,8 +459,6 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 
 	while ((optname = strsep(&options, ",")) != NULL) {
 		char *optarg;
-		char *endptr;
-		int intval;
 
 		if (!optname || !*optname)
 			continue;
@@ -491,16 +489,6 @@ static struct unionfs_dentry_info *unionfs_parse_options(
 			if (err)
 				goto out_error;
 			continue;
-		}
-
-		/* All of these options require an integer argument. */
-		intval = simple_strtoul(optarg, &endptr, 0);
-		if (*endptr) {
-			printk(KERN_ERR
-			       "unionfs: invalid %s option '%s'\n",
-			       optname, optarg);
-			err = -EINVAL;
-			goto out_error;
 		}
 
 		err = -EINVAL;
