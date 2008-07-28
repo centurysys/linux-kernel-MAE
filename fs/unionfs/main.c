@@ -88,9 +88,6 @@ struct dentry *unionfs_interpose(struct dentry *dentry, struct super_block *sb,
 
 	verify_locked(dentry);
 
-	/* Make sure that we didn't get a negative dentry. */
-	BUG_ON(is_negative_lower(dentry));
-
 	/*
 	 * We allocate our new inode below by calling unionfs_iget,
 	 * which will initialize some of the new inode's fields

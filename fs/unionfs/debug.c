@@ -313,7 +313,7 @@ check_inode:
 			}
 		}
 	/* check if lower inode is newer than upper one (it shouldn't) */
-	if (unlikely(is_newer_lower(dentry))) {
+	if (unlikely(is_newer_lower(dentry) && !is_negative_lower(dentry))) {
 		PRINT_CALLER(fname, fxn, line);
 		for (bindex = ibstart(inode); bindex <= ibend(inode);
 		     bindex++) {

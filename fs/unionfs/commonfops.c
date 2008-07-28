@@ -466,7 +466,8 @@ reval_dentry:
 	dgen = atomic_read(&UNIONFS_D(dentry)->generation);
 
 	if (unlikely(sbgen > dgen)) {
-		pr_debug("unionfs: retry (locked) dentry revalidation\n");
+		pr_debug("unionfs: retry (locked) dentry %s revalidation\n",
+			 dentry->d_name.name);
 		schedule();
 		goto reval_dentry;
 	}
