@@ -35,22 +35,6 @@ static inline void __dput_lowers(struct dentry *dentry, int start, int end)
 	}
 }
 
-static inline void __iput_lowers(struct inode *inode, int start, int end)
-{
-	struct inode *lower_inode;
-	int bindex;
-
-	if (start < 0)
-		return;
-	for (bindex = start; bindex <= end; bindex++) {
-		lower_inode = unionfs_lower_inode_idx(inode, bindex);
-		if (!lower_inode)
-			continue;
-		unionfs_set_lower_inode_idx(inode, bindex, NULL);
-		iput(lower_inode);
-	}
-}
-
 /*
  * Revalidate a single dentry.
  * Assume that dentry's info node is locked.
@@ -111,14 +95,7 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 		interpose_flag = INTERPOSE_REVAL_NEG;
 		if (positive) {
 			interpose_flag = INTERPOSE_REVAL;
-
-			bstart = ibstart(dentry->d_inode);
-			bend = ibend(dentry->d_inode);
-			__iput_lowers(dentry->d_inode, bstart, bend);
-			kfree(UNIONFS_I(dentry->d_inode)->lower_inodes);
-			UNIONFS_I(dentry->d_inode)->lower_inodes = NULL;
-			ibstart(dentry->d_inode) = -1;
-			ibend(dentry->d_inode) = -1;
+			iput_lowers_all(dentry->d_inode, true);
 		}
 
 		result = unionfs_lookup_backend(dentry, &lowernd,

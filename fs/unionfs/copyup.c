@@ -877,11 +877,10 @@ void unionfs_postcopyup_release(struct dentry *dentry)
 		if (unionfs_lower_dentry_idx(dentry, bindex)) {
 			dput(unionfs_lower_dentry_idx(dentry, bindex));
 			unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
-			iput(unionfs_lower_inode_idx(dentry->d_inode, bindex));
-			unionfs_set_lower_inode_idx(dentry->d_inode, bindex,
-						    NULL);
 		}
 	}
+	iput_lowers(dentry->d_inode, dbstart(dentry)+1, dbend(dentry), false);
+
 	bindex = dbstart(dentry);
 	dbend(dentry) = bindex;
 	ibend(dentry->d_inode) = ibstart(dentry->d_inode) = bindex;
