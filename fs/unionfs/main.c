@@ -83,25 +83,13 @@ struct dentry *unionfs_interpose(struct dentry *dentry, struct super_block *sb,
 {
 	int err = 0;
 	struct inode *inode;
-	int is_negative_dentry = 1;
-	int bindex, bstart, bend;
 	int need_fill_inode = 1;
 	struct dentry *spliced = NULL;
 
 	verify_locked(dentry);
 
-	bstart = dbstart(dentry);
-	bend = dbend(dentry);
-
 	/* Make sure that we didn't get a negative dentry. */
-	for (bindex = bstart; bindex <= bend; bindex++) {
-		if (unionfs_lower_dentry_idx(dentry, bindex) &&
-		    unionfs_lower_dentry_idx(dentry, bindex)->d_inode) {
-			is_negative_dentry = 0;
-			break;
-		}
-	}
-	BUG_ON(is_negative_dentry);
+	BUG_ON(is_negative_lower(dentry));
 
 	/*
 	 * We allocate our new inode below by calling unionfs_iget,

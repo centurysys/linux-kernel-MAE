@@ -18,6 +18,20 @@
 
 #include "union.h"
 
+bool is_negative_lower(const struct dentry *dentry)
+{
+	int bindex;
+	struct dentry *lower_dentry;
+
+	BUG_ON(!dentry || dbstart(dentry) < 0);
+	for (bindex = dbstart(dentry); bindex <= dbend(dentry); bindex++) {
+		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
+		/* XXX: what if lower_dentry is NULL? */
+		if (lower_dentry && lower_dentry->d_inode)
+			return false;
+	}
+	return true;
+}
 
 static inline void __dput_lowers(struct dentry *dentry, int start, int end)
 {
@@ -113,7 +127,7 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 			dentry = result;
 		}
 
-		if (unlikely(positive && UNIONFS_I(dentry->d_inode)->stale)) {
+		if (unlikely(positive && is_negative_lower(dentry))) {
 			make_bad_inode(dentry->d_inode);
 			d_drop(dentry);
 			valid = false;

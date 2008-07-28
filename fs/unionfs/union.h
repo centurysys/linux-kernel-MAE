@@ -106,7 +106,6 @@ struct unionfs_inode_info {
 	int bstart;
 	int bend;
 	atomic_t generation;
-	int stale;
 	/* Stuff for readdir over NFS. */
 	spinlock_t rdlock;
 	struct list_head readdircache;
@@ -384,6 +383,7 @@ extern bool __unionfs_d_revalidate_one_locked(struct dentry *dentry,
 					      bool willwrite);
 extern bool __unionfs_d_revalidate_chain(struct dentry *dentry,
 					 struct nameidata *nd, bool willwrite);
+extern bool is_negative_lower(const struct dentry *dentry);
 extern bool is_newer_lower(const struct dentry *dentry);
 extern void purge_sb_data(struct super_block *sb);
 
