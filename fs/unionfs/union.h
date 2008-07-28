@@ -353,9 +353,6 @@ extern int check_empty(struct dentry *dentry,
 extern int delete_whiteouts(struct dentry *dentry, int bindex,
 			    struct unionfs_dir_state *namelist);
 
-/* Re-lookup a lower dentry. */
-extern int unionfs_refresh_lower_dentry(struct dentry *dentry, int bindex);
-
 extern void unionfs_reinterpose(struct dentry *this_dentry);
 extern struct super_block *unionfs_duplicate_super(struct super_block *sb);
 

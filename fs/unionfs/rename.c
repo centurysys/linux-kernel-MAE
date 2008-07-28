@@ -18,6 +18,48 @@
 
 #include "union.h"
 
+/*
+ * This is a helper function for rename, used when rename ends up with hosed
+ * over dentries and we need to revert.
+ */
+static int unionfs_refresh_lower_dentry(struct dentry *dentry, int bindex)
+{
+	struct dentry *lower_dentry;
+	struct dentry *lower_parent;
+	int err = 0;
+
+	verify_locked(dentry);
+
+	unionfs_lock_dentry(dentry->d_parent, UNIONFS_DMUTEX_CHILD);
+	lower_parent = unionfs_lower_dentry_idx(dentry->d_parent, bindex);
+	unionfs_unlock_dentry(dentry->d_parent);
+
+	BUG_ON(!S_ISDIR(lower_parent->d_inode->i_mode));
+
+	lower_dentry = lookup_one_len(dentry->d_name.name, lower_parent,
+				      dentry->d_name.len);
+	if (IS_ERR(lower_dentry)) {
+		err = PTR_ERR(lower_dentry);
+		goto out;
+	}
+
+	dput(unionfs_lower_dentry_idx(dentry, bindex));
+	iput(unionfs_lower_inode_idx(dentry->d_inode, bindex));
+	unionfs_set_lower_inode_idx(dentry->d_inode, bindex, NULL);
+
+	if (!lower_dentry->d_inode) {
+		dput(lower_dentry);
+		unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
+	} else {
+		unionfs_set_lower_dentry_idx(dentry, bindex, lower_dentry);
+		unionfs_set_lower_inode_idx(dentry->d_inode, bindex,
+					    igrab(lower_dentry->d_inode));
+	}
+
+out:
+	return err;
+}
+
 static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			    struct inode *new_dir, struct dentry *new_dentry,
 			    int bindex, struct dentry **wh_old)
