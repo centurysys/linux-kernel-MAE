@@ -178,6 +178,7 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 {
 	struct path path_save = {NULL, NULL};
 	struct dentry *ret;
+	int err = 0;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	if (dentry != dentry->d_parent)
@@ -193,7 +194,14 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 	 * unionfs_lookup_backend returns a locked dentry upon success,
 	 * so we'll have to unlock it below.
 	 */
-	ret = unionfs_lookup_backend(dentry, nd, INTERPOSE_LOOKUP);
+
+	/* allocate dentry private data.  We free it in ->d_release */
+	err = new_dentry_private_data(dentry, UNIONFS_DMUTEX_CHILD);
+	if (unlikely(err)) {
+		ret = ERR_PTR(err);
+		goto out;
+	}
+	ret = unionfs_lookup_full(dentry, nd, INTERPOSE_LOOKUP);
 
 	/* restore the dentry & vfsmnt in namei */
 	if (nd) {
@@ -203,6 +211,11 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 	if (!IS_ERR(ret)) {
 		if (ret)
 			dentry = ret;
+		/* lookup_full can return multiple positive dentries */
+		if (dentry->d_inode && !S_ISDIR(dentry->d_inode->i_mode)) {
+			BUG_ON(dbstart(dentry) < 0);
+			unionfs_postcopyup_release(dentry);
+		}
 		unionfs_copy_attr_times(dentry->d_inode);
 		/* parent times may have changed */
 		unionfs_copy_attr_times(dentry->d_parent->d_inode);
@@ -212,9 +225,10 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 	if (!IS_ERR(ret)) {
 		unionfs_check_dentry(dentry);
 		unionfs_check_nd(nd);
-		unionfs_unlock_dentry(dentry);
 	}
+	unionfs_unlock_dentry(dentry);
 
+out:
 	if (dentry != dentry->d_parent) {
 		unionfs_check_dentry(dentry->d_parent);
 		unionfs_unlock_dentry(dentry->d_parent);

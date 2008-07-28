@@ -195,6 +195,7 @@ static int do_unionfs_rename(struct inode *old_dir,
 		struct dentry *unlink_dentry;
 		struct dentry *unlink_dir_dentry;
 
+		BUG_ON(bindex < 0);
 		unlink_dentry = unionfs_lower_dentry_idx(new_dentry, bindex);
 		if (!unlink_dentry)
 			continue;
