@@ -866,22 +866,15 @@ void unionfs_postcopyup_setmnt(struct dentry *dentry)
  */
 void unionfs_postcopyup_release(struct dentry *dentry)
 {
-	int bindex;
+	int bstart, bend;
 
 	BUG_ON(S_ISDIR(dentry->d_inode->i_mode));
-	for (bindex = dbstart(dentry)+1; bindex <= dbend(dentry); bindex++) {
-		if (unionfs_lower_mnt_idx(dentry, bindex)) {
-			unionfs_mntput(dentry, bindex);
-			unionfs_set_lower_mnt_idx(dentry, bindex, NULL);
-		}
-		if (unionfs_lower_dentry_idx(dentry, bindex)) {
-			dput(unionfs_lower_dentry_idx(dentry, bindex));
-			unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
-		}
-	}
-	iput_lowers(dentry->d_inode, dbstart(dentry)+1, dbend(dentry), false);
+	bstart = dbstart(dentry);
+	bend = dbend(dentry);
 
-	bindex = dbstart(dentry);
-	dbend(dentry) = bindex;
-	ibend(dentry->d_inode) = ibstart(dentry->d_inode) = bindex;
+	path_put_lowers(dentry, bstart + 1, bend, false);
+	iput_lowers(dentry->d_inode, bstart + 1, bend, false);
+
+	dbend(dentry) = bstart;
+	ibend(dentry->d_inode) = ibstart(dentry->d_inode) = bstart;
 }
