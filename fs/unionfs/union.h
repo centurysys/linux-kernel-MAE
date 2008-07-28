@@ -301,6 +301,7 @@ static inline void unionfs_double_lock_dentry(struct dentry *d1,
 }
 
 extern int new_dentry_private_data(struct dentry *dentry, int subclass);
+extern int realloc_dentry_private_data(struct dentry *dentry);
 extern void free_dentry_private_data(struct dentry *dentry);
 extern void update_bstart(struct dentry *dentry);
 extern int init_lower_nd(struct nameidata *nd, unsigned int flags);
@@ -316,6 +317,9 @@ extern struct dentry *create_parents(struct inode *dir, struct dentry *dentry,
 
 /* partial lookup */
 extern int unionfs_partial_lookup(struct dentry *dentry);
+extern struct dentry *unionfs_lookup_full(struct dentry *dentry,
+					  struct nameidata *nd_unused,
+					  int lookupmode);
 
 /* copies a file from dbstart to newbindex branch */
 extern int copyup_file(struct inode *dir, struct file *file, int bstart,
