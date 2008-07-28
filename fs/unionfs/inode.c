@@ -19,79 +19,6 @@
 #include "union.h"
 
 /*
- * Helper function when creating new objects (create, symlink, and mknod).
- * Checks to see if there's a whiteout in @lower_dentry's parent directory,
- * whose name is taken from @dentry.  Then tries to remove that whiteout, if
- * found.
- *
- * Return 0 if no whiteout was found, or if one was found and successfully
- * removed (a zero tells the caller that @lower_dentry belongs to a good
- * branch to create the new object in).  Return -ERRNO if an error occurred
- * during whiteout lookup or in trying to unlink the whiteout.
- */
-static int check_for_whiteout(struct dentry *dentry,
-			      struct dentry *lower_dentry)
-{
-	int err = 0;
-	struct dentry *wh_dentry = NULL;
-	struct dentry *lower_dir_dentry;
-	char *name = NULL;
-
-	/*
-	 * check if whiteout exists in this branch, i.e. lookup .wh.foo
-	 * first.
-	 */
-	name = alloc_whname(dentry->d_name.name, dentry->d_name.len);
-	if (unlikely(IS_ERR(name))) {
-		err = PTR_ERR(name);
-		goto out;
-	}
-
-	wh_dentry = lookup_one_len(name, lower_dentry->d_parent,
-				   dentry->d_name.len + UNIONFS_WHLEN);
-	if (IS_ERR(wh_dentry)) {
-		err = PTR_ERR(wh_dentry);
-		wh_dentry = NULL;
-		goto out;
-	}
-
-	if (!wh_dentry->d_inode) /* no whiteout exists */
-		goto out;
-
-	/* .wh.foo has been found, so let's unlink it */
-	lower_dir_dentry = lock_parent_wh(wh_dentry);
-	/* see Documentation/filesystems/unionfs/issues.txt */
-	lockdep_off();
-	err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry);
-	lockdep_on();
-	unlock_dir(lower_dir_dentry);
-
-	/*
-	 * Whiteouts are special files and should be deleted no matter what
-	 * (as if they never existed), in order to allow this create
-	 * operation to succeed.  This is especially important in sticky
-	 * directories: a whiteout may have been created by one user, but
-	 * the newly created file may be created by another user.
-	 * Therefore, in order to maintain Unix semantics, if the vfs_unlink
-	 * above failed, then we have to try to directly unlink the
-	 * whiteout.  Note: in the ODF version of unionfs, whiteout are
-	 * handled much more cleanly.
-	 */
-	if (err == -EPERM) {
-		struct inode *inode = lower_dir_dentry->d_inode;
-		err = inode->i_op->unlink(inode, wh_dentry);
-	}
-	if (err)
-		printk(KERN_ERR "unionfs: could not "
-		       "unlink whiteout, err = %d\n", err);
-
-out:
-	dput(wh_dentry);
-	kfree(name);
-	return err;
-}
-
-/*
  * Find a writeable branch to create new object in.  Checks all writeble
  * branches of the parent inode, from istart to iend order; if none are
  * suitable, also tries branch 0 (which may require a copyup).
@@ -125,7 +52,9 @@ begin:
 		 * check for whiteouts in writeable branch, and remove them
 		 * if necessary.
 		 */
-		err = check_for_whiteout(dentry, lower_dentry);
+		err = check_unlink_whiteout(dentry, lower_dentry, bindex);
+		if (err > 0)	/* ignore if whiteout found and removed */
+			err = 0;
 		if (err)
 			continue;
 		/* if get here, we can write to the branch */
@@ -302,7 +231,6 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct dentry *lower_old_dentry = NULL;
 	struct dentry *lower_new_dentry = NULL;
 	struct dentry *lower_dir_dentry = NULL;
-	struct dentry *whiteout_dentry;
 	char *name = NULL;
 
 	unionfs_read_lock(old_dentry->d_sb, UNIONFS_SMUTEX_CHILD);
@@ -320,48 +248,20 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	lower_new_dentry = unionfs_lower_dentry(new_dentry);
 
-	/*
-	 * check if whiteout exists in the branch of new dentry, i.e. lookup
-	 * .wh.foo first. If present, delete it
-	 */
-	name = alloc_whname(new_dentry->d_name.name, new_dentry->d_name.len);
-	if (unlikely(IS_ERR(name))) {
-		err = PTR_ERR(name);
-		goto out;
-	}
-
-	whiteout_dentry = lookup_one_len(name, lower_new_dentry->d_parent,
-					 new_dentry->d_name.len +
-					 UNIONFS_WHLEN);
-	if (IS_ERR(whiteout_dentry)) {
-		err = PTR_ERR(whiteout_dentry);
-		goto out;
-	}
-
-	if (!whiteout_dentry->d_inode) {
-		dput(whiteout_dentry);
-		whiteout_dentry = NULL;
-	} else {
-		/* found a .wh.foo entry, unlink it and then call vfs_link() */
-		lower_dir_dentry = lock_parent_wh(whiteout_dentry);
-		err = is_robranch_super(new_dentry->d_sb, dbstart(new_dentry));
-		if (!err) {
-			/* see Documentation/filesystems/unionfs/issues.txt */
-			lockdep_off();
-			err = vfs_unlink(lower_dir_dentry->d_inode,
-					 whiteout_dentry);
-			lockdep_on();
-		}
-
+	/* check for a whiteout in new dentry branch, and delete it */
+	err = check_unlink_whiteout(new_dentry, lower_new_dentry,
+				    dbstart(new_dentry));
+	if (err > 0) {	       /* whiteout found and removed successfully */
+		lower_dir_dentry = dget_parent(lower_new_dentry);
 		fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
+		dput(lower_dir_dentry);
 		dir->i_nlink = unionfs_get_nlinks(dir);
-		unlock_dir(lower_dir_dentry);
-		lower_dir_dentry = NULL;
-		dput(whiteout_dentry);
-		if (err)
-			goto out;
+		err = 0;
 	}
+	if (err)
+		goto out;
 
+	/* check if parent hierachy is needed, then link in same branch */
 	if (dbstart(old_dentry) != dbstart(new_dentry)) {
 		lower_new_dentry = create_parents(dir, new_dentry,
 						  new_dentry->d_name.name,
@@ -531,12 +431,10 @@ out:
 static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 {
 	int err = 0;
-	struct dentry *lower_dentry = NULL, *whiteout_dentry = NULL;
+	struct dentry *lower_dentry = NULL;
 	struct dentry *lower_parent_dentry = NULL;
 	int bindex = 0, bstart;
 	char *name = NULL;
-	int whiteout_unlinked = 0;
-	struct sioq_args args;
 	int valid;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
@@ -558,51 +456,18 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 
 	lower_dentry = unionfs_lower_dentry(dentry);
 
-	/*
-	 * check if whiteout exists in this branch, i.e. lookup .wh.foo
-	 * first.
-	 */
-	name = alloc_whname(dentry->d_name.name, dentry->d_name.len);
-	if (unlikely(IS_ERR(name))) {
-		err = PTR_ERR(name);
-		goto out;
+	/* check for a whiteout in new dentry branch, and delete it */
+	err = check_unlink_whiteout(dentry, lower_dentry, bstart);
+	if (err > 0)	       /* whiteout found and removed successfully */
+		err = 0;
+	if (err) {
+		/* exit if the error returned was NOT -EROFS */
+		if (!IS_COPYUP_ERR(err))
+			goto out;
+		bstart--;
 	}
 
-	whiteout_dentry = lookup_one_len(name, lower_dentry->d_parent,
-					 dentry->d_name.len + UNIONFS_WHLEN);
-	if (IS_ERR(whiteout_dentry)) {
-		err = PTR_ERR(whiteout_dentry);
-		goto out;
-	}
-
-	if (!whiteout_dentry->d_inode) {
-		dput(whiteout_dentry);
-		whiteout_dentry = NULL;
-	} else {
-		lower_parent_dentry = lock_parent_wh(whiteout_dentry);
-
-		/* found a.wh.foo entry, remove it then do vfs_mkdir */
-		err = is_robranch_super(dentry->d_sb, bstart);
-		if (!err) {
-			args.unlink.parent = lower_parent_dentry->d_inode;
-			args.unlink.dentry = whiteout_dentry;
-			run_sioq(__unionfs_unlink, &args);
-			err = args.err;
-		}
-		dput(whiteout_dentry);
-
-		unlock_dir(lower_parent_dentry);
-
-		if (err) {
-			/* exit if the error returned was NOT -EROFS */
-			if (!IS_COPYUP_ERR(err))
-				goto out;
-			bstart--;
-		} else {
-			whiteout_unlinked = 1;
-		}
-	}
-
+	/* check if copyup's needed, and mkdir */
 	for (bindex = bstart; bindex >= 0; bindex--) {
 		int i;
 		int bend = dbend(dentry);

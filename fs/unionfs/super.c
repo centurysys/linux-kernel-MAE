@@ -173,7 +173,7 @@ static int unionfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 *
 	 * XXX: this restriction goes away with ODF.
 	 */
-	buf->f_namelen -= UNIONFS_WHLEN;
+	unionfs_set_max_namelen(&buf->f_namelen);
 
 	/*
 	 * reset two fields to avoid confusing user-land.

@@ -313,18 +313,10 @@ extern void release_lower_nd(struct nameidata *nd, int err);
 /* replicates the directory structure up to given dentry in given branch */
 extern struct dentry *create_parents(struct inode *dir, struct dentry *dentry,
 				     const char *name, int bindex);
-extern int make_dir_opaque(struct dentry *dir, int bindex);
 
 /* partial lookup */
 extern int unionfs_partial_lookup(struct dentry *dentry);
 
-/*
- * Pass an unionfs dentry and an index and it will try to create a whiteout
- * in branch 'index'.
- *
- * On error, it will proceed to a branch to the left
- */
-extern int create_whiteout(struct dentry *dentry, int start);
 /* copies a file from dbstart to newbindex branch */
 extern int copyup_file(struct inode *dir, struct file *file, int bstart,
 		       int newbindex, loff_t size);
@@ -339,18 +331,25 @@ extern int copyup_dentry(struct inode *dir, struct dentry *dentry,
 extern void unionfs_postcopyup_setmnt(struct dentry *dentry);
 extern void unionfs_postcopyup_release(struct dentry *dentry);
 
-extern int remove_whiteouts(struct dentry *dentry,
-			    struct dentry *lower_dentry, int bindex);
-
-extern int do_delete_whiteouts(struct dentry *dentry, int bindex,
-			       struct unionfs_dir_state *namelist);
-
 /* Is this directory empty: 0 if it is empty, -ENOTEMPTY if not. */
 extern int check_empty(struct dentry *dentry,
 		       struct unionfs_dir_state **namelist);
-/* Delete whiteouts from this directory in branch bindex. */
+/* whiteout and opaque directory helpers */
+extern char *alloc_whname(const char *name, int len);
+extern bool is_whiteout_name(char **namep, int *namelenp);
+extern bool is_validname(const char *name);
+extern struct dentry *lookup_whiteout(const char *name,
+				      struct dentry *lower_parent);
+extern struct dentry *find_first_whiteout(struct dentry *dentry);
+extern int unlink_whiteout(struct dentry *wh_dentry);
+extern int check_unlink_whiteout(struct dentry *dentry,
+				 struct dentry *lower_dentry, int bindex);
+extern int create_whiteout(struct dentry *dentry, int start);
 extern int delete_whiteouts(struct dentry *dentry, int bindex,
 			    struct unionfs_dir_state *namelist);
+extern int is_opaque_dir(struct dentry *dentry, int bindex);
+extern int make_dir_opaque(struct dentry *dir, int bindex);
+extern void unionfs_set_max_namelen(long *namelen);
 
 extern void unionfs_reinterpose(struct dentry *this_dentry);
 extern struct super_block *unionfs_duplicate_super(struct super_block *sb);
@@ -483,20 +482,9 @@ static inline int is_robranch(const struct dentry *dentry)
 	return is_robranch_idx(dentry, index);
 }
 
-/* What do we use for whiteouts. */
-#define UNIONFS_WHPFX ".wh."
-#define UNIONFS_WHLEN 4
-/*
- * If a directory contains this file, then it is opaque.  We start with the
- * .wh. flag so that it is blocked by lookup.
- */
-#define UNIONFS_DIR_OPAQUE_NAME "__dir_opaque"
-#define UNIONFS_DIR_OPAQUE UNIONFS_WHPFX UNIONFS_DIR_OPAQUE_NAME
-
 /*
  * EXTERNALS:
  */
-extern char *alloc_whname(const char *name, int len);
 extern int check_branch(struct nameidata *nd);
 extern int parse_branch_mode(const char *name, int *perms);
 
