@@ -644,7 +644,7 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 				unionfs_set_lower_dentry_idx(dentry, i, NULL);
 			}
 		}
-		set_dbend(dentry, bindex);
+		dbend(dentry) = bindex;
 
 		/*
 		 * Only INTERPOSE_LOOKUP can return a value other than 0 on

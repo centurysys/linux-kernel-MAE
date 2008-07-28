@@ -156,9 +156,9 @@ out:
 	if (!err) {
 		/* Fixup the new_dentry. */
 		if (bindex < dbstart(new_dentry))
-			set_dbstart(new_dentry, bindex);
+			dbstart(new_dentry) = bindex;
 		else if (bindex > dbend(new_dentry))
-			set_dbend(new_dentry, bindex);
+			dbend(new_dentry) = bindex;
 	}
 
 	kfree(wh_name);
@@ -298,7 +298,7 @@ static int do_unionfs_rename(struct inode *old_dir,
 				       &nd);
 		unlock_dir(lower_parent);
 		if (!local_err) {
-			set_dbopaque(old_dentry, bwh_old);
+			dbopaque(old_dentry) = bwh_old;
 		} else {
 			/*
 			 * we can't fix anything now, so we cop-out and use
@@ -426,9 +426,9 @@ static int may_rename_dir(struct dentry *dentry)
 	if (dbend(dentry) == bstart || dbopaque(dentry) == bstart)
 		return 0;
 
-	set_dbstart(dentry, bstart + 1);
+	dbstart(dentry) = bstart + 1;
 	err = check_empty(dentry, NULL);
-	set_dbstart(dentry, bstart);
+	dbstart(dentry) = bstart;
 	if (err == -ENOTEMPTY)
 		err = -EXDEV;
 	return err;

@@ -107,7 +107,7 @@ int create_whiteout(struct dentry *dentry, int start)
 
 	/* set dbopaque so that lookup will not proceed after this branch */
 	if (!err)
-		set_dbopaque(dentry, bindex);
+		dbopaque(dentry) = bindex;
 
 out:
 	kfree(name);
@@ -195,7 +195,7 @@ int make_dir_opaque(struct dentry *dentry, int bindex)
 	if (!diropq->d_inode)
 		err = vfs_create(lower_dir, diropq, S_IRUGO, &nd);
 	if (!err)
-		set_dbopaque(dentry, bindex);
+		dbopaque(dentry) = bindex;
 	release_lower_nd(&nd, err);
 
 	dput(diropq);

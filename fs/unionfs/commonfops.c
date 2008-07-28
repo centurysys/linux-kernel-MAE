@@ -290,7 +290,7 @@ static int do_delayed_copyup(struct file *file)
 	}
 	/* for reg file, we only open it "once" */
 	fbend(file) = fbstart(file);
-	set_dbend(dentry, dbstart(dentry));
+	dbend(dentry) = dbstart(dentry);
 	ibend(dentry->d_inode) = ibstart(dentry->d_inode);
 
 out:
@@ -823,8 +823,8 @@ static int unionfs_ioctl_queryfile(struct file *file, unsigned int cmd,
 		}
 	}
 	/* restore original dentry's offsets */
-	set_dbstart(dentry, orig_bstart);
-	set_dbend(dentry, orig_bend);
+	dbstart(dentry) = orig_bstart;
+	dbend(dentry) = orig_bend;
 	ibstart(dentry->d_inode) = orig_bstart;
 	ibend(dentry->d_inode) = orig_bend;
 
