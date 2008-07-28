@@ -422,9 +422,6 @@ static inline int d_deleted(struct dentry *d)
 	return d_unhashed(d) && (d != d->d_sb->s_root);
 }
 
-struct dentry *unionfs_lookup_backend(struct dentry *dentry,
-				      struct nameidata *nd, int lookupmode);
-
 /* unionfs_permission, check if we should bypass error to facilitate copyup */
 #define IS_COPYUP_ERR(err) ((err) == -EROFS)
 
