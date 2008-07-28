@@ -326,4 +326,59 @@ static inline void iput_lowers_all(struct inode *inode, bool free_lower)
 	ibstart(inode) = ibend(inode) = -1;
 }
 
+/*
+ * dput/mntput all lower dentries and vfsmounts of an unionfs dentry, from
+ * bstart to bend.  If @free_lower is true, then also kfree the memory used
+ * to hold the lower object pointers.
+ *
+ * XXX: implement using path_put VFS macros
+ */
+static inline void path_put_lowers(struct dentry *dentry,
+				   int bstart, int bend, bool free_lower)
+{
+	struct dentry *lower_dentry;
+	struct vfsmount *lower_mnt;
+	int bindex;
+
+	BUG_ON(!dentry);
+	BUG_ON(!UNIONFS_D(dentry));
+	BUG_ON(bstart < 0);
+
+	for (bindex = bstart; bindex <= bend; bindex++) {
+		lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
+		if (lower_dentry) {
+			unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
+			dput(lower_dentry);
+		}
+		lower_mnt = unionfs_lower_mnt_idx(dentry, bindex);
+		if (lower_mnt) {
+			unionfs_set_lower_mnt_idx(dentry, bindex, NULL);
+			mntput(lower_mnt);
+		}
+	}
+
+	if (free_lower) {
+		kfree(UNIONFS_D(dentry)->lower_paths);
+		UNIONFS_D(dentry)->lower_paths = NULL;
+	}
+}
+
+/*
+ * dput/mntput all lower dentries and vfsmounts, and reset start/end branch
+ * indices to -1.
+ */
+static inline void path_put_lowers_all(struct dentry *dentry, bool free_lower)
+{
+	int bstart, bend;
+
+	BUG_ON(!dentry);
+	BUG_ON(!UNIONFS_D(dentry));
+	bstart = dbstart(dentry);
+	bend = dbend(dentry);
+	BUG_ON(bstart < 0);
+
+	path_put_lowers(dentry, bstart, bend, free_lower);
+	dbstart(dentry) = dbend(dentry) = -1;
+}
+
 #endif	/* not _FANOUT_H */

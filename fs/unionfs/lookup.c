@@ -407,18 +407,12 @@ out_drop:
 	d_drop(dentry);
 
 out_free:
-	/* should dput all the underlying dentries on error condition */
-	bstart = dbstart(dentry);
-	if (bstart >= 0) {
-		bend = dbend(dentry);
-		for (bindex = bstart; bindex <= bend; bindex++) {
-			dput(unionfs_lower_dentry_idx(dentry, bindex));
-			unionfs_mntput(dentry, bindex);
-		}
-	}
+	/* should dput/mntput all the underlying dentries on error condition */
+	if (dbstart(dentry) >= 0)
+		path_put_lowers_all(dentry, false);
+	/* free lower_paths unconditionally */
 	kfree(UNIONFS_D(dentry)->lower_paths);
 	UNIONFS_D(dentry)->lower_paths = NULL;
-	dbstart(dentry) = dbend(dentry) = -1;
 
 out:
 	if (!err && UNIONFS_D(dentry)) {
