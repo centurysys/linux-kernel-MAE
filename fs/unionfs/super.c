@@ -789,11 +789,7 @@ out_no_change:
 		new_lower_inodes[i] = lower_dentry->d_inode;
 	}
 	/* 2. release reference on all older lower inodes */
-	for (i = old_ibstart; i <= old_ibend; i++) {
-		iput(unionfs_lower_inode_idx(sb->s_root->d_inode, i));
-		unionfs_set_lower_inode_idx(sb->s_root->d_inode, i, NULL);
-	}
-	kfree(UNIONFS_I(sb->s_root->d_inode)->lower_inodes);
+	iput_lowers(sb->s_root->d_inode, old_ibstart, old_ibend, true);
 	/* 3. update root dentry's inode to new lower_inodes array */
 	UNIONFS_I(sb->s_root->d_inode)->lower_inodes = new_lower_inodes;
 	new_lower_inodes = NULL;

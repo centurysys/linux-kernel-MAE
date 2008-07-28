@@ -277,4 +277,53 @@ static inline void verify_locked(struct dentry *d)
 	BUG_ON(!mutex_is_locked(&UNIONFS_D(d)->lock));
 }
 
+/* macros to put lower objects */
+
+/*
+ * iput lower inodes of an unionfs dentry, from bstart to bend.  If
+ * @free_lower is true, then also kfree the memory used to hold the lower
+ * object pointers.
+ */
+static inline void iput_lowers(struct inode *inode,
+			       int bstart, int bend, bool free_lower)
+{
+	struct inode *lower_inode;
+	int bindex;
+
+	BUG_ON(!inode);
+	BUG_ON(!UNIONFS_I(inode));
+	BUG_ON(bstart < 0);
+
+	for (bindex = bstart; bindex <= bend; bindex++) {
+		lower_inode = unionfs_lower_inode_idx(inode, bindex);
+		if (lower_inode) {
+			unionfs_set_lower_inode_idx(inode, bindex, NULL);
+			/* see Documentation/filesystems/unionfs/issues.txt */
+			lockdep_off();
+			iput(lower_inode);
+			lockdep_on();
+		}
+	}
+
+	if (free_lower) {
+		kfree(UNIONFS_I(inode)->lower_inodes);
+		UNIONFS_I(inode)->lower_inodes = NULL;
+	}
+}
+
+/* iput all lower inodes, and reset start/end branch indices to -1 */
+static inline void iput_lowers_all(struct inode *inode, bool free_lower)
+{
+	int bstart, bend;
+
+	BUG_ON(!inode);
+	BUG_ON(!UNIONFS_I(inode));
+	bstart = ibstart(inode);
+	bend = ibend(inode);
+	BUG_ON(bstart < 0);
+
+	iput_lowers(inode, bstart, bend, free_lower);
+	ibstart(inode) = ibend(inode) = -1;
+}
+
 #endif	/* not _FANOUT_H */

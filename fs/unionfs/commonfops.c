@@ -280,14 +280,11 @@ static int do_delayed_copyup(struct file *file)
 			unionfs_set_lower_mnt_idx(dentry, bindex, NULL);
 		}
 		if (unionfs_lower_dentry_idx(dentry, bindex)) {
-			BUG_ON(!dentry->d_inode);
-			iput(unionfs_lower_inode_idx(dentry->d_inode, bindex));
-			unionfs_set_lower_inode_idx(dentry->d_inode, bindex,
-						    NULL);
 			dput(unionfs_lower_dentry_idx(dentry, bindex));
 			unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
 		}
 	}
+	iput_lowers(dentry->d_inode, bstart, bend, false);
 	/* for reg file, we only open it "once" */
 	fbend(file) = fbstart(file);
 	dbend(dentry) = dbstart(dentry);
