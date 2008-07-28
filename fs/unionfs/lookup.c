@@ -450,6 +450,8 @@ void free_dentry_private_data(struct dentry *dentry)
 {
 	if (!dentry || !dentry->d_fsdata)
 		return;
+	kfree(UNIONFS_D(dentry)->lower_paths);
+	UNIONFS_D(dentry)->lower_paths = NULL;
 	kmem_cache_free(unionfs_dentry_cachep, dentry->d_fsdata);
 	dentry->d_fsdata = NULL;
 }
