@@ -128,6 +128,9 @@ skip:
 	/* only (our) lookup wants to do a d_add */
 	switch (flag) {
 	case INTERPOSE_DEFAULT:
+		/* for operations which create new inodes */
+		d_add(dentry, inode);
+		break;
 	case INTERPOSE_REVAL_NEG:
 		d_instantiate(dentry, inode);
 		break;

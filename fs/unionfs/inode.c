@@ -339,7 +339,7 @@ check_link:
 
 	/* Its a hard link, so use the same inode */
 	new_dentry->d_inode = igrab(old_dentry->d_inode);
-	d_instantiate(new_dentry, new_dentry->d_inode);
+	d_add(new_dentry, new_dentry->d_inode);
 	unionfs_copy_attr_all(dir, lower_new_dentry->d_parent->d_inode);
 	fsstack_copy_inode_size(dir, lower_new_dentry->d_parent->d_inode);
 
