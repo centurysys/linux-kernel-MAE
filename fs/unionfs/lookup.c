@@ -20,58 +20,6 @@
 
 static int realloc_dentry_private_data(struct dentry *dentry);
 
-/* is the filename valid == !(whiteout for a file or opaque dir marker) */
-static int is_validname(const char *name)
-{
-	if (!strncmp(name, UNIONFS_WHPFX, UNIONFS_WHLEN))
-		return 0;
-	if (!strncmp(name, UNIONFS_DIR_OPAQUE_NAME,
-		     sizeof(UNIONFS_DIR_OPAQUE_NAME) - 1))
-		return 0;
-	return 1;
-}
-
-/* The rest of these are utility functions for lookup. */
-static noinline_for_stack int is_opaque_dir(struct dentry *dentry, int bindex)
-{
-	int err = 0;
-	struct dentry *lower_dentry;
-	struct dentry *wh_lower_dentry;
-	struct inode *lower_inode;
-	struct sioq_args args;
-
-	lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-	lower_inode = lower_dentry->d_inode;
-
-	BUG_ON(!S_ISDIR(lower_inode->i_mode));
-
-	mutex_lock(&lower_inode->i_mutex);
-
-	if (!permission(lower_inode, MAY_EXEC, NULL)) {
-		wh_lower_dentry =
-			lookup_one_len(UNIONFS_DIR_OPAQUE, lower_dentry,
-				       sizeof(UNIONFS_DIR_OPAQUE) - 1);
-	} else {
-		args.is_opaque.dentry = lower_dentry;
-		run_sioq(__is_opaque_dir, &args);
-		wh_lower_dentry = args.ret;
-	}
-
-	mutex_unlock(&lower_inode->i_mutex);
-
-	if (IS_ERR(wh_lower_dentry)) {
-		err = PTR_ERR(wh_lower_dentry);
-		goto out;
-	}
-
-	/* This is an opaque dir iff wh_lower_dentry is positive */
-	err = !!wh_lower_dentry->d_inode;
-
-	dput(wh_lower_dentry);
-out:
-	return err;
-}
-
 /*
  * Main (and complex) driver function for Unionfs's lookup
  *
@@ -99,7 +47,6 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 	struct dentry *first_lower_dentry = NULL;
 	struct vfsmount *first_lower_mnt = NULL;
 	int opaque;
-	char *whname = NULL;
 	const char *name;
 	int namelen;
 
@@ -184,42 +131,19 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 		if (!S_ISDIR(lower_dir_dentry->d_inode->i_mode))
 			continue;
 
-		/* Reuse the whiteout name because its value doesn't change. */
-		if (!whname) {
-			whname = alloc_whname(name, namelen);
-			if (unlikely(IS_ERR(whname))) {
-				err = PTR_ERR(whname);
-				goto out_free;
-			}
-		}
-
-		/* check if whiteout exists in this branch: lookup .wh.foo */
-		wh_lower_dentry = lookup_one_len(whname, lower_dir_dentry,
-						 namelen + UNIONFS_WHLEN);
+		/* check for whiteouts: stop lookup if found */
+		wh_lower_dentry = lookup_whiteout(name, lower_dir_dentry);
 		if (IS_ERR(wh_lower_dentry)) {
 			dput(first_lower_dentry);
 			unionfs_mntput(first_dentry, first_dentry_offset);
 			err = PTR_ERR(wh_lower_dentry);
 			goto out_free;
 		}
-
 		if (wh_lower_dentry->d_inode) {
-			/* We found a whiteout so let's give up. */
-			if (S_ISREG(wh_lower_dentry->d_inode->i_mode)) {
-				dbend(dentry) = dbopaque(dentry) = bindex;
-				dput(wh_lower_dentry);
-				break;
-			}
-			err = -EIO;
-			printk(KERN_ERR "unionfs: EIO: invalid whiteout "
-			       "entry type %d\n",
-			       wh_lower_dentry->d_inode->i_mode);
+			dbend(dentry) = dbopaque(dentry) = bindex;
 			dput(wh_lower_dentry);
-			dput(first_lower_dentry);
-			unionfs_mntput(first_dentry, first_dentry_offset);
-			goto out_free;
+			break;
 		}
-
 		dput(wh_lower_dentry);
 		wh_lower_dentry = NULL;
 
@@ -424,7 +348,6 @@ out:
 			dput(first_lower_dentry);
 		}
 	}
-	kfree(whname);
 	dput(parent_dentry);
 	if (err && (lookupmode == INTERPOSE_LOOKUP))
 		unionfs_unlock_dentry(dentry);

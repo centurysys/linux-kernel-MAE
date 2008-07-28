@@ -36,37 +36,33 @@ struct unionfs_getdents_callback {
 };
 
 /* based on generic filldir in fs/readir.c */
-static int unionfs_filldir(void *dirent, const char *name, int namelen,
+static int unionfs_filldir(void *dirent, const char *oname, int namelen,
 			   loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct unionfs_getdents_callback *buf = dirent;
 	struct filldir_node *found = NULL;
 	int err = 0;
-	int is_wh_entry = 0;
+	int is_whiteout;
+	char *name = (char *) oname;
 
 	buf->filldir_called++;
 
-	if ((namelen > UNIONFS_WHLEN) &&
-	    !strncmp(name, UNIONFS_WHPFX, UNIONFS_WHLEN)) {
-		name += UNIONFS_WHLEN;
-		namelen -= UNIONFS_WHLEN;
-		is_wh_entry = 1;
-	}
+	is_whiteout = is_whiteout_name(&name, &namelen);
 
-	found = find_filldir_node(buf->rdstate, name, namelen, is_wh_entry);
+	found = find_filldir_node(buf->rdstate, name, namelen, is_whiteout);
 
 	if (found) {
 		/*
 		 * If we had non-whiteout entry in dir cache, then mark it
 		 * as a whiteout and but leave it in the dir cache.
 		 */
-		if (is_wh_entry && !found->whiteout)
-			found->whiteout = is_wh_entry;
+		if (is_whiteout && !found->whiteout)
+			found->whiteout = is_whiteout;
 		goto out;
 	}
 
 	/* if 'name' isn't a whiteout, filldir it. */
-	if (!is_wh_entry) {
+	if (!is_whiteout) {
 		off_t pos = rdstate2offset(buf->rdstate);
 		u64 unionfs_ino = ino;
 
@@ -85,7 +81,7 @@ static int unionfs_filldir(void *dirent, const char *name, int namelen,
 	}
 	buf->entries_written++;
 	err = add_filldir_node(buf->rdstate, name, namelen,
-			       buf->rdstate->bindex, is_wh_entry);
+			       buf->rdstate->bindex, is_whiteout);
 	if (err)
 		buf->filldir_error = err;
 

@@ -99,21 +99,3 @@ void __unionfs_unlink(struct work_struct *work)
 	args->err = vfs_unlink(u->parent, u->dentry);
 	complete(&args->comp);
 }
-
-void __delete_whiteouts(struct work_struct *work)
-{
-	struct sioq_args *args = container_of(work, struct sioq_args, work);
-	struct deletewh_args *d = &args->deletewh;
-
-	args->err = do_delete_whiteouts(d->dentry, d->bindex, d->namelist);
-	complete(&args->comp);
-}
-
-void __is_opaque_dir(struct work_struct *work)
-{
-	struct sioq_args *args = container_of(work, struct sioq_args, work);
-
-	args->ret = lookup_one_len(UNIONFS_DIR_OPAQUE, args->is_opaque.dentry,
-				   sizeof(UNIONFS_DIR_OPAQUE) - 1);
-	complete(&args->comp);
-}
