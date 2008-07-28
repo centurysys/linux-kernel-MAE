@@ -961,32 +961,21 @@ static int unionfs_write_inode(struct inode *inode, int sync)
  * Used only in nfs, to kill any pending RPC tasks, so that subsequent
  * code can actually succeed and won't leave tasks that need handling.
  */
-static void unionfs_umount_begin(struct vfsmount *mnt, int flags)
+static void unionfs_umount_begin(struct super_block *sb)
 {
-	struct super_block *sb, *lower_sb;
-	struct vfsmount *lower_mnt;
+	struct super_block *lower_sb;
 	int bindex, bstart, bend;
-
-	if (!(flags & MNT_FORCE))
-		/*
-		 * we are not being MNT_FORCE'd, therefore we should emulate
-		 * old behavior
-		 */
-		return;
-
-	sb = mnt->mnt_sb;
 
 	unionfs_read_lock(sb, UNIONFS_SMUTEX_CHILD);
 
 	bstart = sbstart(sb);
 	bend = sbend(sb);
 	for (bindex = bstart; bindex <= bend; bindex++) {
-		lower_mnt = unionfs_lower_mnt_idx(sb->s_root, bindex);
 		lower_sb = unionfs_lower_super_idx(sb, bindex);
 
-		if (lower_mnt && lower_sb && lower_sb->s_op &&
+		if (lower_sb && lower_sb->s_op &&
 		    lower_sb->s_op->umount_begin)
-			lower_sb->s_op->umount_begin(lower_mnt, flags);
+			lower_sb->s_op->umount_begin(lower_sb);
 	}
 
 	unionfs_read_unlock(sb);
