@@ -106,8 +106,7 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 		bstart = dbstart(dentry);
 		bend = dbend(dentry);
 		__dput_lowers(dentry, bstart, bend);
-		set_dbstart(dentry, -1);
-		set_dbend(dentry, -1);
+		dbstart(dentry) = dbend(dentry) = -1;
 
 		interpose_flag = INTERPOSE_REVAL_NEG;
 		if (positive) {
@@ -542,8 +541,7 @@ static void unionfs_d_iput(struct dentry *dentry, struct inode *inode)
 			unionfs_set_lower_dentry_idx(dentry, bindex, NULL);
 		}
 	}
-	set_dbstart(dentry, -1);
-	set_dbend(dentry, -1);
+	dbstart(dentry) = dbend(dentry) = -1;
 
 drop_lower_inodes:
 	rc = atomic_read(&inode->i_count);

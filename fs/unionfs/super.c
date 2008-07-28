@@ -771,7 +771,7 @@ out_no_change:
 	/* update our unionfs_sb_info and root dentry index of last branch */
 	i = sbmax(sb);		/* save no. of branches to release at end */
 	sbend(sb) = new_branches - 1;
-	set_dbend(sb->s_root, new_branches - 1);
+	dbend(sb->s_root) = new_branches - 1;
 	old_ibstart = ibstart(sb->s_root->d_inode);
 	old_ibend = ibend(sb->s_root->d_inode);
 	ibend(sb->s_root->d_inode) = new_branches - 1;

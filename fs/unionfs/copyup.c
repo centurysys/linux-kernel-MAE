@@ -354,8 +354,8 @@ static void __clear(struct dentry *dentry, struct dentry *old_lower_dentry,
 {
 	/* get rid of the lower dentry and all its traces */
 	unionfs_set_lower_dentry_idx(dentry, new_bindex, NULL);
-	set_dbstart(dentry, old_bstart);
-	set_dbend(dentry, old_bend);
+	dbstart(dentry) = old_bstart;
+	dbend(dentry) = old_bend;
 
 	dput(new_lower_dentry);
 	dput(old_lower_dentry);
@@ -633,8 +633,8 @@ static void __cleanup_dentry(struct dentry *dentry, int bindex,
 		new_bstart = bindex;
 	if (new_bend < 0)
 		new_bend = bindex;
-	set_dbstart(dentry, new_bstart);
-	set_dbend(dentry, new_bend);
+	dbstart(dentry) = new_bstart;
+	dbend(dentry) = new_bend;
 
 }
 
@@ -657,9 +657,9 @@ static void __set_dentry(struct dentry *upper, struct dentry *lower,
 {
 	unionfs_set_lower_dentry_idx(upper, bindex, lower);
 	if (likely(dbstart(upper) > bindex))
-		set_dbstart(upper, bindex);
+		dbstart(upper) = bindex;
 	if (likely(dbend(upper) < bindex))
-		set_dbend(upper, bindex);
+		dbend(upper) = bindex;
 }
 
 /*
@@ -883,6 +883,6 @@ void unionfs_postcopyup_release(struct dentry *dentry)
 		}
 	}
 	bindex = dbstart(dentry);
-	set_dbend(dentry, bindex);
+	dbend(dentry) = bindex;
 	ibend(dentry->d_inode) = ibstart(dentry->d_inode) = bindex;
 }

@@ -33,6 +33,12 @@ static inline struct unionfs_inode_info *UNIONFS_I(const struct inode *inode)
 #define ibstart(ino) (UNIONFS_I(ino)->bstart)
 #define ibend(ino) (UNIONFS_I(ino)->bend)
 
+/* Dentry to private data */
+#define UNIONFS_D(dent) ((struct unionfs_dentry_info *)(dent)->d_fsdata)
+#define dbstart(dent) (UNIONFS_D(dent)->bstart)
+#define dbend(dent) (UNIONFS_D(dent)->bend)
+#define dbopaque(dent) (UNIONFS_D(dent)->bopaque)
+
 /* Superblock to private data */
 #define UNIONFS_SB(super) ((struct unionfs_sb_info *)(super)->s_fs_info)
 #define sbstart(sb) 0
@@ -199,48 +205,6 @@ static inline void branchput(struct super_block *sb, int index)
 }
 
 /* Dentry macros */
-static inline struct unionfs_dentry_info *UNIONFS_D(const struct dentry *dent)
-{
-	BUG_ON(!dent);
-	return dent->d_fsdata;
-}
-
-static inline int dbstart(const struct dentry *dent)
-{
-	BUG_ON(!dent);
-	return UNIONFS_D(dent)->bstart;
-}
-
-static inline void set_dbstart(struct dentry *dent, int val)
-{
-	BUG_ON(!dent);
-	UNIONFS_D(dent)->bstart = val;
-}
-
-static inline int dbend(const struct dentry *dent)
-{
-	BUG_ON(!dent);
-	return UNIONFS_D(dent)->bend;
-}
-
-static inline void set_dbend(struct dentry *dent, int val)
-{
-	BUG_ON(!dent);
-	UNIONFS_D(dent)->bend = val;
-}
-
-static inline int dbopaque(const struct dentry *dent)
-{
-	BUG_ON(!dent);
-	return UNIONFS_D(dent)->bopaque;
-}
-
-static inline void set_dbopaque(struct dentry *dent, int val)
-{
-	BUG_ON(!dent);
-	UNIONFS_D(dent)->bopaque = val;
-}
-
 static inline void unionfs_set_lower_dentry_idx(struct dentry *dent, int index,
 						struct dentry *val)
 {

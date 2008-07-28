@@ -675,8 +675,8 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 		unionfs_set_lower_dentry_idx(sb->s_root, bindex, d);
 		unionfs_set_lower_mnt_idx(sb->s_root, bindex, m);
 	}
-	set_dbstart(sb->s_root, bstart);
-	set_dbend(sb->s_root, bend);
+	dbstart(sb->s_root) = bstart;
+	dbend(sb->s_root) = bend;
 
 	/* Set the generation number to one, since this is for the mount. */
 	atomic_set(&UNIONFS_D(sb->s_root)->generation, 1);

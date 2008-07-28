@@ -206,8 +206,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 		if (wh_lower_dentry->d_inode) {
 			/* We found a whiteout so let's give up. */
 			if (S_ISREG(wh_lower_dentry->d_inode->i_mode)) {
-				set_dbend(dentry, bindex);
-				set_dbopaque(dentry, bindex);
+				dbend(dentry) = dbopaque(dentry) = bindex;
 				dput(wh_lower_dentry);
 				break;
 			}
@@ -276,7 +275,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 
 		/* store underlying dentry */
 		if (dbstart(dentry) == -1)
-			set_dbstart(dentry, bindex);
+			dbstart(dentry) = bindex;
 		unionfs_set_lower_dentry_idx(dentry, bindex, lower_dentry);
 		/*
 		 * FIXME: the following line needs to get fixed to allow
@@ -285,7 +284,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 		unionfs_set_lower_mnt_idx(dentry, bindex,
 					  unionfs_mntget(parent_dentry,
 							 bindex));
-		set_dbend(dentry, bindex);
+		dbend(dentry) = bindex;
 
 		/* update parent directory's atime with the bindex */
 		fsstack_copy_attr_atime(parent_dentry->d_inode,
@@ -306,8 +305,7 @@ struct dentry *unionfs_lookup_backend(struct dentry *dentry,
 			err = opaque;
 			goto out_free;
 		} else if (opaque) {
-			set_dbend(dentry, bindex);
-			set_dbopaque(dentry, bindex);
+			dbend(dentry) = dbopaque(dentry) = bindex;
 			break;
 		}
 	}
@@ -353,8 +351,7 @@ out_negative:
 				     first_lower_dentry);
 	unionfs_set_lower_mnt_idx(dentry, first_dentry_offset,
 				  first_lower_mnt);
-	set_dbstart(dentry, first_dentry_offset);
-	set_dbend(dentry, first_dentry_offset);
+	dbstart(dentry) = dbend(dentry) = first_dentry_offset;
 
 	if (lookupmode == INTERPOSE_REVAL_NEG)
 		BUG_ON(dentry->d_inode != NULL);
@@ -421,8 +418,7 @@ out_free:
 	}
 	kfree(UNIONFS_D(dentry)->lower_paths);
 	UNIONFS_D(dentry)->lower_paths = NULL;
-	set_dbstart(dentry, -1);
-	set_dbend(dentry, -1);
+	dbstart(dentry) = dbend(dentry) = -1;
 
 out:
 	if (!err && UNIONFS_D(dentry)) {
@@ -582,7 +578,7 @@ void update_bstart(struct dentry *dentry)
 		if (!lower_dentry)
 			continue;
 		if (lower_dentry->d_inode) {
-			set_dbstart(dentry, bindex);
+			dbstart(dentry) = bindex;
 			break;
 		}
 		dput(lower_dentry);
