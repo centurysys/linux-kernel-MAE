@@ -750,17 +750,13 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
  * unionfs_permission, or anything it calls, will use stale branch
  * information.
  */
-static int unionfs_permission(struct inode *inode, int mask,
-			      struct nameidata *nd)
+static int unionfs_permission(struct inode *inode, int mask)
 {
 	struct inode *lower_inode = NULL;
 	int err = 0;
 	int bindex, bstart, bend;
 	const int is_file = !S_ISDIR(inode->i_mode);
 	const int write_mask = (mask & MAY_WRITE) && !(mask & MAY_READ);
-
-	if (nd)
-		unionfs_lock_dentry(nd->path.dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (!UNIONFS_I(inode)->lower_inodes) {
 		if (is_file)	/* dirs can be unlinked but chdir'ed to */
@@ -801,7 +797,7 @@ static int unionfs_permission(struct inode *inode, int mask,
 		 * readonly, because those conditions should lead to a
 		 * copyup taking place later on.
 		 */
-		err = permission(lower_inode, mask, nd);
+		err = inode_permission(lower_inode, mask);
 		if (err && bindex > 0) {
 			umode_t mode = lower_inode->i_mode;
 			if (is_robranch_super(inode->i_sb, bindex) &&
@@ -833,9 +829,6 @@ static int unionfs_permission(struct inode *inode, int mask,
 
 out:
 	unionfs_check_inode(inode);
-	unionfs_check_nd(nd);
-	if (nd)
-		unionfs_unlock_dentry(nd->path.dentry);
 	return err;
 }
 
