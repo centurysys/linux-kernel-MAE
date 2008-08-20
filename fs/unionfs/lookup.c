@@ -392,7 +392,9 @@ struct dentry *unionfs_lookup_full(struct dentry *dentry,
 			goto out_free;
 		}
 		unionfs_set_lower_dentry_idx(dentry, bindex, lower_dentry);
-		BUG_ON(!lower_mnt);
+		if (!lower_mnt)
+			lower_mnt = unionfs_mntget(dentry->d_sb->s_root,
+						   bindex);
 		unionfs_set_lower_mnt_idx(dentry, bindex, lower_mnt);
 
 		/* adjust dbstart/end */
