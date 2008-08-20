@@ -742,6 +742,44 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
 	unionfs_read_unlock(dentry->d_sb);
 }
 
+
+/*
+ * This is a variant of fs/namei.c:permission() or inode_permission() which
+ * skips over EROFS tests (because we perform copyup on EROFS).
+ */
+static int __inode_permission(struct inode *inode, int mask)
+{
+	int retval;
+
+	/* nobody gets write access to an immutable file */
+	if ((mask & MAY_WRITE) && IS_IMMUTABLE(inode))
+		return -EACCES;
+
+	/* Ordinary permission routines do not understand MAY_APPEND. */
+	if (inode->i_op && inode->i_op->permission) {
+		retval = inode->i_op->permission(inode, mask);
+		if (!retval) {
+			/*
+			 * Exec permission on a regular file is denied if none
+			 * of the execute bits are set.
+			 *
+			 * This check should be done by the ->permission()
+			 * method.
+			 */
+			if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode) &&
+			    !(inode->i_mode & S_IXUGO))
+				return -EACCES;
+		}
+	} else {
+		retval = generic_permission(inode, mask, NULL);
+	}
+	if (retval)
+		return retval;
+
+	return security_inode_permission(inode,
+			mask & (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND));
+}
+
 /*
  * Don't grab the superblock read-lock in unionfs_permission, which prevents
  * a deadlock with the branch-management "add branch" code (which grabbed
@@ -795,12 +833,14 @@ static int unionfs_permission(struct inode *inode, int mask)
 		 * We check basic permissions, but we ignore any conditions
 		 * such as readonly file systems or branches marked as
 		 * readonly, because those conditions should lead to a
-		 * copyup taking place later on.
+		 * copyup taking place later on.  However, if user never had
+		 * access to the file, then no copyup could ever take place.
 		 */
-		err = inode_permission(lower_inode, mask);
-		if (err && bindex > 0) {
+		err = __inode_permission(lower_inode, mask);
+		if (err && err != -EACCES && err != EPERM && bindex > 0) {
 			umode_t mode = lower_inode->i_mode;
-			if (is_robranch_super(inode->i_sb, bindex) &&
+			if ((is_robranch_super(inode->i_sb, bindex) ||
+			     IS_RDONLY(lower_inode)) &&
 			    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)))
 				err = 0;
 			if (IS_COPYUP_ERR(err))
@@ -862,10 +902,16 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 
 	lower_dentry = unionfs_lower_dentry(dentry);
 	BUG_ON(!lower_dentry);	/* should never happen after above revalidate */
+	lower_inode = unionfs_lower_inode(inode);
+
+	/* check if user has permission to change lower inode */
+	err = inode_change_ok(lower_inode, ia);
+	if (err)
+		goto out;
 
 	/* copyup if the file is on a read only branch */
 	if (is_robranch_super(dentry->d_sb, bstart)
-	    || IS_RDONLY(lower_dentry->d_inode)) {
+	    || IS_RDONLY(lower_inode)) {
 		/* check if we have a branch to copy up to */
 		if (bstart <= 0) {
 			err = -EACCES;
@@ -888,11 +934,10 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 		}
 		if (err)
 			goto out;
-		/* get updated lower_dentry after copyup */
+		/* get updated lower_dentry/inode after copyup */
 		lower_dentry = unionfs_lower_dentry(dentry);
+		lower_inode = unionfs_lower_inode(inode);
 	}
-
-	lower_inode = unionfs_lower_inode(inode);
 
 	/*
 	 * If shrinking, first truncate upper level to cancel writing dirty
@@ -913,9 +958,9 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	}
 
 	/* notify the (possibly copied-up) lower inode */
-	mutex_lock(&lower_dentry->d_inode->i_mutex);
+	mutex_lock(&lower_inode->i_mutex);
 	err = notify_change(lower_dentry, ia);
-	mutex_unlock(&lower_dentry->d_inode->i_mutex);
+	mutex_unlock(&lower_inode->i_mutex);
 	if (err)
 		goto out;
 
