@@ -601,6 +601,12 @@ int unionfs_open(struct inode *inode, struct file *file)
 		goto out_nofree;
 	}
 
+	/* don't open unhashed/deleted files */
+	if (d_deleted(dentry)) {
+		err = -ENOENT;
+		goto out_nofree;
+	}
+
 	file->private_data =
 		kzalloc(sizeof(struct unionfs_file_info), GFP_KERNEL);
 	if (unlikely(!UNIONFS_F(file))) {
