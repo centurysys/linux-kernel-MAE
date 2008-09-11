@@ -267,6 +267,8 @@ out:
 		d_drop(dentry);
 		/* update our lower vfsmnts, in case a copyup took place */
 		unionfs_postcopyup_setmnt(dentry);
+		unionfs_check_dentry(dentry);
+		unionfs_check_inode(dir);
 	}
 
 	if (namelist)

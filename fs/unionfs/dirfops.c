@@ -187,6 +187,8 @@ static int unionfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	}
 
 out:
+	if (!err)
+		unionfs_check_file(file);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
@@ -270,6 +272,8 @@ static loff_t unionfs_dir_llseek(struct file *file, loff_t offset, int origin)
 	}
 
 out:
+	if (!err)
+		unionfs_check_file(file);
 	unionfs_unlock_dentry(dentry);
 	unionfs_read_unlock(dentry->d_sb);
 	return err;
