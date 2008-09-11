@@ -181,6 +181,7 @@ static int open_all_files(struct file *file)
 				    unionfs_lower_mnt_idx(dentry, bindex),
 				    file->f_flags);
 		if (IS_ERR(lower_file)) {
+			branchput(sb, bindex);
 			err = PTR_ERR(lower_file);
 			goto out;
 		} else {
