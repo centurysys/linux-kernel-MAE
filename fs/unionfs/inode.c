@@ -516,7 +516,7 @@ static int unionfs_mkdir(struct inode *parent, struct dentry *dentry, int mode)
 		if (err)
 			break;
 
-		for (i = bindex + 1; i < bend; i++) {
+		for (i = bindex + 1; i <= bend; i++) {
 			if (unionfs_lower_dentry_idx(dentry, i)) {
 				dput(unionfs_lower_dentry_idx(dentry, i));
 				unionfs_set_lower_dentry_idx(dentry, i, NULL);
