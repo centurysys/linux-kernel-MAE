@@ -217,8 +217,6 @@ static struct dentry *unionfs_lookup(struct inode *parent,
 			unionfs_postcopyup_release(dentry);
 		}
 		unionfs_copy_attr_times(dentry->d_inode);
-		/* parent times may have changed */
-		unionfs_copy_attr_times(dentry->d_parent->d_inode);
 	}
 
 	unionfs_check_inode(parent);
