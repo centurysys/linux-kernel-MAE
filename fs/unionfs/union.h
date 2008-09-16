@@ -292,11 +292,56 @@ static inline void unionfs_double_lock_dentry(struct dentry *d1,
 {
 	BUG_ON(d1 == d2);
 	if (d1 < d2) {
-		unionfs_lock_dentry(d2, UNIONFS_DMUTEX_CHILD);
 		unionfs_lock_dentry(d1, UNIONFS_DMUTEX_PARENT);
+		unionfs_lock_dentry(d2, UNIONFS_DMUTEX_CHILD);
 	} else {
-		unionfs_lock_dentry(d1, UNIONFS_DMUTEX_CHILD);
 		unionfs_lock_dentry(d2, UNIONFS_DMUTEX_PARENT);
+		unionfs_lock_dentry(d1, UNIONFS_DMUTEX_CHILD);
+	}
+}
+
+static inline void unionfs_double_unlock_dentry(struct dentry *d1,
+						struct dentry *d2)
+{
+	BUG_ON(d1 == d2);
+	if (d1 < d2) { /* unlock in reverse order than double_lock_dentry */
+		unionfs_unlock_dentry(d1);
+		unionfs_unlock_dentry(d2);
+	} else {
+		unionfs_unlock_dentry(d2);
+		unionfs_unlock_dentry(d1);
+	}
+}
+
+static inline void unionfs_double_lock_parents(struct dentry *p1,
+					       struct dentry *p2)
+{
+	if (p1 == p2) {
+		unionfs_lock_dentry(p1, UNIONFS_DMUTEX_REVAL_PARENT);
+		return;
+	}
+	if (p1 < p2) {
+		unionfs_lock_dentry(p1, UNIONFS_DMUTEX_REVAL_PARENT);
+		unionfs_lock_dentry(p2, UNIONFS_DMUTEX_REVAL_CHILD);
+	} else {
+		unionfs_lock_dentry(p2, UNIONFS_DMUTEX_REVAL_PARENT);
+		unionfs_lock_dentry(p1, UNIONFS_DMUTEX_REVAL_CHILD);
+	}
+}
+
+static inline void unionfs_double_unlock_parents(struct dentry *p1,
+						 struct dentry *p2)
+{
+	if (p1 == p2) {
+		unionfs_unlock_dentry(p1);
+		return;
+	}
+	if (p1 < p2) { /* unlock in reverse order of double_lock_parents */
+		unionfs_unlock_dentry(p1);
+		unionfs_unlock_dentry(p2);
+	} else {
+		unionfs_unlock_dentry(p2);
+		unionfs_unlock_dentry(p1);
 	}
 }
 
@@ -316,8 +361,10 @@ extern struct dentry *create_parents(struct inode *dir, struct dentry *dentry,
 				     const char *name, int bindex);
 
 /* partial lookup */
-extern int unionfs_partial_lookup(struct dentry *dentry);
+extern int unionfs_partial_lookup(struct dentry *dentry,
+				  struct dentry *parent);
 extern struct dentry *unionfs_lookup_full(struct dentry *dentry,
+					  struct dentry *parent,
 					  struct nameidata *nd_unused,
 					  int lookupmode);
 
@@ -336,7 +383,7 @@ extern void unionfs_postcopyup_setmnt(struct dentry *dentry);
 extern void unionfs_postcopyup_release(struct dentry *dentry);
 
 /* Is this directory empty: 0 if it is empty, -ENOTEMPTY if not. */
-extern int check_empty(struct dentry *dentry,
+extern int check_empty(struct dentry *dentry, struct dentry *parent,
 		       struct unionfs_dir_state **namelist);
 /* whiteout and opaque directory helpers */
 extern char *alloc_whname(const char *name, int len);
@@ -363,8 +410,8 @@ extern int unionfs_setlk(struct file *file, int cmd, struct file_lock *fl);
 extern int unionfs_getlk(struct file *file, struct file_lock *fl);
 
 /* Common file operations. */
-extern int unionfs_file_revalidate(struct file *file, bool willwrite);
-extern int unionfs_file_revalidate_locked(struct file *file, bool willwrite);
+extern int unionfs_file_revalidate(struct file *file, struct dentry *parent,
+				   bool willwrite);
 extern int unionfs_open(struct inode *inode, struct file *file);
 extern int unionfs_file_release(struct inode *inode, struct file *file);
 extern int unionfs_flush(struct file *file, fl_owner_t id);
@@ -381,11 +428,10 @@ extern int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 extern int unionfs_unlink(struct inode *dir, struct dentry *dentry);
 extern int unionfs_rmdir(struct inode *dir, struct dentry *dentry);
 
-extern bool __unionfs_d_revalidate_one_locked(struct dentry *dentry,
-					      struct nameidata *nd,
-					      bool willwrite);
-extern bool __unionfs_d_revalidate_chain(struct dentry *dentry,
-					 struct nameidata *nd, bool willwrite);
+extern bool __unionfs_d_revalidate(struct dentry *dentry,
+				   struct dentry *parent,
+				   struct nameidata *nd,
+				   bool willwrite);
 extern bool is_negative_lower(const struct dentry *dentry);
 extern bool is_newer_lower(const struct dentry *dentry);
 extern void purge_sb_data(struct super_block *sb);
@@ -508,6 +554,16 @@ static inline void unlock_dir(struct dentry *dir)
 {
 	mutex_unlock(&dir->d_inode->i_mutex);
 	dput(dir);
+}
+
+/* true if dentry is valid, false otherwise (i.e., needs revalidation) */
+static inline bool is_valid(const struct dentry *dentry)
+{
+	if (is_negative_lower(dentry) ||
+	    (atomic_read(&UNIONFS_SB(dentry->d_sb)->generation) !=
+	     atomic_read(&UNIONFS_D(dentry)->generation)))
+		return false;
+	return true;
 }
 
 static inline struct vfsmount *unionfs_mntget(struct dentry *dentry,
