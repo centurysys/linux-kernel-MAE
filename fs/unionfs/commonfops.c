@@ -417,7 +417,7 @@ int unionfs_file_revalidate(struct file *file, struct dentry *parent,
 	 */
 reval_dentry:
 	if (!d_deleted(dentry) &&
-	    !__unionfs_d_revalidate(dentry, parent, NULL, willwrite)) {
+	    !__unionfs_d_revalidate(dentry, parent, willwrite)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -561,7 +561,7 @@ int unionfs_open(struct inode *inode, struct file *file)
 	}
 
 	/* XXX: should I change 'false' below to the 'willwrite' flag? */
-	valid = __unionfs_d_revalidate(dentry, parent, NULL, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false);
 	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out_nofree;

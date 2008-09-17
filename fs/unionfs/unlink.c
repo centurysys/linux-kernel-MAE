@@ -132,7 +132,7 @@ int unionfs_unlink(struct inode *dir, struct dentry *dentry)
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	valid = __unionfs_d_revalidate(dentry, parent, NULL, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false);
 	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out;
@@ -214,7 +214,7 @@ int unionfs_rmdir(struct inode *dir, struct dentry *dentry)
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	valid = __unionfs_d_revalidate(dentry, parent, NULL, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false);
 	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out;

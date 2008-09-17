@@ -365,7 +365,6 @@ extern int unionfs_partial_lookup(struct dentry *dentry,
 				  struct dentry *parent);
 extern struct dentry *unionfs_lookup_full(struct dentry *dentry,
 					  struct dentry *parent,
-					  struct nameidata *nd_unused,
 					  int lookupmode);
 
 /* copies a file from dbstart to newbindex branch */
@@ -429,9 +428,7 @@ extern int unionfs_unlink(struct inode *dir, struct dentry *dentry);
 extern int unionfs_rmdir(struct inode *dir, struct dentry *dentry);
 
 extern bool __unionfs_d_revalidate(struct dentry *dentry,
-				   struct dentry *parent,
-				   struct nameidata *nd,
-				   bool willwrite);
+				   struct dentry *parent, bool willwrite);
 extern bool is_negative_lower(const struct dentry *dentry);
 extern bool is_newer_lower(const struct dentry *dentry);
 extern void purge_sb_data(struct super_block *sb);
