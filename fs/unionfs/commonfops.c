@@ -387,8 +387,6 @@ out:
 	if (err) {
 		kfree(UNIONFS_F(file)->lower_files);
 		kfree(UNIONFS_F(file)->saved_branch_ids);
-	} else {
-		unionfs_check_file(file);
 	}
 	return err;
 }
