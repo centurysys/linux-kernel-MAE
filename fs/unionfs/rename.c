@@ -396,14 +396,13 @@ int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		unionfs_lock_dentry(new_parent, UNIONFS_DMUTEX_REVAL_CHILD);
 	unionfs_double_lock_dentry(old_dentry, new_dentry);
 
-	valid = __unionfs_d_revalidate(old_dentry, old_parent, NULL, false);
+	valid = __unionfs_d_revalidate(old_dentry, old_parent, false);
 	if (!valid) {
 		err = -ESTALE;
 		goto out;
 	}
 	if (!d_deleted(new_dentry) && new_dentry->d_inode) {
-		valid = __unionfs_d_revalidate(new_dentry, new_parent,
-					       NULL, false);
+		valid = __unionfs_d_revalidate(new_dentry, new_parent, false);
 		if (!valid) {
 			err = -ESTALE;
 			goto out;

@@ -62,8 +62,7 @@ static inline void __dput_lowers(struct dentry *dentry, int start, int end)
  * Returns true if valid, false otherwise.
  */
 static bool __unionfs_d_revalidate_one(struct dentry *dentry,
-				       struct dentry *parent,
-				       struct nameidata *nd)
+				       struct dentry *parent)
 {
 	bool valid = true;	/* default is valid */
 	struct dentry *lower_dentry;
@@ -71,12 +70,6 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 	int sbgen, dgen;
 	int positive = 0;
 	int interpose_flag;
-	struct nameidata lowernd; /* TODO: be gentler to the stack */
-
-	if (nd)
-		memcpy(&lowernd, nd, sizeof(struct nameidata));
-	else
-		memset(&lowernd, 0, sizeof(struct nameidata));
 
 	sbgen = atomic_read(&UNIONFS_SB(dentry->d_sb)->generation);
 	/* if the dentry is unhashed, do NOT revalidate */
@@ -120,8 +113,7 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 			goto out;
 		}
 
-		result = unionfs_lookup_full(dentry, parent,
-					     &lowernd, interpose_flag);
+		result = unionfs_lookup_full(dentry, parent, interpose_flag);
 		if (result) {
 			if (IS_ERR(result)) {
 				valid = false;
@@ -290,7 +282,7 @@ static inline void purge_inode_data(struct inode *inode)
  * dentry).  Returns true if valid, false otherwise.
  */
 bool __unionfs_d_revalidate(struct dentry *dentry, struct dentry *parent,
-			    struct nameidata *nd, bool willwrite)
+			    bool willwrite)
 {
 	bool valid = false;	/* default is invalid */
 	int sbgen, dgen;
@@ -318,13 +310,14 @@ bool __unionfs_d_revalidate(struct dentry *dentry, struct dentry *parent,
 		if (!willwrite)
 			purge_inode_data(dentry->d_inode);
 	}
-	valid = __unionfs_d_revalidate_one(dentry, parent, nd);
+	valid = __unionfs_d_revalidate_one(dentry, parent);
 
 out:
 	return valid;
 }
 
-static int unionfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int unionfs_d_revalidate(struct dentry *dentry,
+				struct nameidata *nd_unused)
 {
 	bool valid = true;
 	int err = 1;		/* 1 means valid for the VFS */
@@ -341,11 +334,10 @@ static int unionfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 			goto out;
 		}
 	}
-	valid = __unionfs_d_revalidate(dentry, parent, nd, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false);
 	if (likely(valid)) {
 		unionfs_postcopyup_setmnt(dentry);
 		unionfs_check_dentry(dentry);
-		unionfs_check_nd(nd);
 	}
 
 out:

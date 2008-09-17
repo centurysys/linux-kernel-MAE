@@ -72,10 +72,9 @@ struct dentry *__lookup_one(struct dentry *base, struct vfsmount *mnt,
 int unionfs_partial_lookup(struct dentry *dentry, struct dentry *parent)
 {
 	struct dentry *tmp;
-	struct nameidata nd = { .flags = 0 };
 	int err = -ENOSYS;
 
-	tmp = unionfs_lookup_full(dentry, parent, &nd, INTERPOSE_PARTIAL);
+	tmp = unionfs_lookup_full(dentry, parent, INTERPOSE_PARTIAL);
 
 	if (!tmp) {
 		err = 0;
@@ -288,8 +287,7 @@ void release_lower_nd(struct nameidata *nd, int err)
  * dentry's info, which the caller must unlock.
  */
 struct dentry *unionfs_lookup_full(struct dentry *dentry,
-				   struct dentry *parent,
-				   struct nameidata *nd_unused, int lookupmode)
+				   struct dentry *parent, int lookupmode)
 {
 	int err = 0;
 	struct dentry *lower_dentry = NULL;
