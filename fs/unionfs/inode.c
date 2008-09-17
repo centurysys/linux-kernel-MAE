@@ -904,7 +904,10 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 		ia->ia_valid &= ~ATTR_MODE;
 
 	lower_dentry = unionfs_lower_dentry(dentry);
-	BUG_ON(!lower_dentry);	/* should never happen after above revalidate */
+	if (!lower_dentry) { /* should never happen after above revalidate */
+		err = -EINVAL;
+		goto out;
+	}
 	lower_inode = unionfs_lower_inode(inode);
 
 	/* check if user has permission to change lower inode */
