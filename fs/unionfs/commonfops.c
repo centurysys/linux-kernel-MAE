@@ -656,15 +656,15 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	/*
-	 * Yes, we have to revalidate this file even if it's being released.
-	 * This is important for open-but-unlinked files, as well as mmap
-	 * support.
+	 * We try to revalidate, but the VFS ignores return return values
+	 * from file->release, so we must always try to succeed here,
+	 * including to do the kfree and dput below.  So if revalidation
+	 * failed, all we can do is print some message and keep going.
 	 */
 	err = unionfs_file_revalidate(file, parent,
 				      UNIONFS_F(file)->wrote_to_file);
-	if (unlikely(err))
-		goto out;
-	unionfs_check_file(file);
+	if (!err)
+		unionfs_check_file(file);
 	fileinfo = UNIONFS_F(file);
 	BUG_ON(file->f_path.dentry->d_inode != inode);
 	inodeinfo = UNIONFS_I(inode);
@@ -705,7 +705,6 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	}
 	kfree(fileinfo);
 
-out:
 	unionfs_unlock_dentry(dentry);
 	unionfs_unlock_parent(dentry, parent);
 	unionfs_read_unlock(sb);
