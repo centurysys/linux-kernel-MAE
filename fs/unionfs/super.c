@@ -124,7 +124,7 @@ static void unionfs_put_super(struct super_block *sb)
 			       bindex, branch_count(sb, bindex));
 			leaks = 1;
 		}
-	BUG_ON(leaks != 0);
+	WARN_ON(leaks != 0);
 
 	/* decrement lower super references */
 	for (bindex = bstart; bindex <= bend; bindex++) {
