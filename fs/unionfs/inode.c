@@ -785,6 +785,11 @@ static int unionfs_permission(struct inode *inode, int mask)
 	int bindex, bstart, bend;
 	const int is_file = !S_ISDIR(inode->i_mode);
 	const int write_mask = (mask & MAY_WRITE) && !(mask & MAY_READ);
+	struct inode *inode_grabbed = igrab(inode);
+	struct dentry *dentry = d_find_alias(inode);
+
+	if (dentry)
+		unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	if (!UNIONFS_I(inode)->lower_inodes) {
 		if (is_file)	/* dirs can be unlinked but chdir'ed to */
@@ -859,6 +864,11 @@ static int unionfs_permission(struct inode *inode, int mask)
 
 out:
 	unionfs_check_inode(inode);
+	if (dentry) {
+		unionfs_unlock_dentry(dentry);
+		dput(dentry);
+	}
+	iput(inode_grabbed);
 	return err;
 }
 
