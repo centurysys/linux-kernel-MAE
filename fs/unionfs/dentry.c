@@ -107,25 +107,7 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 		}
 
 		/* Free the pointers for our inodes and this dentry. */
-		bstart = dbstart(dentry);
-		bend = dbend(dentry);
-
-		/*
-		 * mntput unhashed lower dentries, because those files got
-		 * deleted or rmdir'ed.
-		 */
-		for (bindex = bstart; bindex <= bend; bindex++) {
-			lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
-			if (!lower_dentry)
-				continue;
-			if (!d_deleted(lower_dentry) &&
-			    !(lower_dentry->d_flags & DCACHE_NFSFS_RENAMED))
-			    continue;
-			unionfs_mntput(dentry, bindex);
-		}
-
-		__dput_lowers(dentry, bstart, bend);
-		dbstart(dentry) = dbend(dentry) = -1;
+		path_put_lowers_all(dentry, false);
 
 		interpose_flag = INTERPOSE_REVAL_NEG;
 		if (positive) {
@@ -154,7 +136,6 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 		}
 
 		if (unlikely(positive && is_negative_lower(dentry))) {
-			make_bad_inode(dentry->d_inode);
 			d_drop(dentry);
 			valid = false;
 			goto out;
@@ -312,7 +293,7 @@ bool __unionfs_d_revalidate(struct dentry *dentry, struct dentry *parent,
 			    struct nameidata *nd, bool willwrite)
 {
 	bool valid = false;	/* default is invalid */
-	int sbgen, dgen, bindex;
+	int sbgen, dgen;
 
 	verify_locked(dentry);
 	verify_locked(parent);
@@ -339,19 +320,6 @@ bool __unionfs_d_revalidate(struct dentry *dentry, struct dentry *parent,
 	}
 	valid = __unionfs_d_revalidate_one(dentry, parent, nd);
 
-	/*
-	 * If __unionfs_d_revalidate_one() succeeded above, then it will
-	 * have incremented the refcnt of the mnt's, but also the branch
-	 * indices of the dentry will have been updated (to take into
-	 * account any branch insertions/deletion.  So the current
-	 * dbstart/dbend match the current, and new, indices of the mnts
-	 * which __unionfs_d_revalidate_one has incremented.  Note: the "if"
-	 * test below does not depend on whether chain_len was 0 or greater.
-	 */
-	if (!valid || sbgen == dgen)
-		goto out;
-	for (bindex = dbstart(dentry); bindex <= dbend(dentry); bindex++)
-		unionfs_mntput(dentry, bindex);
 out:
 	return valid;
 }
