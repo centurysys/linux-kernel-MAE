@@ -171,19 +171,14 @@ static struct dentry *unionfs_lookup(struct inode *dir,
 {
 	struct dentry *ret, *parent;
 	int err = 0;
-	bool valid;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
-	valid = is_valid(parent);
-	if (unlikely(!valid)) {
-		ret = ERR_PTR(-ESTALE);
-		goto out;
-	}
 
 	/*
-	 * unionfs_lookup_full returns a locked dentry upon success,
-	 * so we'll have to unlock it below.
+	 * As long as we lock/dget the parent, then can skip validating the
+	 * parent now; we may have to rebuild this dentry on the next
+	 * ->d_revalidate, however.
 	 */
 
 	/* allocate dentry private data.  We free it in ->d_release */
