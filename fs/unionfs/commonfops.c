@@ -415,7 +415,6 @@ int unionfs_file_revalidate(struct file *file, struct dentry *parent,
 	 * First revalidate the dentry inside struct file,
 	 * but not unhashed dentries.
 	 */
-reval_dentry:
 	if (!d_deleted(dentry) &&
 	    !__unionfs_d_revalidate(dentry, parent, willwrite)) {
 		err = -ESTALE;
@@ -425,13 +424,12 @@ reval_dentry:
 	sbgen = atomic_read(&UNIONFS_SB(sb)->generation);
 	dgen = atomic_read(&UNIONFS_D(dentry)->generation);
 
-	if (unlikely(sbgen > dgen)) {
-		pr_debug("unionfs: retry dentry %s revalidation\n",
+	if (unlikely(sbgen > dgen)) { /* XXX: should never happen */
+		pr_debug("unionfs: failed to revalidate dentry (%s)\n",
 			 dentry->d_name.name);
-		schedule();
-		goto reval_dentry;
+		err = -ESTALE;
+		goto out;
 	}
-	BUG_ON(sbgen > dgen);
 
 	err = __unionfs_file_revalidate(file, dentry, parent, sb,
 					sbgen, dgen, willwrite);

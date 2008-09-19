@@ -553,16 +553,6 @@ static inline void unlock_dir(struct dentry *dir)
 	dput(dir);
 }
 
-/* true if dentry is valid, false otherwise (i.e., needs revalidation) */
-static inline bool is_valid(const struct dentry *dentry)
-{
-	if (is_negative_lower(dentry) ||
-	    (atomic_read(&UNIONFS_SB(dentry->d_sb)->generation) !=
-	     atomic_read(&UNIONFS_D(dentry)->generation)))
-		return false;
-	return true;
-}
-
 static inline struct vfsmount *unionfs_mntget(struct dentry *dentry,
 					      int bindex)
 {

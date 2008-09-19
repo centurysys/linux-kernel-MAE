@@ -55,85 +55,137 @@ static inline void __dput_lowers(struct dentry *dentry, int start, int end)
 }
 
 /*
- * Revalidate a single dentry.
- * Assume that dentry's info node is locked.
- * Assume that parent(s) are all valid already, but
- * the child may not yet be valid.
- * Returns true if valid, false otherwise.
+ * Purge and invalidate as many data pages of a unionfs inode.  This is
+ * called when the lower inode has changed, and we want to force processes
+ * to re-get the new data.
  */
-static bool __unionfs_d_revalidate_one(struct dentry *dentry,
-				       struct dentry *parent)
+static inline void purge_inode_data(struct inode *inode)
+{
+	/* remove all non-private mappings */
+	unmap_mapping_range(inode->i_mapping, 0, 0, 0);
+	/* invalidate as many pages as possible */
+	invalidate_mapping_pages(inode->i_mapping, 0, -1);
+	/*
+	 * Don't try to truncate_inode_pages here, because this could lead
+	 * to a deadlock between some of address_space ops and dentry
+	 * revalidation: the address space op is invoked with a lock on our
+	 * own page, and truncate_inode_pages will block on locked pages.
+	 */
+}
+
+/*
+ * Revalidate a single file/symlink/special dentry.  Assume that info nodes
+ * of the @dentry and its @parent are locked.  Assume parent is valid,
+ * otherwise return false (and let's hope the VFS will try to re-lookup this
+ * dentry).  Returns true if valid, false otherwise.
+ */
+bool __unionfs_d_revalidate(struct dentry *dentry, struct dentry *parent,
+			    bool willwrite)
 {
 	bool valid = true;	/* default is valid */
 	struct dentry *lower_dentry;
+	struct dentry *result;
 	int bindex, bstart, bend;
-	int sbgen, dgen;
+	int sbgen, dgen, pdgen;
 	int positive = 0;
 	int interpose_flag;
 
-	sbgen = atomic_read(&UNIONFS_SB(dentry->d_sb)->generation);
+	verify_locked(dentry);
+	verify_locked(parent);
+
 	/* if the dentry is unhashed, do NOT revalidate */
 	if (d_deleted(dentry))
 		goto out;
 
+	dgen = atomic_read(&UNIONFS_D(dentry)->generation);
+
+	if (is_newer_lower(dentry)) {
+		/* root dentry is always valid */
+		if (IS_ROOT(dentry)) {
+			unionfs_copy_attr_times(dentry->d_inode);
+		} else {
+			/*
+			 * reset generation number to zero, guaranteed to be
+			 * "old"
+			 */
+			dgen = 0;
+			atomic_set(&UNIONFS_D(dentry)->generation, dgen);
+		}
+		if (!willwrite)
+			purge_inode_data(dentry->d_inode);
+	}
+
+	sbgen = atomic_read(&UNIONFS_SB(dentry->d_sb)->generation);
+
 	BUG_ON(dbstart(dentry) == -1);
 	if (dentry->d_inode)
 		positive = 1;
-	dgen = atomic_read(&UNIONFS_D(dentry)->generation);
-	/*
-	 * If we are working on an unconnected dentry, then there is no
-	 * revalidation to be done, because this file does not exist within
-	 * the namespace, and Unionfs operates on the namespace, not data.
-	 */
-	if (unlikely(sbgen != dgen)) {
-		struct dentry *result;
-		int pdgen;
 
-		/* The root entry should always be valid */
-		BUG_ON(IS_ROOT(dentry));
+	/* if our dentry is valid, then validate all lower ones */
+	if (sbgen == dgen)
+		goto validate_lowers;
 
-		/* We can't work correctly if our parent isn't valid. */
-		pdgen = atomic_read(&UNIONFS_D(parent)->generation);
-		if (pdgen != sbgen) {
-			valid = false;
-			goto out;
-		}
+	/* The root entry should always be valid */
+	BUG_ON(IS_ROOT(dentry));
 
-		/* Free the pointers for our inodes and this dentry. */
-		path_put_lowers_all(dentry, false);
+	/* We can't work correctly if our parent isn't valid. */
+	pdgen = atomic_read(&UNIONFS_D(parent)->generation);
 
-		interpose_flag = INTERPOSE_REVAL_NEG;
-		if (positive) {
-			interpose_flag = INTERPOSE_REVAL;
-			iput_lowers_all(dentry->d_inode, true);
-		}
+	/* Free the pointers for our inodes and this dentry. */
+	path_put_lowers_all(dentry, false);
 
-		if (realloc_dentry_private_data(dentry) != 0) {
-			valid = false;
-			goto out;
-		}
+	interpose_flag = INTERPOSE_REVAL_NEG;
+	if (positive) {
+		interpose_flag = INTERPOSE_REVAL;
+		iput_lowers_all(dentry->d_inode, true);
+	}
 
-		result = unionfs_lookup_full(dentry, parent, interpose_flag);
-		if (result) {
-			if (IS_ERR(result)) {
-				valid = false;
-				goto out;
-			}
-			/*
-			 * current unionfs_lookup_backend() doesn't return
-			 * a valid dentry
-			 */
-			dput(dentry);
-			dentry = result;
-		}
-
-		if (unlikely(positive && is_negative_lower(dentry))) {
-			d_drop(dentry);
-			valid = false;
-			goto out;
-		}
+	if (realloc_dentry_private_data(dentry) != 0) {
+		valid = false;
 		goto out;
 	}
+
+	result = unionfs_lookup_full(dentry, parent, interpose_flag);
+	if (result) {
+		if (IS_ERR(result)) {
+			valid = false;
+			goto out;
+		}
+		/*
+		 * current unionfs_lookup_backend() doesn't return
+		 * a valid dentry
+		 */
+		dput(dentry);
+		dentry = result;
+	}
+
+	if (unlikely(positive && is_negative_lower(dentry))) {
+		/* call make_bad_inode here ? */
+		d_drop(dentry);
+		valid = false;
+		goto out;
+	}
+
+	/*
+	 * if we got here then we have revalidated our dentry and all lower
+	 * ones, so we can return safely.
+	 */
+	if (!valid)		/* lower dentry revalidation failed */
+		goto out;
+
+	/*
+	 * If the parent's gen no.  matches the superblock's gen no., then
+	 * we can update our denty's gen no.  If they didn't match, then it
+	 * was OK to revalidate this dentry with a stale parent, but we'll
+	 * purposely not update our dentry's gen no. (so it can be redone);
+	 * and, we'll mark our parent dentry as invalid so it'll force it
+	 * (and our dentry) to be revalidated.
+	 */
+	if (pdgen == sbgen)
+		atomic_set(&UNIONFS_D(dentry)->generation, sbgen);
+	goto out;
+
+validate_lowers:
 
 	/* The revalidation must occur across all branches */
 	bstart = dbstart(dentry);
@@ -178,9 +230,6 @@ static bool __unionfs_d_revalidate_one(struct dentry *dentry,
 	}
 
 out:
-	if (valid)
-		atomic_set(&UNIONFS_D(dentry)->generation, sbgen);
-
 	return valid;
 }
 
@@ -256,66 +305,6 @@ bool is_newer_lower(const struct dentry *dentry)
 	return false;		/* default: lower is not newer */
 }
 
-/*
- * Purge and invalidate as many data pages of a unionfs inode.  This is
- * called when the lower inode has changed, and we want to force processes
- * to re-get the new data.
- */
-static inline void purge_inode_data(struct inode *inode)
-{
-	/* remove all non-private mappings */
-	unmap_mapping_range(inode->i_mapping, 0, 0, 0);
-	/* invalidate as many pages as possible */
-	invalidate_mapping_pages(inode->i_mapping, 0, -1);
-	/*
-	 * Don't try to truncate_inode_pages here, because this could lead
-	 * to a deadlock between some of address_space ops and dentry
-	 * revalidation: the address space op is invoked with a lock on our
-	 * own page, and truncate_inode_pages will block on locked pages.
-	 */
-}
-
-/*
- * Revalidate a single file/symlink/special dentry.  Assume that info nodes
- * of the @dentry and its @parent are locked.  Assume parent is invalid,
- * otherwise return false (and let's hope the VFS will try to re-lookup this
- * dentry).  Returns true if valid, false otherwise.
- */
-bool __unionfs_d_revalidate(struct dentry *dentry, struct dentry *parent,
-			    bool willwrite)
-{
-	bool valid = false;	/* default is invalid */
-	int sbgen, dgen;
-
-	verify_locked(dentry);
-	verify_locked(parent);
-	if (!is_valid(parent))
-		goto out;
-
-	sbgen = atomic_read(&UNIONFS_SB(dentry->d_sb)->generation);
-	dgen = atomic_read(&UNIONFS_D(dentry)->generation);
-
-	if (unlikely(is_newer_lower(dentry))) {
-		/* root dentry special case as aforementioned */
-		if (IS_ROOT(dentry)) {
-			unionfs_copy_attr_times(dentry->d_inode);
-		} else {
-			/*
-			 * reset generation number to zero, guaranteed to be
-			 * "old"
-			 */
-			dgen = 0;
-			atomic_set(&UNIONFS_D(dentry)->generation, dgen);
-		}
-		if (!willwrite)
-			purge_inode_data(dentry->d_inode);
-	}
-	valid = __unionfs_d_revalidate_one(dentry, parent);
-
-out:
-	return valid;
-}
-
 static int unionfs_d_revalidate(struct dentry *dentry,
 				struct nameidata *nd_unused)
 {
@@ -327,21 +316,11 @@ static int unionfs_d_revalidate(struct dentry *dentry,
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	if (dentry != parent) {
-		valid = is_valid(parent);
-		if (unlikely(!valid)) {
-			err = valid;
-			goto out;
-		}
-	}
 	valid = __unionfs_d_revalidate(dentry, parent, false);
-	if (likely(valid)) {
+	if (valid) {
 		unionfs_postcopyup_setmnt(dentry);
 		unionfs_check_dentry(dentry);
-	}
-
-out:
-	if (unlikely(!valid)) {
+	} else {
 		d_drop(dentry);
 		err = valid;
 	}
