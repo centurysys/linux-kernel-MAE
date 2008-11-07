@@ -527,8 +527,17 @@ out_free:
 		dput(old_lower_dentry);
 	kfree(symbuf);
 
-	if (err)
+	if (err) {
+		/*
+		 * if directory creation succeeded, but inode copyup failed,
+		 * then purge new dentries.
+		 */
+		if (dbstart(dentry) < old_bstart &&
+		    ibstart(dentry->d_inode) > dbstart(dentry))
+			__clear(dentry, NULL, old_bstart, old_bend,
+				unionfs_lower_dentry(dentry), dbstart(dentry));
 		goto out;
+	}
 	if (!S_ISDIR(dentry->d_inode->i_mode)) {
 		unionfs_postcopyup_release(dentry);
 		if (!unionfs_lower_inode(dentry->d_inode)) {
