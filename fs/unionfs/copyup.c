@@ -92,10 +92,19 @@ static int copyup_xattrs(struct dentry *old_lower_dentry,
 		 * XXX: move entire copyup code to SIOQ.
 		 */
 		if (err == -EPERM && !capable(CAP_FOWNER)) {
-			cap_raise(current->cap_effective, CAP_FOWNER);
+			const struct cred *old_creds;
+			struct cred *new_creds;
+
+			new_creds = prepare_creds();
+			if (unlikely(!new_creds)) {
+				err = -ENOMEM;
+				goto out;
+			}
+			cap_raise(new_creds->cap_effective, CAP_FOWNER);
+			old_creds = override_creds(new_creds);
 			err = vfs_setxattr(new_lower_dentry, name_list,
 					   attr_value, size, 0);
-			cap_lower(current->cap_effective, CAP_FOWNER);
+			revert_creds(old_creds);
 		}
 		if (err < 0)
 			goto out;
