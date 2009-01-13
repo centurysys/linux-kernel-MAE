@@ -240,7 +240,7 @@ static int __copyup_reg_data(struct dentry *dentry,
 	/* dentry_open calls dput and mntput if it returns an error */
 	input_file = dentry_open(old_lower_dentry,
 				 unionfs_lower_mnt_idx(dentry, old_bindex),
-				 O_RDONLY | O_LARGEFILE);
+				 O_RDONLY | O_LARGEFILE, current_cred());
 	if (IS_ERR(input_file)) {
 		dput(old_lower_dentry);
 		err = PTR_ERR(input_file);
@@ -256,7 +256,7 @@ static int __copyup_reg_data(struct dentry *dentry,
 	output_mnt = unionfs_mntget(sb->s_root, new_bindex);
 	branchget(sb, new_bindex);
 	output_file = dentry_open(new_lower_dentry, output_mnt,
-				  O_RDWR | O_LARGEFILE);
+				  O_RDWR | O_LARGEFILE, current_cred());
 	if (IS_ERR(output_file)) {
 		err = PTR_ERR(output_file);
 		goto out_close_in2;
