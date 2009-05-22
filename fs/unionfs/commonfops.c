@@ -62,7 +62,7 @@ retry:
 		pr_debug("unionfs: trying to rename %s to %s\n",
 			 dentry->d_name.name, name);
 
-		tmp_dentry = lookup_one_len(name, lower_dentry->d_parent,
+		tmp_dentry = lookup_lck_len(name, lower_dentry->d_parent,
 					    nlen);
 		if (IS_ERR(tmp_dentry)) {
 			err = PTR_ERR(tmp_dentry);
