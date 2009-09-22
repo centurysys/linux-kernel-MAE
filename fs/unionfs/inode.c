@@ -843,6 +843,20 @@ static int unionfs_permission(struct inode *inode, int mask)
 		}
 
 		/*
+		 * NFS HACK: NFSv2/3 return EACCES on readonly-exported,
+		 * locally readonly-mounted file systems, instead of EROFS
+		 * like other file systems do.  So we have no choice here
+		 * but to intercept this and ignore it for NFS branches
+		 * marked readonly.  Specifically, we avoid using NFS's own
+		 * "broken" ->permission method, and rely on
+		 * generic_permission() to do basic checking for us.
+		 */
+		if (err && err == -EACCES &&
+		    is_robranch_super(inode->i_sb, bindex) &&
+		    lower_inode->i_sb->s_magic == NFS_SUPER_MAGIC)
+			err = generic_permission(lower_inode, mask, NULL);
+
+		/*
 		 * The permissions are an intersection of the overall directory
 		 * permissions, so we fail if one fails.
 		 */
