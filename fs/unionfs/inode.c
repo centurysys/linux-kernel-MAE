@@ -835,7 +835,7 @@ static int unionfs_permission(struct inode *inode, int mask)
 		if (err && err != -EACCES && err != EPERM && bindex > 0) {
 			umode_t mode = lower_inode->i_mode;
 			if ((is_robranch_super(inode->i_sb, bindex) ||
-			     IS_RDONLY(lower_inode)) &&
+			     __is_rdonly(lower_inode)) &&
 			    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)))
 				err = 0;
 			if (IS_COPYUP_ERR(err))
@@ -930,7 +930,7 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 
 	/* copyup if the file is on a read only branch */
 	if (is_robranch_super(dentry->d_sb, bstart)
-	    || IS_RDONLY(lower_inode)) {
+	    || __is_rdonly(lower_inode)) {
 		/* check if we have a branch to copy up to */
 		if (bstart <= 0) {
 			err = -EACCES;
@@ -977,14 +977,20 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	}
 
 	/* notify the (possibly copied-up) lower inode */
-	mutex_lock(&lower_inode->i_mutex);
+	/*
+	 * Note: we use lower_dentry->d_inode, because lower_inode may be
+	 * unlinked (no inode->i_sb and i_ino==0.  This happens if someone
+	 * tries to open(), unlink(), then ftruncate() a file.
+	 */
+	mutex_lock(&lower_dentry->d_inode->i_mutex);
 	err = notify_change(lower_dentry, ia);
-	mutex_unlock(&lower_inode->i_mutex);
+	mutex_unlock(&lower_dentry->d_inode->i_mutex);
 	if (err)
 		goto out;
 
 	/* get attributes from the first lower inode */
-	unionfs_copy_attr_all(inode, lower_inode);
+	if (ibstart(inode) >= 0)
+		unionfs_copy_attr_all(inode, lower_inode);
 	/*
 	 * unionfs_copy_attr_all will copy the lower times to our inode if
 	 * the lower ones are newer (useful for cache coherency).  However,
