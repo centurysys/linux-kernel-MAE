@@ -39,7 +39,7 @@ static int unionfs_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	int err;
 	struct file *file, *lower_file;
-	struct vm_operations_struct *lower_vm_ops;
+	const struct vm_operations_struct *lower_vm_ops;
 	struct vm_area_struct lower_vma;
 
 	BUG_ON(!vma);

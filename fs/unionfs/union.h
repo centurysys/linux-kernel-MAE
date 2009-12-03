@@ -97,7 +97,7 @@ struct unionfs_file_info {
 	struct unionfs_dir_state *rdstate;
 	struct file **lower_files;
 	int *saved_branch_ids; /* IDs of branches when file was opened */
-	struct vm_operations_struct *lower_vm_ops;
+	const struct vm_operations_struct *lower_vm_ops;
 	bool wrote_to_file;	/* for delayed copyup */
 };
 

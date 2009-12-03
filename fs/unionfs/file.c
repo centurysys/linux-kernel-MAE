@@ -98,7 +98,7 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 	struct file *lower_file;
 	struct dentry *dentry = file->f_path.dentry;
 	struct dentry *parent;
-	struct vm_operations_struct *saved_vm_ops = NULL;
+	const struct vm_operations_struct *saved_vm_ops = NULL;
 
 	/*
 	 * Since mm/memory.c:might_fault() (under PROVE_LOCKING) was
