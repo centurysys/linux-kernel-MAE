@@ -809,14 +809,17 @@ static void mxcuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 #ifdef CONFIG_MACH_MAGNOLIA2
         if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
                 /* RS-485 only */
+                struct tty_struct *tty = umxc->port.info->port.tty;
                 u32 val;
 
                 /* Control TxEN */
                 if (mctrl & TIOCM_OUT1)
-                        val = 0;
+                        val = 0;	/* Disable Tx */
                 else
                         val = 1;
 
+                if (val == 0)
+                        tty_wait_until_sent(tty, 30 * HZ); /* 30 seconds */
                 mxc_set_gpio_dataout(umxc->TxEnable, val);
 
                 /* Control RxEN */
