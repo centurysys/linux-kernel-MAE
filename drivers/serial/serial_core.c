@@ -37,6 +37,10 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+#include <mach/mxc_uart.h>
+#endif
+
 /*
  * This is used to lock changes in serial line configuration.
  */
@@ -116,11 +120,23 @@ static void uart_tasklet_action(unsigned long data)
 	tty_wakeup(state->info->port.tty);
 }
 
+
 static inline void
 uart_update_mctrl(struct uart_port *port, unsigned int set, unsigned int clear)
 {
 	unsigned long flags;
 	unsigned int old;
+#ifdef CONFIG_MACH_MAGNOLIA2
+	uart_mxc_port *umxc = (uart_mxc_port *) port;
+
+        if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
+                /* RS-485 only */
+                struct tty_struct *tty = port->info->port.tty;
+
+                if (clear & TIOCM_OUT1)
+                        tty_wait_until_sent(tty, 10 * HZ);
+        }
+#endif
 
 	spin_lock_irqsave(&port->lock, flags);
 	old = port->mctrl;
@@ -1179,12 +1195,11 @@ static void uart_set_ldisc(struct tty_struct *tty)
 }
 
 static void uart_set_termios(struct tty_struct *tty,
-						struct ktermios *old_termios)
+                             struct ktermios *old_termios)
 {
 	struct uart_state *state = tty->driver_data;
 	unsigned long flags;
 	unsigned int cflag = tty->termios->c_cflag;
-
 
 	/*
 	 * These are the bits that are used to setup various

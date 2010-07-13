@@ -744,6 +744,9 @@ static unsigned int mxcuart_get_mctrl(struct uart_port *port)
 	return result;
 }
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern void mxc_uart_control_txrx(struct uart_port *port, unsigned int mctrl);
+#endif
 /*!
  * This function is called by the core driver to set the state of the modem
  * control lines.
@@ -806,30 +809,9 @@ static void mxcuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	}
 	writel(uts, port->membase + MXC_UARTUTS);
 
+
 #ifdef CONFIG_MACH_MAGNOLIA2
-        if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
-                /* RS-485 only */
-                struct tty_struct *tty = umxc->port.info->port.tty;
-                u32 val;
-
-                /* Control TxEN */
-                if (mctrl & TIOCM_OUT1)
-                        val = 0;	/* Disable Tx */
-                else
-                        val = 1;
-
-                if (val == 0)
-                        tty_wait_until_sent(tty, 30 * HZ); /* 30 seconds */
-                mxc_set_gpio_dataout(umxc->TxEnable, val);
-
-                /* Control RxEN */
-                if (mctrl & TIOCM_OUT2)
-                        val = 0;
-                else
-                        val = 1;
-
-                mxc_set_gpio_dataout(umxc->RxEnable, val);
-        }
+        mxc_uart_control_txrx(port, mctrl);
 #endif
 }
 

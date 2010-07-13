@@ -92,6 +92,10 @@ void gpio_uart_active(int port, int no_irda)
                         /* RS-422 or RS-485 */
                         mxc_request_iomux(MX35_PIN_MLB_DAT, MUX_CONFIG_GPIO); /* GPIO3(4) */
                         mxc_request_iomux(MX35_PIN_MLB_SIG, MUX_CONFIG_GPIO); /* GPIO3(5) */
+                        mxc_set_gpio_dataout(MX35_PIN_MLB_DAT, 0);            /* TxD: disable */
+                        mxc_set_gpio_dataout(MX35_PIN_MLB_SIG, 1);            /* RxD: disable */
+                        mxc_set_gpio_direction(MX35_PIN_MLB_DAT, 0);          /* GPIO OUT */
+                        mxc_set_gpio_direction(MX35_PIN_MLB_SIG, 0);          /* GPIO OUT */
                         mxc_iomux_set_input(MUX_IN_GPIO3_IN_4, INPUT_CTL_PATH1);
                         mxc_iomux_set_input(MUX_IN_GPIO3_IN_5, INPUT_CTL_PATH1);
 
@@ -229,6 +233,8 @@ void gpio_uart_inactive(int port, int no_irda)
 
                 if (type == 1) {
                         /* RS-422 or RS-485 */
+                        mxc_set_gpio_dataout(MX35_PIN_MLB_DAT, 0); /* TxD: disable */
+                        mxc_set_gpio_dataout(MX35_PIN_MLB_SIG, 1); /* RxD: disable */
                         mxc_free_gpio(MX35_PIN_MLB_DAT); /* GPIO3(4) */
                         mxc_free_gpio(MX35_PIN_MLB_SIG); /* GPIO3(5) */
                 }
@@ -279,8 +285,49 @@ void gpio_uart_inactive(int port, int no_irda)
 
         mxc_uart_state[port] = 0;
 }
-
 EXPORT_SYMBOL(gpio_uart_inactive);
+
+static inline void mxc_uart_control_tx(uart_mxc_port *umxc, int enable)
+{
+        mxc_set_gpio_dataout(umxc->TxEnable, enable);
+}
+
+static inline void mxc_uart_control_rx(uart_mxc_port *umxc, int enable)
+{
+        mxc_set_gpio_dataout(umxc->RxEnable, !enable);
+}
+
+void mxc_uart_control_txrx(struct uart_port *port, unsigned int mctrl)
+{
+	uart_mxc_port *umxc = (uart_mxc_port *) port;
+        int line = umxc->port.line;
+
+        if (mxc_uart_state[line] == 0)
+                /* not enabled */
+                return;
+
+        if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
+                /* RS-485 only */
+                int enable;
+
+                /* Control TxEN */
+                if (mctrl & TIOCM_OUT1)
+                        enable = 1;	/* Enable Tx */
+                else
+                        enable = 0;	/* Disable Tx */
+
+                mxc_uart_control_tx(umxc, enable);
+
+                /* Control RxEN */
+                if (mctrl & TIOCM_OUT2)
+                        enable = 0;	/* Disable Rx */
+                else
+                        enable = 1;	/* Enable Rx */
+
+                mxc_uart_control_rx(umxc, enable);
+        }
+}
+EXPORT_SYMBOL(mxc_uart_control_txrx);
 
 /*!
  * Configure the IOMUX GPR register to receive shared SDMA UART events
