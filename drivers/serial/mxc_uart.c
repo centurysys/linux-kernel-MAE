@@ -405,7 +405,11 @@ static void mxcuart_rx_chars(uart_mxc_port * umxc)
  * @param   umxc   the MXC UART port structure, this includes the \b uart_port
  *                 structure and other members that are specific to MXC UARTs
  */
+#ifdef CONFIG_MACH_MAGNOLIA2
+static int mxcuart_tx_chars(uart_mxc_port * umxc)
+#else
 static void mxcuart_tx_chars(uart_mxc_port * umxc)
+#endif
 {
 	struct circ_buf *xmit = &umxc->port.info->xmit;
 	int count;
@@ -417,7 +421,11 @@ static void mxcuart_tx_chars(uart_mxc_port * umxc)
 		writel(umxc->port.x_char, umxc->port.membase + MXC_UARTUTXD);
 		umxc->port.icount.tx++;
 		umxc->port.x_char = 0;
+#ifdef CONFIG_MACH_MAGNOLIA2
+		return 0;
+#else
 		return;
+#endif
 	}
 
 	/*
@@ -426,7 +434,11 @@ static void mxcuart_tx_chars(uart_mxc_port * umxc)
 	 */
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&umxc->port)) {
 		mxcuart_stop_tx(&umxc->port);
+#ifdef CONFIG_MACH_MAGNOLIA2
+                return 0;
+#else
 		return;
+#endif
 	}
 
 	count = umxc->port.fifosize - umxc->tx_threshold;
@@ -450,8 +462,14 @@ static void mxcuart_tx_chars(uart_mxc_port * umxc)
 	}
 
 	if (uart_circ_empty(xmit)) {
-		mxcuart_stop_tx(&umxc->port);
+                mxcuart_stop_tx(&umxc->port);
+#ifdef CONFIG_MACH_MAGNOLIA2
+                return 0;
+#endif
 	}
+#ifdef CONFIG_MACH_MAGNOLIA2
+		return 1;
+#endif
 }
 
 /*!
@@ -505,6 +523,9 @@ static irqreturn_t mxcuart_int(int irq, void *dev_id)
 	unsigned int pass_counter = MXC_ISR_PASS_LIMIT;
 	unsigned int term_cond = 0;
 	int handled = 0;
+#ifdef CONFIG_MACH_MAGNOLIA2
+        int res;
+#endif
 
 	sr1 = readl(umxc->port.membase + MXC_UARTUSR1);
 	sr2 = readl(umxc->port.membase + MXC_UARTUSR2);
@@ -541,8 +562,39 @@ static irqreturn_t mxcuart_int(int irq, void *dev_id)
 				cr |= MXC_UARTUCR4_TCEN;
 				writel(cr, umxc->port.membase + MXC_UARTUCR4);
 			}
-			mxcuart_tx_chars(umxc);
+			res = mxcuart_tx_chars(umxc);
+                        if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
+                                /* RS-485 only */
+                                if (umxc->txrx_pending == 1 && res == 0) {
+                                        /* Enable Transmit complete intr */
+                                        //printk("@ uart interrupt: set TCEN\n");
+
+                                        cr = readl(umxc->port.membase + MXC_UARTUCR4);
+                                        cr |= MXC_UARTUCR4_TCEN;
+                                        writel(cr, umxc->port.membase + MXC_UARTUCR4);
+                                }
+                        }
 		}
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+                if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
+                        /* RS-485 only */
+                        if (umxc->txrx_pending == 1 && (sr2 & MXC_UARTUSR2_TXDC)) {
+				cr = readl(umxc->port.membase + MXC_UARTUCR4);
+                                if (cr & MXC_UARTUCR4_TCEN) {
+                                        //printk("@ uart interrupt: TXDC txrx pending\n");
+
+                                        /* Disable the Transmit complete interrupt bit */
+                                        cr &= ~MXC_UARTUCR4_TCEN;
+                                        writel(cr, umxc->port.membase + MXC_UARTUCR4);
+
+                                        umxc->txrx_pending = 0;
+                                        mxc_set_gpio_dataout(umxc->TxEnable, umxc->txe);
+                                        mxc_set_gpio_dataout(umxc->RxEnable, !umxc->rxe);
+                                }
+			}
+                }
+#endif
 
 		if (pass_counter-- == 0) {
 			break;

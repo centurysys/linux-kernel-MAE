@@ -126,17 +126,6 @@ uart_update_mctrl(struct uart_port *port, unsigned int set, unsigned int clear)
 {
 	unsigned long flags;
 	unsigned int old;
-#ifdef CONFIG_MACH_MAGNOLIA2
-	uart_mxc_port *umxc = (uart_mxc_port *) port;
-
-        if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
-                /* RS-485 only */
-                struct tty_struct *tty = port->info->port.tty;
-
-                if (clear & TIOCM_OUT1)
-                        tty_wait_until_sent(tty, 10 * HZ);
-        }
-#endif
 
 	spin_lock_irqsave(&port->lock, flags);
 	old = port->mctrl;

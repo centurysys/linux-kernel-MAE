@@ -308,23 +308,37 @@ void mxc_uart_control_txrx(struct uart_port *port, unsigned int mctrl)
 
         if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
                 /* RS-485 only */
-                int enable;
+                int txe, rxe;
+                unsigned long flags;
 
                 /* Control TxEN */
                 if (mctrl & TIOCM_OUT1)
-                        enable = 1;	/* Enable Tx */
+                        txe = 1;	/* Enable Tx */
                 else
-                        enable = 0;	/* Disable Tx */
-
-                mxc_uart_control_tx(umxc, enable);
+                        txe = 0;	/* Disable Tx */
 
                 /* Control RxEN */
                 if (mctrl & TIOCM_OUT2)
-                        enable = 0;	/* Disable Rx */
+                        rxe = 0;	/* Disable Rx */
                 else
-                        enable = 1;	/* Enable Rx */
+                        rxe = 1;	/* Enable Rx */
 
-                mxc_uart_control_rx(umxc, enable);
+                spin_lock_irqsave(&port->lock, flags);
+                //printk(" txrx_pending = %d\n", umxc->txrx_pending);
+                if (txe == 0 && !port->ops->tx_empty(port)) {
+                        //printk("# %s: !tx_empty() txe=%d, rxe=%d\n",
+                        //__FUNCTION__, txe, rxe);
+                        umxc->txrx_pending = 1;
+                        umxc->txe = txe;
+                        umxc->rxe = rxe;
+                } else {
+                        //printk("# %s: tx_empty() txe=%d, rxe=%d\n",
+                        //__FUNCTION__, txe, rxe);
+                        umxc->txrx_pending = 0;
+                        mxc_uart_control_tx(umxc, txe);
+                        mxc_uart_control_rx(umxc, rxe);
+                }
+                spin_unlock_irqrestore(&port->lock, flags);
         }
 }
 EXPORT_SYMBOL(mxc_uart_control_txrx);

@@ -168,6 +168,10 @@ typedef struct {
 
         iomux_pin_name_t TxEnable;
         iomux_pin_name_t RxEnable;
+
+        int txrx_pending;
+        int txe;
+        int rxe;
 #ifdef CONFIG_MXC_UART_DSR_GPIO
         __u32 pin_DSR;
 #endif /* CONFIG_MXC_UART_DSR_GPIO */
