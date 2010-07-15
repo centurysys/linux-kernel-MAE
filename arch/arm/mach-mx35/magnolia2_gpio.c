@@ -324,16 +324,19 @@ void mxc_uart_control_txrx(struct uart_port *port, unsigned int mctrl)
                         rxe = 1;	/* Enable Rx */
 
                 spin_lock_irqsave(&port->lock, flags);
-                //printk(" txrx_pending = %d\n", umxc->txrx_pending);
                 if (txe == 0 && !port->ops->tx_empty(port)) {
-                        //printk("# %s: !tx_empty() txe=%d, rxe=%d\n",
-                        //__FUNCTION__, txe, rxe);
                         umxc->txrx_pending = 1;
                         umxc->txe = txe;
                         umxc->rxe = rxe;
+                        if (umxc->tx_available == 0) {
+                                volatile unsigned int cr;
+
+                                /* Enable Transmit complete intr */
+                                cr = readl(umxc->port.membase + MXC_UARTUCR4);
+                                cr |= MXC_UARTUCR4_TCEN;
+                                writel(cr, umxc->port.membase + MXC_UARTUCR4);
+                        }
                 } else {
-                        //printk("# %s: tx_empty() txe=%d, rxe=%d\n",
-                        //__FUNCTION__, txe, rxe);
                         umxc->txrx_pending = 0;
                         mxc_uart_control_tx(umxc, txe);
                         mxc_uart_control_rx(umxc, rxe);

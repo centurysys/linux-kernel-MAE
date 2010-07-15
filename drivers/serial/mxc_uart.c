@@ -524,14 +524,16 @@ static irqreturn_t mxcuart_int(int irq, void *dev_id)
 	unsigned int term_cond = 0;
 	int handled = 0;
 #ifdef CONFIG_MACH_MAGNOLIA2
-        int res;
+        int sent, received, modemstat;
 #endif
-
 	sr1 = readl(umxc->port.membase + MXC_UARTUSR1);
 	sr2 = readl(umxc->port.membase + MXC_UARTUSR2);
 	cr1 = readl(umxc->port.membase + MXC_UARTUCR1);
 
 	do {
+#ifdef CONFIG_MACH_MAGNOLIA2
+                sent = received = modemstat = 0;
+#endif
 		/* Clear the bits that triggered the interrupt */
 		writel(sr1, umxc->port.membase + MXC_UARTUSR1);
 		writel(sr2, umxc->port.membase + MXC_UARTUSR2);
@@ -539,12 +541,15 @@ static irqreturn_t mxcuart_int(int irq, void *dev_id)
 		 * Read if there is data available
 		 */
 		if (sr2 & MXC_UARTUSR2_RDR) {
+                        //printk("MXC_UARTUSR2_RDR\n");
 			mxcuart_rx_chars(umxc);
+                        received = 1;
 		}
 
 		if ((sr1 & (MXC_UARTUSR1_RTSD | MXC_UARTUSR1_DTRD)) ||
 		    (sr2 & (MXC_UARTUSR2_DCDDELT | MXC_UARTUSR2_RIDELT))) {
 			mxcuart_modem_status(umxc, sr1, sr2);
+                        modemstat = 1;
 		}
 
 		/*
@@ -562,13 +567,15 @@ static irqreturn_t mxcuart_int(int irq, void *dev_id)
 				cr |= MXC_UARTUCR4_TCEN;
 				writel(cr, umxc->port.membase + MXC_UARTUCR4);
 			}
-			res = mxcuart_tx_chars(umxc);
+			sent = mxcuart_tx_chars(umxc);
+
                         if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
                                 /* RS-485 only */
-                                if (umxc->txrx_pending == 1 && res == 0) {
-                                        /* Enable Transmit complete intr */
-                                        //printk("@ uart interrupt: set TCEN\n");
+                                umxc->tx_available = sent;
 
+                                cr = readl(umxc->port.membase + MXC_UARTUCR4);
+                                if (umxc->txrx_pending == 1 && sent == 0 &&
+                                    !(cr & MXC_UARTUCR4_TCEN)) {
                                         cr = readl(umxc->port.membase + MXC_UARTUCR4);
                                         cr |= MXC_UARTUCR4_TCEN;
                                         writel(cr, umxc->port.membase + MXC_UARTUCR4);
@@ -579,11 +586,10 @@ static irqreturn_t mxcuart_int(int irq, void *dev_id)
 #ifdef CONFIG_MACH_MAGNOLIA2
                 if (umxc->driver_type == 1 && umxc->driver_duplex == 0) {
                         /* RS-485 only */
-                        if (umxc->txrx_pending == 1 && (sr2 & MXC_UARTUSR2_TXDC)) {
+                        if (umxc->txrx_pending == 1) {
 				cr = readl(umxc->port.membase + MXC_UARTUCR4);
-                                if (cr & MXC_UARTUCR4_TCEN) {
-                                        //printk("@ uart interrupt: TXDC txrx pending\n");
 
+                                if ((cr & MXC_UARTUCR4_TCEN) && (sr2 & MXC_UARTUSR2_TXDC)) {
                                         /* Disable the Transmit complete interrupt bit */
                                         cr &= ~MXC_UARTUCR4_TCEN;
                                         writel(cr, umxc->port.membase + MXC_UARTUCR4);
@@ -616,6 +622,11 @@ static irqreturn_t mxcuart_int(int irq, void *dev_id)
 			}
 		}
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+                if (umxc->driver_type == 1 && umxc->driver_duplex == 0)
+                        if (sent == 0 && received == 0 && modemstat == 0)
+                                break;
+#endif
 		/*
 		 * If there is no data to send or receive and if there is no
 		 * change in the modem status signals then quit the routine
@@ -860,7 +871,6 @@ static void mxcuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		}
 	}
 	writel(uts, port->membase + MXC_UARTUTS);
-
 
 #ifdef CONFIG_MACH_MAGNOLIA2
         mxc_uart_control_txrx(port, mctrl);

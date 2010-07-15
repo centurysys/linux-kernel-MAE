@@ -172,6 +172,8 @@ typedef struct {
         int txrx_pending;
         int txe;
         int rxe;
+
+        int tx_available;
 #ifdef CONFIG_MXC_UART_DSR_GPIO
         __u32 pin_DSR;
 #endif /* CONFIG_MXC_UART_DSR_GPIO */
