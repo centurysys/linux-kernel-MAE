@@ -74,31 +74,6 @@ struct inode *unionfs_iget(struct super_block *sb, unsigned long ino)
 }
 
 /*
- * we now define delete_inode, because there are two VFS paths that may
- * destroy an inode: one of them calls clear inode before doing everything
- * else that's needed, and the other is fine.  This way we truncate the inode
- * size (and its pages) and then clear our own inode, which will do an iput
- * on our and the lower inode.
- *
- * No need to lock sb info's rwsem.
- */
-static void unionfs_delete_inode(struct inode *inode)
-{
-#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	spin_lock(&inode->i_lock);
-#endif
-	i_size_write(inode, 0);	/* every f/s seems to do that */
-#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	spin_unlock(&inode->i_lock);
-#endif
-
-	if (inode->i_data.nrpages)
-		truncate_inode_pages(&inode->i_data, 0);
-
-	clear_inode(inode);
-}
-
-/*
  * final actions when unmounting a file system
  *
  * No need to lock rwsem.
@@ -151,6 +126,7 @@ static int unionfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct super_block *sb;
 	struct dentry *lower_dentry;
 	struct dentry *parent;
+	struct path lower_path;
 	bool valid;
 
 	sb = dentry->d_sb;
@@ -167,7 +143,9 @@ static int unionfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	unionfs_check_dentry(dentry);
 
 	lower_dentry = unionfs_lower_dentry(sb->s_root);
-	err = vfs_statfs(lower_dentry, buf);
+	lower_path.dentry = lower_dentry;
+	lower_path.mnt = NULL;
+	err = vfs_statfs(&lower_path, buf);
 
 	/* set return buf to our f/s to avoid confusing user-level utils */
 	buf->f_type = UNIONFS_SUPER_MAGIC;
@@ -848,7 +826,7 @@ out_error:
  *
  * No need to lock sb info's rwsem.
  */
-static void unionfs_clear_inode(struct inode *inode)
+static void unionfs_evict_inode(struct inode *inode)
 {
 	int bindex, bstart, bend;
 	struct inode *lower_inode;
@@ -1035,11 +1013,10 @@ out:
 }
 
 struct super_operations unionfs_sops = {
-	.delete_inode	= unionfs_delete_inode,
 	.put_super	= unionfs_put_super,
 	.statfs		= unionfs_statfs,
 	.remount_fs	= unionfs_remount_fs,
-	.clear_inode	= unionfs_clear_inode,
+	.evict_inode	= unionfs_evict_inode,
 	.umount_begin	= unionfs_umount_begin,
 	.show_options	= unionfs_show_options,
 	.write_inode	= unionfs_write_inode,
