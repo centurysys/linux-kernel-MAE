@@ -127,6 +127,7 @@ extern void (*magnolia2_power_off_prepare)(void);
 #define MAGNOLIA2_LED_ADDR      0xa8000002
 
 #define MAGNOLIA2_EXT_UART_FOMA 0x10
+#define MAGNOLIA2_EXT_UART_CAN	0x10
 
 extern void magnolia2_gpio_init(void) __init;
 extern void gpio_tsc_active(void);

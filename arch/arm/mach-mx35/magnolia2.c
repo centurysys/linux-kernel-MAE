@@ -192,6 +192,10 @@ static int __init magnolia2_init_extio4(void)
                 platform_device_register(&foma_extio_device);
                 break;
 
+        case 0x02:
+                /* FL-net module */
+                break;
+
         default:
                 break;
         }
@@ -199,8 +203,8 @@ static int __init magnolia2_init_extio4(void)
         return 0;
 }
 
-
-static struct spi_board_info mxc_spi_board_info[] __initdata = {
+/* CS5: AI/DIO Extension */
+static struct spi_board_info mxc_spi_board_info_aidio[] __initdata = {
 	{
                 .modalias = "ltc185x",
                 .max_speed_hz = 1500000,	/* max spi SCK clock speed in HZ */
@@ -238,6 +242,37 @@ static struct platform_device dio_extio_device = {
 	.resource = dio_extio_resource,
 };
 
+/* CS5: PWR/CAN Extension */
+static struct spi_board_info mxc_spi_board_info_can[] __initdata = {
+	{
+                .modalias = "cortex-m3",
+                .max_speed_hz = 1000000,	/* max spi SCK clock speed in HZ */
+                .bus_num = 1,
+                .chip_select = 0,
+        },
+};
+
+static struct plat_serial8250_port can_serial_platform_data[] = {
+	{
+		.membase  = (void *)(IO_ADDRESS(CS5_BASE_ADDR) + MAGNOLIA2_EXT_UART_CAN),
+		.mapbase  = (unsigned long)(CS5_BASE_ADDR + MAGNOLIA2_EXT_UART_CAN),
+		.irq      = MXC_INT_GPIO_P3(1),
+		.uartclk  = 7372800,
+		.regshift = 1,
+		.iotype   = UPIO_MEM,
+		.flags    = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+        },
+        {},
+};
+
+static struct platform_device can_serial_device = {
+	.name = "serial8250",
+	.id = 0,
+	.dev = {
+		.platform_data = can_serial_platform_data,
+        },
+};
+
 static int __init magnolia2_init_extio5(void)
 {
         u32 cs5_board_id;
@@ -253,8 +288,15 @@ static int __init magnolia2_init_extio5(void)
         case 0x01:
                 /* AI/DIO module */
                 platform_device_register(&dio_extio_device);
-                spi_register_board_info(mxc_spi_board_info,
-                                        ARRAY_SIZE(mxc_spi_board_info));
+                spi_register_board_info(mxc_spi_board_info_aidio,
+                                        ARRAY_SIZE(mxc_spi_board_info_aidio));
+                break;
+
+        case 0x02:
+                /* PWR/CAN module */
+                platform_device_register(&can_serial_device);
+                spi_register_board_info(mxc_spi_board_info_can,
+                                        ARRAY_SIZE(mxc_spi_board_info_can));
                 break;
 
         default:
