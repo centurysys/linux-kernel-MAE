@@ -52,6 +52,11 @@ static void putc(int ch)
 
 	if (unlikely(serial_port == 0)) {
 		do {
+#ifdef CONFIG_MACH_MAGNOLIA2
+			serial_port = UART3_BASE_ADDR;
+			if (UART(UCR1) & UCR1_UARTEN)
+				break;
+#endif
 			serial_port = UART1_BASE_ADDR;
 			if (UART(UCR1) & UCR1_UARTEN)
 				break;
