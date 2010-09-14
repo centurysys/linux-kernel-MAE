@@ -1100,5 +1100,13 @@ config MAGNOLIA2_EXTIO_FOMA
         tristate "Magnolia2 FOMA Ext-IO Support"
 	depends on MACH_MAGNOLIA2
 
+config MAGNOLIA2_EXTIO_FLNET
+        tristate "Magnolia2 FL-net Ext-IO (flnet) Support"
+	depends on MACH_MAGNOLIA2
+
+config MAGNOLIA2_EXTIO_FLDIN
+        tristate "Magnolia2 FL-net Ext-IO (fldin) Support"
+	depends on MACH_MAGNOLIA2
+
 endmenu
 

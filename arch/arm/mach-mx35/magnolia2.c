@@ -168,6 +168,73 @@ static struct platform_device foma_extio_device = {
 	.resource = &foma_extio_resource,
 };
 
+
+/*------------------------------------------------------------------------------
+resource: an expansion FL-net card (flnet)
+------------------------------------------------------------------------------*/
+static struct resource flnet_extio_resource = {
+	.start = CS4_BASE_ADDR,
+	.end = CS4_BASE_ADDR + 0x0B,
+	.flags = IORESOURCE_MEM,
+};
+
+
+/*------------------------------------------------------------------------------
+platform_device: an expansion FL-net card (flnet)
+------------------------------------------------------------------------------*/
+static void dummy_flnet_release(struct device *dev)
+{
+	return;
+}
+
+static struct platform_device flnet_card_device = {
+	.name = "flnet_card",
+	.id = 0,
+	.dev = {
+		.release = dummy_flnet_release,
+	},
+	.num_resources = 1,
+	.resource = &flnet_extio_resource,
+};
+
+
+/*------------------------------------------------------------------------------
+resource: an expansion FL-net card (fldin)
+------------------------------------------------------------------------------*/
+static struct resource fldin_extio_resource[] = {
+	{
+	.start = CS4_BASE_ADDR + 0x10,
+	.end = CS4_BASE_ADDR + 0x11,
+	.flags = IORESOURCE_MEM,
+	},
+	{
+	.start = MXC_INT_GPIO_P3(2),
+	.end = MXC_INT_GPIO_P3(2),
+	.flags = IORESOURCE_IRQ,
+	}
+};
+
+
+/*------------------------------------------------------------------------------
+platform_device: an expansion FL-net card (fldin)
+------------------------------------------------------------------------------*/
+static void dummy_fldin_release(struct device *dev)
+{
+	return;
+}
+
+static struct platform_device fldin_card_device = {
+	.name = "fldin_card",
+	.id = 0,
+	.dev = {
+		.release = dummy_fldin_release,
+	},
+	.num_resources = 2,
+	.resource = fldin_extio_resource,
+};
+
+
+
 static int __init magnolia2_init_extio4(void)
 {
         u32 cs4_board_id;
@@ -193,7 +260,11 @@ static int __init magnolia2_init_extio4(void)
                 break;
 
         case 0x02:
-                /* FL-net module */
+				/* FL-net module */
+				// an expansion FL-net card (flnet)
+				platform_device_register(&flnet_card_device);
+				// an expansion FL-net card (fldin)
+				platform_device_register(&fldin_card_device);
                 break;
 
         default:
