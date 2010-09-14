@@ -267,7 +267,7 @@ static struct plat_serial8250_port can_serial_platform_data[] = {
 
 static struct platform_device can_serial_device = {
 	.name = "serial8250",
-	.id = 0,
+	.id = 1,
 	.dev = {
 		.platform_data = can_serial_platform_data,
         },
@@ -297,6 +297,13 @@ static int __init magnolia2_init_extio5(void)
                 platform_device_register(&can_serial_device);
                 spi_register_board_info(mxc_spi_board_info_can,
                                         ARRAY_SIZE(mxc_spi_board_info_can));
+
+		/* update bus timing */
+		printk("Update CS5 bus timing...\n");
+		__raw_writel(0x0000d484, IO_ADDRESS(CSCR_U(5)));
+		__raw_writel(0x8c884561, IO_ADDRESS(CSCR_L(5)));
+		__raw_writel(0xac8e1300, IO_ADDRESS(CSCR_A(5)));
+		
                 break;
 
         default:

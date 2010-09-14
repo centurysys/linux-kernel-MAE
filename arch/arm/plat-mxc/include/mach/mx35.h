@@ -249,6 +249,12 @@
 #define M3IF_BASE_ADDR		(X_MEMC_BASE_ADDR + 0x3000)
 #define EMI_CTL_BASE_ADDR	(X_MEMC_BASE_ADDR + 0x4000)
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define CSCR_U(x)     (WEIM_BASE_ADDR + 0 + (x) * 0x10)
+#define CSCR_L(x)     (WEIM_BASE_ADDR + 4 + (x) * 0x10)
+#define CSCR_A(x)     (WEIM_BASE_ADDR + 8 + (x) * 0x10)
+#endif
+
 /*
  * NFC controller
  */
