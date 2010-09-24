@@ -716,6 +716,7 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
 			     void *cookie)
 {
 	struct dentry *parent;
+	char *buf;
 
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
@@ -726,8 +727,13 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
 		       "unionfs: put_link failed to revalidate dentry\n");
 
 	unionfs_check_dentry(dentry);
+#if 0
+	/* XXX: can't run this check b/c this fxn can receive a poisoned 'nd' PTR */
 	unionfs_check_nd(nd);
-	kfree(nd_get_link(nd));
+#endif
+	buf = nd_get_link(nd);
+	if (!IS_ERR(buf))
+		kfree(buf);
 	unionfs_unlock_dentry(dentry);
 	unionfs_unlock_parent(dentry, parent);
 	unionfs_read_unlock(dentry->d_sb);
