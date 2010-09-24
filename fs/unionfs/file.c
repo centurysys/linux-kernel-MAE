@@ -368,6 +368,9 @@ struct file_operations unionfs_main_fops = {
 	.write		= unionfs_write,
 	.readdir	= unionfs_file_readdir,
 	.unlocked_ioctl	= unionfs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= unionfs_ioctl,
+#endif
 	.mmap		= unionfs_mmap,
 	.open		= unionfs_open,
 	.flush		= unionfs_flush,
