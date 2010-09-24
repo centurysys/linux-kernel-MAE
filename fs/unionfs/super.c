@@ -144,8 +144,9 @@ static int unionfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	lower_dentry = unionfs_lower_dentry(sb->s_root);
 	lower_path.dentry = lower_dentry;
-	lower_path.mnt = NULL;
+	lower_path.mnt = unionfs_mntget(sb->s_root, 0);
 	err = vfs_statfs(&lower_path, buf);
+	mntput(lower_path.mnt);
 
 	/* set return buf to our f/s to avoid confusing user-level utils */
 	buf->f_type = UNIONFS_SUPER_MAGIC;
