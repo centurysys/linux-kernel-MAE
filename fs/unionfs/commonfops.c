@@ -739,12 +739,12 @@ static long do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		goto out;
 	if (lower_file->f_op->unlocked_ioctl) {
 		err = lower_file->f_op->unlocked_ioctl(lower_file, cmd, arg);
+#ifdef CONFIG_COMPAT
 	} else if (lower_file->f_op->ioctl) {
-		lock_kernel();
-		err = lower_file->f_op->ioctl(
+		err = lower_file->f_op->compat_ioctl(
 			lower_file->f_path.dentry->d_inode,
 			lower_file, cmd, arg);
-		unlock_kernel();
+#endif
 	}
 
 out:
