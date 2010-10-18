@@ -260,11 +260,11 @@ static int __init magnolia2_init_extio4(void)
                 break;
 
         case 0x02:
-				/* FL-net module */
-				// an expansion FL-net card (flnet)
-				platform_device_register(&flnet_card_device);
-				// an expansion FL-net card (fldin)
-				platform_device_register(&fldin_card_device);
+		/* FL-net module */
+		// an expansion FL-net card (flnet)
+		platform_device_register(&flnet_card_device);
+		// an expansion FL-net card (fldin)
+		platform_device_register(&fldin_card_device);
                 break;
 
         default:
