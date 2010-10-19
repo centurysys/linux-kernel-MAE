@@ -17,6 +17,9 @@
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 #include <asm/unistd.h>
+#ifdef CONFIG_MACH_MAGNOLIA2
+#include <asm/vfp.h>
+#endif
 
 #include "ptrace.h"
 #include "signal.h"
@@ -196,6 +199,92 @@ static int restore_iwmmxt_context(struct iwmmxt_sigframe *frame)
 
 #endif
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+#ifdef CONFIG_VFP
+
+static int preserve_vfp_context(struct vfp_sigframe __user *frame)
+{
+	struct thread_info *thread = current_thread_info();
+	struct vfp_hard_struct *h = &thread->vfpstate.hard;
+	const unsigned long magic = VFP_MAGIC;
+	const unsigned long size = VFP_STORAGE_SIZE;
+	int err = 0;
+
+	vfp_sync_hwstate(thread);
+	__put_user_error(magic, &frame->magic, err);
+	__put_user_error(size, &frame->size, err);
+
+	/*
+	 * Copy the floating point registers. There can be unused
+	 * registers see asm/hwcap.h for details.
+	 */
+	err |= __copy_to_user(&frame->ufp.fpregs, &h->fpregs,
+			      sizeof(h->fpregs));
+	/*
+	 * Copy the status and control register.
+	 */
+	__put_user_error(h->fpscr, &frame->ufp.fpscr, err);
+
+	/*
+	 * Copy the exception registers.
+	 */
+	__put_user_error(h->fpexc, &frame->ufp_exc.fpexc, err);
+	__put_user_error(h->fpinst, &frame->ufp_exc.fpinst, err);
+	__put_user_error(h->fpinst2, &frame->ufp_exc.fpinst2, err);
+
+	return err ? -EFAULT : 0;
+}
+
+static int restore_vfp_context(struct vfp_sigframe __user *frame)
+{
+	struct thread_info *thread = current_thread_info();
+	struct vfp_hard_struct *h = &thread->vfpstate.hard;
+	unsigned long magic;
+	unsigned long size;
+	unsigned long fpexc;
+	int err = 0;
+
+	__get_user_error(magic, &frame->magic, err);
+	__get_user_error(size, &frame->size, err);
+
+	if (err)
+		return -EFAULT;
+	if (magic != VFP_MAGIC || size != VFP_STORAGE_SIZE)
+		return -EINVAL;
+
+	/*
+	 * Copy the floating point registers. There can be unused
+	 * registers see asm/hwcap.h for details.
+	 */
+	err |= __copy_from_user(&h->fpregs, &frame->ufp.fpregs,
+				sizeof(h->fpregs));
+	/*
+	 * Copy the status and control register.
+	 */
+	__get_user_error(h->fpscr, &frame->ufp.fpscr, err);
+
+	/*
+	 * Sanitise and restore the exception registers.
+	 */
+	__get_user_error(fpexc, &frame->ufp_exc.fpexc, err);
+	/* Ensure the VFP is enabled. */
+	fpexc |= FPEXC_EN;
+	/* Ensure FPINST2 is invalid and the exception flag is cleared. */
+	fpexc &= ~(FPEXC_EX | FPEXC_FP2V);
+	h->fpexc = fpexc;
+
+	__get_user_error(h->fpinst, &frame->ufp_exc.fpinst, err);
+	__get_user_error(h->fpinst2, &frame->ufp_exc.fpinst2, err);
+
+	if (!err)
+		vfp_flush_hwstate(thread);
+
+	return err ? -EFAULT : 0;
+}
+
+#endif	/* CONFIG_VFP */
+#endif	/* CONFIG_MACH_MAGNOLIA2 */
+
 /*
  * Do a signal return; undo the signal stack.  These are aligned to 64-bit.
  */
@@ -256,6 +345,10 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 #ifdef CONFIG_VFP
 //	if (err == 0)
 //		err |= vfp_restore_state(&sf->aux.vfp);
+#ifdef CONFIG_MACH_MAGNOLIA2
+	if (err == 0)
+		err |= restore_vfp_context(&aux->vfp);
+#endif
 #endif
 
 	return err;
@@ -371,6 +464,10 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 #ifdef CONFIG_VFP
 //	if (err == 0)
 //		err |= vfp_save_state(&sf->aux.vfp);
+#ifdef CONFIG_MACH_MAGNOLIA2
+	if (err == 0)
+		err |= preserve_vfp_context(&aux->vfp);
+#endif
 #endif
 	__put_user_error(0, &aux->end_magic, err);
 

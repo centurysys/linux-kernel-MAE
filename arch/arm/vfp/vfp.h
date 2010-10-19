@@ -377,6 +377,10 @@ struct op {
 	u32 flags;
 };
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 #ifdef CONFIG_SMP
+extern void vfp_save_state(void *location, u32 fpexc);
+#endif
+#else
 extern void vfp_save_state(void *location, u32 fpexc);
 #endif

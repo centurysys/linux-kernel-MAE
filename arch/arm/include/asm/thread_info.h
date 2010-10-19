@@ -113,6 +113,11 @@ extern void iwmmxt_task_restore(struct thread_info *, void *);
 extern void iwmmxt_task_release(struct thread_info *);
 extern void iwmmxt_task_switch(struct thread_info *);
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern void vfp_sync_hwstate(struct thread_info *);
+extern void vfp_flush_hwstate(struct thread_info *);
+#endif
+
 #endif
 
 /*
@@ -131,18 +136,30 @@ extern void iwmmxt_task_switch(struct thread_info *);
  */
 #define TIF_SIGPENDING		0
 #define TIF_NEED_RESCHED	1
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define TIF_NOTIFY_RESUME	2	/* callback before returning to user */
+#endif
 #define TIF_SYSCALL_TRACE	8
 #define TIF_POLLING_NRFLAG	16
 #define TIF_USING_IWMMXT	17
 #define TIF_MEMDIE		18
 #define TIF_FREEZE		19
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define TIF_RESTORE_SIGMASK	20
+#endif
 
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
+#endif
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
 #define _TIF_USING_IWMMXT	(1 << TIF_USING_IWMMXT)
 #define _TIF_FREEZE		(1 << TIF_FREEZE)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
+#endif
 
 /*
  * Change these and you break ASM code in entry-common.S

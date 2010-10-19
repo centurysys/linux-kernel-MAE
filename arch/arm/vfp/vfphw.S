@@ -131,6 +131,14 @@ check_for_exception:
 	VFPFMXR	FPEXC, r1		@ restore FPEXC last
 	sub	r2, r2, #4
 	str	r2, [sp, #S_PC]		@ retry the instruction
+#ifdef CONFIG_MACH_MAGNOLIA2
+#ifdef CONFIG_PREEMPT
+	get_thread_info	r10
+	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
+	sub	r11, r4, #1		@ decrement it
+	str	r11, [r10, #TI_PREEMPT]
+#endif
+#endif
 	mov	pc, r9			@ we think we have handled things
 
 
@@ -149,6 +157,14 @@ look_for_VFP_exceptions:
 	@ not recognised by VFP
 
 	DBGSTR	"not VFP"
+#ifdef CONFIG_MACH_MAGNOLIA2
+#ifdef CONFIG_PREEMPT
+	get_thread_info	r10
+	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
+	sub	r11, r4, #1		@ decrement it
+	str	r11, [r10, #TI_PREEMPT]
+#endif
+#endif
 	mov	pc, lr
 
 process_exception:
@@ -166,6 +182,7 @@ process_exception:
 					@ retry the faulted instruction
 ENDPROC(vfp_support_entry)
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 #ifdef CONFIG_SMP
 ENTRY(vfp_save_state)
 	@ Save the current VFP state
@@ -182,6 +199,25 @@ ENTRY(vfp_save_state)
 	mov	pc, lr
 ENDPROC(vfp_save_state)
 #endif
+#else
+ENTRY(vfp_save_state)
+	@ Save the current VFP state
+	@ r0 - save location
+	@ r1 - FPEXC
+	DBGSTR1	"save VFP state %p", r0
+	VFPFSTMIA r0, r2		@ save the working registers
+	VFPFMRX	r2, FPSCR		@ current status
+	tst	r1, #FPEXC_EX		@ is there additional state to save?
+	beq	1f
+	VFPFMRX	r3, FPINST		@ FPINST (only if FPEXC.EX is set)
+	tst	r1, #FPEXC_FP2V		@ is there an FPINST2 to read?
+	beq	1f
+	VFPFMRX	r12, FPINST2		@ FPINST2 if needed (and present)
+1:
+	stmia	r0, {r1, r2, r3, r12}	@ save FPEXC, FPSCR, FPINST, FPINST2
+	mov	pc, lr
+ENDPROC(vfp_save_state)
+#endif	/* CONFIG_MACH_MAGNOLIA2 */
 
 last_VFP_context_address:
 	.word	last_VFP_context
