@@ -338,6 +338,10 @@ void delete_partition(struct gendisk *disk, int partno)
 	device_del(part_to_dev(part));
 
 	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	part->valid = 0;
+#endif
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -424,6 +428,9 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	if (!ddev->uevent_suppress)
 		kobject_uevent(&pdev->kobj, KOBJ_ADD);
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	p->valid = 1;
+#endif
 	return p;
 
 out_free_stats:

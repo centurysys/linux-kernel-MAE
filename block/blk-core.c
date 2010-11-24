@@ -1259,13 +1259,23 @@ end_io:
 /*
  * If bio->bi_dev is a partition, remap the location
  */
+#ifndef CONFIG_MACH_MAGNOLIA2
 static inline void blk_partition_remap(struct bio *bio)
+#else
+static inline int blk_partition_remap(struct bio *bio)
+#endif
 {
 	struct block_device *bdev = bio->bi_bdev;
 
 	if (bio_sectors(bio) && bdev != bdev->bd_contains) {
 		struct hd_struct *p = bdev->bd_part;
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+		if (unlikely(p->valid == 0)) {
+			printk("! %s: partition is invalid.\n", __FUNCTION__);
+			return -1;
+		}
+#endif
 		bio->bi_sector += p->start_sect;
 		bio->bi_bdev = bdev->bd_contains;
 
@@ -1273,6 +1283,10 @@ static inline void blk_partition_remap(struct bio *bio)
 				    bdev->bd_dev, bio->bi_sector,
 				    bio->bi_sector - p->start_sect);
 	}
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	return 0;
+#endif
 }
 
 static void handle_bad_sector(struct bio *bio)
@@ -1435,7 +1449,12 @@ end_io:
 		 * If this device has partitions, remap block n
 		 * of partition p to block n+start(p) of the disk.
 		 */
+#ifndef CONFIG_MACH_MAGNOLIA2
 		blk_partition_remap(bio);
+#else
+		if (blk_partition_remap(bio) != 0)
+			goto end_io;
+#endif
 
 		if (bio_integrity_enabled(bio) && bio_integrity_prep(bio))
 			goto end_io;

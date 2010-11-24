@@ -104,6 +104,10 @@ struct hd_struct {
 	struct disk_stats dkstats;
 #endif
 	struct rcu_head rcu_head;
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	int valid;
+#endif
 };
 
 #define GENHD_FL_REMOVABLE			1
