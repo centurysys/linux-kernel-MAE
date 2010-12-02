@@ -1396,9 +1396,6 @@ static void esdhc_cd_callback(struct work_struct *work)
 	int filter_count = 0;
 #endif
 	struct sdhci_host *host = container_of(work, struct sdhci_host, cd_wq);
-#ifdef CONFIG_MACH_MAGNOLIA2
-	int card_present, old_flags;
-#endif
 
 #ifndef CONFIG_MACH_MAGNOLIA2
 	cd_status = host->plat_data->status(host->mmc->parent);
@@ -1421,8 +1418,6 @@ static void esdhc_cd_callback(struct work_struct *work)
 		host->flags &= ~SDHCI_CD_PRESENT;
 	else
 		host->flags |= SDHCI_CD_PRESENT;
-#endif
-
 	/* Detect there is a card in slot or not */
 	DBG("cd_status=%d %s\n", cd_status,
 	    (host->flags & SDHCI_CD_PRESENT) ? "inserted" : "removed");

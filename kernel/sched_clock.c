@@ -37,7 +37,12 @@
  */
 unsigned long long __attribute__((weak)) sched_clock(void)
 {
+#ifndef CONFIG_MACH_MAGNOLIA2
 	return (unsigned long long)jiffies * (NSEC_PER_SEC / HZ);
+#else
+	return (unsigned long long)(jiffies - INITIAL_JIFFIES)
+					* (NSEC_PER_SEC / HZ);
+#endif
 }
 
 static __read_mostly int sched_clock_running;
