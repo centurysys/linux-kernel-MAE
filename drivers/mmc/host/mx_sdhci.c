@@ -1389,31 +1389,34 @@ static void sdhci_dma_irq(void *devid, int error, unsigned int cnt)
 static void esdhc_cd_callback(struct work_struct *work)
 {
 	unsigned long flags;
+#ifndef CONFIG_MACH_MAGNOLIA2
 	unsigned int cd_status = 0;
+#else
+	volatile unsigned int cd_status = 0;
+	int filter_count = 0;
+#endif
 	struct sdhci_host *host = container_of(work, struct sdhci_host, cd_wq);
 #ifdef CONFIG_MACH_MAGNOLIA2
 	int card_present, old_flags;
 #endif
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 	cd_status = host->plat_data->status(host->mmc->parent);
-#ifdef CONFIG_MACH_MAGNOLIA2
-	card_present = readl(host->ioaddr + SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT ? 1 : 0;
-
-	old_flags = host->flags;
-	if (cd_status && !card_present)
-		host->flags &= ~SDHCI_CD_PRESENT;
-	else if (!cd_status || card_present)
-		host->flags |= SDHCI_CD_PRESENT;
-	else {
-		printk("! %s: ???\n", __FUNCTION__);
-		return;
-	}
-
-	if (host->flags == old_flags) {
-		printk("# %s: host->flags not changed.\n", __FUNCTION__);
-		return;
-	}
 #else
+	do {
+		cd_status = host->plat_data->status(host->mmc->parent);
+		filter_count++;
+		mdelay(1);
+	} while (cd_status != host->plat_data->status(host->mmc->parent));
+
+	//printk("%s: filter_count = %d\n", __FUNCTION__, filter_count);
+
+	if (((host->flags & SDHCI_CD_PRESENT) && !cd_status) ||
+	    (!(host->flags & SDHCI_CD_PRESENT) && cd_status)) {
+		printk("%s: cd_status bounce?\n", __FUNCTION__);
+		goto exit;
+	}
+#endif
 	if (cd_status)
 		host->flags &= ~SDHCI_CD_PRESENT;
 	else
@@ -1463,6 +1466,8 @@ static void esdhc_cd_callback(struct work_struct *work)
 
 	if (!host->detect_irq)
 		return;
+
+#ifndef CONFIG_MACH_MAGNOLIA2
 	do {
 		cd_status = host->plat_data->status(host->mmc->parent);
 		if (cd_status)
@@ -1470,6 +1475,15 @@ static void esdhc_cd_callback(struct work_struct *work)
 		else
 			set_irq_type(host->detect_irq, IRQF_TRIGGER_RISING);
 	} while (cd_status != host->plat_data->status(host->mmc->parent));
+#else
+exit:
+	if (host->flags & SDHCI_CD_PRESENT)
+		set_irq_type(host->detect_irq, IRQF_TRIGGER_HIGH);
+	else
+		set_irq_type(host->detect_irq, IRQF_TRIGGER_LOW);
+
+	enable_irq(host->detect_irq);
+#endif
 }
 
 /*!
@@ -1485,6 +1499,15 @@ static void esdhc_cd_callback(struct work_struct *work)
 static irqreturn_t sdhci_cd_irq(int irq, void *dev_id)
 {
 	struct sdhci_host *host = dev_id;
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	if (host->flags & SDHCI_CD_PRESENT)
+		set_irq_type(host->detect_irq, IRQF_TRIGGER_LOW);
+	else
+		set_irq_type(host->detect_irq, IRQF_TRIGGER_HIGH);
+
+	disable_irq(host->detect_irq);
+#endif
 
 	schedule_work(&host->cd_wq);
 	return IRQ_HANDLED;
@@ -1745,9 +1768,17 @@ static int __devinit sdhci_probe_slot(struct platform_device
 	do {
 		ret = host->plat_data->status(host->mmc->parent);
 		if (ret) {
+#ifndef CONFIG_MACH_MAGNOLIA2
 			set_irq_type(host->detect_irq, IRQF_TRIGGER_FALLING);
+#else
+			set_irq_type(host->detect_irq, IRQF_TRIGGER_LOW);
+#endif
                 } else {
+#ifndef CONFIG_MACH_MAGNOLIA2
 			set_irq_type(host->detect_irq, IRQF_TRIGGER_RISING);
+#else
+			set_irq_type(host->detect_irq, IRQF_TRIGGER_HIGH);
+#endif
                 }
 	} while (ret != host->plat_data->status(host->mmc->parent));
 

@@ -1087,6 +1087,14 @@ static struct sys_timer mxc_timer = {
 };
 
 /*
+ * This is the Magnolia2 sched_clock implementation.
+ */
+unsigned long long sched_clock(void)
+{
+	return ((unsigned long long)jiffies - INITIAL_JIFFIES) * (NSEC_PER_SEC / HZ);
+}
+
+/*
  * The following uses standard kernel macros define in arch.h in order to
  * initialize __mach_desc_MX35_3DS data structure.
  */
