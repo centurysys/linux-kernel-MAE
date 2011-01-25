@@ -114,6 +114,9 @@ enum {
 	DEVTYPE_IDEALTEK,
 	DEVTYPE_GENERAL_TOUCH,
 	DEVTYPE_GOTOP,
+#ifdef CONFIG_MACH_MAGNOLIA2
+	DEVTYPE_EGALAX_QUIRK,
+#endif
 };
 
 #define USB_DEVICE_HID_CLASS(vend, prod) \
@@ -127,7 +130,11 @@ enum {
 static struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
 	/* ignore the HID capable devices, handled by usbhid */
+#ifndef CONFIG_MACH_MAGNOLIA2
 	{USB_DEVICE_HID_CLASS(0x0eef, 0x0001), .driver_info = DEVTYPE_IGNORE},
+#else
+	{USB_DEVICE_HID_CLASS(0x0eef, 0x0001), .driver_info = DEVTYPE_EGALAX_QUIRK},
+#endif
 	{USB_DEVICE_HID_CLASS(0x0eef, 0x0002), .driver_info = DEVTYPE_IGNORE},
 
 	/* normal device IDs */
@@ -231,6 +238,22 @@ static int egalax_get_pkt_len(unsigned char *buf, int len)
 
 	return 0;
 }
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+static int egalax_hid_init(struct usbtouch_usb *usbtouch)
+{
+	int ret;
+	char buf[3] = {0x0a, 0x01, 'A'};
+
+	ret = usb_control_msg(usbtouch->udev, usb_sndctrlpipe(usbtouch->udev, 0),
+			      0, 0x40,
+			      //USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      0, 0, buf, 3, USB_CTRL_SET_TIMEOUT);
+
+	printk("%s: usb_control_msg result is %d\n", __FUNCTION__, ret);
+	return 0;
+}
+#endif
 #endif
 
 
@@ -568,6 +591,21 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.process_pkt	= usbtouch_process_multi,
 		.get_pkt_len	= egalax_get_pkt_len,
 		.read_data	= egalax_read_data,
+	},
+#endif
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	[DEVTYPE_EGALAX_QUIRK] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x07ff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x07ff,
+		.rept_size	= 16,
+		.process_pkt	= usbtouch_process_multi,
+		.get_pkt_len	= egalax_get_pkt_len,
+		.read_data	= egalax_read_data,
+
+//		.init		= egalax_hid_init,
 	},
 #endif
 

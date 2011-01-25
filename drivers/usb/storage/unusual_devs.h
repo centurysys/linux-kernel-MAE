@@ -1652,6 +1652,21 @@ UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
 
+#if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8XX)
+/* NTT DoCoMo L-02A */
+UNUSUAL_DEV(  0x1004, 0x610c, 0x0000, 0x0000,
+                "LG Electronics",
+		"Mass Storage",
+		US_SC_DEVICE, US_PR_DEVICE, usb_stor_lg_l02a_init,
+		0),
+/* NTT DoCoMo L-05A */
+UNUSUAL_DEV(  0x1004, 0x613a, 0x0000, 0x0000,
+                "LG Electronics",
+		"Mass Storage",
+		US_SC_DEVICE, US_PR_DEVICE, usb_stor_lg_l05a_init,
+		0),
+#endif
+
 /* Reported by Kevin Cernekee <kpc-usbdev@gelato.uiuc.edu>
  * Tested on hardware version 1.10.
  * Entry is needed only for the initializer function override.
@@ -2027,6 +2042,7 @@ UNUSUAL_DEV(  0x12d1, 0x143F, 0x0000, 0x0000,
 		"Mass Storage",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_huawei_e220_init,
 		0),
+
 #if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8XX)
 /* e-mobile D31HW */
 UNUSUAL_DEV(  0x12d1, 0x1446, 0x0000, 0x0000,
@@ -2034,20 +2050,8 @@ UNUSUAL_DEV(  0x12d1, 0x1446, 0x0000, 0x0000,
 		"Mass Storage",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_huawei_d31hw_init,
 		0),
-
-/* NTT DoCoMo L-02A */
-UNUSUAL_DEV(  0x1004, 0x610c, 0x0000, 0x0000,
-                "LG Electronics",
-		"Mass Storage",
-		US_SC_DEVICE, US_PR_DEVICE, usb_stor_lg_l02a_init,
-		0),
-/* NTT DoCoMo L-05A */
-UNUSUAL_DEV(  0x1004, 0x613a, 0x0000, 0x0000,
-                "LG Electronics",
-		"Mass Storage",
-		US_SC_DEVICE, US_PR_DEVICE, usb_stor_lg_l05a_init,
-		0),
 #endif
+
 /* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */
 UNUSUAL_DEV(  0x132b, 0x000b, 0x0001, 0x0001,
 		"Minolta",
@@ -2087,6 +2091,12 @@ UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
 		US_FL_IGNORE_RESIDUE ),
 
 #if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8XX)
+UNUSUAL_DEV(  0x17e9, 0x0156, 0x0000, 0x9999,
+	      "DisplayLink",
+	      "I-O DATA LCD-USB10XT",
+	      US_SC_DEVICE, US_PR_DEVICE, NULL,
+	      US_FL_IGNORE_DEVICE),
+
 UNUSUAL_DEV(  0x19d2, 0x0053, 0x0000, 0x0000,
                 "ZTE",
                 "USB MMC Storage",
