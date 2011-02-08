@@ -115,6 +115,7 @@ enum {
 	DEVTYPE_GENERAL_TOUCH,
 	DEVTYPE_GOTOP,
 #ifdef CONFIG_MACH_MAGNOLIA2
+	DEVTYPE_E2I,
 	DEVTYPE_EGALAX_QUIRK,
 #endif
 };
@@ -193,9 +194,49 @@ static struct usb_device_id usbtouch_devices[] = {
 	{USB_DEVICE(0x08f2, 0x00f4), .driver_info = DEVTYPE_GOTOP},
 #endif
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+#ifdef CONFIG_TOUCHSCREEN_USB_E2I
+	{USB_DEVICE(0x1ac7, 0x0001), .driver_info = DEVTYPE_E2I},
+#endif
+#endif
 	{}
 };
 
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+/*****************************************************************************
+ * e2i Part
+ */
+
+#ifdef CONFIG_TOUCHSCREEN_USB_E2I
+static int e2i_init(struct usbtouch_usb *usbtouch)
+{
+	int ret;
+	struct usb_device *udev = usbtouch->udev;
+
+	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+	                      0x01, 0x02, 0x0000, 0x0081,
+	                      NULL, 0, USB_CTRL_SET_TIMEOUT);
+
+	dbg("%s - usb_control_msg - E2I_RESET - bytes|err: %d",
+	    __func__, ret);
+	return ret;
+}
+
+static int e2i_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	int tmp = (pkt[0] << 8) | pkt[1];
+	dev->x  = (pkt[2] << 8) | pkt[3];
+	dev->y  = (pkt[4] << 8) | pkt[5];
+
+	tmp = tmp - 0xA000;
+	dev->touch = (tmp > 0);
+	dev->press = (tmp > 0 ? tmp : 0);
+
+	return 1;
+}
+#endif
+#endif /* CONFIG_MACH_MAGNOLIA2 */
 
 /*****************************************************************************
  * eGalax part
@@ -724,6 +765,20 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.rept_size	= 4,
 		.read_data	= gotop_read_data,
 	},
+#endif
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+#ifdef CONFIG_TOUCHSCREEN_USB_E2I
+	[DEVTYPE_E2I] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x7fff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x7fff,
+		.rept_size	= 6,
+		.init		= e2i_init,
+		.read_data	= e2i_read_data,
+	},
+#endif
 #endif
 };
 
