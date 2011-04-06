@@ -105,7 +105,7 @@ int usb_stor_huawei_e220_init(struct us_data *us)
 }
 
 #if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8XX)
-/* This places the HUAWEI D31HW devices in multi-port mode */
+/* This places the HUAWEI D31HW/D41HW devices in multi-port mode */
 int usb_stor_huawei_d31hw_init(struct us_data *us)
 {
 	int result, actlen;
@@ -114,7 +114,7 @@ int usb_stor_huawei_d31hw_init(struct us_data *us)
                       0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-        printk("HUAWEI D31HW(storage mode) found, ejecting...\n");
+        printk("HUAWEI D31/41HW(storage mode) found, ejecting...\n");
 
 	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
                                             buf, 31, &actlen);

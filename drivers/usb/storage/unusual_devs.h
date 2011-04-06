@@ -2050,6 +2050,13 @@ UNUSUAL_DEV(  0x12d1, 0x1446, 0x0000, 0x0000,
 		"Mass Storage",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_huawei_d31hw_init,
 		0),
+
+/* e-mobile D41HW */
+UNUSUAL_DEV(  0x12d1, 0x1505, 0x0000, 0x0000,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		US_SC_DEVICE, US_PR_DEVICE, usb_stor_huawei_d31hw_init,
+		0),
 #endif
 
 /* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */
