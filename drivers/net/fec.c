@@ -3207,12 +3207,12 @@ fec_stop(struct net_device *dev)
 	** We cannot expect a graceful transmit stop without link !!!
 	*/
 	if (fep->link)
-		{
+	{
 		fecp->fec_x_cntrl = 0x01;	/* Graceful transmit stop */
 		udelay(10);
 		if (!(fecp->fec_ievent & FEC_ENET_GRA))
 			printk("fec_stop : Graceful transmit stop did not complete !\n");
-		}
+	}
 
 	/* Whack a reset.  We should wait for this.
 	*/
