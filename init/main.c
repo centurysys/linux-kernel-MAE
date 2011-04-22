@@ -63,6 +63,9 @@
 #include <linux/signal.h>
 #include <linux/idr.h>
 #include <linux/ftrace.h>
+#ifdef CONFIG_MACH_MAGNOLIA2
+#include <linux/shmem_fs.h>
+#endif
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -770,6 +773,9 @@ static void __init do_basic_setup(void)
 	rcu_init_sched(); /* needed by module_init stage. */
 	init_workqueues();
 	usermodehelper_init();
+#ifdef CONFIG_MACH_MAGNOLIA2
+	init_tmpfs();
+#endif
 	driver_init();
 	init_irq_proc();
 	do_initcalls();

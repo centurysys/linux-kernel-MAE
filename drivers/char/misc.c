@@ -264,6 +264,19 @@ int misc_deregister(struct miscdevice *misc)
 EXPORT_SYMBOL(misc_register);
 EXPORT_SYMBOL(misc_deregister);
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+static char *misc_devnode(struct device *dev, mode_t *mode)
+{
+	struct miscdevice *c = dev_get_drvdata(dev);
+
+	if (mode && c->mode)
+		*mode = c->mode;
+	if (c->nodename)
+		return kstrdup(c->nodename, GFP_KERNEL);
+	return NULL;
+}
+#endif
+
 static int __init misc_init(void)
 {
 	int err;
@@ -279,6 +292,9 @@ static int __init misc_init(void)
 	err = -EIO;
 	if (register_chrdev(MISC_MAJOR,"misc",&misc_fops))
 		goto fail_printk;
+#ifdef CONFIG_MACH_MAGNOLIA2
+//	misc_class->devnode = misc_devnode;
+#endif
 	return 0;
 
 fail_printk:

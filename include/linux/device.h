@@ -191,7 +191,9 @@ struct class {
 	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
-
+#ifdef CONFIG_MACH_MAGNOLIA2
+	char *(*devnode)(struct device *dev, mode_t *mode);
+#endif
 	void (*class_release)(struct class *class);
 	void (*dev_release)(struct device *dev);
 
@@ -286,6 +288,9 @@ struct device_type {
 	const char *name;
 	struct attribute_group **groups;
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
+#ifdef CONFIG_MACH_MAGNOLIA2
+	char *(*devnode)(struct device *dev, mode_t *mode);
+#endif
 	void (*release)(struct device *dev);
 
 	int (*suspend)(struct device *dev, pm_message_t state);
@@ -422,11 +427,26 @@ struct device {
 /* Get the wakeup routines, which depend on struct device */
 #include <linux/pm_wakeup.h>
 
+//#ifndef CONFIG_MACH_MAGNOLIA2
+#if 1
 static inline const char *dev_name(const struct device *dev)
 {
+	if (dev->init_name)
+		return dev->init_name;
+
 	/* will be changed into kobject_name(&dev->kobj) in the near future */
 	return dev->bus_id;
 }
+#else
+static inline const char *dev_name(const struct device *dev)
+{
+	/* Use the init name until the kobject becomes available */
+	if (dev->init_name)
+		return dev->init_name;
+
+	return kobject_name(&dev->kobj);
+}
+#endif
 
 extern int dev_set_name(struct device *dev, const char *name, ...)
 			__attribute__((format(printf, 2, 3)));
@@ -481,6 +501,10 @@ extern struct device *device_find_child(struct device *dev, void *data,
 				int (*match)(struct device *dev, void *data));
 extern int device_rename(struct device *dev, char *new_name);
 extern int device_move(struct device *dev, struct device *new_parent);
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern const char *device_get_devnode(struct device *dev,
+				      mode_t *mode, const char **tmp);
+#endif
 
 /*
  * Manual binding of a device to driver. See drivers/base/bus.c
@@ -525,6 +549,15 @@ extern int (*platform_notify_remove)(struct device *dev);
 extern struct device *get_device(struct device *dev);
 extern void put_device(struct device *dev);
 
+#ifdef CONFIG_DEVTMPFS
+extern int devtmpfs_create_node(struct device *dev);
+extern int devtmpfs_delete_node(struct device *dev);
+extern int devtmpfs_mount(const char *mntdir);
+#else
+static inline int devtmpfs_create_node(struct device *dev) { return 0; }
+static inline int devtmpfs_delete_node(struct device *dev) { return 0; }
+static inline int devtmpfs_mount(const char *mountpoint) { return 0; }
+#endif
 
 /* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);

@@ -305,10 +305,24 @@ static struct pm_ops usb_device_pm_ops = {
 
 #endif	/* CONFIG_PM */
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+static char *usb_devnode(struct device *dev, mode_t *mode)
+{
+	struct usb_device *usb_dev;
+
+	usb_dev = to_usb_device(dev);
+	return kasprintf(GFP_KERNEL, "bus/usb/%03d/%03d",
+			 usb_dev->bus->busnum, usb_dev->devnum);
+}
+#endif
+
 struct device_type usb_device_type = {
 	.name =		"usb_device",
 	.release =	usb_release_dev,
 	.uevent =	usb_dev_uevent,
+#ifdef CONFIG_MACH_MAGNOLIA2
+	.devnode = 	usb_devnode,
+#endif
 	.pm =		&usb_device_pm_ops,
 };
 

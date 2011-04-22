@@ -2261,8 +2261,12 @@ static void shmem_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 static int shmem_fill_super(struct super_block *sb,
 			    void *data, int silent)
+#else
+int shmem_fill_super(struct super_block *sb, void *data, int silent)
+#endif
 {
 	struct inode *inode;
 	struct dentry *root;
@@ -2488,7 +2492,11 @@ static struct file_system_type tmpfs_fs_type = {
 };
 static struct vfsmount *shm_mnt;
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 static int __init init_tmpfs(void)
+#else
+int __init init_tmpfs(void)
+#endif
 {
 	int error;
 
@@ -2525,7 +2533,9 @@ out4:
 	shm_mnt = ERR_PTR(error);
 	return error;
 }
+#ifndef CONFIG_MACH_MAGNOLIA2
 module_init(init_tmpfs)
+#endif
 
 /**
  * shmem_file_setup - get an unlinked file living in tmpfs

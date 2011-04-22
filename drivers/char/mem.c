@@ -976,6 +976,15 @@ static const struct {
 #endif
 };
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+static char *mem_devnode(struct device *dev, mode_t *mode)
+{
+	if (mode && devlist[MINOR(dev->devt)].mode)
+		*mode = devlist[MINOR(dev->devt)].mode;
+	return NULL;
+}
+#endif
+
 static struct class *mem_class;
 
 static int __init chr_dev_init(void)
@@ -991,6 +1000,9 @@ static int __init chr_dev_init(void)
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
 
 	mem_class = class_create(THIS_MODULE, "mem");
+#ifdef CONFIG_MACH_MAGNOLIA2
+	mem_class->devnode = mem_devnode;
+#endif
 	for (i = 0; i < ARRAY_SIZE(devlist); i++)
 		device_create(mem_class, NULL,
 			      MKDEV(MEM_MAJOR, devlist[i].minor), NULL,

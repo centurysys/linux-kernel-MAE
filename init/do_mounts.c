@@ -406,7 +406,9 @@ void __init prepare_namespace(void)
 
 	mount_root();
 out:
+#ifdef CONFIG_MACH_MAGNOLIA2
+	devtmpfs_mount("dev");
+#endif
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
 }
-

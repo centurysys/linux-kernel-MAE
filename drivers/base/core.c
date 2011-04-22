@@ -162,10 +162,30 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	int retval = 0;
 
 	/* add the major/minor if present */
+#ifndef CONFIG_MACH_MAGNOLIA2
 	if (MAJOR(dev->devt)) {
 		add_uevent_var(env, "MAJOR=%u", MAJOR(dev->devt));
 		add_uevent_var(env, "MINOR=%u", MINOR(dev->devt));
 	}
+#else
+	if (MAJOR(dev->devt)) {
+		char *tmp, *name;
+		mode_t mode = 0;
+
+		add_uevent_var(env, "MAJOR=%u", MAJOR(dev->devt));
+		add_uevent_var(env, "MINOR=%u", MINOR(dev->devt));
+		name = device_get_devnode(dev, &mode, &tmp);
+#if 1
+		if (name) {
+			add_uevent_var(env, "DEVNAME=%s", name);
+			if (tmp)
+				kfree(tmp);
+			if (mode)
+				add_uevent_var(env, "DEVMODE=%#o", mode & 0777);
+		}
+#endif
+	}
+#endif
 
 	if (dev->type && dev->type->name)
 		add_uevent_var(env, "DEVTYPE=%s", dev->type->name);
@@ -901,6 +921,10 @@ int device_add(struct device *dev)
 		error = device_create_sys_dev_entry(dev);
 		if (error)
 			goto devtattrError;
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+		devtmpfs_create_node(dev);
+#endif
 	}
 
 	error = device_add_class_symlinks(dev);
@@ -947,6 +971,10 @@ done:
  AttrsError:
 	device_remove_class_symlinks(dev);
  SymlinkError:
+#ifdef CONFIG_MACH_MAGNOLIA2
+	if (MAJOR(dev->devt))
+		devtmpfs_delete_node(dev);
+#endif
 	if (MAJOR(dev->devt))
 		device_remove_sys_dev_entry(dev);
  devtattrError:
@@ -1032,6 +1060,9 @@ void device_del(struct device *dev)
 	if (parent)
 		klist_del(&dev->knode_parent);
 	if (MAJOR(dev->devt)) {
+#ifdef CONFIG_MACH_MAGNOLIA2
+		devtmpfs_delete_node(dev);
+#endif
 		device_remove_sys_dev_entry(dev);
 		device_remove_file(dev, &devt_attr);
 	}
@@ -1096,6 +1127,50 @@ static struct device *next_device(struct klist_iter *i)
 	struct klist_node *n = klist_next(i);
 	return n ? container_of(n, struct device, knode_parent) : NULL;
 }
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+/**
+ * device_get_devnode - path of device node file
+ * @dev: device
+ * @mode: returned file access mode
+ * @tmp: possibly allocated string
+ *
+ * Return the relative path of a possible device node.
+ * Non-default names may need to allocate a memory to compose
+ * a name. This memory is returned in tmp and needs to be
+ * freed by the caller.
+ */
+const char *device_get_devnode(struct device *dev,
+			       mode_t *mode, const char **tmp)
+{
+	char *s;
+	*tmp = NULL;
+
+	/* the device type may provide a specific name */
+	if (dev->type && dev->type->devnode)
+		*tmp = dev->type->devnode(dev, mode);
+	if (*tmp)
+		return *tmp;
+
+	/* the class may provide a specific name */
+	if (dev->class && dev->class->devnode)
+		*tmp = dev->class->devnode(dev, mode);
+	if (*tmp)
+		return *tmp;
+
+	/* return name without allocation, tmp == NULL */
+	if (strchr(dev_name(dev), '!') == NULL)
+		return dev_name(dev);
+
+	/* replace '!' in the name with '/' */
+	*tmp = kstrdup(dev_name(dev), GFP_KERNEL);
+	if (!*tmp)
+		return NULL;
+	while ((s = strchr(*tmp, '!')))
+		s[0] = '/';
+	return *tmp;
+}
+#endif
 
 /**
  * device_for_each_child - device child iterator.

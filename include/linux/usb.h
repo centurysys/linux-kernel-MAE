@@ -1071,6 +1071,9 @@ extern struct bus_type usb_bus_type;
  */
 struct usb_class_driver {
 	char *name;
+#ifdef CONFIG_MACH_MAGNOLIA2
+	char *(*devnode)(struct device *dev, mode_t *mode);
+#endif
 	const struct file_operations *fops;
 	int minor_base;
 };

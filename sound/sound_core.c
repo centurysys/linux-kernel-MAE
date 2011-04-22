@@ -10,6 +10,11 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#ifdef CONFIG_MACH_MAGNOLIA2
+#include <linux/kdev_t.h>
+#include <linux/major.h>
+#include <sound/core.h>
+#endif
 
 #ifdef CONFIG_SOUND_OSS_CORE
 static int __init init_oss_soundcore(void);
@@ -26,6 +31,15 @@ MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");
 MODULE_LICENSE("GPL");
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+static char *sound_devnode(struct device *dev, mode_t *mode)
+{
+	if (MAJOR(dev->devt) == SOUND_MAJOR)
+		return NULL;
+	return kasprintf(GFP_KERNEL, "snd/%s", dev_name(dev));
+}
+#endif
+
 static int __init init_soundcore(void)
 {
 	int rc;
@@ -40,6 +54,9 @@ static int __init init_soundcore(void)
 		return PTR_ERR(sound_class);
 	}
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	sound_class->devnode = sound_devnode;
+#endif
 	return 0;
 }
 

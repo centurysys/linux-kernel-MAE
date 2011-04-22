@@ -1053,8 +1053,18 @@ static const struct file_operations usblp_fops = {
 	.release =	usblp_release,
 };
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+static char *usblp_devnode(struct device *dev, mode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
+}
+#endif
+
 static struct usb_class_driver usblp_class = {
 	.name =		"lp%d",
+#ifdef CONFIG_MACH_MAGNOLIA2
+	.devnode =	usblp_devnode,
+#endif
 	.fops =		&usblp_fops,
 	.minor_base =	USBLP_MINOR_BASE,
 };

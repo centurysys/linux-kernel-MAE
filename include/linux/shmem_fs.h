@@ -62,4 +62,9 @@ static inline void shmem_acl_destroy_inode(struct inode *inode)
 }
 #endif  /* CONFIG_TMPFS_POSIX_ACL */
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern int init_tmpfs(void);
+extern int shmem_fill_super(struct super_block *sb, void *data, int silent);
+#endif
+
 #endif

@@ -40,6 +40,10 @@ struct miscdevice  {
 	struct list_head list;
 	struct device *parent;
 	struct device *this_device;
+#ifdef CONFIG_MACH_MAGNOLIA2
+	const char *nodename;
+	mode_t mode;
+#endif
 };
 
 extern int misc_register(struct miscdevice * misc);
