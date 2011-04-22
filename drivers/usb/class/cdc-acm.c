@@ -1387,6 +1387,9 @@ static struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x1004, 0x6109), /* LG USB MODEM L-02A */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
+	{ USB_DEVICE(0x04bb, 0x0943), /* IO-DATA USB-PM560ER */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
 #endif
 	/* control interfaces with various AT-command sets */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
