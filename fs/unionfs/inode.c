@@ -794,8 +794,10 @@ static int unionfs_permission(struct inode *inode, int mask, unsigned int flags)
 	struct inode *inode_grabbed = igrab(inode);
 	struct dentry *dentry = d_find_alias(inode);
 
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
+	if (flags & IPERM_FLAG_RCU) {
+		err = -ECHILD;
+		goto out_nograb;
+	}
 
 	if (dentry)
 		unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
@@ -892,6 +894,7 @@ out:
 		dput(dentry);
 	}
 	iput(inode_grabbed);
+out_nograb:
 	return err;
 }
 
