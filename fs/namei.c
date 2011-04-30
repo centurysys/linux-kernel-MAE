@@ -2113,6 +2113,42 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	return __lookup_hash(&this, base, 0);
 }
 
+/* pass nameidata from caller (useful for NFS) */
+struct dentry *lookup_one_len_nd(const char *name, struct dentry *base,
+				 int len, struct nameidata *nd)
+{
+	struct qstr this;
+	unsigned long hash;
+	unsigned int c;
+
+	WARN_ON_ONCE(!mutex_is_locked(&base->d_inode->i_mutex));
+
+	this.name = name;
+	this.len = len;
+	if (!len)
+		return ERR_PTR(-EACCES);
+
+	hash = init_name_hash();
+	while (len--) {
+		c = *(const unsigned char *)name++;
+		if (c == '/' || c == '\0')
+			return ERR_PTR(-EACCES);
+		hash = partial_name_hash(c, hash);
+	}
+	this.hash = end_name_hash(hash);
+	/*
+	 * See if the low-level filesystem might want
+	 * to use its own hash..
+	 */
+	if (base->d_flags & DCACHE_OP_HASH) {
+		int err = base->d_op->d_hash(base, base->d_inode, &this);
+		if (err < 0)
+			return ERR_PTR(err);
+	}
+
+	return __lookup_hash(&this, base, nd);
+}
+
 int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 		 struct path *path, int *empty)
 {
@@ -4418,6 +4454,7 @@ EXPORT_SYMBOL(follow_up);
 EXPORT_SYMBOL(get_write_access); /* nfsd */
 EXPORT_SYMBOL(lock_rename);
 EXPORT_SYMBOL(lookup_one_len);
+EXPORT_SYMBOL(lookup_one_len_nd);
 EXPORT_SYMBOL(page_follow_link_light);
 EXPORT_SYMBOL(page_put_link);
 EXPORT_SYMBOL(page_readlink);
