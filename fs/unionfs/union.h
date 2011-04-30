@@ -566,9 +566,19 @@ static inline struct dentry *lookup_lck_len(const char *name,
 					    struct dentry *base, int len)
 {
 	struct dentry *d;
+	struct nameidata lower_nd;
+	int err;
+
+	err = init_lower_nd(&lower_nd, LOOKUP_OPEN);
+	if (unlikely(err < 0)) {
+		d = ERR_PTR(err);
+		goto out;
+	}
 	mutex_lock(&base->d_inode->i_mutex);
-	d = lookup_one_len(name, base, len);
+	d = lookup_one_len_nd(name, base, len, &lower_nd);
+	release_lower_nd(&lower_nd, err);
 	mutex_unlock(&base->d_inode->i_mutex);
+out:
 	return d;
 }
 
