@@ -974,8 +974,9 @@ static int unionfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	int bindex, bstart, bend;
 	int perms;
 
+	/* to prevent a silly lockdep warning with namespace_sem */
+	lockdep_off();
 	unionfs_read_lock(sb, UNIONFS_SMUTEX_CHILD);
-
 	unionfs_lock_dentry(sb->s_root, UNIONFS_DMUTEX_CHILD);
 
 	tmp_page = (char *) __get_free_page(GFP_KERNEL);
@@ -1010,8 +1011,8 @@ out:
 	free_page((unsigned long) tmp_page);
 
 	unionfs_unlock_dentry(sb->s_root);
-
 	unionfs_read_unlock(sb);
+	lockdep_on();
 
 	return ret;
 }
