@@ -190,7 +190,7 @@ struct filldir_node {
 	int whiteout;
 
 	/* Inline name, so we don't need to separately kmalloc small ones */
-	char iname[DNAME_INLINE_LEN_MIN];
+	char iname[DNAME_INLINE_LEN];
 };
 
 /* Directory hash table. */
