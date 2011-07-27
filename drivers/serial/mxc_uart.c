@@ -467,8 +467,9 @@ static void mxcuart_tx_chars(uart_mxc_port * umxc)
                 return 0;
 #endif
 	}
+
 #ifdef CONFIG_MACH_MAGNOLIA2
-		return 1;
+	return 1;
 #endif
 }
 

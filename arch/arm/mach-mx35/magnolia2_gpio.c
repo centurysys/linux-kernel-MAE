@@ -175,10 +175,10 @@ void gpio_uart_active(int port, int no_irda)
 		mxc_request_iomux(MX35_PIN_ATA_DATA10, MUX_CONFIG_ALT1); /* RxD */
 
 		mxc_iomux_set_pad(MX35_PIN_ATA_DATA11,
-				PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
+				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
 		mxc_iomux_set_pad(MX35_PIN_ATA_DATA10,
-				PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
 
 		mxc_iomux_set_input(MUX_IN_UART3_UART_RXD_MUX, INPUT_CTL_PATH2);
 
