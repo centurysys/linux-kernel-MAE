@@ -438,31 +438,36 @@ out:
 }
 
 /* unionfs_open helper function: open a directory */
-static int __open_dir(struct inode *inode, struct file *file)
+static int __open_dir(struct inode *inode, struct file *file,
+		      struct dentry *parent)
 {
 	struct dentry *lower_dentry;
 	struct file *lower_file;
 	int bindex, bstart, bend;
-	struct vfsmount *mnt;
+	struct vfsmount *lower_mnt;
+	struct dentry *dentry = file->f_path.dentry;
 
-	bstart = fbstart(file) = dbstart(file->f_path.dentry);
-	bend = fbend(file) = dbend(file->f_path.dentry);
+	bstart = fbstart(file) = dbstart(dentry);
+	bend = fbend(file) = dbend(dentry);
 
 	for (bindex = bstart; bindex <= bend; bindex++) {
 		lower_dentry =
-			unionfs_lower_dentry_idx(file->f_path.dentry, bindex);
+			unionfs_lower_dentry_idx(dentry, bindex);
 		if (!lower_dentry)
 			continue;
 
 		dget(lower_dentry);
-		unionfs_mntget(file->f_path.dentry, bindex);
-		mnt = unionfs_lower_mnt_idx(file->f_path.dentry, bindex);
-		lower_file = dentry_open(lower_dentry, mnt, file->f_flags,
+		lower_mnt = unionfs_mntget(dentry, bindex);
+		if (!lower_mnt)
+			lower_mnt = unionfs_mntget(parent, bindex);
+		lower_file = dentry_open(lower_dentry, lower_mnt, file->f_flags,
 					 current_cred());
 		if (IS_ERR(lower_file))
 			return PTR_ERR(lower_file);
 
 		unionfs_set_lower_file_idx(file, bindex, lower_file);
+		if (!unionfs_lower_mnt_idx(dentry, bindex))
+			unionfs_set_lower_mnt_idx(dentry, bindex, lower_mnt);
 
 		/*
 		 * The branchget goes after the open, because otherwise
@@ -482,18 +487,20 @@ static int __open_file(struct inode *inode, struct file *file,
 	struct file *lower_file;
 	int lower_flags;
 	int bindex, bstart, bend;
+	struct dentry *dentry = file->f_path.dentry;
+	struct vfsmount *lower_mnt;
 
-	lower_dentry = unionfs_lower_dentry(file->f_path.dentry);
+	lower_dentry = unionfs_lower_dentry(dentry);
 	lower_flags = file->f_flags;
 
-	bstart = fbstart(file) = dbstart(file->f_path.dentry);
-	bend = fbend(file) = dbend(file->f_path.dentry);
+	bstart = fbstart(file) = dbstart(dentry);
+	bend = fbend(file) = dbend(dentry);
 
 	/*
 	 * check for the permission for lower file.  If the error is
 	 * COPYUP_ERR, copyup the file.
 	 */
-	if (lower_dentry->d_inode && is_robranch(file->f_path.dentry)) {
+	if (lower_dentry->d_inode && is_robranch(dentry)) {
 		/*
 		 * if the open will change the file, copy it up otherwise
 		 * defer it.
@@ -528,11 +535,9 @@ static int __open_file(struct inode *inode, struct file *file,
 	 * dentry_open will decrement mnt refcnt if err.
 	 * otherwise fput() will do an mntput() for us upon file close.
 	 */
-	unionfs_mntget(file->f_path.dentry, bstart);
-	lower_file =
-		dentry_open(lower_dentry,
-			    unionfs_lower_mnt_idx(file->f_path.dentry, bstart),
-			    lower_flags, current_cred());
+	lower_mnt = unionfs_mntget(dentry, bstart);
+	lower_file = dentry_open(lower_dentry, lower_mnt, lower_flags,
+				 current_cred());
 	if (IS_ERR(lower_file))
 		return PTR_ERR(lower_file);
 
@@ -601,7 +606,7 @@ int unionfs_open(struct inode *inode, struct file *file)
 	 * these lower file structs
 	 */
 	if (S_ISDIR(inode->i_mode))
-		err = __open_dir(inode, file);	/* open a dir */
+		err = __open_dir(inode, file, parent); /* open a dir */
 	else
 		err = __open_file(inode, file, parent);	/* open a file */
 
