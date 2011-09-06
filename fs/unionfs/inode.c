@@ -743,7 +743,7 @@ static void unionfs_put_link(struct dentry *dentry, struct nameidata *nd,
  * This is a variant of fs/namei.c:permission() or inode_permission() which
  * skips over EROFS tests (because we perform copyup on EROFS).
  */
-static int __inode_permission(struct inode *inode, int mask, unsigned int flags)
+static int __inode_permission(struct inode *inode, int mask)
 {
 	int retval;
 
@@ -753,7 +753,7 @@ static int __inode_permission(struct inode *inode, int mask, unsigned int flags)
 
 	/* Ordinary permission routines do not understand MAY_APPEND. */
 	if (inode->i_op && inode->i_op->permission) {
-		retval = inode->i_op->permission(inode, mask, flags);
+		retval = inode->i_op->permission(inode, mask);
 		if (!retval) {
 			/*
 			 * Exec permission on a regular file is denied if none
@@ -767,7 +767,7 @@ static int __inode_permission(struct inode *inode, int mask, unsigned int flags)
 				return -EACCES;
 		}
 	} else {
-		retval = generic_permission(inode, mask, flags, NULL);
+		retval = generic_permission(inode, mask);
 	}
 	if (retval)
 		return retval;
@@ -784,7 +784,7 @@ static int __inode_permission(struct inode *inode, int mask, unsigned int flags)
  * unionfs_permission, or anything it calls, will use stale branch
  * information.
  */
-static int unionfs_permission(struct inode *inode, int mask, unsigned int flags)
+static int unionfs_permission(struct inode *inode, int mask)
 {
 	struct inode *lower_inode = NULL;
 	int err = 0;
@@ -792,16 +792,6 @@ static int unionfs_permission(struct inode *inode, int mask, unsigned int flags)
 	int is_file;
 	const int write_mask = (mask & MAY_WRITE) && !(mask & MAY_READ);
 	struct inode *inode_grabbed;
-	struct dentry *dentry;
-
-	if (flags & IPERM_FLAG_RCU) {
-		err = -ECHILD;
-		goto out_nograb;
-	}
-
-	dentry = d_find_alias(inode);
-	if (dentry)
-		unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	inode_grabbed = igrab(inode);
 	is_file = !S_ISDIR(inode->i_mode);
@@ -846,7 +836,7 @@ static int unionfs_permission(struct inode *inode, int mask, unsigned int flags)
 		 * copyup taking place later on.  However, if user never had
 		 * access to the file, then no copyup could ever take place.
 		 */
-		err = __inode_permission(lower_inode, mask, flags);
+		err = __inode_permission(lower_inode, mask);
 		if (err && err != -EACCES && err != EPERM && bindex > 0) {
 			umode_t mode = lower_inode->i_mode;
 			if ((is_robranch_super(inode->i_sb, bindex) ||
@@ -869,7 +859,7 @@ static int unionfs_permission(struct inode *inode, int mask, unsigned int flags)
 		if (err && err == -EACCES &&
 		    is_robranch_super(inode->i_sb, bindex) &&
 		    lower_inode->i_sb->s_magic == NFS_SUPER_MAGIC)
-			err = generic_permission(lower_inode, mask, flags, NULL);
+			err = generic_permission(lower_inode, mask);
 
 		/*
 		 * The permissions are an intersection of the overall directory
@@ -893,12 +883,7 @@ static int unionfs_permission(struct inode *inode, int mask, unsigned int flags)
 
 out:
 	unionfs_check_inode(inode);
-	if (dentry) {
-		unionfs_unlock_dentry(dentry);
-		dput(dentry);
-	}
 	iput(inode_grabbed);
-out_nograb:
 	return err;
 }
 
