@@ -526,32 +526,6 @@ out:
 }
 
 /*
- * our custom d_alloc_root work-alike
- *
- * we can't use d_alloc_root if we want to use our own interpose function
- * unchanged, so we simply call our own "fake" d_alloc_root
- */
-static struct dentry *unionfs_d_alloc_root(struct super_block *sb)
-{
-	struct dentry *ret = NULL;
-
-	if (sb) {
-		static const struct qstr name = {
-			.name = "/",
-			.len = 1
-		};
-
-		ret = d_alloc(NULL, &name);
-		if (likely(ret)) {
-			d_set_d_op(ret, &unionfs_dops);
-			ret->d_sb = sb;
-			ret->d_parent = ret;
-		}
-	}
-	return ret;
-}
-
-/*
  * There is no need to lock the unionfs_super_info's rwsem as there is no
  * way anyone can have a reference to the superblock at this point in time.
  */
@@ -561,6 +535,7 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	int err = 0;
 	struct unionfs_dentry_info *lower_root_info = NULL;
 	int bindex, bstart, bend;
+	struct inode *inode = NULL;
 
 	if (!raw_data) {
 		printk(KERN_ERR
@@ -618,18 +593,26 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 
 	sb->s_op = &unionfs_sops;
 
-	/* See comment next to the definition of unionfs_d_alloc_root */
-	sb->s_root = unionfs_d_alloc_root(sb);
-	if (unlikely(!sb->s_root)) {
-		err = -ENOMEM;
+	/* get a new inode and allocate our root dentry */
+	inode = unionfs_iget(sb, iunique(sb, UNIONFS_ROOT_INO));
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out_dput;
 	}
+	sb->s_root = d_alloc_root(inode);
+	if (unlikely(!sb->s_root)) {
+		err = -ENOMEM;
+		goto out_iput;
+	}
+	d_set_d_op(sb->s_root, &unionfs_dops);
 
 	/* link the upper and lower dentries */
 	sb->s_root->d_fsdata = NULL;
 	err = new_dentry_private_data(sb->s_root, UNIONFS_DMUTEX_ROOT);
 	if (unlikely(err))
 		goto out_freedpd;
+
+	/* if get here: cannot have error */
 
 	/* Set the lower dentries for s_root */
 	for (bindex = bstart; bindex <= bend; bindex++) {
@@ -648,15 +631,18 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 	/* Set the generation number to one, since this is for the mount. */
 	atomic_set(&UNIONFS_D(sb->s_root)->generation, 1);
 
+	if (atomic_read(&inode->i_count) <= 1)
+		unionfs_fill_inode(sb->s_root, inode);
+
 	/*
-	 * Call interpose to create the upper level inode.  Only
-	 * INTERPOSE_LOOKUP can return a value other than 0 on err.
+	 * No need to call interpose because we already have a positive
+	 * dentry, which was instantiated by d_alloc_root.  Just need to
+	 * d_rehash it.
 	 */
-	err = PTR_ERR(unionfs_interpose(sb->s_root, sb, 0));
+	d_rehash(sb->s_root);
+
 	unionfs_unlock_dentry(sb->s_root);
-	if (!err)
-		goto out;
-	/* else fall through */
+	goto out; /* all is well */
 
 out_freedpd:
 	if (UNIONFS_D(sb->s_root)) {
@@ -664,6 +650,9 @@ out_freedpd:
 		free_dentry_private_data(sb->s_root);
 	}
 	dput(sb->s_root);
+
+out_iput:
+	iput(inode);
 
 out_dput:
 	if (lower_root_info && !IS_ERR(lower_root_info)) {

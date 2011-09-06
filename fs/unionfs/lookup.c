@@ -30,7 +30,7 @@ struct dentry *__lookup_one(struct dentry *base, struct vfsmount *mnt,
 			    const char *name, struct vfsmount **new_mnt)
 {
 	struct dentry *dentry = NULL;
-	struct path lower_path;
+	struct path lower_path = {NULL, NULL};
 	int err;
 
 	/* we use flags=0 to get basic lookup */
