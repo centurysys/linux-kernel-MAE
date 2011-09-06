@@ -30,17 +30,17 @@ struct dentry *__lookup_one(struct dentry *base, struct vfsmount *mnt,
 			    const char *name, struct vfsmount **new_mnt)
 {
 	struct dentry *dentry = NULL;
-	struct nameidata lower_nd;
+	struct path lower_path;
 	int err;
 
 	/* we use flags=0 to get basic lookup */
-	err = vfs_path_lookup(base, mnt, name, 0, &lower_nd);
+	err = vfs_path_lookup(base, mnt, name, 0, &lower_path);
 
 	switch (err) {
 	case 0: /* no error */
-		dentry = lower_nd.path.dentry;
+		dentry = lower_path.dentry;
 		if (new_mnt)
-			*new_mnt = lower_nd.path.mnt; /* rc already inc'ed */
+			*new_mnt = lower_path.mnt; /* rc already inc'ed */
 		break;
 	case -ENOENT:
 		 /*
@@ -52,7 +52,7 @@ struct dentry *__lookup_one(struct dentry *base, struct vfsmount *mnt,
 		  */
 		dentry = lookup_lck_len(name, base, strlen(name));
 		if (new_mnt)
-			*new_mnt = mntget(lower_nd.path.mnt);
+			*new_mnt = mntget(lower_path.mnt);
 		break;
 	default: /* all other real errors */
 		dentry = ERR_PTR(err);
