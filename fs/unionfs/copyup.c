@@ -325,8 +325,11 @@ static int __copyup_reg_data(struct dentry *dentry,
 
 	kfree(buf);
 
+#if 0
+	/* XXX: code no longer needed? */
 	if (!err)
 		err = output_file->f_op->fsync(output_file, 0);
+#endif
 
 	if (err)
 		goto out_close_out;
