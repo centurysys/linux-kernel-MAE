@@ -285,6 +285,10 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 #define SOFTBANK_VENDOR_ID                      0x1c9e
 #define SOFTBANK_PRODUCT_C01LC                  0x9603
 #define SOFTBANK_PRODUCT_C02LC                  0x9900
+
+/* LG (NTT docomo) */
+#define LG_VENDOR_ID		0x1004
+#define LG_PRODUCT_L02C		0x618f
 #endif
 
 static struct usb_device_id option_ids[] = {
@@ -500,6 +504,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(NETINDEX_VENDOR_ID, NETINDEX_PRODUCT_HX001IN) },
         { USB_DEVICE(SOFTBANK_VENDOR_ID, SOFTBANK_PRODUCT_C01LC) },
         { USB_DEVICE(SOFTBANK_VENDOR_ID, SOFTBANK_PRODUCT_C02LC) },
+	{ USB_DEVICE(LG_VENDOR_ID, LG_PRODUCT_L02C) },
 #endif
 	{ } /* Terminating entry */
 };
@@ -543,10 +548,17 @@ static int debug;
 
 /* per port private data */
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 #define N_IN_URB 4
 #define N_OUT_URB 1
 #define IN_BUFLEN 4096
 #define OUT_BUFLEN 128
+#else
+#define N_IN_URB 4
+#define N_OUT_URB 4
+#define IN_BUFLEN 4096
+#define OUT_BUFLEN 4096
+#endif
 
 struct option_port_private {
 	/* Input endpoints and buffer for this port */

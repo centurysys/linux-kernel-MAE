@@ -1312,7 +1312,7 @@ static int mxcuart_startup(struct uart_port *port)
 
 #ifdef CONFIG_MACH_MAGNOLIA2
         if (umxc->driver_type == 1) {
-                if (umxc->driver_duplex == 0) {
+                if (umxc->driver_duplex == 1) {
                         /* RS-422, Enable TxD/RxD */
                         mxc_set_gpio_dataout(umxc->TxEnable, 1);
                         mxc_set_gpio_dataout(umxc->RxEnable, 0);
