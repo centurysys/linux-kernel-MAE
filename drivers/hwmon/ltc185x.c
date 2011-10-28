@@ -340,22 +340,31 @@ static struct sensor_device_attribute ltc_input[] = {
 
 /*----------------------------------------------------------------------*/
 
+static void ltc185x_dummy_read(struct spi_device *spi)
+{
+	u16 tx_buf[2], rx_buf[2];
+
+	tx_buf[0] = tx_buf[1] = 0;
+        spi_write_then_read(spi, (u8 *) tx_buf, 2, (u8 *) rx_buf, 2);
+}
+
 static int __devinit ltc185x_probe(struct spi_device *spi)
 {
 	struct ltc185x *ltc;
-	int status;
-	int i;
+	int status, i, err;
 
 	ltc = kzalloc(sizeof *ltc, GFP_KERNEL);
 	if (!ltc)
 		return -ENOMEM;
 
+	spi->bits_per_word = 16;
+	spi->mode = SPI_MODE_2;
+	if ((err = spi_setup(spi)) < 0)
+		return err;
+
 	mutex_init(&ltc->lock);
 
 	mutex_lock(&ltc->lock);
-
-	spi->bits_per_word = 16;
-	spi->mode = SPI_MODE_2;
 
 	dev_set_drvdata(&spi->dev, ltc);
 
@@ -374,7 +383,11 @@ static int __devinit ltc185x_probe(struct spi_device *spi)
 		goto out_err;
 	}
 
+	printk("LTC185x ADC (cs: %d) probed.\n", (int) spi->chip_select);
+	ltc185x_dummy_read(spi);
+
 	mutex_unlock(&ltc->lock);
+
 	return 0;
 
 out_err:
