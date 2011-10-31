@@ -133,8 +133,6 @@ void gpio_uart_active(int port, int no_irda)
 		/* UART 2 IOMUX Configs */
 		mxc_request_iomux(MX35_PIN_TXD2, MUX_CONFIG_FUNC);      /* TxD */
 		mxc_request_iomux(MX35_PIN_RXD2, MUX_CONFIG_FUNC);      /* RxD */
-		mxc_request_iomux(MX35_PIN_RTS2, MUX_CONFIG_FUNC);      /* RTS */
-		mxc_request_iomux(MX35_PIN_CTS2, MUX_CONFIG_FUNC);      /* CTS */
 		mxc_request_iomux(MX35_PIN_TX5_RX0, MUX_CONFIG_ALT4);   /* DTR */
 #ifndef CONFIG_MXC_UART_DSR_GPIO
 		mxc_request_iomux(MX35_PIN_TX4_RX1, MUX_CONFIG_ALT4);   /* DSR */
@@ -145,6 +143,24 @@ void gpio_uart_active(int port, int no_irda)
 		mxc_request_iomux(MX35_PIN_TX1, MUX_CONFIG_ALT4);       /* RI  */
 		mxc_request_iomux(MX35_PIN_TX0, MUX_CONFIG_ALT4);       /* DCD */
 
+                if (type == 1) {
+                        /* RS-422 or RS-485 */
+			mxc_request_iomux(MX35_PIN_CTS2, MUX_CONFIG_GPIO);      /* TXEX */
+			mxc_request_iomux(MX35_PIN_RTS2, MUX_CONFIG_GPIO);      /* nRXEN */
+                        mxc_set_gpio_dataout(MX35_PIN_CTS2, 0);			/* TxD: disable */
+                        mxc_set_gpio_dataout(MX35_PIN_RTS2, 1);			/* RxD: disable */
+                        mxc_set_gpio_direction(MX35_PIN_CTS2, 0);		/* GPIO OUT */
+                        mxc_set_gpio_direction(MX35_PIN_RTS2, 0);		/* GPIO OUT */
+
+                        mxc_iomux_set_pad(MX35_PIN_CTS2,
+                                          PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
+                        mxc_iomux_set_pad(MX35_PIN_RTS2,
+                                          PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
+                } else {
+			/* RS-232 */
+			mxc_request_iomux(MX35_PIN_RTS2, MUX_CONFIG_FUNC);      /* RTS */
+			mxc_request_iomux(MX35_PIN_CTS2, MUX_CONFIG_FUNC);      /* CTS */
+		}
 		mxc_iomux_set_pad(MX35_PIN_TXD2,
 				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
 		mxc_iomux_set_pad(MX35_PIN_RXD2,

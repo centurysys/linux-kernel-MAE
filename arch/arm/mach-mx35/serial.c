@@ -198,10 +198,22 @@ static int __init mxc_init_uart(void)
         if (enable == 0)
                 printk("Disabled\n");
         else {
-                if (type == 0)
-                        printk("RS-232\n");
-                else
-                        printk("FeliCa R/W\n");
+                if (type == 0) {
+			if (config == 0)
+				printk("RS-232\n");
+			else
+				printk("FeliCa R/W\n");
+		} else {
+			if (config == 0)
+                                printk("RS-485\n");
+                        else
+                                printk("RS-422\n");
+                }
+
+                mxc_ports[1].driver_type = type;
+                mxc_ports[1].driver_duplex = config;
+                mxc_ports[1].TxEnable = MX35_PIN_CTS2;
+                mxc_ports[1].RxEnable = MX35_PIN_RTS2;
 
                 platform_device_register(&mxc_uart_device2);
         }

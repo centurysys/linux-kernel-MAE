@@ -110,8 +110,13 @@ int magnolia2_get_uart_info(int port, u32 *enable, u32 *type, u32 *config)
 
         case 1:
                 *enable = uboot_tag.rs2.enable;
+#ifndef CONFIG_MXC_UART_BUGGY_UBOOTOPT
                 *type = uboot_tag.rs2.type;
                 *config = uboot_tag.rs2.config;
+#else
+                *type = uboot_tag.rs2.config;
+                *config = uboot_tag.rs2.type;
+#endif
                 break;
 
         case 2:
@@ -788,22 +793,16 @@ static void magnolia2_power_off(void)
                 magnolia2_power_off_prepare();
 }
 
+#if 0
 /* Probe Extension board */
 static void __init magnolia2_cs4_init(void)
 {
-
-
-
-
 }
 
 static void __init magnolia2_cs5_init(void)
 {
-
-
-
-
 }
+#endif
 
 static int earlywdt_enable = 0;
 
