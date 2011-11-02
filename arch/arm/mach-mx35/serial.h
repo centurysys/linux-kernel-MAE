@@ -63,6 +63,7 @@
  * value.
  */
 #define UART1_UFCR_TXTL         16
+
 /* UART 2 configuration */
 #define UART2_HW_FLOW           1
 #define UART2_UCR4_CTSTL        16
@@ -74,6 +75,7 @@
 #define UART2_DMA_RXBUFSIZE     1024
 #define UART2_UFCR_RXTL         16
 #define UART2_UFCR_TXTL         16
+
 /* UART 3 configuration */
 #ifdef CONFIG_MACH_MAGNOLIA2
 #define UART3_HW_FLOW           0

@@ -182,6 +182,9 @@ static int __init mxc_init_uart(void)
                                 printk("RS-485\n");
                         else
                                 printk("RS-422\n");
+
+			/* disable hardware flow control */
+			mxc_ports[0].hardware_flow = 0;
                 }
 
                 mxc_ports[0].driver_type = type;
@@ -208,6 +211,9 @@ static int __init mxc_init_uart(void)
                                 printk("RS-485\n");
                         else
                                 printk("RS-422\n");
+
+			/* disable hardware flow control */
+			mxc_ports[1].hardware_flow = 0;
                 }
 
                 mxc_ports[1].driver_type = type;

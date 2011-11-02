@@ -76,17 +76,6 @@ void gpio_uart_active(int port, int no_irda)
 		/* UART 1 IOMUX Configs */
 		mxc_request_iomux(MX35_PIN_TXD1, MUX_CONFIG_FUNC);      /* TxD */
 		mxc_request_iomux(MX35_PIN_RXD1, MUX_CONFIG_FUNC);      /* RxD */
-		mxc_request_iomux(MX35_PIN_RTS1, MUX_CONFIG_FUNC);      /* RTS */
-		mxc_request_iomux(MX35_PIN_CTS1, MUX_CONFIG_FUNC);      /* CTS */
-		mxc_request_iomux(MX35_PIN_ATA_DATA6, MUX_CONFIG_ALT2); /* DTR */
-#ifndef CONFIG_MXC_UART_DSR_GPIO
-		mxc_request_iomux(MX35_PIN_ATA_DATA7, MUX_CONFIG_ALT2); /* DSR */
-#else
-		mxc_request_iomux(MX35_PIN_ATA_DATA7, MUX_CONFIG_GPIO); /* DSR(GPIO) */
-                mxc_set_gpio_direction(MX35_PIN_ATA_DATA7, 1);		/* GPIO IN */
-#endif
-		mxc_request_iomux(MX35_PIN_ATA_DATA8, MUX_CONFIG_ALT2); /* RI  */
-		mxc_request_iomux(MX35_PIN_ATA_DATA9, MUX_CONFIG_ALT2); /* DCD */
 
                 if (type == 1) {
                         /* RS-422 or RS-485 */
@@ -103,29 +92,45 @@ void gpio_uart_active(int port, int no_irda)
                                           PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
                         mxc_iomux_set_pad(MX35_PIN_MLB_SIG,
                                           PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
-                }
+                } else {
+			/* RS-232 */
+			mxc_request_iomux(MX35_PIN_RTS1, MUX_CONFIG_FUNC);      /* RTS */
+			mxc_request_iomux(MX35_PIN_CTS1, MUX_CONFIG_FUNC);      /* CTS */
+			mxc_request_iomux(MX35_PIN_ATA_DATA6, MUX_CONFIG_ALT2); /* DTR */
+#ifndef CONFIG_MXC_UART_DSR_GPIO
+			mxc_request_iomux(MX35_PIN_ATA_DATA7, MUX_CONFIG_ALT2); /* DSR */
+#else
+			mxc_request_iomux(MX35_PIN_ATA_DATA7, MUX_CONFIG_GPIO); /* DSR(GPIO) */
+			mxc_set_gpio_direction(MX35_PIN_ATA_DATA7, 1);		/* GPIO IN */
+#endif
+			mxc_request_iomux(MX35_PIN_ATA_DATA8, MUX_CONFIG_ALT2); /* RI  */
+			mxc_request_iomux(MX35_PIN_ATA_DATA9, MUX_CONFIG_ALT2); /* DCD */
+		}
 
 		mxc_iomux_set_pad(MX35_PIN_TXD1,
 				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
 		mxc_iomux_set_pad(MX35_PIN_RXD1,
 				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
 				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
-		mxc_iomux_set_pad(MX35_PIN_RTS1,
-				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
-		mxc_iomux_set_pad(MX35_PIN_CTS1,
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
-		mxc_iomux_set_pad(MX35_PIN_ATA_DATA6,
-				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
-		mxc_iomux_set_pad(MX35_PIN_ATA_DATA7,
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
-		mxc_iomux_set_pad(MX35_PIN_ATA_DATA8,
-				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
-		mxc_iomux_set_pad(MX35_PIN_ATA_DATA9,
-				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+
+                if (type == 0) {
+			mxc_iomux_set_pad(MX35_PIN_RTS1,
+					  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+			mxc_iomux_set_pad(MX35_PIN_CTS1,
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
+			mxc_iomux_set_pad(MX35_PIN_ATA_DATA6,
+					  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+			mxc_iomux_set_pad(MX35_PIN_ATA_DATA7,
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
+			mxc_iomux_set_pad(MX35_PIN_ATA_DATA8,
+					  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+			mxc_iomux_set_pad(MX35_PIN_ATA_DATA9,
+					  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+		}
 
 		break;
 
@@ -133,15 +138,6 @@ void gpio_uart_active(int port, int no_irda)
 		/* UART 2 IOMUX Configs */
 		mxc_request_iomux(MX35_PIN_TXD2, MUX_CONFIG_FUNC);      /* TxD */
 		mxc_request_iomux(MX35_PIN_RXD2, MUX_CONFIG_FUNC);      /* RxD */
-		mxc_request_iomux(MX35_PIN_TX5_RX0, MUX_CONFIG_ALT4);   /* DTR */
-#ifndef CONFIG_MXC_UART_DSR_GPIO
-		mxc_request_iomux(MX35_PIN_TX4_RX1, MUX_CONFIG_ALT4);   /* DSR */
-#else
-		mxc_request_iomux(MX35_PIN_TX4_RX1, MUX_CONFIG_GPIO);   /* DSR(GPIO) */
-                mxc_set_gpio_direction(MX35_PIN_TX4_RX1, 1);		/* GPIO IN */
-#endif
-		mxc_request_iomux(MX35_PIN_TX1, MUX_CONFIG_ALT4);       /* RI  */
-		mxc_request_iomux(MX35_PIN_TX0, MUX_CONFIG_ALT4);       /* DCD */
 
                 if (type == 1) {
                         /* RS-422 or RS-485 */
@@ -160,28 +156,41 @@ void gpio_uart_active(int port, int no_irda)
 			/* RS-232 */
 			mxc_request_iomux(MX35_PIN_RTS2, MUX_CONFIG_FUNC);      /* RTS */
 			mxc_request_iomux(MX35_PIN_CTS2, MUX_CONFIG_FUNC);      /* CTS */
+			mxc_request_iomux(MX35_PIN_TX5_RX0, MUX_CONFIG_ALT4);   /* DTR */
+#ifndef CONFIG_MXC_UART_DSR_GPIO
+			mxc_request_iomux(MX35_PIN_TX4_RX1, MUX_CONFIG_ALT4);   /* DSR */
+#else
+			mxc_request_iomux(MX35_PIN_TX4_RX1, MUX_CONFIG_GPIO);   /* DSR(GPIO) */
+			mxc_set_gpio_direction(MX35_PIN_TX4_RX1, 1);		/* GPIO IN */
+#endif
+			mxc_request_iomux(MX35_PIN_TX1, MUX_CONFIG_ALT4);       /* RI  */
+			mxc_request_iomux(MX35_PIN_TX0, MUX_CONFIG_ALT4);       /* DCD */
 		}
+
 		mxc_iomux_set_pad(MX35_PIN_TXD2,
 				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
 		mxc_iomux_set_pad(MX35_PIN_RXD2,
 				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
 				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
-		mxc_iomux_set_pad(MX35_PIN_RTS2,
-				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
-		mxc_iomux_set_pad(MX35_PIN_CTS2,
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
-		mxc_iomux_set_pad(MX35_PIN_TX5_RX0,
-				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
-		mxc_iomux_set_pad(MX35_PIN_TX4_RX1,
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
-		mxc_iomux_set_pad(MX35_PIN_TX1,
-				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
-		mxc_iomux_set_pad(MX35_PIN_TX0,
-				  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
-				  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+
+                if (type == 0) {
+			mxc_iomux_set_pad(MX35_PIN_RTS2,
+					  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+			mxc_iomux_set_pad(MX35_PIN_CTS2,
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
+			mxc_iomux_set_pad(MX35_PIN_TX5_RX0,
+					  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+			mxc_iomux_set_pad(MX35_PIN_TX4_RX1,
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PD);
+			mxc_iomux_set_pad(MX35_PIN_TX1,
+					  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+			mxc_iomux_set_pad(MX35_PIN_TX0,
+					  PAD_CTL_HYS_SCHMITZ | PAD_CTL_PKE_ENABLE |
+					  PAD_CTL_PUE_PUD | PAD_CTL_100K_PU);
+		}
 
 		break;
 
@@ -219,7 +228,7 @@ void gpio_uart_inactive(int port, int no_irda)
 {
         u32 enable, type, config;
 
-        if (mxc_uart_state[port] == 0)
+//      if (mxc_uart_state[port] == 0)
                 // already inactivated.
                 return;
 
@@ -229,23 +238,6 @@ void gpio_uart_inactive(int port, int no_irda)
 	case 0:
 		mxc_request_gpio(MX35_PIN_TXD1);
 		mxc_request_gpio(MX35_PIN_RXD1);
-		mxc_request_gpio(MX35_PIN_RTS1);
-		mxc_request_gpio(MX35_PIN_CTS1);
-		mxc_request_gpio(MX35_PIN_ATA_DATA6);
-#ifndef CONFIG_MXC_UART_DSR_GPIO
-		mxc_request_gpio(MX35_PIN_ATA_DATA7);
-#endif
-		mxc_request_gpio(MX35_PIN_ATA_DATA8);
-		mxc_request_gpio(MX35_PIN_ATA_DATA9);
-
-		mxc_free_iomux(MX35_PIN_TXD1, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_RXD1, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_RTS1, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_CTS1, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_ATA_DATA6, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_ATA_DATA7, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_ATA_DATA8, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_ATA_DATA9, MUX_CONFIG_GPIO);
 
                 if (type == 1) {
                         /* RS-422 or RS-485 */
@@ -253,34 +245,61 @@ void gpio_uart_inactive(int port, int no_irda)
                         mxc_set_gpio_dataout(MX35_PIN_MLB_SIG, 1); /* RxD: disable */
                         mxc_free_gpio(MX35_PIN_MLB_DAT); /* GPIO3(4) */
                         mxc_free_gpio(MX35_PIN_MLB_SIG); /* GPIO3(5) */
-                }
+                } else {
+			mxc_request_gpio(MX35_PIN_RTS1);
+			mxc_request_gpio(MX35_PIN_CTS1);
+			mxc_request_gpio(MX35_PIN_ATA_DATA6);
+#ifndef CONFIG_MXC_UART_DSR_GPIO
+			mxc_request_gpio(MX35_PIN_ATA_DATA7);
+#endif
+			mxc_request_gpio(MX35_PIN_ATA_DATA8);
+			mxc_request_gpio(MX35_PIN_ATA_DATA9);
+
+			mxc_free_iomux(MX35_PIN_TXD1, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_RXD1, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_RTS1, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_CTS1, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_ATA_DATA6, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_ATA_DATA7, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_ATA_DATA8, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_ATA_DATA9, MUX_CONFIG_GPIO);
+		}
 
 		break;
 
 	case 1:
 		mxc_request_gpio(MX35_PIN_TXD2);
 		mxc_request_gpio(MX35_PIN_RXD2);
-		mxc_request_gpio(MX35_PIN_RTS2);
-		mxc_request_gpio(MX35_PIN_CTS2);
-		mxc_request_gpio(MX35_PIN_TX5_RX0);
-#ifndef CONFIG_MXC_UART_DSR_GPIO
-		mxc_request_gpio(MX35_PIN_TX4_RX1);
-#endif
-		mxc_request_gpio(MX35_PIN_TX1);
-		mxc_request_gpio(MX35_PIN_TX0);
 
-		mxc_free_iomux(MX35_PIN_TXD2, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_RXD2, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_RTS2, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_CTS2, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_TX5_RX0, MUX_CONFIG_GPIO);
+                if (type == 1) {
+                        /* RS-422 or RS-485 */
+                        mxc_set_gpio_dataout(MX35_PIN_CTS2, 0); /* TxD: disable */
+                        mxc_set_gpio_dataout(MX35_PIN_RTS2, 1); /* RxD: disable */
+                        mxc_free_gpio(MX35_PIN_CTS2); /* GPIO3(4) */
+                        mxc_free_gpio(MX35_PIN_RTS2); /* GPIO3(5) */
+		} else {
+			mxc_request_gpio(MX35_PIN_RTS2);
+			mxc_request_gpio(MX35_PIN_CTS2);
+			mxc_request_gpio(MX35_PIN_TX5_RX0);
 #ifndef CONFIG_MXC_UART_DSR_GPIO
-		mxc_free_iomux(MX35_PIN_TX4_RX1, MUX_CONFIG_GPIO);
-#else
-		mxc_free_gpio(MX35_PIN_TX4_RX1);
+			mxc_request_gpio(MX35_PIN_TX4_RX1);
 #endif
-		mxc_free_iomux(MX35_PIN_TX1, MUX_CONFIG_GPIO);
-		mxc_free_iomux(MX35_PIN_TX0, MUX_CONFIG_GPIO);
+			mxc_request_gpio(MX35_PIN_TX1);
+			mxc_request_gpio(MX35_PIN_TX0);
+
+			mxc_free_iomux(MX35_PIN_TXD2, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_RXD2, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_RTS2, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_CTS2, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_TX5_RX0, MUX_CONFIG_GPIO);
+#ifndef CONFIG_MXC_UART_DSR_GPIO
+			mxc_free_iomux(MX35_PIN_TX4_RX1, MUX_CONFIG_GPIO);
+#else
+			mxc_free_gpio(MX35_PIN_TX4_RX1);
+#endif
+			mxc_free_iomux(MX35_PIN_TX1, MUX_CONFIG_GPIO);
+			mxc_free_iomux(MX35_PIN_TX0, MUX_CONFIG_GPIO);
+		}
 
 		break;
 
