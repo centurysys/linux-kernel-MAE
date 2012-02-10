@@ -965,9 +965,9 @@ static void unionfs_umount_begin(struct super_block *sb)
 	unionfs_read_unlock(sb);
 }
 
-static int unionfs_show_options(struct seq_file *m, struct vfsmount *mnt)
+static int unionfs_show_options(struct seq_file *m, struct dentry *root)
 {
-	struct super_block *sb = mnt->mnt_sb;
+	struct super_block *sb = root->d_sb;
 	int ret = 0;
 	char *tmp_page;
 	char *path;
