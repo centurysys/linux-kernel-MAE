@@ -142,7 +142,7 @@ static int unionfs_create(struct inode *dir, struct dentry *dentry,
 			fsstack_copy_inode_size(dir,
 						lower_parent_dentry->d_inode);
 			/* update no. of links on parent directory */
-			dir->i_nlink = unionfs_get_nlinks(dir);
+			set_nlink(dir, unionfs_get_nlinks(dir));
 		}
 	}
 
@@ -253,7 +253,7 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 		lower_dir_dentry = dget_parent(lower_new_dentry);
 		fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
 		dput(lower_dir_dentry);
-		dir->i_nlink = unionfs_get_nlinks(dir);
+		set_nlink(dir, unionfs_get_nlinks(dir));
 		err = 0;
 	}
 	if (err)
@@ -328,7 +328,8 @@ check_link:
 	fsstack_copy_inode_size(dir, lower_new_dentry->d_parent->d_inode);
 
 	/* propagate number of hard-links */
-	old_dentry->d_inode->i_nlink = unionfs_get_nlinks(old_dentry->d_inode);
+	set_nlink(old_dentry->d_inode,
+		  unionfs_get_nlinks(old_dentry->d_inode));
 	/* new dentry's ctime may have changed due to hard-link counts */
 	unionfs_copy_attr_times(new_dentry->d_inode);
 
@@ -402,7 +403,7 @@ static int unionfs_symlink(struct inode *dir, struct dentry *dentry,
 			fsstack_copy_inode_size(dir,
 						lower_parent_dentry->d_inode);
 			/* update no. of links on parent directory */
-			dir->i_nlink = unionfs_get_nlinks(dir);
+			set_nlink(dir, unionfs_get_nlinks(dir));
 		}
 	}
 
@@ -514,7 +515,7 @@ static int unionfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 						lower_parent_dentry->d_inode);
 
 			/* update number of links on parent directory */
-			dir->i_nlink = unionfs_get_nlinks(dir);
+			set_nlink(dir, unionfs_get_nlinks(dir));
 		}
 
 		err = make_dir_opaque(dentry, dbstart(dentry));
@@ -594,7 +595,7 @@ static int unionfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 			fsstack_copy_inode_size(dir,
 						lower_parent_dentry->d_inode);
 			/* update no. of links on parent directory */
-			dir->i_nlink = unionfs_get_nlinks(dir);
+			set_nlink(dir, unionfs_get_nlinks(dir));
 		}
 	}
 

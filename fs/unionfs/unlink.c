@@ -190,7 +190,7 @@ static int unionfs_rmdir_first(struct inode *dir, struct dentry *dentry,
 
 	fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
 	/* propagate number of hard-links */
-	dentry->d_inode->i_nlink = unionfs_get_nlinks(dentry->d_inode);
+	set_nlink(dentry->d_inode, unionfs_get_nlinks(dentry->d_inode));
 
 out:
 	if (lower_dir_dentry)

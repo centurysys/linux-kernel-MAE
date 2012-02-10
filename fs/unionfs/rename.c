@@ -212,8 +212,8 @@ static int do_unionfs_rename(struct inode *old_dir,
 		fsstack_copy_attr_times(new_parent->d_inode,
 					unlink_dir_dentry->d_inode);
 		/* propagate number of hard-links */
-		new_parent->d_inode->i_nlink =
-			unionfs_get_nlinks(new_parent->d_inode);
+		set_nlink(new_parent->d_inode,
+			  unionfs_get_nlinks(new_parent->d_inode));
 
 		unlock_dir(unlink_dir_dentry);
 		if (!err) {

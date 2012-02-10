@@ -91,5 +91,5 @@ void unionfs_copy_attr_all(struct inode *dest,
 	 * Update the nlinks AFTER updating the above fields, because the
 	 * get_links callback may depend on them.
 	 */
-	dest->i_nlink = unionfs_get_nlinks(dest);
+	set_nlink(dest, unionfs_get_nlinks(dest));
 }
