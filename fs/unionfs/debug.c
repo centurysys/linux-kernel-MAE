@@ -10,6 +10,7 @@
  */
 
 #include "union.h"
+#include "../mount.h"
 
 /*
  * Helper debugging functions for maintainers (and for users to report back
@@ -445,17 +446,18 @@ void __unionfs_check_nd(const struct nameidata *nd,
 
 static unsigned int __mnt_get_count(struct vfsmount *mnt)
 {
+	struct mount *m = real_mount(mnt);
 #ifdef CONFIG_SMP
 	unsigned int count = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		count += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_count;
+		count += per_cpu_ptr(m->mnt_pcp, cpu)->mnt_count;
 	}
 
 	return count;
 #else
-	return mnt->mnt_count;
+	return m->mnt_count;
 #endif
 }
 
