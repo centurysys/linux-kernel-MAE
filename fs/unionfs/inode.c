@@ -97,7 +97,7 @@ out:
 }
 
 static int unionfs_create(struct inode *dir, struct dentry *dentry,
-			  int mode, struct nameidata *nd_unused)
+			  umode_t mode, struct nameidata *nd_unused)
 {
 	int err = 0;
 	struct dentry *lower_dentry = NULL;
@@ -424,7 +424,7 @@ out:
 	return err;
 }
 
-static int unionfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int unionfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int err = 0;
 	struct dentry *lower_dentry = NULL;
@@ -548,7 +548,7 @@ out:
 	return err;
 }
 
-static int unionfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
+static int unionfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 			 dev_t dev)
 {
 	int err = 0;
