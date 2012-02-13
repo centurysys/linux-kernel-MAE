@@ -654,6 +654,9 @@ static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
 }
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern int magnolia2_smsc95xx_get_ether_addr(u8 *);
+#endif
 static void smsc95xx_init_mac_address(struct usbnet *dev)
 {
 	/* try reading mac address from EEPROM */
@@ -666,6 +669,14 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 			return;
 		}
 	}
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	if (magnolia2_smsc95xx_get_ether_addr(dev->net->dev_addr) == 0) {
+		if (netif_msg_ifup(dev))
+			devdbg(dev, "MAC address set from TAG");
+		return;
+	}
+#endif
 
 	/* no eeprom, or eeprom values are invalid. generate random MAC */
 	random_ether_addr(dev->net->dev_addr);
@@ -1194,6 +1205,13 @@ static const struct usb_device_id products[] = {
 		USB_DEVICE(0x0424, 0x9500),
 		.driver_info = (unsigned long) &smsc95xx_info,
 	},
+#ifdef CONFIG_MACH_MAGNOLIA2
+	{
+		/* SMSC9500 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9e00),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+#endif
 	{ },		/* END */
 };
 MODULE_DEVICE_TABLE(usb, products);

@@ -92,6 +92,61 @@ int magnolia2_is_audio_enable(void)
 }
 EXPORT_SYMBOL(magnolia2_is_audio_enable);
 
+#if defined(CONFIG_USB_NET_SMSC95XX) || defined(CONFIG_USB_NET_SMSC95XX_MODULE)
+struct macaddr_table {
+	u8 mac_key[3];
+	u8 mac_val[3];
+};
+
+struct macaddr_table fec2smsc[] = {
+	{
+		{0x77, 0x81, 0x5f}, {0x77, 0x20, 0x20}
+	},{
+		{0x77, 0x81, 0x60}, {0x77, 0x20, 0x21}
+	},{
+		{0x77, 0x81, 0x61}, {0x77, 0x20, 0x22}
+	},{
+		{0x77, 0x81, 0x62}, {0x77, 0x20, 0x23}
+	},{
+		{0x77, 0x81, 0x63}, {0x77, 0x20, 0x24}
+	},{
+		{0x77, 0x81, 0x64}, {0x77, 0x20, 0x25}
+	},{
+		{0x77, 0x81, 0x65}, {0x77, 0x20, 0x26}
+	},{
+		{0x77, 0x81, 0x66}, {0x77, 0x20, 0x27}
+	},{
+		{0x77, 0x81, 0x34}, {0x77, 0x20, 0x28}
+	},{
+		{0x77, 0x81, 0x35}, {0x77, 0x20, 0x29}
+	}
+};
+
+int magnolia2_smsc95xx_get_ether_addr(u8 *data)
+{
+	int i;
+	__u8 *macAddr = uboot_tag.macAddr;
+
+	for (i = 0; i <= sizeof(fec2smsc); i++) {
+		if (macAddr[3] == fec2smsc[i].mac_key[0] &&
+		    macAddr[4] == fec2smsc[i].mac_key[1] &&
+		    macAddr[5] == fec2smsc[i].mac_key[2]) {
+			data[0] = 0x00;
+			data[1] = 0x80;
+			data[2] = 0x6d;
+			data[3] = fec2smsc[i].mac_val[0];
+			data[4] = fec2smsc[i].mac_val[1];
+			data[5] = fec2smsc[i].mac_val[2];
+
+			return 0;
+		}
+	}
+
+	return -1;
+}
+EXPORT_SYMBOL(magnolia2_smsc95xx_get_ether_addr);
+#endif
+
 int magnolia2_get_uart_info(int port, u32 *enable, u32 *type, u32 *config)
 {
         int res = 0;
