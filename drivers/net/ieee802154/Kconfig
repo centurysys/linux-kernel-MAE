@@ -57,3 +57,7 @@ config IEEE802154_CC2520
 
 	  This driver can also be built as a module. To do so, say M here.
 	  the module will be called 'cc2520'.
+
+config IEEE802154_FAKE
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "Simple UART driver"
