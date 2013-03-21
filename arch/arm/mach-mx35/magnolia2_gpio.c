@@ -402,6 +402,9 @@ static int fec_initialized = 0;
 
 void gpio_fec_active(void)
 {
+	if (fec_initialized == 1)
+		return;
+
 	mxc_request_iomux(MX35_PIN_FEC_TX_CLK, MUX_CONFIG_FUNC);
 	mxc_request_iomux(MX35_PIN_FEC_RX_CLK, MUX_CONFIG_FUNC);
 	mxc_request_iomux(MX35_PIN_FEC_RDATA0, MUX_CONFIG_FUNC);
@@ -421,13 +424,9 @@ void gpio_fec_active(void)
 	mxc_request_iomux(MX35_PIN_FEC_MDC, MUX_CONFIG_FUNC);
 	mxc_request_iomux(MX35_PIN_FEC_MDIO, MUX_CONFIG_FUNC);
 
-	if (fec_initialized == 0) {
-		mxc_request_iomux(MX35_PIN_ATA_DA0, MUX_CONFIG_GPIO);
-		mxc_set_gpio_direction(MX35_PIN_ATA_DA0, 1);
-		mxc_iomux_set_input(MUX_IN_GPIO3_IN_0, INPUT_CTL_PATH1);
-
-		fec_initialized = 1;
-	}
+	mxc_request_iomux(MX35_PIN_ATA_DA0, MUX_CONFIG_GPIO);
+	mxc_set_gpio_direction(MX35_PIN_ATA_DA0, 1);
+	mxc_iomux_set_input(MUX_IN_GPIO3_IN_0, INPUT_CTL_PATH1);
 
 #define FEC_PAD_CTL_COMMON (PAD_CTL_DRV_3_3V|PAD_CTL_PUE_PUD| \
 			PAD_CTL_ODE_CMOS|PAD_CTL_DRV_NORMAL|PAD_CTL_SRE_SLOW)
@@ -487,18 +486,20 @@ void gpio_fec_active(void)
 			  PAD_CTL_PKE_NONE | PAD_CTL_100K_PD);
 #undef FEC_PAD_CTL_COMMON
 
-
 	/* FEC PHY reset */
 	magnolia2_eth_phy_reset(0);
 	msleep(10);
 	magnolia2_eth_phy_reset(1);
 	msleep(100);
+
+	fec_initialized = 1;
 }
 
 EXPORT_SYMBOL(gpio_fec_active);
 
 void gpio_fec_inactive(void)
 {
+#if 0
 	mxc_request_gpio(MX35_PIN_FEC_TX_CLK);
 	mxc_request_gpio(MX35_PIN_FEC_RX_CLK);
 	mxc_request_gpio(MX35_PIN_FEC_RDATA0);
@@ -538,6 +539,7 @@ void gpio_fec_inactive(void)
 	mxc_free_iomux(MX35_PIN_FEC_RX_ERR, MUX_CONFIG_GPIO);
 	mxc_free_iomux(MX35_PIN_FEC_MDC, MUX_CONFIG_GPIO);
 	mxc_free_iomux(MX35_PIN_FEC_MDIO, MUX_CONFIG_GPIO);
+#endif
 }
 
 EXPORT_SYMBOL(gpio_fec_inactive);
