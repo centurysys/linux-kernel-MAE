@@ -297,13 +297,15 @@ static struct platform_device fldin_card_device = {
 
 static int __init magnolia2_init_extio4(void)
 {
-	u32 cs4_board_id;
+	u32 cs4_board_id, cs4_board_rev;
 
 	cs4_board_id = uboot_tag.cs4.id;
+	cs4_board_rev = uboot_tag.cs4.revision;
 
-	if (cs4_board_id != 0x0f)
-		printk("Magnolia2 External I/O(CS4): board_id = %d\n", cs4_board_id);
-	else
+	if (cs4_board_rev != 0xff && cs4_board_id != 0x0f)
+		printk("Magnolia2 External I/O(CS4): board_id = %d, board_rev = %d\n",
+		       cs4_board_id, cs4_board_rev);
+        else
 		return 0;
 
 	switch (cs4_board_id) {
@@ -410,9 +412,10 @@ static int __init magnolia2_init_extio5(void)
 
 	cs5_board_id = uboot_tag.cs5.id;
 
-	if (cs5_board_id != 0x0f)
-		printk("Magnolia2 External I/O(CS5): board_id = %d\n", cs5_board_id);
-	else
+	if (cs5_board_rev != 0xff && cs5_board_id != 0x0f)
+		printk("Magnolia2 External I/O(CS5): board_id = %d, board_rev = %d\n",
+		       cs5_board_id, cs5_board_rev);
+        else
 		return 0;
 
 	switch (cs5_board_id) {
