@@ -13,3 +13,4 @@ obj-$(CONFIG_GPIO_TWL4030)	+= twl4030-gpio.o
 obj-$(CONFIG_GPIO_XILINX)	+= xilinx_gpio.o
 obj-$(CONFIG_GPIO_BT8XX)	+= bt8xxgpio.o
 obj-$(CONFIG_GPIO_MAGNOLIA2)	+= magnolia2-extio.o
+obj-$(CONFIG_GPIO_MAGNOLIA2_PORT2)	+= magnolia2-uartgpio.o

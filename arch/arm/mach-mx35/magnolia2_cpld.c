@@ -47,25 +47,25 @@
 void magnolia2_usbh2_phy_reset(void)
 {
 #define BOARD_CTRL 0xa8000000
-        u8 reg, *addr;
+	u8 reg, *addr;
 
-        addr = ioremap(BOARD_CTRL, 1);
+	addr = ioremap(BOARD_CTRL, 1);
 
-        reg = __raw_readl(addr);
-        printk("%s: board_ctrl: 0x%02x\n", __FUNCTION__, reg);
+	reg = __raw_readl(addr);
+	printk("%s: board_ctrl: 0x%02x\n", __FUNCTION__, reg);
 
-        reg &= ~(1 << 7);
-        __raw_writel(reg, addr);
-        printk("%s: board_ctrl: 0x%02x\n", __FUNCTION__, reg);
-        udelay(100);
+	reg &= ~(1 << 7);
+	__raw_writel(reg, addr);
+	printk("%s: board_ctrl: 0x%02x\n", __FUNCTION__, reg);
+	udelay(100);
 
-        reg |= (1 << 7);
-        printk("%s: board_ctrl: 0x%02x\n", __FUNCTION__, reg);
-        __raw_writel(reg, addr);
+	reg |= (1 << 7);
+	printk("%s: board_ctrl: 0x%02x\n", __FUNCTION__, reg);
+	__raw_writel(reg, addr);
 
-        iounmap(addr);
+	iounmap(addr);
 
-        udelay(100);
+	udelay(100);
 }
 EXPORT_SYMBOL(magnolia2_usbh2_phy_reset);
 
@@ -74,8 +74,6 @@ EXPORT_SYMBOL(magnolia2_usbh2_phy_reset);
  */
 void magnolia2_eth_phy_reset(int active)
 {
-
-
 }
 EXPORT_SYMBOL(magnolia2_eth_phy_reset);
 
@@ -84,8 +82,6 @@ EXPORT_SYMBOL(magnolia2_eth_phy_reset);
  */
 void magnolia2_felica_rw_reset(int active)
 {
-
-
 }
 EXPORT_SYMBOL(magnolia2_felica_rw_reset);
 
@@ -94,8 +90,6 @@ EXPORT_SYMBOL(magnolia2_felica_rw_reset);
  */
 void magnolia2_wifi_reset(int active)
 {
-
-
 }
 EXPORT_SYMBOL(magnolia2_wifi_reset);
 
@@ -104,8 +98,6 @@ EXPORT_SYMBOL(magnolia2_wifi_reset);
  */
 void magnolia2_SDcard_power_control(int on)
 {
-
-
 }
 EXPORT_SYMBOL(magnolia2_SDcard_power_control);
 
@@ -114,8 +106,7 @@ EXPORT_SYMBOL(magnolia2_SDcard_power_control);
  */
 u8 magnolia2_get_CPLD_revision(void)
 {
-
-        return 0;
+	return 0;
 }
 EXPORT_SYMBOL(magnolia2_get_CPLD_revision);
 
@@ -124,7 +115,6 @@ EXPORT_SYMBOL(magnolia2_get_CPLD_revision);
  */
 u8 magnolia2_get_board_ID(void)
 {
-
-        return 1;
+	return 1;
 }
 EXPORT_SYMBOL(magnolia2_get_board_ID);

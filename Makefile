@@ -191,7 +191,8 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 export KBUILD_BUILDHOST := $(SUBARCH)
 ARCH		?= arm
-CROSS_COMPILE	?= armv6l-vfp-linux-gnueabi-
+CROSS_COMPILE	?= armv6j-hardfloat-linux-gnueabi-
+ECROSS_COMPILE	?= armv6l-vfp-linux-gnueabi-
 #CROSS_COMPILE	?= arm-linux-gnueabi-
 
 # Architecture as present in compile.h
@@ -440,7 +441,10 @@ ifeq ($(config-targets),1)
 include $(srctree)/arch/$(SRCARCH)/Makefile
 export KBUILD_DEFCONFIG KBUILD_KCONFIG
 
-config %config: scripts_basic outputmakefile FORCE
+config: scripts_basic outputmakefile FORCE
+	$(Q)mkdir -p include/linux include/config
+	$(Q)$(MAKE) $(build)=scripts/kconfig $@
+%config: scripts_basic outputmakefile FORCE
 	$(Q)mkdir -p include/linux include/config
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 
@@ -1608,7 +1612,11 @@ endif
 	$(Q)$(MAKE) $(build)=$(build-dir) $(target-dir)$(notdir $@)
 
 # Modules
-/ %/: prepare scripts FORCE
+/: prepare scripts FORCE
+	$(cmd_crmodverdir)
+	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1) \
+	$(build)=$(build-dir)
+%/: prepare scripts FORCE
 	$(cmd_crmodverdir)
 	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1) \
 	$(build)=$(build-dir)

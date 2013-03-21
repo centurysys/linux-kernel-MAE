@@ -66,11 +66,11 @@ static struct tag_magnolia2_uboot uboot_tag;
 
 static int __init parse_tag_magnolia2_uboot(const struct tag *tag)
 {
-        printk("Using UBoot passing parameters structure\n");
+	printk("Using UBoot passing parameters structure\n");
 
-        memcpy(&uboot_tag, &tag->u.magnolia2, sizeof(uboot_tag));
+	memcpy(&uboot_tag, &tag->u.magnolia2, sizeof(uboot_tag));
 
-        return 0;
+	return 0;
 }
 
 __tagtable(ATAG_MAGNOLIA2, parse_tag_magnolia2_uboot);
@@ -82,13 +82,13 @@ static void mxc_nop_release(struct device *dev)
 
 int magnolia2_get_extio_id(int sel)
 {
-        return 1;
+	return 1;
 }
 EXPORT_SYMBOL(magnolia2_get_extio_id);
 
 int magnolia2_is_audio_enable(void)
 {
-        return uboot_tag.audio == 0 ? 0 : -1;
+	return uboot_tag.audio == 0 ? 0 : -1;
 }
 EXPORT_SYMBOL(magnolia2_is_audio_enable);
 
@@ -149,42 +149,42 @@ EXPORT_SYMBOL(magnolia2_smsc95xx_get_ether_addr);
 
 int magnolia2_get_uart_info(int port, u32 *enable, u32 *type, u32 *config)
 {
-        int res = 0;
+	int res = 0;
 
-        switch (port) {
-        case 0:
-                *enable = uboot_tag.rs1.enable;
+	switch (port) {
+	case 0:
+		*enable = uboot_tag.rs1.enable;
 #ifndef CONFIG_MXC_UART_BUGGY_UBOOTOPT
-                *type = uboot_tag.rs1.type;
-                *config = uboot_tag.rs1.config;
+		*type = uboot_tag.rs1.type;
+		*config = uboot_tag.rs1.config;
 #else
-                *type = uboot_tag.rs1.config;
-                *config = uboot_tag.rs1.type;
+		*type = uboot_tag.rs1.config;
+		*config = uboot_tag.rs1.type;
 #endif
-                break;
+		break;
 
-        case 1:
-                *enable = uboot_tag.rs2.enable;
+	case 1:
+		*enable = uboot_tag.rs2.enable;
 #ifndef CONFIG_MXC_UART_BUGGY_UBOOTOPT
-                *type = uboot_tag.rs2.type;
-                *config = uboot_tag.rs2.config;
+		*type = uboot_tag.rs2.type;
+		*config = uboot_tag.rs2.config;
 #else
-                *type = uboot_tag.rs2.config;
-                *config = uboot_tag.rs2.type;
+		*type = uboot_tag.rs2.config;
+		*config = uboot_tag.rs2.type;
 #endif
-                break;
+		break;
 
-        case 2:
-                *enable = 0;
-                *type = 0;
-                *config = 0;
-                break;
+	case 2:
+		*enable = 0;
+		*type = 0;
+		*config = 0;
+		break;
 
-        default:
-                res = -1;
-        }
+	default:
+		res = -1;
+	}
 
-        return res;
+	return res;
 }
 EXPORT_SYMBOL(magnolia2_get_uart_info);
 
@@ -195,13 +195,13 @@ static struct plat_serial8250_port foma_serial_platform_data[] = {
 	{
 		.membase  = (void *)(IO_ADDRESS(CS4_BASE_ADDR) + MAGNOLIA2_EXT_UART_FOMA),
 		.mapbase  = (unsigned long)(CS4_BASE_ADDR + MAGNOLIA2_EXT_UART_FOMA),
-		.irq      = MXC_INT_GPIO_P3(2),
+		.irq	  = MXC_INT_GPIO_P3(2),
 		.uartclk  = 7372800,
 		.regshift = 0,
-		.iotype   = UPIO_MEM,
-		.flags    = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
-        },
-        {},
+		.iotype	  = UPIO_MEM,
+		.flags	  = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},
+	{},
 };
 
 static struct platform_device foma_serial_device = {
@@ -209,7 +209,7 @@ static struct platform_device foma_serial_device = {
 	.id = 0,
 	.dev = {
 		.platform_data = foma_serial_platform_data,
-        },
+	},
 };
 
 static struct resource foma_extio_resource = {
@@ -222,8 +222,8 @@ static struct platform_device foma_extio_device = {
 	.name = "foma_extio",
 	.id = 0,
 	.dev = {
-                // Nothing
-        },
+		// Nothing
+	},
 	.num_resources = 1,
 	.resource = &foma_extio_resource,
 };
@@ -297,78 +297,78 @@ static struct platform_device fldin_card_device = {
 
 static int __init magnolia2_init_extio4(void)
 {
-        u32 cs4_board_id;
+	u32 cs4_board_id;
 
-        cs4_board_id = uboot_tag.cs4.id;
+	cs4_board_id = uboot_tag.cs4.id;
 
-        if (cs4_board_id != 0x0f)
-                printk("Magnolia2 External I/O(CS4): board_id = %d\n", cs4_board_id);
-        else
-                return 0;
+	if (cs4_board_id != 0x0f)
+		printk("Magnolia2 External I/O(CS4): board_id = %d\n", cs4_board_id);
+	else
+		return 0;
 
-        switch (cs4_board_id) {
-        case 0x01:
-                /* FOMA Ubiquitous module */
-                mxc_request_iomux(MX35_PIN_ATA_DA2, MUX_CONFIG_GPIO);
-                mxc_set_gpio_direction(MX35_PIN_ATA_DA2, 1);     /* INPUT */
+	switch (cs4_board_id) {
+	case 0x01:
+		/* FOMA Ubiquitous module */
+		mxc_request_iomux(MX35_PIN_ATA_DA2, MUX_CONFIG_GPIO);
+		mxc_set_gpio_direction(MX35_PIN_ATA_DA2, 1);	 /* INPUT */
 
-                mxc_iomux_set_pad(MX35_PIN_ATA_DA2, PAD_CTL_HYS_SCHMITZ |
-                                  PAD_CTL_PKE_ENABLE | PAD_CTL_100K_PU | PAD_CTL_PUE_PUD);
+		mxc_iomux_set_pad(MX35_PIN_ATA_DA2, PAD_CTL_HYS_SCHMITZ |
+				  PAD_CTL_PKE_ENABLE | PAD_CTL_100K_PU | PAD_CTL_PUE_PUD);
 
-                platform_device_register(&foma_serial_device);
-                platform_device_register(&foma_extio_device);
-                break;
+		platform_device_register(&foma_serial_device);
+		platform_device_register(&foma_extio_device);
+		break;
 
-        case 0x02:
+	case 0x02:
 		/* FL-net module */
 		// an expansion FL-net card (flnet)
 		platform_device_register(&flnet_card_device);
 		// an expansion FL-net card (fldin)
 		platform_device_register(&fldin_card_device);
-                break;
+		break;
 
-        default:
-                break;
-        }
+	default:
+		break;
+	}
 
-        return 0;
+	return 0;
 }
 
 /* CS5: AI/DIO Extension */
 static struct spi_board_info mxc_spi_board_info_aidio[] __initdata = {
 	{
-                .modalias = "ltc185x",
-                .max_speed_hz = 1500000,	/* max spi SCK clock speed in HZ */
-                .bus_num = 1,
-                .chip_select = 0,
-        },
+		.modalias = "ltc185x",
+		.max_speed_hz = 1500000,	/* max spi SCK clock speed in HZ */
+		.bus_num = 1,
+		.chip_select = 0,
+	},
 	{
-                .modalias = "ltc185x",
-                .max_speed_hz = 1500000,	/* max spi SCK clock speed in HZ */
-                .bus_num = 1,
-                .chip_select = 1,
-        },
+		.modalias = "ltc185x",
+		.max_speed_hz = 1500000,	/* max spi SCK clock speed in HZ */
+		.bus_num = 1,
+		.chip_select = 1,
+	},
 };
 
 static struct resource dio_extio_resource[] = {
-        {
-                .start = CS5_BASE_ADDR,
-                .end = CS5_BASE_ADDR + 0x84 - 1,
-                .flags = IORESOURCE_MEM,
-        },
-        {
-                .start = MXC_INT_GPIO_P3(1),
-                .end = MXC_INT_GPIO_P3(1),
-                .flags = IORESOURCE_IRQ,
-        }
+	{
+		.start = CS5_BASE_ADDR,
+		.end = CS5_BASE_ADDR + 0x84 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MXC_INT_GPIO_P3(1),
+		.end = MXC_INT_GPIO_P3(1),
+		.flags = IORESOURCE_IRQ,
+	}
 };
 
 static struct platform_device dio_extio_device = {
 	.name = "magnolia2_DIO",
 	.id = 0,
 	.dev = {
-                // Nothing
-        },
+		// Nothing
+	},
 	.num_resources = 2,
 	.resource = dio_extio_resource,
 };
@@ -376,24 +376,24 @@ static struct platform_device dio_extio_device = {
 /* CS5: PWR/CAN Extension */
 static struct spi_board_info mxc_spi_board_info_can[] __initdata = {
 	{
-                .modalias = "cortex-m3",
-                .max_speed_hz = 1000000,	/* max spi SCK clock speed in HZ */
-                .bus_num = 1,
-                .chip_select = 0,
-        },
+		.modalias = "cortex-m3",
+		.max_speed_hz = 1000000,	/* max spi SCK clock speed in HZ */
+		.bus_num = 1,
+		.chip_select = 0,
+	},
 };
 
 static struct plat_serial8250_port can_serial_platform_data[] = {
 	{
 		.membase  = (void *)(IO_ADDRESS(CS5_BASE_ADDR) + MAGNOLIA2_EXT_UART_CAN),
 		.mapbase  = (unsigned long)(CS5_BASE_ADDR + MAGNOLIA2_EXT_UART_CAN),
-		.irq      = MXC_INT_GPIO_P3(1),
+		.irq	  = MXC_INT_GPIO_P3(1),
 		.uartclk  = 7372800,
 		.regshift = 1,
-		.iotype   = UPIO_MEM,
-		.flags    = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
-        },
-        {},
+		.iotype	  = UPIO_MEM,
+		.flags	  = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},
+	{},
 };
 
 static struct platform_device can_serial_device = {
@@ -401,33 +401,33 @@ static struct platform_device can_serial_device = {
 	.id = 1,
 	.dev = {
 		.platform_data = can_serial_platform_data,
-        },
+	},
 };
 
 static int __init magnolia2_init_extio5(void)
 {
-        u32 cs5_board_id;
+	u32 cs5_board_id;
 
-        cs5_board_id = uboot_tag.cs5.id;
+	cs5_board_id = uboot_tag.cs5.id;
 
-        if (cs5_board_id != 0x0f)
-                printk("Magnolia2 External I/O(CS5): board_id = %d\n", cs5_board_id);
-        else
-                return 0;
+	if (cs5_board_id != 0x0f)
+		printk("Magnolia2 External I/O(CS5): board_id = %d\n", cs5_board_id);
+	else
+		return 0;
 
-        switch (cs5_board_id) {
-        case 0x01:
-                /* AI/DIO module */
-                platform_device_register(&dio_extio_device);
-                spi_register_board_info(mxc_spi_board_info_aidio,
-                                        ARRAY_SIZE(mxc_spi_board_info_aidio));
-                break;
+	switch (cs5_board_id) {
+	case 0x01:
+		/* AI/DIO module */
+		platform_device_register(&dio_extio_device);
+		spi_register_board_info(mxc_spi_board_info_aidio,
+					ARRAY_SIZE(mxc_spi_board_info_aidio));
+		break;
 
-        case 0x02:
-                /* PWR/CAN module */
-                platform_device_register(&can_serial_device);
-                spi_register_board_info(mxc_spi_board_info_can,
-                                        ARRAY_SIZE(mxc_spi_board_info_can));
+	case 0x02:
+		/* PWR/CAN module */
+		platform_device_register(&can_serial_device);
+		spi_register_board_info(mxc_spi_board_info_can,
+					ARRAY_SIZE(mxc_spi_board_info_can));
 
 		/* update bus timing */
 		printk("Update CS5 bus timing...\n");
@@ -435,13 +435,13 @@ static int __init magnolia2_init_extio5(void)
 		__raw_writel(0x8c884561, IO_ADDRESS(CSCR_L(5)));
 		__raw_writel(0xac8e1300, IO_ADDRESS(CSCR_A(5)));
 		
-                break;
+		break;
 
-        default:
-                break;
-        }
+	default:
+		break;
+	}
 
-        return 0;
+	return 0;
 }
 
 /* MTD NOR flash */
@@ -450,30 +450,30 @@ static int __init magnolia2_init_extio5(void)
 
 static struct mtd_partition mxc_nor_partitions[] = {
 	{
-                .name = "uboot",
-                .size = 256 * 1024,
-                .offset = 0x00000000,
-                .mask_flags = MTD_WRITEABLE	/* force read-only */
-        },{
-                .name = "ubootenv",
-                .size = 128 * 1024,
-                .offset = MTDPART_OFS_APPEND,
-                .mask_flags = 0
-        },{
-                .name = "config",
-                .size = 128 * 1024,
-                .offset = MTDPART_OFS_APPEND,
-                .mask_flags = 0
-        },{
-                .name = "kernel",
-                .size = 3584 * 1024,
-                .offset = MTDPART_OFS_APPEND,
-                .mask_flags = 0
-        },{
-                .name = "rootfs",
-                .size = 28 * 1024 * 1024,
-                .offset = MTDPART_OFS_APPEND,
-        },
+		.name = "uboot",
+		.size = 256 * 1024,
+		.offset = 0x00000000,
+		.mask_flags = MTD_WRITEABLE	/* force read-only */
+	},{
+		.name = "ubootenv",
+		.size = 128 * 1024,
+		.offset = MTDPART_OFS_APPEND,
+		.mask_flags = 0
+	},{
+		.name = "config",
+		.size = 128 * 1024,
+		.offset = MTDPART_OFS_APPEND,
+		.mask_flags = 0
+	},{
+		.name = "kernel",
+		.size = 3584 * 1024,
+		.offset = MTDPART_OFS_APPEND,
+		.mask_flags = 0
+	},{
+		.name = "rootfs",
+		.size = 28 * 1024 * 1024,
+		.offset = MTDPART_OFS_APPEND,
+	},
 };
 
 static struct flash_platform_data mxc_flash_data = {
@@ -495,7 +495,7 @@ static struct platform_device mxc_nor_mtd_device = {
 	.dev = {
 		.release = mxc_nop_release,
 		.platform_data = &mxc_flash_data,
-        },
+	},
 	.num_resources = 1,
 	.resource = &mxc_flash_resource,
 };
@@ -520,7 +520,7 @@ static struct platform_device lcd_dev = {
 	.dev = {
 		.release = mxc_nop_release,
 		.platform_data = (void *)&lcd_data,
-        },
+	},
 };
 
 static void mxc_init_lcd(void)
@@ -536,7 +536,7 @@ static struct platform_device mxc_fb_device = {
 	.dev = {
 		.release = mxc_nop_release,
 		.coherent_dma_mask = 0xFFFFFFFF,
-        },
+	},
 };
 
 static void mxc_init_fb(void)
@@ -553,11 +553,11 @@ static inline void mxc_init_fb(void)
 static struct i2c_board_info mxc_i2c1_board_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("lm77", 0x48),
-        },{
+	},{
 		I2C_BOARD_INFO("24c08", 0x50),
-        },{
+	},{
 		I2C_BOARD_INFO("ds1307", 0x68),
-        }
+	}
 };
 #endif
 
@@ -584,21 +584,21 @@ static struct mxc_mmc_platform_data mmc1_data = {
  */
 static struct resource mxcsdhc1_resources[] = {
 	[0] = {
-                .start = MMC_SDHC1_BASE_ADDR,
-                .end = MMC_SDHC1_BASE_ADDR + SZ_4K - 1,
-                .flags = IORESOURCE_MEM,
-        },
+		.start = MMC_SDHC1_BASE_ADDR,
+		.end = MMC_SDHC1_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
 	[1] = {
-                .start = MXC_INT_MMC_SDHC1,
-                .end = MXC_INT_MMC_SDHC1,
-                .flags = IORESOURCE_IRQ,
-        },
+		.start = MXC_INT_MMC_SDHC1,
+		.end = MXC_INT_MMC_SDHC1,
+		.flags = IORESOURCE_IRQ,
+	},
 	[2] = {
-                /* Card detection IRQ */
-                .start = MXC_INT_GPIO_P1(28),
-                .end = MXC_INT_GPIO_P1(28),
-                .flags = IORESOURCE_IRQ,
-        },
+		/* Card detection IRQ */
+		.start = MXC_INT_GPIO_P1(28),
+		.end = MXC_INT_GPIO_P1(28),
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 /*! Device Definition for MXC SDHC1 */
@@ -608,7 +608,7 @@ static struct platform_device mxcsdhc1_device = {
 	.dev = {
 		.release = mxc_nop_release,
 		.platform_data = &mmc1_data,
-        },
+	},
 	.num_resources = ARRAY_SIZE(mxcsdhc1_resources),
 	.resource = mxcsdhc1_resources,
 };
@@ -626,21 +626,21 @@ static struct mxc_mmc_platform_data mmc3_data = {
 
 static struct resource mxcsdhc3_resources[] = {
 	[0] = {
-                .start = MMC_SDHC3_BASE_ADDR,
-                .end = MMC_SDHC3_BASE_ADDR + SZ_4K - 1,
-                .flags = IORESOURCE_MEM,
-        },
+		.start = MMC_SDHC3_BASE_ADDR,
+		.end = MMC_SDHC3_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
 	[1] = {
-                .start = MXC_INT_MMC_SDHC3,
-                .end = MXC_INT_MMC_SDHC3,
-                .flags = IORESOURCE_IRQ,
-        },
+		.start = MXC_INT_MMC_SDHC3,
+		.end = MXC_INT_MMC_SDHC3,
+		.flags = IORESOURCE_IRQ,
+	},
 	[2] = {
-                /* Card detection IRQ */
-                .start = MXC_INT_GPIO_P1(5),
-                .end = MXC_INT_GPIO_P1(5),
-                .flags = IORESOURCE_IRQ,
-        },
+		/* Card detection IRQ */
+		.start = MXC_INT_GPIO_P1(5),
+		.end = MXC_INT_GPIO_P1(5),
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device mxcsdhc3_device = {
@@ -649,7 +649,7 @@ static struct platform_device mxcsdhc3_device = {
 	.dev = {
 		.release = mxc_nop_release,
 		.platform_data = &mmc3_data,
-        },
+	},
 	.num_resources = ARRAY_SIZE(mxcsdhc3_resources),
 	.resource = mxcsdhc3_resources,
 };
@@ -665,50 +665,50 @@ static inline void mxc_init_mmc(void)
 }
 #endif
 
-#define GPIO_PORT(_name, _pin, _irq)            \
-	{                                       \
-		.name = (_name),                \
-                        .pin  = (_pin),         \
-                        .irq  = (_irq),         \
-                        }
+#define GPIO_PORT(_name, _pin, _irq)		\
+	{					\
+		.name = (_name),			\
+			.pin  = (_pin),		\
+			.irq  = (_irq),		\
+			}
 
 #define LED_PORT(_name, _shift) \
-	{                                       \
-		.name = (_name),                \
-                        .shift  = (_shift),     \
-                        }
+	{					\
+		.name = (_name),		\
+			.shift	= (_shift),	\
+			}
 
 /* LED */
 static struct resource magnolia2_led_resources[] = {
 	[0] = {
-                .start = MAGNOLIA2_LED_ADDR,
-                .end = MAGNOLIA2_LED_ADDR,
-                .flags = IORESOURCE_MEM,
-        },
+		.start = MAGNOLIA2_LED_ADDR,
+		.end = MAGNOLIA2_LED_ADDR,
+		.flags = IORESOURCE_MEM,
+	},
 };
 
 static struct magnolia2_led_port magnolia2_led_ports[] = {
-        LED_PORT("led_g0", 3),
-        LED_PORT("led_g1", 2),
-        LED_PORT("led_g2", 1),
-        LED_PORT("led_g3", 0),
-        LED_PORT("led_r0", 7),
-        LED_PORT("led_r1", 6),
-        LED_PORT("led_r2", 5),
-        LED_PORT("led_r3", 4)
+	LED_PORT("led_g0", 3),
+	LED_PORT("led_g1", 2),
+	LED_PORT("led_g2", 1),
+	LED_PORT("led_g3", 0),
+	LED_PORT("led_r0", 7),
+	LED_PORT("led_r1", 6),
+	LED_PORT("led_r2", 5),
+	LED_PORT("led_r3", 4)
 };
 
 static struct magnolia2_led_private magnolia2_led_priv = {
-        .nr_ports = ARRAY_SIZE(magnolia2_led_ports),
-        .ports = magnolia2_led_ports,
+	.nr_ports = ARRAY_SIZE(magnolia2_led_ports),
+	.ports = magnolia2_led_ports,
 };
 
 static struct platform_device magnolia2_led_device = {
 	.name = "magnolia2_led",
 	.id = 0,
-        .dev = {
-                .platform_data = &magnolia2_led_priv,
-        },
+	.dev = {
+		.platform_data = &magnolia2_led_priv,
+	},
 	.num_resources = ARRAY_SIZE(magnolia2_led_resources),
 	.resource = magnolia2_led_resources,
 };
@@ -725,7 +725,7 @@ struct magnolia2_gpio_port magnolia2_switch_in_ports[] = {
 };
 
 static struct magnolia2_gpio_private magnolia2_switch_in_priv = {
-        .nr_gpio = ARRAY_SIZE(magnolia2_switch_in_ports),
+	.nr_gpio = ARRAY_SIZE(magnolia2_switch_in_ports),
 	.ports	= magnolia2_switch_in_ports,
 };
 
@@ -751,7 +751,7 @@ struct magnolia2_gpio_port magnolia2_dipsw_in_ports[] = {
 };
 
 static struct magnolia2_gpio_private magnolia2_dipsw_in_priv = {
-        .nr_gpio = ARRAY_SIZE(magnolia2_dipsw_in_ports),
+	.nr_gpio = ARRAY_SIZE(magnolia2_dipsw_in_ports),
 	.ports	= magnolia2_dipsw_in_ports,
 };
 
@@ -769,9 +769,38 @@ static void magnolia2_dipsw_in_init(void)
 	platform_device_register(&magnolia2_dipsw_in_device);
 }
 
+#ifdef CONFIG_MXC_UART1_USE_AS_GPIO
+/* GPIO DIO */
+struct magnolia2_gpio_port magnolia2_gpio_dio_ports[] = {
+	GPIO_PORT("gpio_dio0", MX35_PIN_TXD2, MXC_INT_GPIO_P3(11)),
+	GPIO_PORT("gpio_dio1", MX35_PIN_RXD2, MXC_INT_GPIO_P3(10)),
+	GPIO_PORT("gpio_dio2", MX35_PIN_CTS2, MXC_INT_GPIO_P2(13)),
+	GPIO_PORT("gpio_dio3", MX35_PIN_RTS2, MXC_INT_GPIO_P3(12)),
+};
+
+static struct magnolia2_gpio_private magnolia2_gpio_dio_priv = {
+	.nr_gpio = ARRAY_SIZE(magnolia2_gpio_dio_ports),
+	.ports	= magnolia2_gpio_dio_ports,
+};
+
+static struct platform_device magnolia2_gpio_dio_device = {
+	.name	= "magnolia2_gpio_dio",
+	.id	= 0,
+	.dev = {
+		.platform_data = &magnolia2_gpio_dio_priv,
+	},
+};
+
+static void magnolia2_gpio_dio_init(void)
+{
+	magnolia2_gpio_dio_priv.nr_gpio = ARRAY_SIZE(magnolia2_gpio_dio_ports);
+	platform_device_register(&magnolia2_gpio_dio_device);
+}
+#endif /* CONFIG_MXC_UART1_USE_AS_GPIO */
+
 /* Sound */
 #if defined(CONFIG_SND_SOC_IMX_MAGNOLIA2_TLV320AIC31) \
-        || defined(CONFIG_SND_SOC_IMX_MAGNOLIA2_TLV320AIC31_MODULE)
+	|| defined(CONFIG_SND_SOC_IMX_MAGNOLIA2_TLV320AIC31_MODULE)
 static int mxc_tlv320aic31_plat_init(void)
 {
 	return 0;
@@ -790,17 +819,17 @@ static struct platform_device mxc_alsa_device = {
 	.dev = {
 		.release = mxc_nop_release,
 		.platform_data = &mxc_tlv320aic31_data,
-        },
+	},
 
 };
 
 static void mxc_init_tlv320aic31(void)
 {
-        printk("Magnolia2 Audio: %sabled.\n",
-               (uboot_tag.audio == 0) ? "En" : "Dis");
+	printk("Magnolia2 Audio: %sabled.\n",
+	       (uboot_tag.audio == 0) ? "En" : "Dis");
 
-        if (uboot_tag.audio == 0)
-                platform_device_register(&mxc_alsa_device);
+	if (uboot_tag.audio == 0)
+		platform_device_register(&mxc_alsa_device);
 }
 #else
 static void mxc_init_tlv320aic31(void)
@@ -814,10 +843,10 @@ static void mxc_init_tlv320aic31(void)
  * statically fill in the proper values for the passed-in parameters. None of
  * the parameters is used currently.
  *
- * @param  desc         pointer to \b struct \b machine_desc
- * @param  tags         pointer to \b struct \b tag
- * @param  cmdline      pointer to the command line
- * @param  mi           pointer to \b struct \b meminfo
+ * @param  desc		pointer to \b struct \b machine_desc
+ * @param  tags		pointer to \b struct \b tag
+ * @param  cmdline	pointer to the command line
+ * @param  mi		pointer to \b struct \b meminfo
  */
 static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
 				   char **cmdline, struct meminfo *mi)
@@ -842,10 +871,10 @@ EXPORT_SYMBOL(magnolia2_power_off_prepare);
  */
 static void magnolia2_power_off(void)
 {
-        printk("%s: start...\n", __FUNCTION__);
+	printk("%s: start...\n", __FUNCTION__);
 
-        if (magnolia2_power_off_prepare)
-                magnolia2_power_off_prepare();
+	if (magnolia2_power_off_prepare)
+		magnolia2_power_off_prepare();
 }
 
 #if 0
@@ -863,12 +892,12 @@ static int earlywdt_enable = 0;
 
 static int __init magnolia2_earlywdt_setup(char *str)
 {
-        if (strncmp(str, "1", 1) == 0) {
-                printk("early WDT enable.\n");
-                earlywdt_enable = 1;
-        }
+	if (strncmp(str, "1", 1) == 0) {
+		printk("early WDT enable.\n");
+		earlywdt_enable = 1;
+	}
 
-        return 1;
+	return 1;
 }
 __setup("early_wdt=", magnolia2_earlywdt_setup);
 
@@ -876,59 +905,59 @@ static int led_dme_mode = 0;
 
 static int __init magnolia2_ledmode_setup(char *str)
 {
-        if (strncmp(str, "1", 1) == 0) {
-                printk("FOMA LED DME mode.\n");
-                led_dme_mode = 1;
-        }
+	if (strncmp(str, "1", 1) == 0) {
+		printk("FOMA LED DME mode.\n");
+		led_dme_mode = 1;
+	}
 
-        return 1;
+	return 1;
 }
 __setup("led_dme_mode=", magnolia2_ledmode_setup);
 
 int magnolia2_get_led_mode(void)
 {
-        return led_dme_mode;
+	return led_dme_mode;
 }
 EXPORT_SYMBOL(magnolia2_get_led_mode);
 
 
 #ifndef __MXC_WDT_H__
-#define MXC_WDT_WCR             0x00
-#define MXC_WDT_WSR             0x02
-#define MXC_WDT_WRSR            0x04
-#define WCR_WOE_BIT             (1 << 6)
-#define WCR_WDA_BIT             (1 << 5)
-#define WCR_SRS_BIT             (1 << 4)
-#define WCR_WRE_BIT             (1 << 3)
-#define WCR_WDE_BIT             (1 << 2)
-#define WCR_WDBG_BIT            (1 << 1)
-#define WCR_WDZST_BIT           (1 << 0)
-#define WDT_MAGIC_1             0x5555
-#define WDT_MAGIC_2             0xAAAA
+#define MXC_WDT_WCR		0x00
+#define MXC_WDT_WSR		0x02
+#define MXC_WDT_WRSR		0x04
+#define WCR_WOE_BIT		(1 << 6)
+#define WCR_WDA_BIT		(1 << 5)
+#define WCR_SRS_BIT		(1 << 4)
+#define WCR_WRE_BIT		(1 << 3)
+#define WCR_WDE_BIT		(1 << 2)
+#define WCR_WDBG_BIT		(1 << 1)
+#define WCR_WDZST_BIT		(1 << 0)
+#define WDT_MAGIC_1		0x5555
+#define WDT_MAGIC_2		0xAAAA
 
-#define TIMER_MARGIN_MAX    	127
+#define TIMER_MARGIN_MAX	127
 #define TIMER_MARGIN_DEFAULT	60	/* 60 secs */
 #define TIMER_MARGIN_MIN	1
 #endif
 
 static void __init magnolia2_misc_init(void)
 {
-        if (uboot_tag.early_wdt == 0) {
-                printk("early WDT enable (set by TAG).\n");
-                earlywdt_enable = 1;
-        }
+	if (uboot_tag.early_wdt == 0) {
+		printk("early WDT enable (set by TAG).\n");
+		earlywdt_enable = 1;
+	}
 
-        if (uboot_tag.dme_led == 0) {
-                printk("FOMA LED DME mode (set by TAG).\n");
-                led_dme_mode = 1;
-        }
+	if (uboot_tag.dme_led == 0) {
+		printk("FOMA LED DME mode (set by TAG).\n");
+		led_dme_mode = 1;
+	}
 }
 
 static void __init early_wdt_init(void)
 {
-        u32 wdt_base_reg;
-        struct clk *mxc_wdt_clk;
-        u16 val;
+	u32 wdt_base_reg;
+	struct clk *mxc_wdt_clk;
+	u16 val;
 
 #define WDOG_SEC_TO_COUNT(s)  ((s * 2) << 8)
 #define WDOG_COUNT_TO_SEC(c)  ((c >> 8) / 2)
@@ -938,38 +967,38 @@ static void __init early_wdt_init(void)
 	mxc_wdt_clk = clk_get(NULL, "wdog_clk");
 	clk_enable(mxc_wdt_clk);
 
-        mb();
+	mb();
 
-        val = __raw_readw(wdt_base_reg + MXC_WDT_WRSR) & 0x0003;
-        printk("i.MX35 WDT: WRSR = 0x%04x\n", val);
+	val = __raw_readw(wdt_base_reg + MXC_WDT_WRSR) & 0x0003;
+	printk("i.MX35 WDT: WRSR = 0x%04x\n", val);
 
-        if (val & 0x0002)
-                printk(" 0x02: Reset is the result of a WDOG time-out.\n");
-        if (val & 0x0001)
-                printk(" 0x01: Reset is the result of a software reset.\n");
+	if (val & 0x0002)
+		printk(" 0x02: Reset is the result of a WDOG time-out.\n");
+	if (val & 0x0001)
+		printk(" 0x01: Reset is the result of a software reset.\n");
 
-        if (earlywdt_enable == 1) {
-                printk(" Starting early WDT, 120seconds.\n");
-                /* wdt_config */
-                val = __raw_readw(wdt_base_reg + MXC_WDT_WCR);
-                val |= 0xFF00 | WCR_WOE_BIT | WCR_WDA_BIT | WCR_SRS_BIT;
-                val &= ~WCR_WRE_BIT;
-                __raw_writew(val, wdt_base_reg + MXC_WDT_WCR);
+	if (earlywdt_enable == 1) {
+		printk(" Starting early WDT, 120seconds.\n");
+		/* wdt_config */
+		val = __raw_readw(wdt_base_reg + MXC_WDT_WCR);
+		val |= 0xFF00 | WCR_WOE_BIT | WCR_WDA_BIT | WCR_SRS_BIT;
+		val &= ~WCR_WRE_BIT;
+		__raw_writew(val, wdt_base_reg + MXC_WDT_WCR);
 
-                /* wdt_set_timeout */
-                val = __raw_readw(wdt_base_reg + MXC_WDT_WCR);
-                val = (val & 0x00FF) | WDOG_SEC_TO_COUNT(120);
-                __raw_writew(val, wdt_base_reg + MXC_WDT_WCR);
+		/* wdt_set_timeout */
+		val = __raw_readw(wdt_base_reg + MXC_WDT_WCR);
+		val = (val & 0x00FF) | WDOG_SEC_TO_COUNT(120);
+		__raw_writew(val, wdt_base_reg + MXC_WDT_WCR);
 
-                /* wdt_enable */
-                val = __raw_readw(wdt_base_reg + MXC_WDT_WCR);
-                val |= WCR_WDE_BIT;
-                __raw_writew(val, wdt_base_reg + MXC_WDT_WCR);
+		/* wdt_enable */
+		val = __raw_readw(wdt_base_reg + MXC_WDT_WCR);
+		val |= WCR_WDE_BIT;
+		__raw_writew(val, wdt_base_reg + MXC_WDT_WCR);
 
-                /* wdt_ping */
-                __raw_writew(WDT_MAGIC_1, wdt_base_reg + MXC_WDT_WSR);
-                __raw_writew(WDT_MAGIC_2, wdt_base_reg + MXC_WDT_WSR);
-        }
+		/* wdt_ping */
+		__raw_writew(WDT_MAGIC_1, wdt_base_reg + MXC_WDT_WSR);
+		__raw_writew(WDT_MAGIC_2, wdt_base_reg + MXC_WDT_WSR);
+	}
 }
 
 /*!
@@ -981,13 +1010,24 @@ static void __init mxc_board_init(void)
 
 	early_console_setup(saved_command_line);
 
-        magnolia2_misc_init();
-        early_wdt_init();
+	magnolia2_misc_init();
+	early_wdt_init();
 
 	mxc_gpio_init();
 	mxc_init_devices();
 
 	magnolia2_gpio_init();
+#ifdef CONFIG_MXC_UART1_USE_AS_GPIO
+	{
+		u32 enable, type, config;
+
+		magnolia2_get_uart_info(1, &enable, &type, &config);
+
+		if (enable != 0 && type == 0 && config == 1)
+			magnolia2_gpio_dio_init();
+	}
+#endif
+
 	mxc_init_nor_mtd();
 
 	mxc_init_lcd();
@@ -999,22 +1039,22 @@ static void __init mxc_board_init(void)
 #endif
 	mxc_init_mmc();
 
-        /* Magnolia2 specific */
-        magnolia2_init_extio4();
-        magnolia2_init_extio5();
+	/* Magnolia2 specific */
+	magnolia2_init_extio4();
+	magnolia2_init_extio5();
 
-        magnolia2_led_init();
-        magnolia2_dipsw_in_init();
-        magnolia2_switch_in_init();
+	magnolia2_led_init();
+	magnolia2_dipsw_in_init();
+	magnolia2_switch_in_init();
 
-        mxc_init_tlv320aic31();
+	mxc_init_tlv320aic31();
 
-        pm_power_off = magnolia2_power_off;
+	pm_power_off = magnolia2_power_off;
 }
 
-#define PLL_PCTL_REG(brmo, pd, mfd, mfi, mfn)                           \
-        (((brmo) << 31) + (((pd) - 1) << 26) + (((mfd) - 1) << 16) +    \
-         ((mfi)  << 10) + mfn)
+#define PLL_PCTL_REG(brmo, pd, mfd, mfi, mfn)				\
+	(((brmo) << 31) + (((pd) - 1) << 26) + (((mfd) - 1) << 16) +	\
+	 ((mfi)	 << 10) + mfn)
 
 /* For 24MHz input clock */
 #define PLL_665MHZ		PLL_PCTL_REG(1, 1, 48, 13, 41)
@@ -1026,93 +1066,93 @@ static void __init mxc_board_init(void)
 /* auto input clock table */
 static struct cpu_wp cpu_wp_auto[] = {
 	{
-                .pll_reg = PLL_399MHZ,
-                .pll_rate = 399000000,
-                .cpu_rate = 133000000,
-                .pdr0_reg = (0x2 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_399MHZ,
-                .pll_rate = 399000000,
-                .cpu_rate = 133000000,
-                .pdr0_reg = (0x6 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_399MHZ,
-                .pll_rate = 399000000,
-                .cpu_rate = 266000000,
-                .pdr0_reg = (0x1 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_399MHZ,
-                .pll_rate = 399000000,
-                .cpu_rate = 266000000,
-                .pdr0_reg = (0x5 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_399MHZ,
-                .pll_rate = 399000000,
-                .cpu_rate = 399000000,
-                .pdr0_reg = (0x0 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_399MHZ,
-                .pll_rate = 399000000,
-                .cpu_rate = 399000000,
-                .pdr0_reg = (0x6 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
-        },
+		.pll_reg = PLL_399MHZ,
+		.pll_rate = 399000000,
+		.cpu_rate = 133000000,
+		.pdr0_reg = (0x2 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_399MHZ,
+		.pll_rate = 399000000,
+		.cpu_rate = 133000000,
+		.pdr0_reg = (0x6 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_399MHZ,
+		.pll_rate = 399000000,
+		.cpu_rate = 266000000,
+		.pdr0_reg = (0x1 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_399MHZ,
+		.pll_rate = 399000000,
+		.cpu_rate = 266000000,
+		.pdr0_reg = (0x5 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_399MHZ,
+		.pll_rate = 399000000,
+		.cpu_rate = 399000000,
+		.pdr0_reg = (0x0 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_399MHZ,
+		.pll_rate = 399000000,
+		.cpu_rate = 399000000,
+		.pdr0_reg = (0x6 << MXC_CCM_PDR0_AUTO_MUX_DIV_OFFSET),
+	},
 };
 #endif
 
 /* consumer input clock table */
 static struct cpu_wp cpu_wp_con[] = {
 	{
-                .pll_reg = PLL_532MHZ,
-                .pll_rate = 532000000,
-                .cpu_rate = 133000000,
-                .pdr0_reg = (0x6 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_532MHZ,
-                .pll_rate = 532000000,
-                .cpu_rate = 133000000,
-                .pdr0_reg = (0xE << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_532MHZ,
-                .pll_rate = 532000000,
-                .cpu_rate = 266000000,
-                .pdr0_reg = (0x2 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_532MHZ,
-                .pll_rate = 532000000,
-                .cpu_rate = 266000000,
-                .pdr0_reg = (0xA << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_532MHZ,
-                .pll_rate = 532000000,
-                .cpu_rate = 399000000,
-                .pdr0_reg = (0x1 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_532MHZ,
-                .pll_rate = 532000000,
-                .cpu_rate = 399000000,
-                .pdr0_reg = (0x9 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_532MHZ,
-                .pll_rate = 532000000,
-                .cpu_rate = 532000000,
-                .pdr0_reg = (0x0 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_532MHZ,
-                .pll_rate = 532000000,
-                .cpu_rate = 532000000,
-                .pdr0_reg = (0x8 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },{
-                .pll_reg = PLL_665MHZ,
-                .pll_rate = 665000000,
-                .cpu_rate = 665000000,
-                .pdr0_reg = (0x7 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
-        },
+		.pll_reg = PLL_532MHZ,
+		.pll_rate = 532000000,
+		.cpu_rate = 133000000,
+		.pdr0_reg = (0x6 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_532MHZ,
+		.pll_rate = 532000000,
+		.cpu_rate = 133000000,
+		.pdr0_reg = (0xE << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_532MHZ,
+		.pll_rate = 532000000,
+		.cpu_rate = 266000000,
+		.pdr0_reg = (0x2 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_532MHZ,
+		.pll_rate = 532000000,
+		.cpu_rate = 266000000,
+		.pdr0_reg = (0xA << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_532MHZ,
+		.pll_rate = 532000000,
+		.cpu_rate = 399000000,
+		.pdr0_reg = (0x1 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_532MHZ,
+		.pll_rate = 532000000,
+		.cpu_rate = 399000000,
+		.pdr0_reg = (0x9 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_532MHZ,
+		.pll_rate = 532000000,
+		.cpu_rate = 532000000,
+		.pdr0_reg = (0x0 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_532MHZ,
+		.pll_rate = 532000000,
+		.cpu_rate = 532000000,
+		.pdr0_reg = (0x8 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},{
+		.pll_reg = PLL_665MHZ,
+		.pll_rate = 665000000,
+		.cpu_rate = 665000000,
+		.pdr0_reg = (0x7 << MXC_CCM_PDR0_CON_MUX_DIV_OFFSET),
+	},
 };
 
 struct cpu_wp *get_cpu_wp(int *wp)
 {
-        *wp = 9;
-        return cpu_wp_con;
+	*wp = 9;
+	return cpu_wp_con;
 
 #if 0
 	if (cpu_is_mx35_rev(CHIP_REV_2_0) >= 1) {
@@ -1155,4 +1195,4 @@ MACHINE_START(MAGNOLIA2, "Century Systems Magnolia2")
 	.init_irq = mxc_init_irq,
 	.init_machine = mxc_board_init,
 	.timer = &mxc_timer,
-        MACHINE_END
+	MACHINE_END

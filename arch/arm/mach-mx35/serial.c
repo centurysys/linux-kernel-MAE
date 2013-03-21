@@ -50,7 +50,7 @@ static uart_mxc_port mxc_ports[] = {
 			.fifosize = 32,
 			.flags = ASYNC_BOOT_AUTOCONF,
 			.line = 0,
-                },
+		},
 	       .ints_muxed = UART1_MUX_INTS,
 	       .irqs = {UART1_INT2, UART1_INT3},
 	       .mode = UART1_MODE,
@@ -69,9 +69,9 @@ static uart_mxc_port mxc_ports[] = {
 	       .ir_tx_inv = MXC_IRDA_TX_INV,
 	       .ir_rx_inv = MXC_IRDA_RX_INV,
 #ifdef CONFIG_MXC_UART_DSR_GPIO
-               .pin_DSR = MX35_PIN_ATA_DATA7,
+	       .pin_DSR = MX35_PIN_ATA_DATA7,
 #endif
-        },
+	},
 	[1] = {
 	       .port = {
 			.membase = (void *)IO_ADDRESS(UART2_BASE_ADDR),
@@ -81,7 +81,7 @@ static uart_mxc_port mxc_ports[] = {
 			.fifosize = 32,
 			.flags = ASYNC_BOOT_AUTOCONF,
 			.line = 1,
-                },
+		},
 	       .ints_muxed = UART2_MUX_INTS,
 	       .irqs = {UART2_INT2, UART2_INT3},
 	       .mode = UART2_MODE,
@@ -100,9 +100,9 @@ static uart_mxc_port mxc_ports[] = {
 	       .ir_tx_inv = MXC_IRDA_TX_INV,
 	       .ir_rx_inv = MXC_IRDA_RX_INV,
 #ifdef CONFIG_MXC_UART_DSR_GPIO
-               .pin_DSR = MX35_PIN_TX4_RX1,
+	       .pin_DSR = MX35_PIN_TX4_RX1,
 #endif
-        },
+	},
 #if UART3_ENABLED == 1
 	[2] = {
 	       .port = {
@@ -113,7 +113,7 @@ static uart_mxc_port mxc_ports[] = {
 			.fifosize = 32,
 			.flags = ASYNC_BOOT_AUTOCONF,
 			.line = 2,
-                },
+		},
 	       .ints_muxed = UART3_MUX_INTS,
 	       .irqs = {UART3_INT2, UART3_INT3},
 	       .mode = UART3_MODE,
@@ -131,7 +131,7 @@ static uart_mxc_port mxc_ports[] = {
 	       .rxd_mux = MXC_UART_RXDMUX,
 	       .ir_tx_inv = MXC_IRDA_TX_INV,
 	       .ir_rx_inv = MXC_IRDA_RX_INV,
-        },
+	},
 #endif
 };
 
@@ -140,7 +140,7 @@ static struct platform_device mxc_uart_device1 = {
 	.id = 0,
 	.dev = {
 		.platform_data = &mxc_ports[0],
-        },
+	},
 };
 
 static struct platform_device mxc_uart_device2 = {
@@ -148,7 +148,7 @@ static struct platform_device mxc_uart_device2 = {
 	.id = 1,
 	.dev = {
 		.platform_data = &mxc_ports[1],
-        },
+	},
 };
 
 #if UART3_ENABLED == 1
@@ -157,7 +157,7 @@ static struct platform_device mxc_uart_device3 = {
 	.id = 2,
 	.dev = {
 		.platform_data = &mxc_ports[2],
-        },
+	},
 };
 #endif
 
@@ -167,62 +167,71 @@ extern int magnolia2_get_uart_info(int port, u32 *enable, u32 *type, u32 *config
 static int __init mxc_init_uart(void)
 {
 #ifdef CONFIG_MACH_MAGNOLIA2
-        u32 enable, type, config;
+	u32 enable, type, config;
 
-        magnolia2_get_uart_info(0, &enable, &type, &config);
+	magnolia2_get_uart_info(0, &enable, &type, &config);
 
-        printk("Magnolia2 UART1: ");
-        if (enable == 0)
-                printk("Disabled\n");
-        else {
-                if (type == 0)
-                        printk("RS-232\n");
-                else {
-                        if (config == 0)
-                                printk("RS-485\n");
-                        else
-                                printk("RS-422\n");
+	printk("Magnolia2 UART1: ");
+	if (enable == 0)
+		printk("Disabled\n");
+	else {
+		if (type == 0)
+			printk("RS-232\n");
+		else {
+			if (config == 0)
+				printk("RS-485\n");
+			else
+				printk("RS-422\n");
 
 			/* disable hardware flow control */
 			mxc_ports[0].hardware_flow = 0;
-                }
+		}
 
-                mxc_ports[0].driver_type = type;
-                mxc_ports[0].driver_duplex = config;
-                mxc_ports[0].TxEnable = MX35_PIN_MLB_DAT;
-                mxc_ports[0].RxEnable = MX35_PIN_MLB_SIG;
+		mxc_ports[0].driver_type = type;
+		mxc_ports[0].driver_duplex = config;
+		mxc_ports[0].TxEnable = MX35_PIN_MLB_DAT;
+		mxc_ports[0].RxEnable = MX35_PIN_MLB_SIG;
 
-                platform_device_register(&mxc_uart_device1);
-        }
+		platform_device_register(&mxc_uart_device1);
+	}
 
-        magnolia2_get_uart_info(1, &enable, &type, &config);
+	magnolia2_get_uart_info(1, &enable, &type, &config);
 
-        printk("Magnolia2 UART2: ");
-        if (enable == 0)
-                printk("Disabled\n");
-        else {
-                if (type == 0) {
-			if (config == 0)
+	printk("Magnolia2 UART2: ");
+	if (enable == 0)
+		printk("Disabled\n");
+	else {
+		if (type == 0) {
+			if (config == 0) {
 				printk("RS-232\n");
-			else
+			} else {
+#ifndef CONFIG_MXC_UART1_USE_AS_GPIO
 				printk("FeliCa R/W\n");
+#else
+				/* [TxD, CTS] -> DO, [RxD, RTS] -> DI */
+				printk("DIO\n");
+				enable = 0;
+#endif
+			}
 		} else {
 			if (config == 0)
-                                printk("RS-485\n");
-                        else
-                                printk("RS-422\n");
+				printk("RS-485\n");
+			else
+				printk("RS-422\n");
 
 			/* disable hardware flow control */
 			mxc_ports[1].hardware_flow = 0;
-                }
+		}
 
-                mxc_ports[1].driver_type = type;
-                mxc_ports[1].driver_duplex = config;
-                mxc_ports[1].TxEnable = MX35_PIN_CTS2;
-                mxc_ports[1].RxEnable = MX35_PIN_RTS2;
+		if (enable == 1) {
+			mxc_ports[1].driver_type = type;
+			mxc_ports[1].driver_duplex = config;
+			mxc_ports[1].TxEnable = MX35_PIN_CTS2;
+			mxc_ports[1].RxEnable = MX35_PIN_RTS2;
 
-                platform_device_register(&mxc_uart_device2);
-        }
+			platform_device_register(&mxc_uart_device2);
+		}
+	}
 #else
 	/* Register all the MXC UART platform device structures */
 	platform_device_register(&mxc_uart_device1);

@@ -8,12 +8,12 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA
  */
 
 #include <linux/platform_device.h>
@@ -55,20 +55,20 @@ static inline u8 magnolia2_dsw_get(void)
 	struct magnolia2_gpio_private *priv = magnolia2_pdev->dev.platform_data;
 	struct magnolia2_dipsw_info *info = platform_get_drvdata(magnolia2_pdev);
 	int i, pin_stat;
-        u8 val = 0;
+	u8 val = 0;
 
 	for (i = 0; i < priv->nr_gpio; i++) {
-                pin_stat = mxc_get_gpio_datain(info[i].port->pin);
+		pin_stat = mxc_get_gpio_datain(info[i].port->pin);
 
-                if (!pin_stat)
-                        val |= 1 << i;
-        }
+		if (!pin_stat)
+			val |= 1 << i;
+	}
 
-        return val;
+	return val;
 }
 
 static int magnolia2_dsw_read_proc(char *page, char **start, off_t off,
-                               int count, int *eof, void *data)
+			       int count, int *eof, void *data)
 {
 	int len;
 
@@ -82,7 +82,7 @@ static int magnolia2_dipsw_open(struct input_dev *idev)
 	struct magnolia2_dipsw_info *info = dev_get_drvdata(&idev->dev);
 
 #if 0
-	mxc_set_gpio_direction(info->port->pin, 1);     /* INPUT */
+	mxc_set_gpio_direction(info->port->pin, 1);	/* INPUT */
 	enable_irq(info->port->irq);
 
 	if (mxc_get_gpio_datain(info->port->pin))
@@ -108,10 +108,10 @@ static irqreturn_t magnolia2_dipsw_irq_handler(int irq, void *dev_id)
 
 	if (mxc_get_gpio_datain(info->port->pin)) {
 		set_irq_type(info->port->irq, IRQF_TRIGGER_FALLING);
-		input_event(idev, EV_SW, 0, 0);         /* Released */
+		input_event(idev, EV_SW, 0, 0);		/* Released */
 	} else {
 		set_irq_type(info->port->irq, IRQF_TRIGGER_RISING);
-		input_event(idev, EV_SW, 0, 1);         /* Pushed */
+		input_event(idev, EV_SW, 0, 1);		/* Pushed */
 	}
 
 	input_sync(idev);
@@ -124,9 +124,9 @@ static int magnolia2_dipsw_probe(struct platform_device *pdev)
 	struct magnolia2_gpio_private *priv = pdev->dev.platform_data;
 	struct magnolia2_dipsw_info *info;
 	int ret, i;
-        unsigned long flags;
+	unsigned long flags;
 
-        printk("Magnolia2 DIPSW driver\n");
+	printk("Magnolia2 DIPSW driver\n");
 
 	info = kzalloc(sizeof(struct magnolia2_dipsw_info) * priv->nr_gpio,
 		       GFP_KERNEL);
@@ -149,7 +149,7 @@ static int magnolia2_dipsw_probe(struct platform_device *pdev)
 	}
 
 #if 0
-        local_irq_save(flags);
+	local_irq_save(flags);
 	for (i = 0; i < priv->nr_gpio; i++) {
 		ret = request_irq(priv->ports[i].irq,
 				  magnolia2_dipsw_irq_handler,
@@ -160,13 +160,13 @@ static int magnolia2_dipsw_probe(struct platform_device *pdev)
 			while (i-- >= 0)
 				free_irq(priv->ports[i].irq, info[i].idev);
 
-                        local_irq_restore(flags);
+			local_irq_restore(flags);
 			goto _err_request_irq;
 		}
 
 		disable_irq(priv->ports[i].irq);
 	}
-        local_irq_restore(flags);
+	local_irq_restore(flags);
 #endif
 
 	for (i = 0; i < priv->nr_gpio; i++) {
@@ -190,7 +190,7 @@ static int magnolia2_dipsw_probe(struct platform_device *pdev)
 		}
 #endif
 		info[i].port = &priv->ports[i];
-                mxc_set_gpio_direction(info[i].port->pin, 1);     /* INPUT */
+		mxc_set_gpio_direction(info[i].port->pin, 1);	  /* INPUT */
 		dev_set_drvdata(&info[i].idev->dev, &info[i]);
 	}
 
@@ -198,8 +198,8 @@ static int magnolia2_dipsw_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-        /* for procfs */
-        magnolia2_pdev = pdev;
+	/* for procfs */
+	magnolia2_pdev = pdev;
 
 	return 0;
 

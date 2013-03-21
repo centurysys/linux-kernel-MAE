@@ -51,7 +51,7 @@ struct gpio_desc {
 #define FLAG_SYSFS	4	/* exported via /sys/class/gpio/control */
 #if defined(CONFIG_MACH_MAGNOLIA2) && defined(CONFIG_GPIO_MAGNOLIA2)
 #define FLAG_COUNTER_ENABLED 5
-#define FLAG_POLARITY   6
+#define FLAG_POLARITY	6
 #endif
 
 #ifdef CONFIG_DEBUG_FS
@@ -69,15 +69,15 @@ static inline void desc_set_label(struct gpio_desc *d, const char *label)
 
 #if defined(CONFIG_MACH_MAGNOLIA2) && defined(CONFIG_GPIO_MAGNOLIA2)
 static const char *filter_string[] = {
-        "through",
-        "50us",
-        "1ms",
-        "20ms",
+	"through",
+	"50us",
+	"1ms",
+	"20ms",
 };
 
 static const char *polarity_string[] = {
-        "rising",
-        "falling",
+	"rising",
+	"falling",
 };
 #endif
 
@@ -151,7 +151,7 @@ static int gpiochip_find_base(int ngpio)
  * Context: platform init, potentially before irqs or kmalloc will work
  *
  * Returns a negative errno if any gpio within the range is already reserved
- * or registered, else returns zero as a success code.  Use this function
+ * or registered, else returns zero as a success code.	Use this function
  * to mark a range of gpios as unavailable for dynamic gpio number allocation,
  * for example because its driver support is not yet loaded.
  */
@@ -195,13 +195,13 @@ static DEFINE_MUTEX(sysfs_lock);
 /*
  * /sys/class/gpio/gpioN... only for GPIOs that are exported
  *   /direction
- *      * MAY BE OMITTED if kernel won't allow direction changes
- *      * is read/write as "in" or "out"
- *      * may also be written as "high" or "low", initializing
- *        output value as specified ("out" implies "low")
+ *	* MAY BE OMITTED if kernel won't allow direction changes
+ *	* is read/write as "in" or "out"
+ *	* may also be written as "high" or "low", initializing
+ *	  output value as specified ("out" implies "low")
  *   /value
- *      * always readable, subject to hardware behavior
- *      * may be writable, as zero/nonzero
+ *	* always readable, subject to hardware behavior
+ *	* may be writable, as zero/nonzero
  *   /counter_val  (Magnolia2)
  *   /counter_ctrl (Magnolia2)
  *
@@ -257,7 +257,7 @@ static const DEVICE_ATTR(direction, 0644,
 		gpio_direction_show, gpio_direction_store);
 
 static ssize_t gpio_value_show(struct device *dev, struct device_attribute *attr,
-                               char *buf)
+			       char *buf)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
 	unsigned		gpio = desc - gpio_desc;
@@ -275,7 +275,7 @@ static ssize_t gpio_value_show(struct device *dev, struct device_attribute *attr
 }
 
 static ssize_t gpio_value_store(struct device *dev, struct device_attribute *attr,
-                                const char *buf, size_t size)
+				const char *buf, size_t size)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
 	unsigned		gpio = desc - gpio_desc;
@@ -302,44 +302,44 @@ static ssize_t gpio_value_store(struct device *dev, struct device_attribute *att
 }
 
 static /*const*/ DEVICE_ATTR(value, 0644,
-                             gpio_value_show, gpio_value_store);
+			     gpio_value_show, gpio_value_store);
 
 #if defined(CONFIG_MACH_MAGNOLIA2) && defined(CONFIG_GPIO_MAGNOLIA2)
 static ssize_t gpio_counter_val_show(struct device *dev,
-                                     struct device_attribute *attr, char *buf)
+				     struct device_attribute *attr, char *buf)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
-        struct gpio_chip *chip;
+	struct gpio_chip *chip;
 	unsigned gpio = desc - gpio_desc;
 	ssize_t	status, size = 0;
-        int value;
+	int value;
 
 	mutex_lock(&sysfs_lock);
 
 	if (!test_bit(FLAG_EXPORT, &desc->flags))
 		status = -EIO;
 	else {
-                chip = desc->chip;
+		chip = desc->chip;
 
-                if (chip && chip->get_counter) {
-                        status = chip->get_counter(chip, gpio, &value);
+		if (chip && chip->get_counter) {
+			status = chip->get_counter(chip, gpio, &value);
 
-                        if (status == 0)
-                                size = sprintf(buf, "%d\n0x%04x\n", value, value);
-                } else
-                        status = -EIO;
-        }
+			if (status == 0)
+				size = sprintf(buf, "%d\n0x%04x\n", value, value);
+		} else
+			status = -EIO;
+	}
 
 	mutex_unlock(&sysfs_lock);
 	return status ? : size;
 }
 
 static ssize_t gpio_counter_val_clear(struct device *dev,
-                                      struct device_attribute *attr,
-                                      const char *buf, size_t size)
+				      struct device_attribute *attr,
+				      const char *buf, size_t size)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
-        struct gpio_chip *chip;
+	struct gpio_chip *chip;
 	unsigned		gpio = desc - gpio_desc;
 	ssize_t			status;
 
@@ -347,25 +347,25 @@ static ssize_t gpio_counter_val_clear(struct device *dev,
 
 	if (!test_bit(FLAG_EXPORT, &desc->flags))
 		status = -EIO;
-        else {
-                chip = desc->chip;
+	else {
+		chip = desc->chip;
 
-                if (chip && chip->clear_counter) {
-                        status = chip->clear_counter(chip, gpio);
-                } else
-                        status = -EIO;
-        }
+		if (chip && chip->clear_counter) {
+			status = chip->clear_counter(chip, gpio);
+		} else
+			status = -EIO;
+	}
 
 	mutex_unlock(&sysfs_lock);
 	return status ? : size;
 }
 
 static DEVICE_ATTR(counter_val, 0644,
-                   gpio_counter_val_show, gpio_counter_val_clear);
+		   gpio_counter_val_show, gpio_counter_val_clear);
 
 static ssize_t gpio_counter_ctrl_show(struct device *dev,
-                                      struct device_attribute *attr,
-                                      char *buf)
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
 	ssize_t			status;
@@ -377,15 +377,15 @@ static ssize_t gpio_counter_ctrl_show(struct device *dev,
 	else
 		status = sprintf(buf, "%s\n",
 			test_bit(FLAG_COUNTER_ENABLED, &desc->flags) ?
-                                 "enable" : "disable");
+				 "enable" : "disable");
 
 	mutex_unlock(&sysfs_lock);
 	return status;
 }
 
 static ssize_t gpio_counter_ctrl_store(struct device *dev,
-                                       struct device_attribute *attr,
-                                       const char *buf, size_t size)
+				       struct device_attribute *attr,
+				       const char *buf, size_t size)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
 	unsigned		gpio = desc - gpio_desc;
@@ -397,9 +397,9 @@ static ssize_t gpio_counter_ctrl_store(struct device *dev,
 		status = -EIO;
 	else if (sysfs_streq(buf, "enable"))
 		status = gpio_counter_ctrl(gpio, 1);
-        else if (sysfs_streq(buf, "disable"))
-                status = gpio_counter_ctrl(gpio, 0);
-        else
+	else if (sysfs_streq(buf, "disable"))
+		status = gpio_counter_ctrl(gpio, 0);
+	else
 		status = -EINVAL;
 
 	mutex_unlock(&sysfs_lock);
@@ -407,11 +407,11 @@ static ssize_t gpio_counter_ctrl_store(struct device *dev,
 }
 
 static DEVICE_ATTR(counter_ctrl, 0644,
-                   gpio_counter_ctrl_show, gpio_counter_ctrl_store);
+		   gpio_counter_ctrl_show, gpio_counter_ctrl_store);
 
 static ssize_t gpio_polarity_show(struct device *dev,
-                                  struct device_attribute *attr,
-                                  char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
 	ssize_t			status;
@@ -423,15 +423,15 @@ static ssize_t gpio_polarity_show(struct device *dev,
 	else
 		status = sprintf(buf, "%s\n",
 			test_bit(FLAG_POLARITY, &desc->flags) ?
-                                 "falling" : "rising");
+				 "falling" : "rising");
 
 	mutex_unlock(&sysfs_lock);
 	return status;
 }
 
 static ssize_t gpio_polarity_store(struct device *dev,
-                                   struct device_attribute *attr,
-                                   const char *buf, size_t size)
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
 	unsigned		gpio = desc - gpio_desc;
@@ -444,7 +444,7 @@ static ssize_t gpio_polarity_store(struct device *dev,
 	else if (sysfs_streq(buf, "rising"))
 		status = gpio_polarity_ctrl(gpio, 0);
 	else if (sysfs_streq(buf, "falling"))
-                status = gpio_polarity_ctrl(gpio, 1);
+		status = gpio_polarity_ctrl(gpio, 1);
 	else
 		status = -EINVAL;
 
@@ -453,16 +453,16 @@ static ssize_t gpio_polarity_store(struct device *dev,
 }
 
 static DEVICE_ATTR(polarity, 0644,
-                   gpio_polarity_show, gpio_polarity_store);
+		   gpio_polarity_show, gpio_polarity_store);
 #endif
 
 static const struct attribute *gpio_attrs[] = {
 	&dev_attr_direction.attr,
 	&dev_attr_value.attr,
 #if defined(CONFIG_MACH_MAGNOLIA2) && defined(CONFIG_GPIO_MAGNOLIA2)
-        &dev_attr_counter_val.attr,
-        &dev_attr_counter_ctrl.attr,
-        &dev_attr_polarity.attr,
+	&dev_attr_counter_val.attr,
+	&dev_attr_counter_ctrl.attr,
+	&dev_attr_polarity.attr,
 #endif
 	NULL,
 };
@@ -508,11 +508,11 @@ static DEVICE_ATTR(ngpio, 0444, chip_ngpio_show, NULL);
 
 #if defined(CONFIG_MACH_MAGNOLIA2) && defined(CONFIG_GPIO_MAGNOLIA2)
 static ssize_t chip_filter_show(struct device *dev,
-                                struct device_attribute *attr,
-                                char *buf)
+				struct device_attribute *attr,
+				char *buf)
 {
 	struct gpio_chip *chip = dev_get_drvdata(dev);
-        int val;
+	int val;
 	ssize_t status;
 
 	mutex_lock(&sysfs_lock);
@@ -520,45 +520,45 @@ static ssize_t chip_filter_show(struct device *dev,
 	if (!chip->get_filter)
 		status = -EIO;
 	else {
-                status = chip->get_filter(chip, &val);
+		status = chip->get_filter(chip, &val);
 
-                if (status == 0)
-                        status = sprintf(buf, "%s\n", filter_string[val]);
-        }
+		if (status == 0)
+			status = sprintf(buf, "%s\n", filter_string[val]);
+	}
 
 	mutex_unlock(&sysfs_lock);
 	return status;
 }
 
 static ssize_t chip_filter_store(struct device *dev,
-                                 struct device_attribute *attr,
-                                 const char *buf, size_t size)
+				 struct device_attribute *attr,
+				 const char *buf, size_t size)
 {
 	struct gpio_chip *chip = dev_get_drvdata(dev);
-        int val;
+	int val;
 	ssize_t status;
 
 	mutex_lock(&sysfs_lock);
 
-        if (!chip->set_filter)
-                status = -EIO;
-        else {
-                int max = ARRAY_SIZE(filter_string);
-                char tmp[16];
+	if (!chip->set_filter)
+		status = -EIO;
+	else {
+		int max = ARRAY_SIZE(filter_string);
+		char tmp[16];
 
-                for (val = 0; val < max; val++) {
-                        sprintf(tmp, "%d", val);
+		for (val = 0; val < max; val++) {
+			sprintf(tmp, "%d", val);
 
-                        if (sysfs_streq(buf, filter_string[val]) || sysfs_streq(buf, tmp))
-                                break;
-                }
+			if (sysfs_streq(buf, filter_string[val]) || sysfs_streq(buf, tmp))
+				break;
+		}
 
-                if (val == max)
-                        status = -EIO;
-                else {
-                        status = chip->set_filter(chip, val);
-                }
-        }
+		if (val == max)
+			status = -EIO;
+		else {
+			status = chip->set_filter(chip, val);
+		}
+	}
 
 	mutex_unlock(&sysfs_lock);
 	return status ? : size;
@@ -572,7 +572,7 @@ static const struct attribute *gpiochip_attrs[] = {
 	&dev_attr_label.attr,
 	&dev_attr_ngpio.attr,
 #if defined(CONFIG_MACH_MAGNOLIA2) && defined(CONFIG_GPIO_MAGNOLIA2)
-        &dev_attr_filter.attr,
+	&dev_attr_filter.attr,
 #endif
 	NULL,
 };
@@ -939,7 +939,7 @@ int gpiochip_add(struct gpio_chip *chip)
 
 			/* REVISIT:  most hardware initializes GPIOs as
 			 * inputs (often with pullups enabled) so power
-			 * usage is minimized.  Linux code should set the
+			 * usage is minimized.	Linux code should set the
 			 * gpio direction first thing; but until it does,
 			 * we may expose the wrong direction in sysfs.
 			 */
@@ -1102,7 +1102,7 @@ EXPORT_SYMBOL_GPL(gpio_free);
  * If debugfs support is enabled, the string returned is the label passed
  * to gpio_request(); otherwise it is a meaningless constant.
  *
- * This function is for use by GPIO controller drivers.  The label can
+ * This function is for use by GPIO controller drivers.	 The label can
  * help with diagnostics, and knowing that the signal is used as a GPIO
  * can help avoid accidentally multiplexing it to another controller.
  */
@@ -1123,7 +1123,7 @@ const char *gpiochip_is_requested(struct gpio_chip *chip, unsigned offset)
 EXPORT_SYMBOL_GPL(gpiochip_is_requested);
 
 
-/* Drivers MUST set GPIO direction before making get/set calls.  In
+/* Drivers MUST set GPIO direction before making get/set calls.	 In
  * some cases this is done in early boot, before IRQs are enabled.
  *
  * As a rule these aren't called more than once (except for drivers
@@ -1280,11 +1280,11 @@ int gpio_counter_ctrl(unsigned gpio, int enable)
 
 	status = chip->ctrl_counter(chip, gpio, enable);
 	if (status == 0) {
-                if (enable)
-                        set_bit(FLAG_COUNTER_ENABLED, &desc->flags);
-                else
-                        clear_bit(FLAG_COUNTER_ENABLED, &desc->flags);
-        }
+		if (enable)
+			set_bit(FLAG_COUNTER_ENABLED, &desc->flags);
+		else
+			clear_bit(FLAG_COUNTER_ENABLED, &desc->flags);
+	}
 lose:
 	return status;
 fail:
@@ -1337,11 +1337,11 @@ int gpio_polarity_ctrl(unsigned gpio, int polarity)
 
 	status = chip->set_polarity(chip, gpio, polarity);
 	if (status == 0) {
-                if (polarity)
-                        set_bit(FLAG_POLARITY, &desc->flags);
-                else
-                        clear_bit(FLAG_POLARITY, &desc->flags);
-        }
+		if (polarity)
+			set_bit(FLAG_POLARITY, &desc->flags);
+		else
+			clear_bit(FLAG_POLARITY, &desc->flags);
+	}
 lose:
 	return status;
 fail:
@@ -1366,7 +1366,7 @@ EXPORT_SYMBOL_GPL(gpio_polarity_ctrl);
  *
  *------------------------------------------------------------------------
  *
- * IMPORTANT!!!  The hot paths -- get/set value -- assume that callers
+ * IMPORTANT!!!	 The hot paths -- get/set value -- assume that callers
  * have requested the GPIO.  That can include implicit requesting by
  * a direction setting call.  Marking a gpio as requested locks its chip
  * in memory, guaranteeing that these table lookups need no more locking

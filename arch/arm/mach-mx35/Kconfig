@@ -126,6 +126,13 @@ config MXC_UART_BUGGY_UBOOTOPT
 	help
 	  swap uart0 config/type option value
 
+config MXC_UART1_USE_AS_GPIO
+        bool "Use UART1 as DIO"
+	default n
+	depends on MACH_MAGNOLIA2
+	help
+	  use UART1 as DIO (DI:2, DO:2)
+
 endmenu
 
 config MXC_PSEUDO_IRQS

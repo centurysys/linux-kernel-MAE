@@ -9,12 +9,12 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA
  */
 
 #include <linux/platform_device.h>
@@ -26,9 +26,9 @@
 #include <mach/board-magnolia2.h>
 #include <mach/gpio.h>
 
-#define PSW_ENTRY_NAME          "driver/psw"
-#define PSW_INIT_ENTRY_NAME     "driver/psw_init"
-#define PSW_EJECT_ENTRY_NAME    "driver/psw_eject"
+#define PSW_ENTRY_NAME		"driver/psw"
+#define PSW_INIT_ENTRY_NAME	"driver/psw_init"
+#define PSW_EJECT_ENTRY_NAME	"driver/psw_eject"
 
 #define PROC_READ_RETURN(page,start,off,count,eof,len) \
 {					\
@@ -58,18 +58,18 @@ static inline u8 magnolia2_psw_get(void)
 	struct magnolia2_gpio_private *priv = magnolia2_pdev->dev.platform_data;
 	struct magnolia2_pushsw_info *info = platform_get_drvdata(magnolia2_pdev);
 	int i;
-        u8 val = 0;
+	u8 val = 0;
 
 	for (i = 0; i < priv->nr_gpio; i++) {
-                if (!mxc_get_gpio_datain(info[i].port->pin))
-                        val |= 1 << (i * 4);
-        }
+		if (!mxc_get_gpio_datain(info[i].port->pin))
+			val |= 1 << (i * 4);
+	}
 
-        return val;
+	return val;
 }
 
 static int magnolia2_psw_read_proc(char *page, char **start, off_t off,
-                               int count, int *eof, void *data)
+			       int count, int *eof, void *data)
 {
 	int len;
 
@@ -79,7 +79,7 @@ static int magnolia2_psw_read_proc(char *page, char **start, off_t off,
 }
 
 static int magnolia2_psw_init_read_proc(char *page, char **start, off_t off,
-                                    int count, int *eof, void *data)
+				    int count, int *eof, void *data)
 {
 	int len;
 
@@ -89,7 +89,7 @@ static int magnolia2_psw_init_read_proc(char *page, char **start, off_t off,
 }
 
 static int magnolia2_psw_pcmcia_read_proc(char *page, char **start, off_t off,
-                                      int count, int *eof, void *data)
+				      int count, int *eof, void *data)
 {
 	int len;
 
@@ -102,7 +102,7 @@ static int magnolia2_pushsw_open(struct input_dev *idev)
 {
 	struct magnolia2_pushsw_info *info = dev_get_drvdata(&idev->dev);
 
-//	mxc_set_gpio_direction(info->port->pin, 1);     /* INPUT */
+//	mxc_set_gpio_direction(info->port->pin, 1);	/* INPUT */
 	enable_irq(info->port->irq);
 
 	if (mxc_get_gpio_datain(info->port->pin))
@@ -127,10 +127,10 @@ static irqreturn_t magnolia2_pushsw_irq_handler(int irq, void *dev_id)
 
 	if (mxc_get_gpio_datain(info->port->pin)) {
 		set_irq_type(info->port->irq, IRQF_TRIGGER_FALLING);
-		input_event(idev, EV_SW, 0, 0);         /* Released */
+		input_event(idev, EV_SW, 0, 0);		/* Released */
 	} else {
 		set_irq_type(info->port->irq, IRQF_TRIGGER_RISING);
-		input_event(idev, EV_SW, 0, 1);         /* Pushed */
+		input_event(idev, EV_SW, 0, 1);		/* Pushed */
 	}
 
 	input_sync(idev);
@@ -143,9 +143,9 @@ static int magnolia2_pushsw_probe(struct platform_device *pdev)
 	struct magnolia2_gpio_private *priv = pdev->dev.platform_data;
 	struct magnolia2_pushsw_info *info;
 	int ret = EINVAL, i;
-        unsigned long flags;
+	unsigned long flags;
 
-        printk("Magnolia2 PUSHSW driver\n");
+	printk("Magnolia2 PUSHSW driver\n");
 
 	info = kzalloc(sizeof(struct magnolia2_pushsw_info) * priv->nr_gpio,
 		       GFP_KERNEL);
@@ -164,7 +164,7 @@ static int magnolia2_pushsw_probe(struct platform_device *pdev)
 
 	if (!create_proc_read_entry(PSW_ENTRY_NAME, 0, 0, magnolia2_psw_read_proc, NULL)) {
 		printk(KERN_ERR "%s: PUSHSW create proc error\n", __FUNCTION__);
-                goto proc_error1;
+		goto proc_error1;
 	}
 
 	if (!create_proc_read_entry(PSW_INIT_ENTRY_NAME, 0, 0, magnolia2_psw_init_read_proc, NULL)) {
@@ -177,7 +177,7 @@ static int magnolia2_pushsw_probe(struct platform_device *pdev)
 		goto psw_pcmcia_error;
 	}
 
-        local_irq_save(flags);
+	local_irq_save(flags);
 	for (i = 0; i < priv->nr_gpio; i++) {
 		ret = request_irq(priv->ports[i].irq,
 				  magnolia2_pushsw_irq_handler,
@@ -188,13 +188,13 @@ static int magnolia2_pushsw_probe(struct platform_device *pdev)
 			while (i-- >= 0)
 				free_irq(priv->ports[i].irq, info[i].idev);
 
-                        local_irq_restore(flags);
+			local_irq_restore(flags);
 			goto _err_request_irq;
 		}
 
 		disable_irq(priv->ports[i].irq);
 	}
-        local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	for (i = 0; i < priv->nr_gpio; i++) {
 		info[i].idev->name = priv->ports[i].name;
@@ -217,7 +217,7 @@ static int magnolia2_pushsw_probe(struct platform_device *pdev)
 		}
 
 		info[i].port = &priv->ports[i];
-                mxc_set_gpio_direction(info[i].port->pin, 1);     /* INPUT */
+		mxc_set_gpio_direction(info[i].port->pin, 1);	  /* INPUT */
 		dev_set_drvdata(&info[i].idev->dev, &info[i]);
 	}
 
@@ -225,8 +225,8 @@ static int magnolia2_pushsw_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-        /* for procfs */
-        magnolia2_pdev = pdev;
+	/* for procfs */
+	magnolia2_pdev = pdev;
 
 	return 0;
 
