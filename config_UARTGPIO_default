@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.28.10
-# Thu Mar 21 14:32:11 2013
+# Fri Mar 22 17:16:52 2013
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -949,8 +949,8 @@ CONFIG_I2C_MXC=y
 # Miscellaneous I2C Chip support
 #
 # CONFIG_DS1682 is not set
-CONFIG_AT24=m
-CONFIG_SENSORS_EEPROM=m
+# CONFIG_AT24 is not set
+# CONFIG_SENSORS_EEPROM is not set
 # CONFIG_SENSORS_PCF8574 is not set
 # CONFIG_PCF8575 is not set
 # CONFIG_SENSORS_PCA9539 is not set
