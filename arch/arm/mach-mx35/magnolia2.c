@@ -408,9 +408,10 @@ static struct platform_device can_serial_device = {
 
 static int __init magnolia2_init_extio5(void)
 {
-	u32 cs5_board_id;
+	u32 cs5_board_id, cs5_board_rev;
 
 	cs5_board_id = uboot_tag.cs5.id;
+	cs5_board_rev = uboot_tag.cs5.revision;
 
 	if (cs5_board_rev != 0xff && cs5_board_id != 0x0f)
 		printk("Magnolia2 External I/O(CS5): board_id = %d, board_rev = %d\n",
