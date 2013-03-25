@@ -131,7 +131,7 @@ config MXC_UART1_USE_AS_GPIO
 	default n
 	depends on MACH_MAGNOLIA2
 	help
-	  use UART1 as DIO (DI:2, DO:2)
+	  use UART1 as DIO
 
 endmenu
 

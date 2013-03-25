@@ -778,7 +778,7 @@ static void magnolia2_dipsw_in_init(void)
 struct magnolia2_gpio_port magnolia2_gpio_dio_ports[] = {
 	GPIO_PORT("gpio_dio0", MX35_PIN_TXD2, MXC_INT_GPIO_P3(11)),
 	GPIO_PORT("gpio_dio1", MX35_PIN_RXD2, MXC_INT_GPIO_P3(10)),
-	GPIO_PORT("gpio_dio2", MX35_PIN_CTS2, MXC_INT_GPIO_P2(13)),
+	GPIO_PORT("gpio_dio2", MX35_PIN_CTS2, MXC_INT_GPIO_P3(13)),
 	GPIO_PORT("gpio_dio3", MX35_PIN_RTS2, MXC_INT_GPIO_P3(12)),
 };
 
