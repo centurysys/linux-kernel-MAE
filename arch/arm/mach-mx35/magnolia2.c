@@ -441,6 +441,11 @@ static int __init magnolia2_init_extio5(void)
 		
 		break;
 
+	case 0x08:
+		/* D-17 module */
+		platform_device_register(&dio_extio_device);
+		break;
+
 	default:
 		break;
 	}
