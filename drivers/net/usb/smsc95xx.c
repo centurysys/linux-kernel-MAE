@@ -951,6 +951,18 @@ static int smsc95xx_reset(struct usbnet *dev)
 	if (netif_msg_ifup(dev))
 		devdbg(dev, "ID_REV = 0x%08x", read_buf);
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	/* Configure GPIO pins as LED outputs */
+	write_buf = LED_GPIO_CFG_SPD_LED | LED_GPIO_CFG_LNK_LED |
+		LED_GPIO_CFG_FDX_LED;
+	ret = smsc95xx_write_reg(dev, LED_GPIO_CFG, write_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write LED_GPIO_CFG register, ret=%d\n",
+			ret);
+		return ret;
+	}
+#endif
+
 	/* Init Tx */
 	write_buf = 0;
 	ret = smsc95xx_write_reg(dev, FLOW, write_buf);
