@@ -293,7 +293,98 @@ static struct platform_device fldin_card_device = {
 	.resource = fldin_extio_resource,
 };
 
+/*
+ * The serial port definition structure (XBee)
+ */
+static struct plat_serial8250_port xbee_serial_platform_data[] = {
+	{
+		.membase  = (void *)(IO_ADDRESS(CS4_BASE_ADDR) + MAGNOLIA2_EXT_UART_XBEE),
+		.mapbase  = (unsigned long)(CS4_BASE_ADDR + MAGNOLIA2_EXT_UART_XBEE),
+		.irq	  = MXC_INT_GPIO_P3(2),
+		.uartclk  = 7372800,
+		.regshift = 0,
+		.iotype   = UPIO_MEM,
+		.flags	  = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},
+	{},
+};
 
+static struct platform_device xbee_serial_device = {
+	.name = "serial8250",
+	.id = 0,
+	.dev = {
+		.platform_data = xbee_serial_platform_data,
+	},
+};
+
+static struct resource um01hw_extio_resource = {
+	.start = CS4_BASE_ADDR,
+	.end = CS4_BASE_ADDR + 2,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device um01hw_extio_device = {
+	.name = "um01hw_extio",
+	.id = 0,
+	.dev = {
+		// Nothing
+	},
+	.num_resources = 1,
+	.resource = &um01hw_extio_resource,
+};
+
+#define LED_PORT(_name, _shift) \
+	{					\
+		.name = (_name),		\
+			.shift	= (_shift),	\
+			}
+
+static struct resource um01hw_led_resources[] = {
+	[0] = {
+		.start = CS4_BASE_ADDR + 3,
+		.end = CS4_BASE_ADDR + 3,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct magnolia2_led_port um01hw_led_ports[] = {
+	LED_PORT("um01hw_r1", 7),
+	LED_PORT("um01hw_g1", 6),
+	LED_PORT("um01hw_r2", 5),
+	LED_PORT("um01hw_g2", 4),
+};
+
+static struct magnolia2_led_private um01hw_led_priv = {
+	.nr_ports = ARRAY_SIZE(um01hw_led_ports),
+	.ports = um01hw_led_ports,
+};
+
+static struct platform_device um01hw_led_device = {
+	.name = "um01hw_led",
+	.id = 0,
+	.dev = {
+		.platform_data = &um01hw_led_priv,
+	},
+	.num_resources = ARRAY_SIZE(um01hw_led_resources),
+	.resource = um01hw_led_resources,
+};
+
+
+static struct resource xbee_extio_resource = {
+	.start = CS4_BASE_ADDR + 8,
+	.end = CS4_BASE_ADDR + 0x0a,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device xbee_extio_device = {
+	.name = "xbee_extio",
+	.id = 0,
+	.dev = {
+		// Nothing
+	},
+	.num_resources = 1,
+	.resource = &xbee_extio_resource,
+};
 
 static int __init magnolia2_init_extio4(void)
 {
@@ -327,6 +418,20 @@ static int __init magnolia2_init_extio4(void)
 		platform_device_register(&flnet_card_device);
 		// an expansion FL-net card (fldin)
 		platform_device_register(&fldin_card_device);
+		break;
+
+	case 0x0b:
+		/* UM01-HW & XBee module */
+		mxc_request_iomux(MX35_PIN_ATA_DA2, MUX_CONFIG_GPIO);
+		mxc_set_gpio_direction(MX35_PIN_ATA_DA2, 1);	 /* INPUT */
+
+		mxc_iomux_set_pad(MX35_PIN_ATA_DA2, PAD_CTL_HYS_SCHMITZ |
+				  PAD_CTL_PKE_ENABLE | PAD_CTL_100K_PU | PAD_CTL_PUE_PUD);
+
+		platform_device_register(&xbee_serial_device);
+		platform_device_register(&um01hw_extio_device);
+		platform_device_register(&um01hw_led_device);
+		platform_device_register(&xbee_extio_device);
 		break;
 
 	default:

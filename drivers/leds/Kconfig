@@ -189,6 +189,12 @@ config LEDS_MA8XX
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_TIMER
 
+config LEDS_UM01HW
+	tristate "LED Support for MA-E2xx UM-01HW extension"
+	depends on LEDS_CLASS && MACH_MAGNOLIA2
+	select LEDS_TRIGGERS
+	select LEDS_TRIGGER_TIMER
+
 config CONTACT_OUT_MA8XX
 	tristate "Contact-OUT Support for the MA-8xx(Magnolia)"
 	depends on LEDS_CLASS && MACH_MA8XX && MA8XX_CONTACT_OUT

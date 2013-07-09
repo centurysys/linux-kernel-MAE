@@ -27,6 +27,7 @@ obj-$(CONFIG_LEDS_DA903X)		+= leds-da903x.o
 obj-$(CONFIG_LEDS_HP_DISK)		+= leds-hp-disk.o
 obj-$(CONFIG_LEDS_MAGNOLIA2)		+= leds-magnolia2.o
 obj-$(CONFIG_LEDS_MA8XX)		+= leds-ma8xx.o
+obj-$(CONFIG_LEDS_UM01HW)		+= leds-um01hw.o
 obj-$(CONFIG_CONTACT_OUT_MA8XX)		+= leds-ma8xx_dout.o
 
 # LED Triggers
