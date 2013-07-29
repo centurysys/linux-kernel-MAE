@@ -58,7 +58,12 @@ struct usb_context {
 	struct usbnet *dev;
 };
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 int turbo_mode = true;
+#else
+int turbo_mode = false;
+#endif
+
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
 

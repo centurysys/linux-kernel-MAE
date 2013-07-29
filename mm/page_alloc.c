@@ -4384,9 +4384,13 @@ static int __init init_per_zone_pages_min(void)
 {
 	unsigned long lowmem_kbytes;
 
+#if defined(CONFIG_MACH_MAGNOLIA2) && defined(CONFIG_USB_NET_SMSC95XX)
+	min_free_kbytes = 16384;
+#else
 	lowmem_kbytes = nr_free_buffer_pages() * (PAGE_SIZE >> 10);
 
 	min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
+#endif
 	if (min_free_kbytes < 128)
 		min_free_kbytes = 128;
 	if (min_free_kbytes > 65536)
