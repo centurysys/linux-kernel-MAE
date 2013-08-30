@@ -386,6 +386,61 @@ static struct platform_device xbee_extio_device = {
 	.resource = &xbee_extio_resource,
 };
 
+
+static struct resource um03ko_extio_resources[] = {
+	{
+		.start = CS4_BASE_ADDR,
+		.end = CS4_BASE_ADDR + 2,
+		.flags = IORESOURCE_MEM,
+	},{
+		.start = CS4_BASE_ADDR + 4,
+		.end = CS4_BASE_ADDR + 7,
+		.flags = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device um03ko_extio_device = {
+	.name = "um03ko_extio",
+	.id = -1,
+	.dev = {
+		// Nothing
+	},
+	.num_resources = 2,
+	.resource = &um03ko_extio_resources,
+};
+
+
+static struct resource um03ko_led_resources[] = {
+	[0] = {
+		.start = CS4_BASE_ADDR + 3,
+		.end = CS4_BASE_ADDR + 3,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct magnolia2_led_port um03ko_led_ports[] = {
+	LED_PORT("um01hw_r1", 7),
+	LED_PORT("um01hw_g1", 6),
+	LED_PORT("um01hw_r2", 3),
+	LED_PORT("um01hw_g2", 2),
+};
+
+static struct magnolia2_led_private um03ko_led_priv = {
+	.nr_ports = ARRAY_SIZE(um03ko_led_ports),
+	.ports = um03ko_led_ports,
+};
+
+static struct platform_device um03ko_led_device = {
+	.name = "um01hw_led",
+	.id = 0,
+	.dev = {
+		.platform_data = &um03ko_led_priv,
+	},
+	.num_resources = ARRAY_SIZE(um03ko_led_resources),
+	.resource = um03ko_led_resources,
+};
+
+
 static int __init magnolia2_init_extio4(void)
 {
 	u32 cs4_board_id, cs4_board_rev;
@@ -432,6 +487,17 @@ static int __init magnolia2_init_extio4(void)
 		platform_device_register(&um01hw_extio_device);
 		platform_device_register(&um01hw_led_device);
 		platform_device_register(&xbee_extio_device);
+		break;
+
+	case 0x0e:
+		/* UM03-KO module */
+		mxc_request_iomux(MX35_PIN_ATA_DA2, MUX_CONFIG_GPIO);
+		mxc_set_gpio_direction(MX35_PIN_ATA_DA2, 1);	 /* INPUT */
+
+		mxc_iomux_set_pad(MX35_PIN_ATA_DA2, PAD_CTL_HYS_SCHMITZ |
+				  PAD_CTL_PKE_ENABLE | PAD_CTL_100K_PU | PAD_CTL_PUE_PUD);
+		platform_device_register(&um03ko_extio_device);
+		platform_device_register(&um03ko_led_device);
 		break;
 
 	default:

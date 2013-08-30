@@ -190,7 +190,7 @@ config LEDS_MA8XX
 	select LEDS_TRIGGER_TIMER
 
 config LEDS_UM01HW
-	tristate "LED Support for MA-E2xx UM-01HW extension"
+	tristate "LED Support for MA-E2xx UM01-HW/UM03-KO extension"
 	depends on LEDS_CLASS && MACH_MAGNOLIA2
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_TIMER
