@@ -1,7 +1,7 @@
 /*
- * Definitions for the MA-E2xx UM01-HW Ext-IO device.
+ * Definitions for the MA-E2xx UM03-KO Ext-IO device.
  *
- * Copyright (C) 2010-2012 Century Systems Co.,Ltd.
+ * Copyright (C) 2010-2013 Century Systems Co.,Ltd.
  *
  * Author: Takeyoshi Kikuchi  <kikuchi@centurysys.co.jp>
  *
@@ -10,14 +10,14 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
- * THIS SOFTWARE  IS PROVIDED ``AS  IS'' AND  ANY  EXPRESS OR IMPLIED
+ * THIS SOFTWARE  IS PROVIDED ``AS  IS'' AND ANY  EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO  EVENT  SHALL   THE AUTHOR  BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  * USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * ANY THEORY OF LIABILITY, WHETHER IN	CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
@@ -26,34 +26,35 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _MAE2XX_FOMA_EXTIO_H
-#define _MAE2XX_FOMA_EXTIO_H
+#ifndef _MAE2XX_UM03KO_EXTIO_H
+#define _MAE2XX_UM03KO_EXTIO_H
 
 #include <linux/ioctl.h>
 
 #ifdef __KERNEL__
 
 /* Registers */
-#define FOMA_CTRL    0x00
+#define POWER_CTRL   0x00
 #define BOARD_STATUS 0x01
-#define FOMA_STATUS  0x02
+#define FOMA_CTRL    0x02
+#define FOMA_STATUS  0x04
+#define FOMA_MONITOR 0x05
 
 /* FOMA Control register */
-#define FOMA_CTRL_PWRKEY	7
-#define FOMA_CTRL_SLEEP	6
+#define FOMA_CTRL_PWRKEY_OFF	1
+#define FOMA_CTRL_PWRKEY_ON	0
 
-struct mae2xx_um01hw_extio {
+struct mae2xx_um03ko_extio {
 	struct resource *res;
 	u8 *base;
 	u8 *ioaddr;
 };
 
-/* Offset 0x00: FOMA Control register */
-union foma_ctrl {
+/* Offset 0x00: Power Control register */
+union power_ctrl {
 	struct {
-		u8 reserved:6;
-		u8 sleep:1;
-		u8 pwrkey:1;
+		u8 pow_off:1;
+		u8 reserved:7;
 	} bit;
 	u8 byte;
 };
@@ -67,19 +68,41 @@ union board_status {
 	u8 byte;
 };
 
-/* Offset 0x02: LED Control register */
+/* Offset 0x02: FOMA Control register */
+union foma_ctrl {
+	struct {
+		u8 pwrkey_on:1;
+		u8 pwrkey_off:1;
+		u8 reserved2:2;
+		u8 sysrst:1;
+		u8 reserved1:3;
+	} bit;
+	u8 byte;
+};
 
-/* Offset 0x03: FOMA Status register */
+/* Offset 0x04: FOMA Status register */
 union foma_status {
 	struct {
 		u8 sim_cd:1;
-		u8 power_good:1;
-		u8 reserved:1;
-		u8 uart_ri:1;
-		u8 status_led:1;
-		u8 mode_led:1;
-		u8 sleep:1;
-		u8 fota_n:1;
+		u8 reserved2:3;
+		u8 xdr:1;
+		u8 xcs:1;
+		u8 reserved1:2;
+	} bit;
+	u8 byte;
+};
+
+/* Offset 0x05: FOMA Monitor Status register */
+union foma_monitor {
+	struct {
+		u8 cbs_etws:1;
+		u8 sms:1;
+		u8 adl:1;
+		u8 ledgcmd:1;
+		u8 ledg:1;
+		u8 trx:1;
+		u8 ant2:1;
+		u8 ant1:1;
 	} bit;
 	u8 byte;
 };
@@ -94,4 +117,4 @@ union foma_status {
 #define MAE2XX_EXTIO_IOC_MAXNR	3
 
 
-#endif /* _MAE2XX_FOMA_EXTIO_H */
+#endif /* _MAE2XX_UM03KO_EXTIO_H */

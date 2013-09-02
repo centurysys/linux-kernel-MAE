@@ -100,6 +100,7 @@ obj-$(CONFIG_CS5535_GPIO)	+= cs5535_gpio.o
 obj-$(CONFIG_GPIO_VR41XX)	+= vr41xx_giu.o
 obj-$(CONFIG_MAGNOLIA2_EXTIO_FOMA) += ma8xx_foma_extio.o
 obj-$(CONFIG_MAGNOLIA2_EXTIO_UM01HW) += mae2xx_um01hw_extio.o
+obj-$(CONFIG_MAGNOLIA2_EXTIO_UM03KO) += mae2xx_um03ko_extio.o
 obj-$(CONFIG_MAGNOLIA2_EXTIO_FLNET) += mae2xx_flnet_driver.o
 obj-$(CONFIG_MAGNOLIA2_EXTIO_FLDIN) += mae2xx_fldin_driver.o
 obj-$(CONFIG_GPIO_TB0219)	+= tb0219.o

@@ -63,7 +63,7 @@ static int um01hw_led_probe(struct platform_device *pdev)
 	struct um01hw_led_info *info;
 	int ret, i, size, shift;
 
-	printk("Magnolia2 UM01-HW/UM03-KO extension LED driver\n");
+	printk("Magnolia2 UM01-HW extension LED driver\n");
 
 	info = kzalloc(sizeof(struct um01hw_led_info) * priv->nr_ports,
 		       GFP_KERNEL);
@@ -182,5 +182,5 @@ module_init(um01hw_led_init);
 module_exit(um01hw_led_exit);
 
 MODULE_AUTHOR("Century Systems");
-MODULE_DESCRIPTION("UM01-HW/UM03-KO extension LED driver");
+MODULE_DESCRIPTION("UM01-HW extension LED driver");
 MODULE_LICENSE("GPL v2");
