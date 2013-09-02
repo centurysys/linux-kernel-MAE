@@ -47,7 +47,7 @@
 #define EXTIO_PROC_STATUS_NAME "driver/foma_status"
 #define EXTIO_PROC_PWRKEY_OFF_NAME "driver/foma_pwrkey_off"
 #define EXTIO_PROC_PWRKEY_ON_NAME "driver/foma_pwrkey_on"
-#define EXTIO_PROC_SLEEP_NAME "driver/foma_sleep"
+#define EXTIO_PROC_PWRKEY_NAME "driver/foma_pwrkey"
 
 #define PROC_READ_RETURN\
 	if (len <= off + count)\
@@ -65,6 +65,7 @@
 
 static struct proc_dir_entry *proc_pwrkey_off = NULL;
 static struct proc_dir_entry *proc_pwrkey_on = NULL;
+static struct proc_dir_entry *proc_pwrkey = NULL;
 
 static struct mae2xx_um03ko_extio *um03ko_extio;
 
@@ -232,6 +233,55 @@ static int write_pwrkey_on(struct file *filp, const char __user *buf,
 	return __write_pwrkey(filp, buf, count, data, FOMA_CTRL_PWRKEY_ON);
 }
 
+static int write_pwrkey(struct file *filp, const char __user *buf,
+			unsigned long count, void *data)
+{
+	u8 *ioaddr = um03ko_extio->ioaddr;
+	union foma_ctrl foma_ctrl;
+	union foma_monitor foma_monitor;
+	char *tmp;
+	u8 val;
+	int res;
+
+	tmp = kzalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(tmp, buf, count)) {
+		res = -EFAULT;
+		goto out;
+	}
+
+	val = (u8) simple_strtol(tmp, NULL, 10);
+
+	foma_ctrl.byte = __raw_readb(ioaddr + FOMA_CTRL);
+	foma_monitor.byte = __raw_readb(ioaddr + FOMA_MONITOR);
+
+	if (val == 0) {
+		if (foma_ctrl.bit.pwrkey_off == 1 && foma_ctrl.bit.pwrkey_on == 1) {
+			if (foma_monitor.bit.ledg == 0) {
+				/* current 'power on' */
+				res = __write_pwrkey(filp, buf, count, data,
+						     FOMA_CTRL_PWRKEY_OFF);
+			} else {
+				/* current 'power off' */
+				res = __write_pwrkey(filp, buf, count, data,
+						     FOMA_CTRL_PWRKEY_ON);
+			}
+		} else
+			res = -EINVAL;
+	} else {
+		__write_pwrkey(filp, buf, count, data,
+			       FOMA_CTRL_PWRKEY_OFF);
+		res = __write_pwrkey(filp, buf, count, data,
+				     FOMA_CTRL_PWRKEY_ON);
+	}
+
+out:
+	kfree(tmp);
+	return res;
+}
+
 static int __read_foma_ctrl_reg(char *buf, int shift)
 {
 	char *p = buf;
@@ -266,6 +316,28 @@ static int read_pwrkey_on(char *page, char **start, off_t off,
 			  int count, int *eof, void *data)
 {
 	return __read_pwrkey(page, start, off, count, eof, data, FOMA_CTRL_PWRKEY_ON);
+}
+
+static int read_pwrkey(char *page, char **start, off_t off,
+		       int count, int *eof, void *data)
+{
+	char *p = page;
+	u8 *ioaddr = um03ko_extio->ioaddr;
+	union foma_ctrl foma_ctrl;
+	int stat, len;
+
+	foma_ctrl.byte = __raw_readb(ioaddr + FOMA_CTRL);
+
+	if (foma_ctrl.bit.pwrkey_on == 1 && foma_ctrl.bit.pwrkey_off == 1)
+		stat = 1;
+	else
+		stat = 0;
+
+	p += sprintf(p, "%d\n", stat);
+
+	len = p - page;
+
+	PROC_READ_RETURN;
 }
 
 static int um03ko_extio_probe(struct platform_device *pdev)
@@ -322,10 +394,21 @@ static int um03ko_extio_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
+	ent = create_proc_entry(EXTIO_PROC_PWRKEY_NAME, S_IFREG|0644, proc_pwrkey);
+	if (ent) {
+		ent->write_proc = write_pwrkey;
+		ent->read_proc = read_pwrkey;
+	} else {
+		ret = -EFAULT;
+		goto err5;
+	}
+
 	misc_register(&um03ko_extio_dev);
 
 	return 0;
 
+err5:
+	remove_proc_entry(EXTIO_PROC_PWRKEY_ON_NAME, NULL);
 err4:
 	remove_proc_entry(EXTIO_PROC_PWRKEY_OFF_NAME, NULL);
 err3:
@@ -344,7 +427,7 @@ static int um03ko_extio_remove(struct platform_device *pdev)
 
 	misc_deregister(&um03ko_extio_dev);
 
-	remove_proc_entry(EXTIO_PROC_SLEEP_NAME, NULL);
+	remove_proc_entry(EXTIO_PROC_PWRKEY_NAME, NULL);
 	remove_proc_entry(EXTIO_PROC_PWRKEY_OFF_NAME, NULL);
 	remove_proc_entry(EXTIO_PROC_PWRKEY_ON_NAME, NULL);
 	remove_proc_entry(EXTIO_PROC_STATUS_NAME, NULL);
