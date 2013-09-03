@@ -154,7 +154,9 @@ static int um03ko_extio_get_status(char *buf)
 	p += sprintf(p, " FOMA Status:	0x%02x\n", foma_status.byte);
 	p += sprintf(p, "  SIM_CD:	%d\n", foma_status.bit.sim_cd);
 	p += sprintf(p, "--- UM02 Compatibility ---\n");
-	p += sprintf(p, "  LEDG:	%d\n", foma_monitor.bit.ledg);
+	p += sprintf(p, "  LEDG:		%d\n", foma_monitor.bit.ledg);
+	p += sprintf(p, "--- UM01-HW Compatibility ---\n");
+	p += sprintf(p, "  SLEEP_OUT:	%d\n", foma_monitor.bit.ledg == 1 ? 0 : 1);
 
 	return p - buf;
 }
