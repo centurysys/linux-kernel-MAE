@@ -48,3 +48,11 @@ obj-y				+= lis3lv02d/
 obj-y				+= carma/
 obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
 obj-$(CONFIG_ALTERA_STAPL)	+=altera-stapl/
+
+obj-$(CONFIG_MAGNOLIA2_EXTIO)	+= magnolia2_dio.o
+obj-$(CONFIG_MAGNOLIA2_EXTIO_FOMA) += ma8xx_foma_extio.o
+obj-$(CONFIG_MAGNOLIA2_EXTIO_UM01HW) += mae2xx_um01hw_extio.o
+obj-$(CONFIG_MAGNOLIA2_RS422_SWITCH) += rs422_switch.o
+obj-$(CONFIG_MAGNOLIA2_UMFXS)	+= mae2xx_umfxs.o
+obj-$(CONFIG_MAGNOLIA2_KCMV_IO)	+= mae2xx_kcmv_io.o
+obj-$(CONFIG_MAGNOLIA2_KCMP_IO)	+= mae2xx_kcmp_io.o

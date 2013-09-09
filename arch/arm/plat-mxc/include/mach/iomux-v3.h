@@ -87,21 +87,46 @@ typedef u64 iomux_v3_cfg_t;
 
 #define NO_PAD_CTRL			(1 << 16)
 #define PAD_CTL_DVS			(1 << 13)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define PAD_CTL_DRV_3_3V		(0 << 13)
+#define PAD_CTL_DRV_1_8V		(1 << 13)
+#endif
 #define PAD_CTL_HYS			(1 << 8)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define PAD_CTL_HYS_CMOS		(0 << 8)
+#define PAD_CTL_HYS_SCHMITZ		(1 << 8)
+#endif
 
 #define PAD_CTL_PKE			(1 << 7)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define PAD_CTL_PKE_NONE		(0 << 7)
+#define PAD_CTL_PKE_ENABLE		(1 << 7)
+#endif
 #define PAD_CTL_PUE			(1 << 6 | PAD_CTL_PKE)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define PAD_CTL_PUE_KEEPER		(0 << 6)
+#define PAD_CTL_PUE_PUD		(1 << 6)
+#endif
 #define PAD_CTL_PUS_100K_DOWN		(0 << 4 | PAD_CTL_PUE)
 #define PAD_CTL_PUS_47K_UP		(1 << 4 | PAD_CTL_PUE)
 #define PAD_CTL_PUS_100K_UP		(2 << 4 | PAD_CTL_PUE)
 #define PAD_CTL_PUS_22K_UP		(3 << 4 | PAD_CTL_PUE)
 
 #define PAD_CTL_ODE			(1 << 3)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define PAD_CTL_ODE_CMOS		(0 << 3)
+#define PAD_CTL_ODE_OpenDrain		(1 << 3)
+#endif
 
 #define PAD_CTL_DSE_LOW			(0 << 1)
 #define PAD_CTL_DSE_MED			(1 << 1)
 #define PAD_CTL_DSE_HIGH		(2 << 1)
 #define PAD_CTL_DSE_MAX			(3 << 1)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define PAD_CTL_DRV_NORMAL		(0 << 1)
+#define PAD_CTL_DRV_HIGH		(1 << 1)
+#define PAD_CTL_DRV_MAX		(2 << 1)
+#endif
 
 #define PAD_CTL_SRE_FAST		(1 << 0)
 #define PAD_CTL_SRE_SLOW		(0 << 0)

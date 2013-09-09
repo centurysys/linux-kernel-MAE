@@ -1263,5 +1263,11 @@
 
 #define MX35_PAD_TEST_MODE__TCU_TEST_MODE			IOMUX_PAD(0x790, 0x0,   0, 0x0,   0, NO_PAD_CTRL)
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define MUX_IO_P		29
+#define MUX_IO_I		24
+#define IOMUX_TO_GPIO(pin) 	((((unsigned int)pin >> MUX_IO_P) * 32) + ((pin >> MUX_IO_I) & ((1 << (MUX_IO_P - MUX_IO_I)) -1)))
+#define IOMUX_TO_IRQ(pin)	(MXC_GPIO_IRQ_START + IOMUX_TO_GPIO(pin))
+#endif
 
 #endif /* __MACH_IOMUX_MX35_H__ */

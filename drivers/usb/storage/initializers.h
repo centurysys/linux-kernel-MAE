@@ -48,3 +48,20 @@ int usb_stor_ucr61s2b_init(struct us_data *us);
 
 /* This places the HUAWEI E220 devices in multi-port mode */
 int usb_stor_huawei_e220_init(struct us_data *us);
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+/* This places the LG L-02A devices in multi-port mode */
+int usb_stor_lg_l02a_init(struct us_data *us);
+
+/* This places the LG L-05A devices in multi-port mode */
+int usb_stor_lg_l05a_init(struct us_data *us);
+
+/* This places the LG L-02C devices in multi-port mode */
+int usb_stor_lg_l02c_init(struct us_data *us);
+
+/* This places the Fujitsu Ltd. devices in multi-port mode */
+int usb_stor_f06c_init(struct us_data *us);
+
+/* This places the ZTE devices in multi-port mode */
+int usb_stor_zte_init(struct us_data *us);
+#endif

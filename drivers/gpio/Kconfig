@@ -129,6 +129,12 @@ config GPIO_MXC
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
+config GPIO_MAGNOLIA2_PORT2
+	tristate "Magnolia2 UART PORT2 DIO support"
+	depends on MACH_MAGNOLIA2
+	help
+	  Say yes here to support the Century Systems Magnolia2 UART PORT2 DIO device
+
 config GPIO_MXS
 	def_bool y
 	depends on ARCH_MXS

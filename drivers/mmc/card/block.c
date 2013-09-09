@@ -20,6 +20,9 @@
 #include <linux/moduleparam.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#ifdef CONFIG_MACH_MAGNOLIA2
+#include <linux/proc_fs.h>
+#endif
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -76,6 +79,19 @@ static int max_devices;
 /* 256 minors, so at most 256 separate devices */
 static DECLARE_BITMAP(dev_use, 256);
 static DECLARE_BITMAP(name_use, 256);
+
+#if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8XX)
+#define MMCBLK_PROC_STATUS_NAME "driver/mmcblk_stat"
+struct write_statistics {
+	u32 cmd_issue;
+	u64 total_blocks;
+};
+
+static struct write_statistics cmd17_stat;
+static struct write_statistics cmd18_stat;
+static struct write_statistics cmd24_stat;
+static struct write_statistics cmd25_stat;
+#endif
 
 /*
  * There is one mmc_blk_data per slot.
@@ -1218,6 +1234,29 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 		type = rq_data_dir(req) == READ ? MMC_BLK_READ : MMC_BLK_WRITE;
 		mmc_queue_bounce_post(mq_rq);
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+		if (brq->data.blocks > 1) {
+			if (type == MMC_BLK_READ) {
+				/* Multiblock READ:  CMD18 */
+				cmd18_stat.cmd_issue++;
+				cmd18_stat.total_blocks += brq->data.blocks;
+			} else {
+				/* Multiblock WRITE: CMD25 */
+				cmd25_stat.cmd_issue++;
+				cmd25_stat.total_blocks += brq->data.blocks;
+			}
+		} else {
+			if (type == MMC_BLK_READ) {
+				/* Singleblock READ:  CMD17 */
+				cmd17_stat.cmd_issue++;
+				cmd17_stat.total_blocks++;
+			} else {
+				/* Singleblock WRITE: CMD24 */
+				cmd24_stat.cmd_issue++;
+				cmd24_stat.total_blocks++;
+			}
+		}
+#endif
 		switch (status) {
 		case MMC_BLK_SUCCESS:
 		case MMC_BLK_PARTIAL:
@@ -1464,6 +1503,13 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 		blk_queue_flush(md->queue.queue, REQ_FLUSH | REQ_FUA);
 	}
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	memset(&cmd17_stat, 0, sizeof(struct write_statistics));
+	memset(&cmd18_stat, 0, sizeof(struct write_statistics));
+	memset(&cmd24_stat, 0, sizeof(struct write_statistics));
+	memset(&cmd25_stat, 0, sizeof(struct write_statistics));
+#endif
+
 	return md;
 
  err_putdisk:
@@ -1672,6 +1718,65 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+static int block_get_write_statistics(char *buf)
+{
+	char *p = buf;
+	u64 total;
+
+	p += sprintf(p, "-- mmcblk read/write statistics ---\n");
+	p += sprintf(p, "READ commands:\n");
+	p += sprintf(p, " CMD17:\n");
+	p += sprintf(p, "  command issue: %10d\n", cmd17_stat.cmd_issue);
+	p += sprintf(p, "  total blocks:  %10llu\n", cmd17_stat.total_blocks);
+	p += sprintf(p, " CMD18:\n");
+	p += sprintf(p, "  command issue: %10d\n", cmd18_stat.cmd_issue);
+	p += sprintf(p, "  total blocks:  %10llu\n", cmd18_stat.total_blocks);
+	p += sprintf(p, " TOTAL:\n");
+
+	total = cmd17_stat.cmd_issue + cmd18_stat.cmd_issue;
+	p += sprintf(p, "  command issue: %10llu\n", total);
+	total = cmd17_stat.total_blocks + cmd18_stat.total_blocks;
+	p += sprintf(p, "  total blocks:  %10llu\n", total);
+
+	p += sprintf(p, "WRITE commands:\n");
+	p += sprintf(p, " CMD24:\n");
+	p += sprintf(p, "  command issue: %10d\n", cmd24_stat.cmd_issue);
+	p += sprintf(p, "  total blocks:  %10llu\n", cmd24_stat.total_blocks);
+	p += sprintf(p, " CMD25:\n");
+	p += sprintf(p, "  command issue: %10d\n", cmd25_stat.cmd_issue);
+	p += sprintf(p, "  total blocks:  %10llu\n", cmd25_stat.total_blocks);
+	p += sprintf(p, " TOTAL:\n");
+
+	total = cmd24_stat.cmd_issue + cmd25_stat.cmd_issue;
+	p += sprintf(p, "  command issue: %10llu\n", total);
+	total = cmd24_stat.total_blocks + cmd25_stat.total_blocks;
+	p += sprintf(p, "  total blocks:  %10llu\n", total);
+
+	return p - buf;
+}
+
+static int block_read_proc(char *page, char **start, off_t off,
+			   int count, int *eof, void *data)
+{
+	int len = block_get_write_statistics(page);
+
+	if (len <= off + count)
+		*eof = 1;
+
+	*start = page + off;
+	len -= off;
+
+	if (len > count)
+		len = count;
+
+	if (len < 0)
+		len = 0;
+
+	return len;
+}
+#endif
+
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -1701,6 +1806,15 @@ static int mmc_blk_probe(struct mmc_card *card)
 	if (mmc_blk_alloc_parts(card, md))
 		goto out;
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	if (!create_proc_read_entry(MMCBLK_PROC_STATUS_NAME, 0, 0,
+				    block_read_proc, NULL)) {
+		printk(KERN_ERR "%s: create_proc failed.\n", __FUNCTION__);
+		err = -EFAULT;
+		goto out;
+	}
+#endif
+
 	mmc_set_drvdata(card, md);
 	mmc_fixup_device(card, blk_fixups);
 
@@ -1723,6 +1837,9 @@ static void mmc_blk_remove(struct mmc_card *card)
 {
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	remove_proc_entry(MMCBLK_PROC_STATUS_NAME, NULL);
+#endif
 	mmc_blk_remove_parts(card, md);
 	mmc_claim_host(card->host);
 	mmc_blk_part_switch(card, md);

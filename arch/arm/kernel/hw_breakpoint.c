@@ -133,6 +133,7 @@ static void write_wb_reg(int n, u32 val)
 /* Determine debug architecture. */
 static u8 get_debug_arch(void)
 {
+#ifndef CONFIG_MACH_MAGNOLIA2
 	u32 didr;
 
 	/* Do we implement the extended CPUID interface? */
@@ -144,6 +145,9 @@ static u8 get_debug_arch(void)
 
 	ARM_DBG_READ(c0, 0, didr);
 	return (didr >> 16) & 0xf;
+#else
+	return ARM_DEBUG_ARCH_V6;
+#endif
 }
 
 u8 arch_get_debug_arch(void)

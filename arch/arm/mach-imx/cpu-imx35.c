@@ -40,3 +40,36 @@ int mx35_revision(void)
 	return mx35_cpu_rev;
 }
 EXPORT_SYMBOL(mx35_revision);
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+static int __init post_cpu_init(void)
+{
+	void *l2_base;
+	unsigned long aips_reg;
+
+//	iram_init(MX35_IRAM_BASE_ADDR, MX35_IRAM_SIZE);
+
+	/*
+	 * S/W workaround: Clear the off platform peripheral modules
+	 * Supervisor Protect bit for SDMA to access them.
+	 */
+	__raw_writel(0x0, MX35_IO_ADDRESS(MX35_AIPS1_BASE_ADDR + 0x40));
+	__raw_writel(0x0, MX35_IO_ADDRESS(MX35_AIPS1_BASE_ADDR + 0x44));
+	__raw_writel(0x0, MX35_IO_ADDRESS(MX35_AIPS1_BASE_ADDR + 0x48));
+	__raw_writel(0x0, MX35_IO_ADDRESS(MX35_AIPS1_BASE_ADDR + 0x4C));
+	aips_reg = __raw_readl(MX35_IO_ADDRESS(MX35_AIPS1_BASE_ADDR + 0x50));
+	aips_reg &= 0x00FFFFFF;
+	__raw_writel(aips_reg, MX35_IO_ADDRESS(MX35_AIPS1_BASE_ADDR + 0x50));
+	__raw_writel(0x0, MX35_IO_ADDRESS(MX35_AIPS2_BASE_ADDR + 0x40));
+	__raw_writel(0x0, MX35_IO_ADDRESS(MX35_AIPS2_BASE_ADDR + 0x44));
+	__raw_writel(0x0, MX35_IO_ADDRESS(MX35_AIPS2_BASE_ADDR + 0x48));
+	__raw_writel(0x0, MX35_IO_ADDRESS(MX35_AIPS2_BASE_ADDR + 0x4C));
+	aips_reg = __raw_readl(MX35_IO_ADDRESS(MX35_AIPS2_BASE_ADDR + 0x50));
+	aips_reg &= 0x00FFFFFF;
+	__raw_writel(aips_reg, MX35_IO_ADDRESS(MX35_AIPS2_BASE_ADDR + 0x50));
+
+	return 0;
+}
+
+postcore_initcall(post_cpu_init);
+#endif

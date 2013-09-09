@@ -15,6 +15,9 @@
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#ifdef CONFIG_MACH_MAGNOLIA2
+#include <linux/delay.h>
+#endif
 
 #include <mach/hardware.h>
 #include <mach/mxc_ehci.h>
@@ -32,6 +35,43 @@
 #define MX35_H1_IPPUE_DOWN_BIT	(1 << 6)
 #define MX35_H1_TLL_BIT		(1 << 5)
 #define MX35_H1_USBTE_BIT	(1 << 4)
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define MX35_H1_HEX_TEN		(1 << 26)
+
+#define USBOTG_MIRROR_OFFSET	(USBCTRL_OTGBASE_OFFSET + 0x04)
+#define OTGM_HULPICLK		(1 << 6)	/* Host ULPI PHY clock on */
+#endif
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern void magnolia2_usbh2_phy_reset(void);
+
+static void mx35_check_ulpi_clock(void)
+{
+        int retry = 10, phy_ok = 0;
+	volatile unsigned int v;
+
+        while (retry > 0) {
+		v = readl(MX35_IO_ADDRESS(MX35_USB_BASE_ADDR + USBOTG_MIRROR_OFFSET));
+
+                if (v & OTGM_HULPICLK) {
+                        phy_ok = 1;
+                        printk("ULPI clock is running.\n");
+                        break;
+                }
+
+                retry--;
+                printk(KERN_ERR "%s: Host ULPI clock not running!\n",
+                       __FUNCTION__);
+                magnolia2_usbh2_phy_reset();
+                mdelay(10);
+        }
+
+        if (!phy_ok) {
+                panic("%s: Host ULPI clock not running 10 times, reboot...\n",
+		      __FUNCTION__);
+        }
+}
+#endif
 
 int mx35_initialize_usb_hw(int port, unsigned int flags)
 {
@@ -52,7 +92,11 @@ int mx35_initialize_usb_hw(int port, unsigned int flags)
 		v &= ~(MX35_H1_SIC_MASK | MX35_H1_PM_BIT | MX35_H1_TLL_BIT |
 			MX35_H1_USBTE_BIT | MX35_H1_IPPUE_DOWN_BIT | MX35_H1_IPPUE_UP_BIT);
 		v |= (flags & MXC_EHCI_INTERFACE_MASK) << MX35_H1_SIC_SHIFT;
+#ifdef CONFIG_MACH_MAGNOLIA2
+		v |= MX35_H1_HEX_TEN;
 
+		mx35_check_ulpi_clock();
+#endif
 		if (!(flags & MXC_EHCI_POWER_PINS_ENABLED))
 			v |= MX35_H1_PM_BIT;
 

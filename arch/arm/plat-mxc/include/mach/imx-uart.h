@@ -30,6 +30,15 @@ struct imxuart_platform_data {
 	unsigned int irda_inv_rx:1;
 	unsigned int irda_inv_tx:1;
 	unsigned short transceiver_delay;
+#ifdef CONFIG_MACH_MAGNOLIA2
+	int port_index;
+	int driver_type;
+	int driver_duplex;
+	int txrx_pending;
+	int tx_available;
+	int txe;
+	int rxe;
+#endif
 };
 
 #endif

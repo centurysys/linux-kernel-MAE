@@ -544,4 +544,12 @@ config INPUT_XEN_KBDDEV_FRONTEND
 	  To compile this driver as a module, choose M here: the
 	  module will be called xen-kbdfront.
 
+config INPUT_MAGNOLIA2_PUSHSW
+	tristate "PUSH-SW Support for Magnolia2"
+	depends on MACH_MAGNOLIA2
+
+config INPUT_MAGNOLIA2_DIPSW
+	tristate "DIP-SW Support for Magnolia2"
+	depends on MACH_MAGNOLIA2
+
 endif

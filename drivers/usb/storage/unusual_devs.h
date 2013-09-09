@@ -357,6 +357,14 @@ UNUSUAL_DEV(  0x04b8, 0x0602, 0x0110, 0x0110,
 		"785EPX Storage",
 		USB_SC_SCSI, USB_PR_BULK, NULL, US_FL_SINGLE_LUN),
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+UNUSUAL_DEV(  0x04c5, 0x11e3, 0x0000, 0x0100,
+		"Fujitsu Ltd",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_f06c_init,
+		0),
+#endif
+
 /* Not sure who reported this originally but
  * Pavel Machek <pavel@ucw.cz> reported that the extra US_FL_SINGLE_LUN
  * flag be added */
@@ -1470,6 +1478,27 @@ UNUSUAL_DEV(  0x0fce, 0xe092, 0x0000, 0x0000,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+#if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8XX)
+/* NTT DoCoMo L-02A */
+UNUSUAL_DEV(  0x1004, 0x610c, 0x0000, 0x0000,
+                "LG Electronics",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_lg_l02a_init,
+		0),
+/* NTT DoCoMo L-05A */
+UNUSUAL_DEV(  0x1004, 0x613a, 0x0000, 0x0000,
+                "LG Electronics",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_lg_l05a_init,
+		0),
+/* NTT DoCoMo L-02C */
+UNUSUAL_DEV(  0x1004, 0x61dd, 0x0000, 0x0000,
+                "LG Electronics",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_lg_l02c_init,
+		0),
+#endif
+
 /* Reported by Kevin Cernekee <kpc-usbdev@gelato.uiuc.edu>
  * Tested on hardware version 1.10.
  * Entry is needed only for the initializer function override.
@@ -1931,6 +1960,14 @@ UNUSUAL_DEV( 0x1908, 0x3335, 0x0200, 0x0200,
 		"Photo Frame",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_READ_DISC_INFO ),
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+UNUSUAL_DEV(  0x19d2, 0x0103, 0x0000, 0x0000,
+		"ZTE,Incorporated",
+		"ZTE WCDMA Technologies MSM",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_zte_init,
+		0),
+#endif
 
 /* Reported by Sven Geggus <sven-usbst@geggus.net>
  * This encrypted pen drive returns bogus data for the initial READ(10).

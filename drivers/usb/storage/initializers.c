@@ -104,3 +104,98 @@ int usb_stor_huawei_e220_init(struct us_data *us)
 	US_DEBUGP("Huawei mode set result is %d\n", result);
 	return 0;
 }
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+/* This places the LG L-02A devices in multi-port mode */
+int usb_stor_lg_l02a_init(struct us_data *us)
+{
+	int result, actlen;
+	char buf[] = {'U',  'S',  'B',	'C',  '@',  0x96, 0x95, 0x87,
+		      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x1b,
+		      0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+		      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+	printk("NTT docomo L-02A(storage mode) found, ejecting...\n");
+	mdelay(100);
+	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
+					    buf, 31, &actlen);
+	US_DEBUGP("usb_bulk_transfer performing result is %d\n", result);
+	return (result ? 0 : -1);
+}
+
+/* This places the LG L-05A devices in multi-port mode */
+int usb_stor_lg_l05a_init(struct us_data *us)
+{
+	int result, actlen, tmp;
+	char buf[] = {0x55, 0x53, 0x42, 0x43, 0x90, 0xe2, 0x2e, 0x86,
+		      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00,
+		      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	char buf2[0x200];
+
+	printk("NTT docomo L-05A(storage mode) found, ejecting...\n");
+	mdelay(100);
+	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
+					    buf, 31, &actlen);
+	tmp = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
+					 buf2, 0x200, &actlen);
+	mdelay(100);
+	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
+					    buf, 31, &actlen);
+	US_DEBUGP("usb_bulk_transfer performing result is %d\n", result);
+	//return (result ? 0 : -1);
+	return 0;
+}
+
+/* This places the LG L-02C devices in multi-port mode */
+int usb_stor_lg_l02c_init(struct us_data *us)
+{
+	int result, actlen;
+	char buf[] = {0x55, 0x53, 0x42, 0x43, 0x68, 0xc2, 0x08, 0x89,
+		      0x01, 0x00, 0x00, 0x00, 0x80, 0x00, 0x06, 0xf1,
+		      0x01, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+	printk("NTT docomo L-02C(storage mode) found, ejecting...\n");
+	mdelay(100);
+	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
+					    buf, 31, &actlen);
+	US_DEBUGP("usb_bulk_transfer performing result is %d\n", result);
+	return (result ? 0 : -1);
+}
+
+/* This places the ZTE devices in multi-port mode */
+int usb_stor_zte_init(struct us_data *us)
+{
+	int result, actlen;
+	char buf[] = {0x55, 0x53, 0x42, 0x43, 0xe0, 0xab, 0x36, 0x86,
+		      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x1b,
+		      0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+		      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+	printk("ZTE MF6x6 found, ejecting...\n");
+
+	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
+					    buf, 31, &actlen);
+	US_DEBUGP("usb_bulk_msg performing result is %d\n", result);
+	return (result ? 0 : -1);
+}
+
+/* This places the Fujitsu F-06C devices in multi-port mode */
+int usb_stor_f06c_init(struct us_data *us)
+{
+	int result;
+
+	printk("NTT Docomo F-06C found, ejecting...\n");
+
+#define F06C_USB_REQUEST_Mode	 0x70
+#define F06C_SET_MODE		 0x0000
+
+	mdelay(1000);
+	result = usb_stor_control_msg(us, us->send_ctrl_pipe,
+				      F06C_USB_REQUEST_Mode, USB_RECIP_INTERFACE | USB_TYPE_VENDOR,
+				      F06C_SET_MODE, 0x0, NULL, 0, USB_CTRL_SET_TIMEOUT);
+
+	return result;
+}
+#endif

@@ -375,6 +375,18 @@ config LEDS_ASIC3
 	  cannot be used. This driver supports hardware blinking with an on+off
 	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
 
+config LEDS_MAGNOLIA2
+	tristate "LED Support for the Magnolia2"
+	depends on LEDS_CLASS && MACH_MAGNOLIA2
+	select LEDS_TRIGGERS
+	select LEDS_TRIGGER_TIMER
+
+config LEDS_UM01HW
+	tristate "LED Support for the FOMA UM01-HW extension"
+	depends on LEDS_CLASS && MACH_MAGNOLIA2
+	select LEDS_TRIGGERS
+	select LEDS_TRIGGER_TIMER
+
 config LEDS_RENESAS_TPU
 	bool "LED support for Renesas TPU"
 	depends on LEDS_CLASS && HAVE_CLK && GENERIC_GPIO

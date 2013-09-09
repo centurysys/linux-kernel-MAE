@@ -54,6 +54,11 @@
 #define DRIVER_AUTHOR "Armin Fuerst, Pavel Machek, Johannes Erdfelt, Vojtech Pavlik, David Kubicek, Johan Hovold"
 #define DRIVER_DESC "USB Abstract Control Model driver for USB modems and ISDN adapters"
 
+#if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8XX)
+#define LG_VENDOR_ID 0x1004
+#define L02A_PRODUCT_ID 0x6109
+#endif
+
 static struct usb_driver acm_driver;
 static struct tty_driver *acm_tty_driver;
 static struct acm *acm_table[ACM_TTY_MINORS];
@@ -64,6 +69,47 @@ static DEFINE_MUTEX(open_mutex);
 
 static const struct tty_port_operations acm_port_ops = {
 };
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+/*
+ * Functions for set modem mode.
+ */
+static int acm_set_modem_mode(struct acm *acm)
+{
+	int		retval;
+	unsigned char	modeTable[3];
+	
+	/* SET_LINK		*/
+	modeTable[0]=2;	/* bTableLength		*/
+	modeTable[1]=FOMA_BMODE_MODEM;
+	modeTable[2]=FOMA_BMODE_VENDOR1;
+	retval = usb_control_msg(acm->dev,
+				 usb_sndctrlpipe(acm->dev, 0),
+				 USB_REQ_SET_LINK,	/* Set Link			*/
+				 USB_RT_VENDORSPEC,	/* VendorSpecificRequest	*/
+				 0x0000,		/* ACM				*/
+				 acm->control->altsetting[0].desc.bInterfaceNumber,
+				 modeTable,		/* Data mode table		*/
+				 2,			/* Data Length 2		*/
+				 5000);
+
+	if( retval < 0 ) {
+		return retval < 0 ? retval : 0;
+	}
+
+	/* ACTIVATE_MODE	*/
+	retval = usb_control_msg(acm->dev,
+				 usb_sndctrlpipe(acm->dev, 0),
+				 USB_REQ_ACTIVATE_MODE, /* Activate Mode		*/
+				 USB_RT_VENDORSPEC,	/* VendorSpecificRequest	*/
+				 0x0001,		/* modem			*/
+				 acm->control->altsetting[0].desc.bInterfaceNumber,
+				 NULL,			/* Data none			*/
+				 0,			/* Data Length 0		*/
+				 5000);
+	return retval < 0 ? retval : 0;
+}
+#endif
 
 /*
  * Functions for ACM control messages.
@@ -866,6 +912,9 @@ static int acm_probe(struct usb_interface *intf,
 {
 	struct usb_cdc_union_desc *union_header = NULL;
 	struct usb_cdc_country_functional_desc *cfd = NULL;
+#ifdef CONFIG_MACH_MAGNOLIA2
+	struct usb_host_interface *host = NULL;
+#endif
 	unsigned char *buffer = intf->altsetting->extra;
 	int buflen = intf->altsetting->extralen;
 	struct usb_interface *control_interface;
@@ -1251,6 +1300,15 @@ skip_countries:
 
 	acm_table[minor] = acm;
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	host = acm->control->altsetting;
+	if (host->desc.bInterfaceSubClass == USB_CDC_SUBCLASS_ACM_FOMA &&
+		host->desc.bInterfaceProtocol == USB_CDC_ACM_PROTO_AT_V25TER) {
+		acm_set_modem_mode(acm);
+		printk(KERN_INFO "this device is FOMA Mobile\n");
+	}
+#endif
+
 	return 0;
 alloc_fail7:
 	for (i = 0; i < ACM_NW; i++)
@@ -1598,6 +1656,12 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = NO_DATA_INTERFACE,
 	},
 
+#if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8xx)
+	{ USB_DEVICE(0x1004, 0x6109), /* LG USB MODEM L-02A */
+	.driver_info = NO_UNION_NORMAL,
+	},
+#endif
+
 	/* control interfaces without any protocol set */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
 		USB_CDC_PROTO_NONE) },
@@ -1615,6 +1679,13 @@ static const struct usb_device_id acm_ids[] = {
 		USB_CDC_ACM_PROTO_AT_3G) },
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
 		USB_CDC_ACM_PROTO_AT_CDMA) },
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	/* NTT Docomo F-06C */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x04c5, 0x11e3, 
+	  USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM_FOMA, USB_CDC_ACM_PROTO_AT_V25TER),
+	},
+#endif
 
 	{ }
 };

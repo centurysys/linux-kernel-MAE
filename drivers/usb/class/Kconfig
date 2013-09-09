@@ -40,6 +40,17 @@ config USB_WDM
 	  To compile this driver as a module, choose M here: the
 	  module will be called cdc-wdm.
 
+config USB_WDM_TTY
+	tristate "USB Wireless Device Management support (tty imprementation)"
+	depends on USB
+	---help---
+	  This driver supports the WMC Device Management functionality
+	  of cell phones compliant to the CDC WMC specification. You can use
+	  AT commands over this device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cdc-wdm.
+
 config USB_TMC
 	tristate "USB Test and Measurement Class support"
 	depends on USB

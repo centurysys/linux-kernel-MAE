@@ -59,7 +59,11 @@ struct usb_context {
 	struct usbnet *dev;
 };
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 static int turbo_mode = true;
+#else
+static int turbo_mode = false;
+#endif
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
 
@@ -600,6 +604,9 @@ static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
 }
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern int magnolia2_smsc95xx_get_ether_addr(u8 *);
+#endif
 static void smsc95xx_init_mac_address(struct usbnet *dev)
 {
 	/* try reading mac address from EEPROM */
@@ -611,6 +618,14 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 			return;
 		}
 	}
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	if (magnolia2_smsc95xx_get_ether_addr(dev->net->dev_addr) == 0) {
+		if (netif_msg_ifup(dev))
+			netif_dbg(dev, ifup, dev->net, "MAC address set from TAG\n");
+		return;
+	}
+#endif
 
 	/* no eeprom, or eeprom values are invalid. generate random MAC */
 	random_ether_addr(dev->net->dev_addr);

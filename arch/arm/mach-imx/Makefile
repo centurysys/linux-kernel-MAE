@@ -55,6 +55,7 @@ obj-$(CONFIG_MACH_KZM_ARM11_01) += mach-kzm_arm11_01.o
 obj-$(CONFIG_MACH_BUG) += mach-bug.o
 
 # i.MX35 based machines
+obj-$(CONFIG_MACH_MAGNOLIA2) += mach-magnolia2.o
 obj-$(CONFIG_MACH_PCM043) += mach-pcm043.o
 obj-$(CONFIG_MACH_MX35_3DS) += mach-mx35_3ds.o
 obj-$(CONFIG_MACH_EUKREA_CPUIMX35SD) += mach-cpuimx35.o

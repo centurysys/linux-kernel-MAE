@@ -308,6 +308,10 @@ struct uart_port {
 	int			(*handle_irq)(struct uart_port *);
 	void			(*pm)(struct uart_port *, unsigned int state,
 				      unsigned int old);
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+	unsigned int		baud;			/* baud rate */
+	void			(*trxctrl)(struct uart_port *, int txenable, int rxenable);
+#endif
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */

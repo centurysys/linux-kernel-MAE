@@ -415,6 +415,10 @@ void kernel_halt(void)
 {
 	kernel_shutdown_prepare(SYSTEM_HALT);
 	migrate_to_reboot_cpu();
+#ifdef CONFIG_MACH_MAGNOLIA2
+	if (pm_power_off_prepare)
+		pm_power_off_prepare();
+#endif
 	syscore_shutdown();
 	printk(KERN_EMERG "System halted.\n");
 	kmsg_dump(KMSG_DUMP_HALT);

@@ -57,4 +57,13 @@ config SND_SOC_EUKREA_TLV320
 	  Enable I2S based access to the TLV320AIC23B codec attached
 	  to the SSI interface
 
+config SND_SOC_MAGNOLIA2_AIC31
+	tristate "Magnolia2 TLV320AIC31"
+	depends on MACH_MAGNOLIA2
+	select SND_SOC_TLV320AIC3X
+	select SND_MXC_SOC_FIQ
+	help
+	  Enable I2S based access to the TLV320AIC31 codec attached
+	  to the SSI interface
+
 endif	# SND_IMX_SOC

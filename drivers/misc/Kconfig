@@ -509,4 +509,37 @@ source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
 
+config MAGNOLIA2_EXTIO
+       	tristate "Magnolia2 Ext-IO DIO support"
+	depends on MACH_MAGNOLIA2
+	help
+	  Say yes here to support the Century Systems Magnolia2 Ext-IO DIO device
+
+config MAGNOLIA2_EXTIO_FOMA
+        tristate "Magnolia2 FOMA Ext-IO Support"
+	depends on MACH_MAGNOLIA2
+
+config MAGNOLIA2_EXTIO_UM01HW
+        tristate "Magnolia2 UM01-HW Ext-IO Support"
+	depends on MACH_MAGNOLIA2
+
+config MAGNOLIA2_RS422_SWITCH
+       	tristate "Magnolia2 RS-422 Switch board support"
+	depends on MACH_MAGNOLIA2
+	help
+	  Say yes here to support the Century Systems Magnolia2 RS-422 Switch device
+          (for Fire and Disaster Management Agency)
+
+config MAGNOLIA2_UMFXS
+	tristate "Magnolia2 UM01-HW/FXS interface Support"
+	depends on MACH_MAGNOLIA2
+
+config MAGNOLIA2_KCMV_IO
+	tristate "Magnolia2 KCMV-200 Ext-IO Support"
+	depends on MACH_MAGNOLIA2
+
+config MAGNOLIA2_KCMP_IO
+	tristate "Magnolia2 KCMP Ext-IO Support"
+	depends on MACH_MAGNOLIA2
+
 endif # MISC_DEVICES

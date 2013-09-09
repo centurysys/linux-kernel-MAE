@@ -1686,13 +1686,23 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	cfi_send_gen_cmd(0x55, cfi->addr_unlock2, chip->start, map, cfi, cfi->device_type, NULL);
 	map_write(map, cfi->sector_erase_cmd, adr);
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 	chip->state = FL_ERASING;
 	chip->erase_suspended = 0;
 	chip->in_progress_block_addr = adr;
+#else
+	chip->state = FL_ERASE_STARTING;
+#endif
 
 	INVALIDATE_CACHE_UDELAY(map, chip,
 				adr, len,
 				chip->erase_time*500);
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	chip->state = FL_ERASING;
+	chip->erase_suspended = 0;
+	chip->in_progress_block_addr = adr;
+#endif
 
 	timeo = jiffies + (HZ*20);
 

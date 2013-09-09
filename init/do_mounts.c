@@ -23,6 +23,10 @@
 
 #include "do_mounts.h"
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern void magnolia2_set_earlywdt(int flag);
+#endif
+
 int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
 
 int root_mountflags = MS_RDONLY | MS_SILENT;
@@ -281,7 +285,18 @@ static int __init root_data_setup(char *str)
 static char * __initdata root_fs_names;
 static int __init fs_names_setup(char *str)
 {
+#ifndef CONFIG_MACH_MAGNOLIA2
 	root_fs_names = str;
+#else
+	if (!strncmp(str, "jffs2", 5)) {
+		printk("MAGNOLIA2: rootfs_type replaced with \"squashfs,jffs2\"\n");
+		root_fs_names = "squashfs,jffs2";
+  #ifdef CONFIG_MAGNOLIA2_FORCE_EARLYWDT
+		magnolia2_set_earlywdt(1);
+  #endif
+	} else
+		root_fs_names = str;
+#endif
 	return 1;
 }
 

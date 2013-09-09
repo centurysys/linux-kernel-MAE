@@ -780,8 +780,13 @@ static noinline int init_post(void)
 		printk(KERN_WARNING "Failed to execute %s.  Attempting "
 					"defaults...\n", execute_command);
 	}
+#ifndef CONFIG_MAGNOLIA2_ETCINIT_FIRST
 	run_init_process("/sbin/init");
 	run_init_process("/etc/init");
+#else
+	run_init_process("/etc/init");
+	run_init_process("/sbin/init");
+#endif
 	run_init_process("/bin/init");
 	run_init_process("/bin/sh");
 

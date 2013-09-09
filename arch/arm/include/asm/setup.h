@@ -143,6 +143,34 @@ struct tag_memclk {
 	__u32 fmemclk;
 };
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+/* Century Systems Magnolia2 uboot parameters */
+#define ATAG_MAGNOLIA2  0x41000405
+struct extboard_info {
+        u32 id;
+        u32 revision;
+};
+
+struct magnolia2_uart_info {
+        u32 enable;
+        u32 type;
+        u32 config;
+};
+
+struct tag_magnolia2_uboot {
+        __u8  macAddr[6];
+        struct extboard_info cs4;
+        struct extboard_info cs5;
+
+        struct magnolia2_uart_info rs1;
+        struct magnolia2_uart_info rs2;
+        u32 audio;
+
+        u32 early_wdt;
+        u32 dme_led;
+};
+#endif
+
 struct tag {
 	struct tag_header hdr;
 	union {
@@ -165,6 +193,13 @@ struct tag {
 		 * DC21285 specific
 		 */
 		struct tag_memclk	memclk;
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+                /*
+                 * Century Systems Magnolia2 specific
+                 */
+                struct tag_magnolia2_uboot magnolia2;
+#endif
 	} u;
 };
 

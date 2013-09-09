@@ -51,3 +51,6 @@ obj-$(CONFIG_INPUT_WISTRON_BTNS)	+= wistron_btns.o
 obj-$(CONFIG_INPUT_WM831X_ON)		+= wm831x-on.o
 obj-$(CONFIG_INPUT_XEN_KBDDEV_FRONTEND)	+= xen-kbdfront.o
 obj-$(CONFIG_INPUT_YEALINK)		+= yealink.o
+obj-$(CONFIG_INPUT_MAGNOLIA2_PUSHSW)	+= pushsw_magnolia2.o
+obj-$(CONFIG_INPUT_MAGNOLIA2_DIPSW) 	+= dipsw_magnolia2.o
+

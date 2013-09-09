@@ -13,6 +13,9 @@
 
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+#include <linux/workqueue.h>
+#endif
 
 /*
  * This is the platform device platform_data structure
@@ -38,6 +41,10 @@ struct plat_serial8250_port {
 	int		(*handle_irq)(struct uart_port *);
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned old);
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+	void		(*trxctrl)(struct uart_port *, int txenable, int rxenable);
+	struct delayed_work	trx_work;
+#endif
 };
 
 /*

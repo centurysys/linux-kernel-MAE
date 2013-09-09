@@ -38,6 +38,9 @@
 #include <linux/nmi.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+#include <linux/uaccess.h>
+#endif
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -153,6 +156,10 @@ struct uart_8250_port {
 	unsigned char		lsr_saved_flags;
 #define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
 	unsigned char		msr_saved_flags;
+
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+	struct serial_rs485	rs485;		/* rs485 settings */
+#endif
 };
 
 struct irq_info {
@@ -425,6 +432,14 @@ static inline int map_8250_out_reg(struct uart_port *p, int offset)
 #define map_8250_in_reg(up, offset) (offset)
 #define map_8250_out_reg(up, offset) (offset)
 
+#endif
+
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+static inline struct uart_8250_port *
+to_uart_8250_port(struct uart_port *uart)
+{
+	return container_of(uart, struct uart_8250_port, port);
+}
 #endif
 
 static unsigned int hub6_serial_in(struct uart_port *p, int offset)
@@ -1331,10 +1346,21 @@ static void autoconfig_irq(struct uart_8250_port *up)
 
 static inline void __stop_tx(struct uart_8250_port *p)
 {
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+	struct uart_port *port = &p->port;
+#endif
+
 	if (p->ier & UART_IER_THRI) {
 		p->ier &= ~UART_IER_THRI;
 		serial_out(p, UART_IER, p->ier);
 	}
+
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+	/* is port configured RS-485 ? */
+	if (port->trxctrl && (p->rs485.flags & SER_RS485_ENABLED))
+		/* Disable TX, Enable RX */
+		port->trxctrl(port, 0, 1);
+#endif
 }
 
 static void serial8250_stop_tx(struct uart_port *port)
@@ -1361,6 +1387,17 @@ static void serial8250_start_tx(struct uart_port *port)
 		container_of(port, struct uart_8250_port, port);
 
 	if (!(up->ier & UART_IER_THRI)) {
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+		/* is port configured RS-485 ? */
+		if (port->trxctrl) {
+			if (up->rs485.flags & SER_RS485_ENABLED)
+				/* Enable TX, Disable RX */
+				port->trxctrl(port, 1, 0);
+			else
+				/* Enable TX/RX */
+				port->trxctrl(port, 1, 1);
+		}
+#endif
 		up->ier |= UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
 
@@ -1550,8 +1587,14 @@ static void transmit_chars(struct uart_8250_port *up)
 
 	DEBUG_INTR("THRE...");
 
+#ifndef CONFIG_MAGNOLIA2_EXTRS485
 	if (uart_circ_empty(xmit))
 		__stop_tx(up);
+#else
+	if (uart_circ_empty(xmit))
+		if (!up->port.trxctrl || !(up->rs485.flags & SER_RS485_ENABLED))
+			__stop_tx(up);
+#endif
 }
 
 static unsigned int check_modem_status(struct uart_8250_port *up)
@@ -2236,6 +2279,15 @@ dont_test_tx_en:
 		(void) inb_p(icp);
 	}
 
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+	if (up->port.trxctrl) {
+		/* Set default to RS-485 mode */
+		up->rs485.flags |= SER_RS485_ENABLED;
+
+		/* Disable TX, Enable RX */
+		up->port.trxctrl(port, 0, 1);
+	}
+#endif
 	return 0;
 }
 
@@ -2352,6 +2404,9 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 				  port->uartclk / 16);
 	quot = serial8250_get_divisor(port, baud);
 
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+	port->baud = baud;
+#endif
 	/*
 	 * Oxford Semi 952 rev B workaround
 	 */
@@ -2731,6 +2786,54 @@ serial8250_type(struct uart_port *port)
 	return uart_config[type].name;
 }
 
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+/* Enable or disable the rs485 support */
+static void serial8250_config_rs485(struct uart_port *p, struct serial_rs485 *rs485conf)
+{
+	struct uart_8250_port *port = to_uart_8250_port(p);
+	unsigned long flags;
+
+	spin_lock_irqsave(&p->lock, flags);
+
+	port->rs485 = *rs485conf;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		printk("Setting UART to RS-485\n");
+	} else {
+		printk("Setting UART to RS-422\n");
+	}
+
+	spin_unlock_irqrestore(&p->lock, flags);
+}
+
+static int
+serial8250_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
+{
+	struct serial_rs485 rs485conf;
+
+	switch (cmd) {
+	case TIOCSRS485:
+		if (copy_from_user(&rs485conf, (struct serial_rs485 *) arg,
+					sizeof(rs485conf)))
+			return -EFAULT;
+
+		serial8250_config_rs485(port, &rs485conf);
+		break;
+
+	case TIOCGRS485:
+		if (copy_to_user((struct serial_rs485 *) arg,
+					&(to_uart_8250_port(port)->rs485),
+					sizeof(rs485conf)))
+			return -EFAULT;
+		break;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return 0;
+}
+#endif
+
 static struct uart_ops serial8250_pops = {
 	.tx_empty	= serial8250_tx_empty,
 	.set_mctrl	= serial8250_set_mctrl,
@@ -2745,6 +2848,9 @@ static struct uart_ops serial8250_pops = {
 	.set_termios	= serial8250_set_termios,
 	.set_ldisc	= serial8250_set_ldisc,
 	.pm		= serial8250_pm,
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+	.ioctl		= serial8250_ioctl,
+#endif
 	.type		= serial8250_type,
 	.release_port	= serial8250_release_port,
 	.request_port	= serial8250_request_port,
@@ -3110,6 +3216,9 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 		port.handle_irq		= p->handle_irq;
 		port.set_termios	= p->set_termios;
 		port.pm			= p->pm;
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+		port.trxctrl		= p->trxctrl;
+#endif
 		port.dev		= &dev->dev;
 		port.irqflags		|= irqflag;
 		ret = serial8250_register_port(&port);
@@ -3280,6 +3389,10 @@ int serial8250_register_port(struct uart_port *port)
 			uart->port.set_termios = port->set_termios;
 		if (port->pm)
 			uart->port.pm = port->pm;
+#ifdef CONFIG_MAGNOLIA2_EXTRS485
+		if (port->trxctrl)
+			uart->port.trxctrl = port->trxctrl;
+#endif
 
 		if (serial8250_isa_config != NULL)
 			serial8250_isa_config(0, &uart->port,

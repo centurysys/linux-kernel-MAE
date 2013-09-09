@@ -52,6 +52,13 @@
 #include <asm/irq.h>
 #include <mach/imx-uart.h>
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+extern void magnolia2_uart_open(struct imxuart_platform_data*);
+extern void magnolia2_uart_close(struct imxuart_platform_data*);
+extern void magnolia2_uart_txrx(struct imxuart_platform_data*, int, int);
+extern int magnolia2_uart_getdsr(struct imxuart_platform_data *port);
+#endif
+
 /* Register definitions */
 #define URXD0 0x0  /* Receiver Register */
 #define URTX0 0x40 /* Transmitter Register */
@@ -134,6 +141,9 @@
 #define  UFCR_RFDIV      (7<<7)  /* Reference freq divider mask */
 #define  UFCR_RFDIV_REG(x)	(((x) < 7 ? 6 - (x) : 6) << 7)
 #define  UFCR_TXTL_SHF   10      /* Transmitter trigger level shift */
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define  UFCR_DCEDTE	 (1<<6)
+#endif
 #define  USR1_PARITYERR  (1<<15) /* Parity error interrupt flag */
 #define  USR1_RTSS  	 (1<<14) /* RTS pin status */
 #define  USR1_TRDY  	 (1<<13) /* Transmitter ready interrupt/dma flag */
@@ -141,7 +151,11 @@
 #define  USR1_ESCF  	 (1<<11) /* Escape seq interrupt flag */
 #define  USR1_FRAMERR    (1<<10) /* Frame error interrupt flag */
 #define  USR1_RRDY       (1<<9)	 /* Receiver ready interrupt/dma flag */
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define  USR1_DTRD	 (1<<7)
+#else
 #define  USR1_TIMEOUT    (1<<7)	 /* Receive timeout interrupt status */
+#endif
 #define  USR1_RXDS  	 (1<<6)	 /* Receiver idle interrupt flag */
 #define  USR1_AIRINT	 (1<<5)	 /* Async IR wake interrupt flag */
 #define  USR1_AWAKE 	 (1<<4)	 /* Aysnc wake interrupt flag */
@@ -149,8 +163,16 @@
 #define  USR2_TXFE  	 (1<<14) /* Transmit buffer FIFO empty */
 #define  USR2_DTRF  	 (1<<13) /* DTR edge interrupt flag */
 #define  USR2_IDLE  	 (1<<12) /* Idle condition */
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define  USR2_RIDELT	 (1<<10)
+#define  USR2_RIIN  	 (1<<9)
+#endif
 #define  USR2_IRINT 	 (1<<8)	 /* Serial infrared interrupt flag */
 #define  USR2_WAKE  	 (1<<7)	 /* Wake */
+#ifdef CONFIG_MACH_MAGNOLIA2
+#define  USR2_DCDDELT	 (1<<6)
+#define  USR2_DCDIN 	 (1<<5)
+#endif
 #define  USR2_RTSF  	 (1<<4)	 /* RTS edge interrupt flag */
 #define  USR2_TXDC  	 (1<<3)	 /* Transmitter complete */
 #define  USR2_BRCD  	 (1<<2)	 /* Break condition */
@@ -381,7 +403,11 @@ static void imx_enable_ms(struct uart_port *port)
 	mod_timer(&sport->timer, jiffies);
 }
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 static inline void imx_transmit_buffer(struct imx_port *sport)
+#else
+static inline int imx_transmit_buffer(struct imx_port *sport)
+#endif
 {
 	struct circ_buf *xmit = &sport->port.state->xmit;
 
@@ -398,8 +424,17 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&sport->port);
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 	if (uart_circ_empty(xmit))
 		imx_stop_tx(&sport->port);
+#else
+	if (uart_circ_empty(xmit)) {
+		imx_stop_tx(&sport->port);
+		return 0;
+	}
+
+	return 1;
+#endif
 }
 
 /*
@@ -474,8 +509,30 @@ static irqreturn_t imx_txint(int irq, void *dev_id)
 		goto out;
 	}
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 	imx_transmit_buffer(sport);
+#else
+	{
+		struct imxuart_platform_data *pdata;
+		volatile unsigned int cr;
+		int sent;
 
+		sent = imx_transmit_buffer(sport);
+		pdata = sport->port.dev->platform_data;
+		if (pdata->driver_type == 1 && pdata->driver_duplex == 0) {
+			/* RS-485 only */
+			spin_lock_irqsave(&sport->port.lock,flags);
+			pdata->tx_available = sent;
+			cr = readl(sport->port.membase + UCR4);
+			if (pdata->txrx_pending == 1 && sent == 0 && !(cr & UCR4_TCEN)) {
+				//printk("txrx_pending start2\n");
+				cr |= UCR4_TCEN;
+				writel(cr, sport->port.membase + UCR4);
+			}
+			spin_unlock_irqrestore(&sport->port.lock,flags);
+		}
+	}
+#endif
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&sport->port);
 
@@ -553,6 +610,7 @@ out:
 static irqreturn_t imx_int(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
+#ifndef CONFIG_MACH_MAGNOLIA2
 	unsigned int sts;
 
 	sts = readl(sport->port.membase + USR1);
@@ -566,6 +624,42 @@ static irqreturn_t imx_int(int irq, void *dev_id)
 
 	if (sts & USR1_RTSD)
 		imx_rtsint(irq, dev_id);
+#else
+	struct imxuart_platform_data *pdata;
+	volatile unsigned int cr, sr1, sr2;
+	unsigned long flags;
+
+	sr1 = readl(sport->port.membase + USR1);
+	sr2 = readl(sport->port.membase + USR2);
+
+	if (sr1 & USR1_RRDY)
+		imx_rxint(irq, dev_id);
+
+	if (sr1 & USR1_TRDY &&
+			readl(sport->port.membase + UCR1) & UCR1_TXMPTYEN)
+		imx_txint(irq, dev_id);
+
+	if (sr1 & USR1_RTSD)
+		imx_rtsint(irq, dev_id);
+
+	pdata = sport->port.dev->platform_data;
+	if (pdata->driver_type == 1 && pdata->driver_duplex == 0) {
+		/* RS-485 only */
+		spin_lock_irqsave(&sport->port.lock,flags);
+		if (pdata->txrx_pending == 1) {
+			cr = readl(sport->port.membase + UCR4);
+			if ((cr & UCR4_TCEN) && (sr2 & USR2_TXDC)) {
+				/* Disable the Transmit complete interrupt bit */
+				//printk("txrx_pending end\n");
+				cr &= ~UCR4_TCEN;
+				writel(cr, sport->port.membase + UCR4);
+				pdata->txrx_pending = 0;
+				magnolia2_uart_txrx(pdata, pdata->txe, pdata->rxe);
+			}
+		}
+		spin_unlock_irqrestore(&sport->port.lock,flags);
+	}
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -586,13 +680,43 @@ static unsigned int imx_tx_empty(struct uart_port *port)
 static unsigned int imx_get_mctrl(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
+#ifndef CONFIG_MACH_MAGNOLIA2
 	unsigned int tmp = TIOCM_DSR | TIOCM_CAR;
+#else
+	unsigned int tmp = 0;
+#endif
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 	if (readl(sport->port.membase + USR1) & USR1_RTSS)
 		tmp |= TIOCM_CTS;
 
 	if (readl(sport->port.membase + UCR2) & UCR2_CTS)
 		tmp |= TIOCM_RTS;
+#else
+	{
+		int stat;
+		struct imxuart_platform_data *pdata;
+		unsigned int sr1, sr2, cr2;
+
+		sr1 = readl(sport->port.membase + USR1);
+		sr2 = readl(sport->port.membase + USR2);
+		cr2 = readl(sport->port.membase + UCR2);
+
+		if (sr1 & USR1_RTSS)
+			tmp |= TIOCM_CTS;
+		if (cr2 & UCR2_CTS)
+			tmp |= TIOCM_RTS;
+		if (!(sr2 & USR2_DCDIN))
+			tmp |= TIOCM_CAR;
+		if (!(sr2 & USR2_RIIN))
+			tmp |= TIOCM_RI;
+
+		pdata = sport->port.dev->platform_data;
+		stat = magnolia2_uart_getdsr(pdata);
+		if (stat == 0)
+			tmp |= TIOCM_DSR;
+	}
+#endif
 
 	return tmp;
 }
@@ -602,12 +726,81 @@ static void imx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long temp;
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 	temp = readl(sport->port.membase + UCR2) & ~UCR2_CTS;
 
 	if (mctrl & TIOCM_RTS)
 		temp |= UCR2_CTS;
 
 	writel(temp, sport->port.membase + UCR2);
+#else
+	temp = readl(sport->port.membase + UCR2);
+	if(sport->have_rtscts) {
+		if (mctrl & TIOCM_RTS) {
+			if (temp & UCR2_IRTS) {
+				temp |= UCR2_CTS;
+				temp &= ~UCR2_CTSC;
+			} else {
+				temp |= UCR2_CTSC;
+			}
+		} else {
+			temp &= ~(UCR2_CTS | UCR2_CTSC);
+		}
+	} else {
+		temp &= ~(UCR2_CTS | UCR2_CTSC);
+	}
+	writel(temp, sport->port.membase + UCR2);
+
+	{
+		volatile unsigned long cr3;
+
+		cr3 = readl(sport->port.membase + UCR3);
+		if (mctrl & TIOCM_DTR) {
+			cr3 &= ~UCR3_DSR;
+		} else {
+			cr3 |= UCR3_DSR;
+		}
+		writel(cr3, sport->port.membase + UCR3);
+	}
+
+	{
+		struct imxuart_platform_data *pdata;
+		int txe, rxe;
+		unsigned long flags;
+
+		pdata = sport->port.dev->platform_data;
+		if (pdata->driver_type == 1 && pdata->driver_duplex == 0) {
+			if (mctrl & TIOCM_OUT1) {
+				txe = 1;
+			} else {
+				txe = 0;
+			}
+			if (mctrl & TIOCM_OUT2) {
+				rxe = 0;
+			} else {
+				rxe = 1;
+			}
+			spin_lock_irqsave(&sport->port.lock,flags);
+			if (txe == 0 && !sport->port.ops->tx_empty(&sport->port)) {
+				//printk("txrx_pending start1\n");
+				pdata->txrx_pending = 1;
+				pdata->txe = txe;
+				pdata->rxe = rxe;
+				if (pdata->tx_available == 0) {
+					volatile unsigned int cr;
+					/* Enable Transmit complete intr */
+					cr = readl(sport->port.membase + UCR4);
+					cr |= UCR4_TCEN;
+					writel(cr, sport->port.membase + UCR4);
+				}
+			} else {
+				pdata->txrx_pending = 0;
+				magnolia2_uart_txrx(pdata, txe, rxe);
+			}
+			spin_unlock_irqrestore(&sport->port.lock,flags);
+		}
+	}
+#endif
 }
 
 /*
@@ -640,6 +833,9 @@ static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 	/* set receiver / transmitter trigger level */
 	val = readl(sport->port.membase + UFCR) & (UFCR_RFDIV | UFCR_DCEDTE);
 	val |= TXTL << UFCR_TXTL_SHF | RXTL;
+#ifdef CONFIG_MACH_MAGNOLIA2
+	val |= UFCR_DCEDTE;
+#endif
 	writel(val, sport->port.membase + UFCR);
 	return 0;
 }
@@ -766,6 +962,12 @@ static int imx_startup(struct uart_port *port)
 		writel(temp, sport->port.membase + UCR3);
 	}
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	/* Disable DCDDELT, RIDELT */
+	temp = readl(sport->port.membase + UCR3);
+	temp &= ~(UCR3_DCD | UCR3_RI);
+	writel(temp, sport->port.membase + UCR3);
+#endif
 	/*
 	 * Enable modem status interrupts
 	 */
@@ -782,6 +984,13 @@ static int imx_startup(struct uart_port *port)
 			pdata->irda_enable(1);
 	}
 
+#ifdef CONFIG_MACH_MAGNOLIA2
+	{
+		struct imxuart_platform_data *pdata;
+		pdata = sport->port.dev->platform_data;
+		magnolia2_uart_open(pdata);
+	}
+#endif
 	return 0;
 
 error_out3:
@@ -841,6 +1050,14 @@ static void imx_shutdown(struct uart_port *port)
 
 	writel(temp, sport->port.membase + UCR1);
 	spin_unlock_irqrestore(&sport->port.lock, flags);
+
+#ifdef CONFIG_MACH_MAGNOLIA2
+	{
+		struct imxuart_platform_data *pdata;
+		pdata = sport->port.dev->platform_data;
+		magnolia2_uart_close(pdata);
+	}
+#endif
 }
 
 static void
@@ -887,6 +1104,15 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 			termios->c_cflag &= ~CRTSCTS;
 		}
 	}
+#ifdef CONFIG_MACH_MAGNOLIA2
+	else {
+		unsigned int tmp;
+
+		tmp = readl(sport->port.membase + UCR2);
+		if (tmp & UCR2_CTS)
+			ucr2 |= UCR2_CTS;
+	}
+#endif
 
 	if (termios->c_cflag & CSTOPB)
 		ucr2 |= UCR2_STPB;
@@ -1001,7 +1227,24 @@ static const char *imx_type(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 
+#ifndef CONFIG_MACH_MAGNOLIA2
 	return sport->port.type == PORT_IMX ? "IMX" : NULL;
+#else
+	if (sport->port.type == PORT_IMX) {
+		struct imxuart_platform_data *pdata;
+		pdata = sport->port.dev->platform_data;
+		if (pdata->driver_type == 0) {
+			return "IMX(RS-232)";
+		} else {
+			if (pdata->driver_duplex == 0) {
+				return "IMX(RS-485)";
+			} else {
+				return "IMX(RS-422)";
+			}
+		}
+	} else
+		return NULL;
+#endif
 }
 
 /*
