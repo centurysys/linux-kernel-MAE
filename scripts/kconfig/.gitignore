@@ -21,3 +21,5 @@ nconf
 qconf
 gconf
 kxgettext
+
+lex.zconf.c
