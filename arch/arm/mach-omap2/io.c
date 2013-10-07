@@ -590,6 +590,7 @@ void __init am33xx_init_early(void)
 void __init am33xx_init_late(void)
 {
 	omap_common_late_init();
+	omap_hwmod_force_mstandby_repeated();
 }
 #endif
 
