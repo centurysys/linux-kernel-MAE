@@ -390,6 +390,7 @@ static void __init __maybe_unused omap_common_late_init(void)
 {
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
+	omap2_common_suspend_init();
 	omap_soc_device_init();
 }
 
@@ -591,6 +592,8 @@ void __init am33xx_init_late(void)
 {
 	omap_common_late_init();
 	omap_hwmod_force_mstandby_repeated();
+	omap2_common_pm_late_init();
+	am33xx_pm_init();
 }
 #endif
 
