@@ -144,19 +144,19 @@ static int um01hw_extio_get_status(char *buf)
 
 	p += sprintf(p, "--- UM01-HW Ext-IO ---\n");
 	p += sprintf(p, " FOMA Control: 0x%02x\n", foma_ctrl.byte);
-	p += sprintf(p, "  PWRKEY:	%d\n", foma_ctrl.bit.pwrkey);
-	p += sprintf(p, "  SLEEP_IN:	%d\n", foma_ctrl.bit.sleep);
+	p += sprintf(p, "  PWRKEY:      %d\n", foma_ctrl.bit.pwrkey);
+	p += sprintf(p, "  SLEEP_IN:    %d\n", foma_ctrl.bit.sleep);
 	p += sprintf(p, " BOARD Status: 0x%02x\n", board_status.byte);
-	p += sprintf(p, " FOMA Status:	0x%02x\n", foma_status.byte);
-	p += sprintf(p, "  FOTA:	%d\n", foma_status.bit.fota_n);
-	p += sprintf(p, "  SLEEP_OUT:	%d\n", foma_status.bit.sleep);
-	p += sprintf(p, "  MODE_LED:	%d\n", foma_status.bit.mode_led);
-	p += sprintf(p, "  STATUS_LED:	%d\n", foma_status.bit.status_led);
-	p += sprintf(p, "  UART_RI:	%d\n", foma_status.bit.uart_ri);
-	p += sprintf(p, "  POWER_GOOD:	%d\n", foma_status.bit.power_good);
-	p += sprintf(p, "  SIM_CD:	%d\n", foma_status.bit.sim_cd);
+	p += sprintf(p, " FOMA Status:  0x%02x\n", foma_status.byte);
+	p += sprintf(p, "  FOTA:        %d\n", foma_status.bit.fota_n);
+	p += sprintf(p, "  SLEEP_OUT:   %d\n", foma_status.bit.sleep);
+	p += sprintf(p, "  MODE_LED:    %d\n", foma_status.bit.mode_led);
+	p += sprintf(p, "  STATUS_LED:  %d\n", foma_status.bit.status_led);
+	p += sprintf(p, "  UART_RI:     %d\n", foma_status.bit.uart_ri);
+	p += sprintf(p, "  POWER_GOOD:  %d\n", foma_status.bit.power_good);
+	p += sprintf(p, "  SIM_CD:      %d\n", foma_status.bit.sim_cd);
 	p += sprintf(p, "--- UM02 Compatibility ---\n");
-	p += sprintf(p, "  LEDG:	%d\n", foma_status.bit.sleep);
+	p += sprintf(p, "  LEDG:        %d\n", foma_status.bit.sleep);
 
 	return p - buf;
 }
