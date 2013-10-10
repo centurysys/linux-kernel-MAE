@@ -1038,6 +1038,13 @@ skip_normal_probe:
 		return -EBUSY;
 	}
 
+#if defined(CONFIG_MACH_MAGNOLIA2) || defined(CONFIG_MACH_MA8XX)
+	/* skip UM03-KO unused interfaces */
+	if ((usb_dev->descriptor.idVendor == 0x0949 &&
+	     usb_dev->descriptor.idProduct == 0x0001) &&
+	    control_interface->cur_altsetting->desc.bInterfaceNumber >= 6)
+		return -ENODEV;
+#endif
 
 	if (data_interface->cur_altsetting->desc.bNumEndpoints < 2)
 		return -EINVAL;
