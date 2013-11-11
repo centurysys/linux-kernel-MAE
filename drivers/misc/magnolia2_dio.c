@@ -89,6 +89,9 @@
 #define DIN_ENTRY_ALL			"driver/din/all"
 #define DOUT_ENTRY_ALL			"driver/dout/all"
 
+#define DIN_ENTRY_VAL_PRIMARY		"driver/din/primary"
+#define DIN_ENTRY_VAL_SECONDARY	"driver/din/secondary"
+
 #define PROC_READ_RETURN\
 	if (len <= off + count)\
 		*eof = 1;\
@@ -1092,6 +1095,38 @@ static int din_wait_event(char *page, char **start, off_t off, int count,
 	return len;
 }
 
+/* din value */
+static int __din_val_read_proc(char *buf, int sel)
+{
+	int i;
+	char *p = buf;
+	u16 data;
+
+	data = dio_read_reg(DIN_REG_PORT_STATUS((sel == 0 ? 0 : 31)));
+
+	for (i = 15; i >= 0; i--)
+		*p++ = (char) ('0' + ((data & (1 << i)) != 0 ? 1 : 0));
+
+	*p++ = '\n';
+
+	return p - buf;
+}
+
+static int din_val_read_proc(char *page, char **start, off_t off, int count,
+			     int *eof, void *data)
+{
+	int len, sel;
+	unsigned long flags;
+
+	sel = (int) data;
+
+	local_irq_save(flags);
+	len = __din_val_read_proc(page, sel);
+	local_irq_restore(flags);
+
+	PROC_READ_RETURN;
+}
+
 /* din all */
 static int __din_all_read_proc(char *buf)
 {
@@ -1283,6 +1318,11 @@ static int magnolia2_create_proc_entries(void)
 		ent->read_proc = get_failout;
 	}
 
+	create_proc_read_entry(DIN_ENTRY_VAL_PRIMARY, 0, 0,
+			       din_val_read_proc, (void *) 0);
+	create_proc_read_entry(DIN_ENTRY_VAL_SECONDARY, 0, 0,
+			       din_val_read_proc, (void *) 1);
+
 	/* for debug */
 	create_proc_read_entry(DIN_ENTRY_ALL, 0, 0, din_all_read_proc, NULL);
 
@@ -1337,6 +1377,9 @@ static void magnolia2_remove_proc_entries(void)
 
 		remove_proc_entry(din_groups[i].name, dir_din);
 	}
+
+	remove_proc_entry(DIN_ENTRY_VAL_SECONDARY, NULL);
+	remove_proc_entry(DIN_ENTRY_VAL_PRIMARY, NULL);
 
 	remove_proc_entry(DIN_ENTRY_ALL, NULL);
 	remove_proc_entry(DIN_DIR, NULL);
