@@ -78,6 +78,7 @@ int check_empty(struct dentry *dentry, struct dentry *parent,
 	struct file *lower_file;
 	struct unionfs_rdutil_callback *buf = NULL;
 	int bindex, bstart, bend, bopaque;
+	struct path path;
 
 	sb = dentry->d_sb;
 
@@ -120,7 +121,10 @@ int check_empty(struct dentry *dentry, struct dentry *parent,
 		dget(lower_dentry);
 		mnt = unionfs_mntget(dentry, bindex);
 		branchget(sb, bindex);
-		lower_file = dentry_open(lower_dentry, mnt, O_RDONLY, current_cred());
+		path.dentry = lower_dentry;
+		path.mnt = mnt;
+		lower_file = dentry_open(&path, O_RDONLY, current_cred());
+		path_put(&path);
 		if (IS_ERR(lower_file)) {
 			err = PTR_ERR(lower_file);
 			branchput(sb, bindex);

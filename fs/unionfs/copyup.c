@@ -206,25 +206,19 @@ static int __copyup_ndentry(struct dentry *old_lower_dentry,
 		run_sioq(__unionfs_mknod, &args);
 		err = args.err;
 	} else if (S_ISREG(old_mode)) {
-		struct nameidata nd;
-		err = init_lower_nd(&nd, LOOKUP_CREATE);
-		if (unlikely(err < 0))
-			goto out;
-		args.create.nd = &nd;
 		args.create.parent = new_lower_parent_dentry->d_inode;
 		args.create.dentry = new_lower_dentry;
 		args.create.mode = old_mode;
+		args.create.want_excl = false; /* XXX: pass to this fxn */
 
 		run_sioq(__unionfs_create, &args);
 		err = args.err;
-		release_lower_nd(&nd, err);
 	} else {
 		printk(KERN_CRIT "unionfs: unknown inode type %d\n",
 		       old_mode);
 		BUG();
 	}
 
-out:
 	return err;
 }
 
@@ -242,14 +236,17 @@ static int __copyup_reg_data(struct dentry *dentry,
 	ssize_t read_bytes, write_bytes;
 	loff_t size;
 	int err = 0;
+	struct path input_path, output_path;
 
 	/* open old file */
 	unionfs_mntget(dentry, old_bindex);
 	branchget(sb, old_bindex);
-	/* dentry_open calls dput and mntput if it returns an error */
-	input_file = dentry_open(old_lower_dentry,
-				 unionfs_lower_mnt_idx(dentry, old_bindex),
+	/* dentry_open used to call dput and mntput if it returns an error */
+	input_path.dentry = old_lower_dentry;
+	input_path.mnt = unionfs_lower_mnt_idx(dentry, old_bindex);
+	input_file = dentry_open(&input_path,
 				 O_RDONLY | O_LARGEFILE, current_cred());
+	path_put(&input_path);
 	if (IS_ERR(input_file)) {
 		dput(old_lower_dentry);
 		err = PTR_ERR(input_file);
@@ -264,8 +261,11 @@ static int __copyup_reg_data(struct dentry *dentry,
 	dget(new_lower_dentry);
 	output_mnt = unionfs_mntget(sb->s_root, new_bindex);
 	branchget(sb, new_bindex);
-	output_file = dentry_open(new_lower_dentry, output_mnt,
+	output_path.dentry = new_lower_dentry;
+	output_path.mnt = output_mnt;
+	output_file = dentry_open(&output_path,
 				  O_RDWR | O_LARGEFILE, current_cred());
+	path_put(&output_path);
 	if (IS_ERR(output_file)) {
 		err = PTR_ERR(output_file);
 		goto out_close_in2;
