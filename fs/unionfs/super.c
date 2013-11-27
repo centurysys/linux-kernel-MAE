@@ -835,7 +835,7 @@ static void unionfs_evict_inode(struct inode *inode)
 	struct unionfs_dir_state *rdstate;
 
 	truncate_inode_pages(&inode->i_data, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 
 	list_for_each_safe(pos, n, &UNIONFS_I(inode)->readdircache) {
 		rdstate = list_entry(pos, struct unionfs_dir_state, cache);
