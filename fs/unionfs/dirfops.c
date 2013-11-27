@@ -26,20 +26,21 @@ static void verify_rdstate_offset(struct unionfs_dir_state *rdstate)
 }
 
 struct unionfs_getdents_callback {
+	struct dir_context ctx; /* must be first field */
+	struct dir_context *caller;
 	struct unionfs_dir_state *rdstate;
-	void *dirent;
 	int entries_written;
 	int filldir_called;
 	int filldir_error;
-	filldir_t filldir;
 	struct super_block *sb;
 };
 
 /* based on generic filldir in fs/readir.c */
-static int unionfs_filldir(void *dirent, const char *oname, int namelen,
+static int unionfs_filldir(void *__buf, const char *oname, int namelen,
 			   loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct unionfs_getdents_callback *buf = dirent;
+	struct unionfs_getdents_callback *buf =
+		(struct unionfs_getdents_callback *) __buf;
 	struct filldir_node *found = NULL;
 	int err = 0;
 	int is_whiteout;
@@ -63,11 +64,12 @@ static int unionfs_filldir(void *dirent, const char *oname, int namelen,
 
 	/* if 'name' isn't a whiteout, filldir it. */
 	if (!is_whiteout) {
+#if 0
+		// XXX: old code, not sure if needed
 		off_t pos = rdstate2offset(buf->rdstate);
-		u64 unionfs_ino = ino;
-
-		err = buf->filldir(buf->dirent, name, namelen, pos,
-				   unionfs_ino, d_type);
+#endif
+		buf->caller->pos = buf->ctx.pos;
+		err = !dir_emit(buf->caller, name, namelen, ino, d_type);
 		buf->rdstate->offset++;
 		verify_rdstate_offset(buf->rdstate);
 	}
@@ -89,14 +91,16 @@ out:
 	return err;
 }
 
-static int unionfs_readdir(struct file *file, void *dirent, filldir_t filldir)
+static int unionfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	int err = 0;
 	struct file *lower_file = NULL;
 	struct dentry *dentry = file->f_path.dentry;
 	struct dentry *parent;
 	struct inode *inode = NULL;
-	struct unionfs_getdents_callback buf;
+	struct unionfs_getdents_callback buf = {
+		.ctx.actor = unionfs_filldir,
+	};
 	struct unionfs_dir_state *uds;
 	int bend;
 	loff_t offset;
@@ -141,10 +145,9 @@ static int unionfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 		buf.filldir_called = 0;
 		buf.filldir_error = 0;
 		buf.entries_written = 0;
-		buf.dirent = dirent;
-		buf.filldir = filldir;
 		buf.rdstate = uds;
 		buf.sb = inode->i_sb;
+		buf.caller = ctx;
 
 		/* Read starting from where we last left off. */
 		offset = vfs_llseek(lower_file, uds->dirpos, SEEK_SET);
@@ -152,7 +155,10 @@ static int unionfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 			err = offset;
 			goto out;
 		}
-		err = vfs_readdir(lower_file, unionfs_filldir, &buf);
+
+		lower_file->f_pos = ctx->pos;
+		err = iterate_dir(lower_file, &buf.ctx);
+		ctx->pos = buf.ctx.pos;
 
 		/* Save the position for when we continue. */
 		offset = vfs_llseek(lower_file, 0, SEEK_CUR);
@@ -183,9 +189,9 @@ static int unionfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 		UNIONFS_I(inode)->hashsize = uds->hashentries;
 		free_rdstate(uds);
 		UNIONFS_F(file)->rdstate = NULL;
-		file->f_pos = DIREOF;
+		ctx->pos = DIREOF;
 	} else {
-		file->f_pos = rdstate2offset(uds);
+		ctx->pos = rdstate2offset(uds);
 	}
 
 out:
@@ -292,7 +298,7 @@ out:
 struct file_operations unionfs_dir_fops = {
 	.llseek		= unionfs_dir_llseek,
 	.read		= generic_read_dir,
-	.readdir	= unionfs_readdir,
+	.iterate	= unionfs_readdir,
 	.unlocked_ioctl	= unionfs_ioctl,
 	.open		= unionfs_open,
 	.release	= unionfs_file_release,

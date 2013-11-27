@@ -85,8 +85,7 @@ out:
 	return err;
 }
 
-static int unionfs_file_readdir(struct file *file, void *dirent,
-				filldir_t filldir)
+static int unionfs_file_readdir(struct file *file, struct dir_context *ctx)
 {
 	return -ENOTDIR;
 }
@@ -371,7 +370,7 @@ struct file_operations unionfs_main_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= unionfs_read,
 	.write		= unionfs_write,
-	.readdir	= unionfs_file_readdir,
+	.iterate	= unionfs_file_readdir,
 	.unlocked_ioctl	= unionfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= unionfs_ioctl,
