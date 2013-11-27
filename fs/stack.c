@@ -2,8 +2,7 @@
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
 
-/*
- * does _NOT_ require i_mutex to be held.
+/* does _NOT_ require i_mutex to be held.
  *
  * This function cannot be inlined since i_size_{read,write} is rather
  * heavy-weight on 32-bit systems
