@@ -9040,6 +9040,16 @@ F:	drivers/cdrom/cdrom.c
 F:	include/linux/cdrom.h
 F:	include/uapi/linux/cdrom.h
 
+UNION FILE SYSTEM
+P:	Erez Zadok
+M:	ezk@cs.sunysb.edu
+L:	unionfs@filesystems.org
+W:	http://unionfs.filesystems.org/
+T:	git git://git.fsl.cs.sunysb.edu/unionfs-latest.git
+S:	Maintained
+F:	Documentation/filesystems/unionfs/
+F:	fs/unionfs/
+
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER
 M:	Vinayak Holikatti <vinholikatti@gmail.com>
 M:	Santosh Y <santoshsy@gmail.com>
@@ -9047,14 +9057,6 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/scsi/ufs.txt
 F:	drivers/scsi/ufs/
-
-UNIONFS
-P:	Erez Zadok
-M:	ezk@cs.sunysb.edu
-L:	unionfs@filesystems.org
-W:	http://unionfs.filesystems.org/
-T:	git git.kernel.org/pub/scm/linux/kernel/git/ezk/unionfs.git
-S:	Maintained
 
 UNSORTED BLOCK IMAGES (UBI)
 M:	Artem Bityutskiy <dedekind1@gmail.com>
