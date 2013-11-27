@@ -156,8 +156,9 @@ static int unionfs_mmap(struct file *file, struct vm_area_struct *vma)
 			goto out;
 		}
 		saved_vm_ops = vma->vm_ops;
-		err = do_munmap(current->mm, vma->vm_start,
-				vma->vm_end - vma->vm_start);
+		up_write(&current->mm->mmap_sem); /* VFS already holds sema... */
+		err = vm_munmap(vma->vm_start, vma->vm_end - vma->vm_start);
+		down_write(&current->mm->mmap_sem);
 		if (err) {
 			printk(KERN_ERR "unionfs: do_munmap failed %d\n", err);
 			goto out;
