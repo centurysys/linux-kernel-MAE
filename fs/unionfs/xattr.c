@@ -51,7 +51,7 @@ ssize_t unionfs_getxattr(struct dentry *dentry, const char *name, void *value,
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	valid = __unionfs_d_revalidate(dentry, parent, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false, 0);
 	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out;
@@ -85,7 +85,7 @@ int unionfs_setxattr(struct dentry *dentry, const char *name,
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	valid = __unionfs_d_revalidate(dentry, parent, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false, 0);
 	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out;
@@ -119,7 +119,7 @@ int unionfs_removexattr(struct dentry *dentry, const char *name)
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	valid = __unionfs_d_revalidate(dentry, parent, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false, 0);
 	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out;
@@ -153,7 +153,7 @@ ssize_t unionfs_listxattr(struct dentry *dentry, char *list, size_t size)
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
-	valid = __unionfs_d_revalidate(dentry, parent, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false, 0);
 	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out;

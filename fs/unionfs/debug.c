@@ -424,26 +424,6 @@ void __unionfs_check_file(const struct file *file,
 	__unionfs_check_dentry(dentry, fname, fxn, line);
 }
 
-void __unionfs_check_nd(const struct nameidata *nd,
-			const char *fname, const char *fxn, int line)
-{
-	struct file *file;
-	int printed_caller = 0;
-
-	if (unlikely(!nd))
-		return;
-	if (nd->flags & LOOKUP_OPEN) {
-		file = nd->intent.open.file;
-		if (unlikely(file->f_path.dentry &&
-			     strcmp(file->f_path.dentry->d_sb->s_type->name,
-				    UNIONFS_NAME))) {
-			PRINT_CALLER(fname, fxn, line);
-			pr_debug(" CND1: lower_file of type %s\n",
-				 file->f_path.dentry->d_sb->s_type->name);
-		}
-	}
-}
-
 static unsigned int __mnt_get_count(struct vfsmount *mnt)
 {
 	struct mount *m = real_mount(mnt);

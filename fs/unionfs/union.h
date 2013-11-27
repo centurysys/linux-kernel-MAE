@@ -347,8 +347,6 @@ extern int new_dentry_private_data(struct dentry *dentry, int subclass);
 extern int realloc_dentry_private_data(struct dentry *dentry);
 extern void free_dentry_private_data(struct dentry *dentry);
 extern void update_bstart(struct dentry *dentry);
-extern int init_lower_nd(struct nameidata *nd, unsigned int flags);
-extern void release_lower_nd(struct nameidata *nd, int err);
 
 /*
  * EXTERNALS:
@@ -426,7 +424,8 @@ extern int unionfs_unlink(struct inode *dir, struct dentry *dentry);
 extern int unionfs_rmdir(struct inode *dir, struct dentry *dentry);
 
 extern bool __unionfs_d_revalidate(struct dentry *dentry,
-				   struct dentry *parent, bool willwrite);
+				   struct dentry *parent, bool willwrite,
+				   unsigned int flags);
 extern bool is_negative_lower(const struct dentry *dentry);
 extern bool is_newer_lower(const struct dentry *dentry);
 extern void purge_sb_data(struct super_block *sb);
@@ -565,19 +564,11 @@ static inline struct dentry *lookup_lck_len(const char *name,
 					    struct dentry *base, int len)
 {
 	struct dentry *d;
-	struct nameidata lower_nd;
-	int err;
 
-	err = init_lower_nd(&lower_nd, LOOKUP_OPEN);
-	if (unlikely(err < 0)) {
-		d = ERR_PTR(err);
-		goto out;
-	}
 	mutex_lock(&base->d_inode->i_mutex);
-	d = lookup_one_len_nd(name, base, len, &lower_nd);
-	release_lower_nd(&lower_nd, err);
+	d = lookup_one_len(name, base, len); // XXX: pass flags?
 	mutex_unlock(&base->d_inode->i_mutex);
-out:
+
 	return d;
 }
 
@@ -650,8 +641,6 @@ extern void __unionfs_check_dentry(const struct dentry *dentry,
 				   int line);
 extern void __unionfs_check_file(const struct file *file,
 				 const char *fname, const char *fxn, int line);
-extern void __unionfs_check_nd(const struct nameidata *nd,
-			       const char *fname, const char *fxn, int line);
 extern void __show_branch_counts(const struct super_block *sb,
 				 const char *file, const char *fxn, int line);
 extern void __show_inode_times(const struct inode *inode,

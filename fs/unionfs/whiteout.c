@@ -265,7 +265,6 @@ int create_whiteout(struct dentry *dentry, int start)
 	struct dentry *lower_dir_dentry;
 	struct dentry *lower_dentry;
 	struct dentry *lower_wh_dentry;
-	struct nameidata nd;
 	char *name = NULL;
 	int err = -EINVAL;
 
@@ -323,19 +322,15 @@ int create_whiteout(struct dentry *dentry, int start)
 			goto out;
 		}
 
-		err = init_lower_nd(&nd, LOOKUP_CREATE);
-		if (unlikely(err < 0))
-			goto out;
 		lower_dir_dentry = lock_parent_wh(lower_wh_dentry);
 		err = is_robranch_super(dentry->d_sb, bindex);
 		if (!err)
 			err = vfs_create(lower_dir_dentry->d_inode,
 					 lower_wh_dentry,
 					 current_umask() & S_IRUGO,
-					 &nd);
+					 0); // XXX: pass want_excl?
 		unlock_dir(lower_dir_dentry);
 		dput(lower_wh_dentry);
-		release_lower_nd(&nd, err);
 
 		if (!err || !IS_COPYUP_ERR(err))
 			break;
@@ -481,7 +476,6 @@ int is_opaque_dir(struct dentry *dentry, int bindex)
 	struct dentry *wh_lower_dentry;
 	struct inode *lower_inode;
 	struct sioq_args args;
-	struct nameidata lower_nd;
 
 	lower_dentry = unionfs_lower_dentry_idx(dentry, bindex);
 	lower_inode = lower_dentry->d_inode;
@@ -491,16 +485,9 @@ int is_opaque_dir(struct dentry *dentry, int bindex)
 	mutex_lock(&lower_inode->i_mutex);
 
 	if (!inode_permission(lower_inode, MAY_EXEC)) {
-		err = init_lower_nd(&lower_nd, LOOKUP_OPEN);
-		if (unlikely(err < 0)) {
-			mutex_unlock(&lower_inode->i_mutex);
-			goto out;
-		}
 		wh_lower_dentry =
-			lookup_one_len_nd(UNIONFS_DIR_OPAQUE, lower_dentry,
-					  sizeof(UNIONFS_DIR_OPAQUE) - 1,
-					  &lower_nd);
-		release_lower_nd(&lower_nd, err);
+			lookup_one_len(UNIONFS_DIR_OPAQUE, lower_dentry,
+				       sizeof(UNIONFS_DIR_OPAQUE) - 1); // XXX: pass flags?
 	} else {
 		args.is_opaque.dentry = lower_dentry;
 		run_sioq(__is_opaque_dir, &args);
@@ -525,17 +512,10 @@ out:
 void __is_opaque_dir(struct work_struct *work)
 {
 	struct sioq_args *args = container_of(work, struct sioq_args, work);
-	struct nameidata lower_nd;
-	int err;
 
-	err = init_lower_nd(&lower_nd, LOOKUP_OPEN);
-	if (unlikely(err < 0))
-		return;
-	args->ret = lookup_one_len_nd(UNIONFS_DIR_OPAQUE,
-				      args->is_opaque.dentry,
-				      sizeof(UNIONFS_DIR_OPAQUE) - 1,
-				      &lower_nd);
-	release_lower_nd(&lower_nd, err);
+	args->ret = lookup_one_len(UNIONFS_DIR_OPAQUE,
+				   args->is_opaque.dentry,
+				   sizeof(UNIONFS_DIR_OPAQUE) - 1); // XXX: pass flags?
 	complete(&args->comp);
 }
 
@@ -544,7 +524,6 @@ int make_dir_opaque(struct dentry *dentry, int bindex)
 	int err = 0;
 	struct dentry *lower_dentry, *diropq;
 	struct inode *lower_dir;
-	struct nameidata nd;
 	const struct cred *old_creds;
 	struct cred *new_creds;
 
@@ -571,25 +550,17 @@ int make_dir_opaque(struct dentry *dentry, int bindex)
 	       !S_ISDIR(lower_dir->i_mode));
 
 	mutex_lock(&lower_dir->i_mutex);
-	err = init_lower_nd(&nd, LOOKUP_OPEN);
-	if (unlikely(err < 0))
-		goto out;
-	diropq = lookup_one_len_nd(UNIONFS_DIR_OPAQUE, lower_dentry,
-				   sizeof(UNIONFS_DIR_OPAQUE) - 1, &nd);
-	release_lower_nd(&nd, err);
+	diropq = lookup_one_len(UNIONFS_DIR_OPAQUE, lower_dentry,
+				sizeof(UNIONFS_DIR_OPAQUE) - 1); // XXX: pass flags?
 	if (IS_ERR(diropq)) {
 		err = PTR_ERR(diropq);
 		goto out;
 	}
 
-	err = init_lower_nd(&nd, LOOKUP_CREATE);
-	if (unlikely(err < 0))
-		goto out;
 	if (!diropq->d_inode)
-		err = vfs_create(lower_dir, diropq, S_IRUGO, &nd);
+		err = vfs_create(lower_dir, diropq, S_IRUGO, 0); // XXX: pass want_excl?
 	if (!err)
 		dbopaque(dentry) = bindex;
-	release_lower_nd(&nd, err);
 
 	dput(diropq);
 

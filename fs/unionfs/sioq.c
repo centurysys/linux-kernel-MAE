@@ -60,7 +60,7 @@ void __unionfs_create(struct work_struct *work)
 	struct sioq_args *args = container_of(work, struct sioq_args, work);
 	struct create_args *c = &args->create;
 
-	args->err = vfs_create(c->parent, c->dentry, c->mode, c->nd);
+	args->err = vfs_create(c->parent, c->dentry, c->mode, c->want_excl);
 	complete(&args->comp);
 }
 

@@ -28,7 +28,6 @@ static int unionfs_refresh_lower_dentry(struct dentry *dentry,
 	struct dentry *lower_dentry;
 	struct dentry *lower_parent;
 	int err = 0;
-	struct nameidata lower_nd;
 
 	verify_locked(dentry);
 
@@ -36,12 +35,8 @@ static int unionfs_refresh_lower_dentry(struct dentry *dentry,
 
 	BUG_ON(!S_ISDIR(lower_parent->d_inode->i_mode));
 
-	err = init_lower_nd(&lower_nd, LOOKUP_OPEN);
-	if (unlikely(err < 0))
-		goto out;
-	lower_dentry = lookup_one_len_nd(dentry->d_name.name, lower_parent,
-					 dentry->d_name.len, &lower_nd);
-	release_lower_nd(&lower_nd, err);
+	lower_dentry = lookup_one_len(dentry->d_name.name, lower_parent,
+				      dentry->d_name.len); // XXX: pass flags?
 	if (IS_ERR(lower_dentry)) {
 		err = PTR_ERR(lower_dentry);
 		goto out;
@@ -403,13 +398,13 @@ int unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		unionfs_lock_dentry(new_parent, UNIONFS_DMUTEX_REVAL_CHILD);
 	unionfs_double_lock_dentry(old_dentry, new_dentry);
 
-	valid = __unionfs_d_revalidate(old_dentry, old_parent, false);
+	valid = __unionfs_d_revalidate(old_dentry, old_parent, false, 0);
 	if (!valid) {
 		err = -ESTALE;
 		goto out;
 	}
 	if (!d_deleted(new_dentry) && new_dentry->d_inode) {
-		valid = __unionfs_d_revalidate(new_dentry, new_parent, false);
+		valid = __unionfs_d_revalidate(new_dentry, new_parent, false, 0);
 		if (!valid) {
 			err = -ESTALE;
 			goto out;

@@ -210,6 +210,7 @@ static int open_all_files(struct file *file)
 	struct dentry *lower_dentry;
 	struct dentry *dentry = file->f_path.dentry;
 	struct super_block *sb = dentry->d_sb;
+	struct path path;
 
 	bstart = dbstart(dentry);
 	bend = dbend(dentry);
@@ -223,10 +224,10 @@ static int open_all_files(struct file *file)
 		unionfs_mntget(dentry, bindex);
 		branchget(sb, bindex);
 
-		lower_file =
-			dentry_open(lower_dentry,
-				    unionfs_lower_mnt_idx(dentry, bindex),
-				    file->f_flags, current_cred());
+		path.dentry = lower_dentry;
+		path.mnt = unionfs_lower_mnt_idx(dentry, bindex);
+		lower_file = dentry_open(&path, file->f_flags, current_cred());
+		path_put(&path);
 		if (IS_ERR(lower_file)) {
 			branchput(sb, bindex);
 			err = PTR_ERR(lower_file);
@@ -249,6 +250,7 @@ static int open_highest_file(struct file *file, bool willwrite)
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *parent_inode = parent->d_inode;
 	struct super_block *sb = dentry->d_sb;
+	struct path path;
 
 	bstart = dbstart(dentry);
 	bend = dbend(dentry);
@@ -269,9 +271,10 @@ static int open_highest_file(struct file *file, bool willwrite)
 
 	dget(lower_dentry);
 	unionfs_mntget(dentry, bstart);
-	lower_file = dentry_open(lower_dentry,
-				 unionfs_lower_mnt_idx(dentry, bstart),
-				 file->f_flags, current_cred());
+	path.dentry = lower_dentry;
+	path.mnt = unionfs_lower_mnt_idx(dentry, bstart);
+	lower_file = dentry_open(&path, file->f_flags, current_cred());
+	path_put(&path);
 	if (IS_ERR(lower_file)) {
 		err = PTR_ERR(lower_file);
 		goto out;
@@ -464,7 +467,7 @@ int unionfs_file_revalidate(struct file *file, struct dentry *parent,
 	 * but not unhashed dentries.
 	 */
 	if (!d_deleted(dentry) &&
-	    !__unionfs_d_revalidate(dentry, parent, willwrite)) {
+	    !__unionfs_d_revalidate(dentry, parent, willwrite, 0)) {
 		err = -ESTALE;
 		goto out;
 	}
@@ -494,6 +497,7 @@ static int __open_dir(struct inode *inode, struct file *file,
 	int bindex, bstart, bend;
 	struct vfsmount *lower_mnt;
 	struct dentry *dentry = file->f_path.dentry;
+	struct path path;
 
 	bstart = fbstart(file) = dbstart(dentry);
 	bend = fbend(file) = dbend(dentry);
@@ -508,8 +512,10 @@ static int __open_dir(struct inode *inode, struct file *file,
 		lower_mnt = unionfs_mntget(dentry, bindex);
 		if (!lower_mnt)
 			lower_mnt = unionfs_mntget(parent, bindex);
-		lower_file = dentry_open(lower_dentry, lower_mnt, file->f_flags,
-					 current_cred());
+		path.dentry = lower_dentry;
+		path.mnt = lower_mnt;
+		lower_file = dentry_open(&path, file->f_flags, current_cred());
+		path_put(&path);
 		if (IS_ERR(lower_file))
 			return PTR_ERR(lower_file);
 
@@ -537,6 +543,7 @@ static int __open_file(struct inode *inode, struct file *file,
 	int bindex, bstart, bend;
 	struct dentry *dentry = file->f_path.dentry;
 	struct vfsmount *lower_mnt;
+	struct path path;
 
 	lower_dentry = unionfs_lower_dentry(dentry);
 	lower_flags = file->f_flags;
@@ -580,12 +587,14 @@ static int __open_file(struct inode *inode, struct file *file,
 	dget(lower_dentry);
 
 	/*
-	 * dentry_open will decrement mnt refcnt if err.
+	 * dentry_open used to decrement mnt refcnt if err.
 	 * otherwise fput() will do an mntput() for us upon file close.
 	 */
 	lower_mnt = unionfs_mntget(dentry, bstart);
-	lower_file = dentry_open(lower_dentry, lower_mnt, lower_flags,
-				 current_cred());
+	path.dentry = lower_dentry;
+	path.mnt = lower_mnt;
+	lower_file = dentry_open(&path, lower_flags, current_cred());
+	path_put(&path);
 	if (IS_ERR(lower_file))
 		return PTR_ERR(lower_file);
 
@@ -616,7 +625,7 @@ int unionfs_open(struct inode *inode, struct file *file)
 	}
 
 	/* XXX: should I change 'false' below to the 'willwrite' flag? */
-	valid = __unionfs_d_revalidate(dentry, parent, false);
+	valid = __unionfs_d_revalidate(dentry, parent, false, 0);
 	if (unlikely(!valid)) {
 		err = -ESTALE;
 		goto out_nofree;

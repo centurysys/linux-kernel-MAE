@@ -29,7 +29,7 @@ struct create_args {
 	struct inode *parent;
 	struct dentry *dentry;
 	umode_t mode;
-	struct nameidata *nd;
+	bool want_excl;
 };
 
 struct mkdir_args {
