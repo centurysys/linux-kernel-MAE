@@ -702,6 +702,7 @@ static struct file_system_type unionfs_fs_type = {
 	.kill_sb	= generic_shutdown_super,
 	.fs_flags	= 0,
 };
+MODULE_ALIAS_FS(UNIONFS_NAME);
 
 static int __init init_unionfs_fs(void)
 {
