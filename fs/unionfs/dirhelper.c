@@ -22,6 +22,7 @@
 #define RD_CHECK_EMPTY 1
 /* The callback structure for check_empty. */
 struct unionfs_rdutil_callback {
+	struct dir_context ctx; // NEW: must be first in callback struct
 	int err;
 	int filldir_called;
 	struct unionfs_dir_state *rdstate;
@@ -76,7 +77,9 @@ int check_empty(struct dentry *dentry, struct dentry *parent,
 	struct vfsmount *mnt;
 	struct super_block *sb;
 	struct file *lower_file;
-	struct unionfs_rdutil_callback *buf = NULL;
+	struct unionfs_rdutil_callback buf = {
+		.ctx.actor = readdir_util_callback,
+	};
 	int bindex, bstart, bend, bopaque;
 	struct path path;
 
@@ -95,15 +98,12 @@ int check_empty(struct dentry *dentry, struct dentry *parent,
 	if (0 <= bopaque && bopaque < bend)
 		bend = bopaque;
 
-	buf = kmalloc(sizeof(struct unionfs_rdutil_callback), GFP_KERNEL);
-	if (unlikely(!buf)) {
-		err = -ENOMEM;
-		goto out;
-	}
-	buf->err = 0;
-	buf->mode = RD_CHECK_EMPTY;
-	buf->rdstate = alloc_rdstate(dentry->d_inode, bstart);
-	if (unlikely(!buf->rdstate)) {
+	buf.err = 0;
+	buf.filldir_called = 0;
+	buf.mode = RD_CHECK_EMPTY;
+	buf.ctx.pos = 0; /* XXX: needed?! */
+	buf.rdstate = alloc_rdstate(dentry->d_inode, bstart);
+	if (unlikely(!buf.rdstate)) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -132,13 +132,12 @@ int check_empty(struct dentry *dentry, struct dentry *parent,
 		}
 
 		do {
-			buf->filldir_called = 0;
-			buf->rdstate->bindex = bindex;
-			err = vfs_readdir(lower_file,
-					  readdir_util_callback, buf);
-			if (buf->err)
-				err = buf->err;
-		} while ((err >= 0) && buf->filldir_called);
+			buf.filldir_called = 0;
+			buf.rdstate->bindex = bindex;
+			err = iterate_dir(lower_file, &buf.ctx);
+			if (buf.err)
+				err = buf.err;
+		} while ((err >= 0) && buf.filldir_called);
 
 		/* fput calls dput for lower_dentry */
 		fput(lower_file);
@@ -149,14 +148,10 @@ int check_empty(struct dentry *dentry, struct dentry *parent,
 	}
 
 out:
-	if (buf) {
-		if (namelist && !err)
-			*namelist = buf->rdstate;
-		else if (buf->rdstate)
-			free_rdstate(buf->rdstate);
-		kfree(buf);
-	}
-
+	if (namelist && !err)
+		*namelist = buf.rdstate;
+	else if (buf.rdstate)
+		free_rdstate(buf.rdstate);
 
 	return err;
 }
