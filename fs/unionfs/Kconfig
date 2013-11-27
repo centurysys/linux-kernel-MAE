@@ -1,6 +1,5 @@
 config UNION_FS
-	tristate "Union file system (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Union file system"
 	help
 	  Unionfs is a stackable unification file system, which appears to
 	  merge the contents of several directories (branches), while keeping

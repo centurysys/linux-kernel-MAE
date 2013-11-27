@@ -700,7 +700,7 @@ static struct file_system_type unionfs_fs_type = {
 	.name		= UNIONFS_NAME,
 	.mount		= unionfs_mount,
 	.kill_sb	= generic_shutdown_super,
-	.fs_flags	= FS_REVAL_DOT,
+	.fs_flags	= 0,
 };
 
 static int __init init_unionfs_fs(void)
