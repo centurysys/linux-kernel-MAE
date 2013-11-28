@@ -302,6 +302,7 @@ static int unionfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	bool valid = true;
 	int err = 1;		/* 1 means valid for the VFS */
 	struct dentry *parent;
+	struct dentry *lower_dentry;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -309,6 +310,10 @@ static int unionfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
 	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+
+	lower_dentry = unionfs_lower_dentry(dentry);
+	if (!(lower_dentry->d_flags & DCACHE_OP_REVALIDATE))
+		goto out;
 
 	valid = __unionfs_d_revalidate(dentry, parent, false, flags);
 	if (valid) {
@@ -318,6 +323,8 @@ static int unionfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		d_drop(dentry);
 		err = valid;
 	}
+
+out:
 	unionfs_unlock_dentry(dentry);
 	unionfs_unlock_parent(dentry, parent);
 	unionfs_read_unlock(dentry->d_sb);

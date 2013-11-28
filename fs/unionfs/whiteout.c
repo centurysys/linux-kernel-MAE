@@ -171,7 +171,7 @@ int unlink_whiteout(struct dentry *wh_dentry)
 
 	/* see Documentation/filesystems/unionfs/issues.txt */
 	lockdep_off();
-	err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry);
+	err = vfs_unlink(lower_dir_dentry->d_inode, wh_dentry, NULL);
 	lockdep_on();
 	unlock_dir(lower_dir_dentry);
 
@@ -397,7 +397,8 @@ static int do_delete_whiteouts(struct dentry *dentry, int bindex,
 				break;
 			}
 			if (lower_dentry->d_inode)
-				err = vfs_unlink(lower_dir, lower_dentry);
+				err = vfs_unlink(lower_dir, lower_dentry,
+						 NULL);
 			dput(lower_dentry);
 			if (err)
 				break;
