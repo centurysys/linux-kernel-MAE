@@ -120,7 +120,7 @@ retry:
 	dput(tmp_dentry);
 
 	err = copyup_named_file(parent->d_inode, file, name, bstart, bindex,
-				i_size_read(file->f_path.dentry->d_inode));
+				i_size_read(file_inode(file)));
 	if (err) {
 		if (unlikely(err == -EEXIST))
 			goto retry;
@@ -135,7 +135,7 @@ retry:
 					    lower_dentry->d_inode);
 	}
 	lower_dir_dentry = lock_parent(lower_dentry);
-	err = vfs_unlink(lower_dir_dentry->d_inode, lower_dentry);
+	err = vfs_unlink(lower_dir_dentry->d_inode, lower_dentry, NULL);
 	unlock_dir(lower_dir_dentry);
 
 out:
@@ -745,7 +745,7 @@ int unionfs_file_release(struct inode *inode, struct file *file)
 	if (!err)
 		unionfs_check_file(file);
 	fileinfo = UNIONFS_F(file);
-	BUG_ON(file->f_path.dentry->d_inode != inode);
+	BUG_ON(file_inode(file) != inode);
 	inodeinfo = UNIONFS_I(inode);
 
 	/* fput all the lower files */

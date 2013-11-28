@@ -120,7 +120,8 @@ static int __unionfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out_err_unlock;
 	}
 	err = vfs_rename(lower_old_dir_dentry->d_inode, lower_old_dentry,
-			 lower_new_dir_dentry->d_inode, lower_new_dentry);
+			 lower_new_dir_dentry->d_inode, lower_new_dentry,
+			 NULL);
 out_err_unlock:
 	if (!err) {
 		/* update parent dir times */
@@ -202,7 +203,7 @@ static int do_unionfs_rename(struct inode *old_dir,
 		err = is_robranch_super(old_dir->i_sb, bindex);
 		if (!err)
 			err = vfs_unlink(unlink_dir_dentry->d_inode,
-					 unlink_dentry);
+					 unlink_dentry, NULL);
 
 		fsstack_copy_attr_times(new_parent->d_inode,
 					unlink_dir_dentry->d_inode);

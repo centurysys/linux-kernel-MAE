@@ -599,7 +599,18 @@ static int unionfs_read_super(struct super_block *sb, void *raw_data,
 		err = PTR_ERR(inode);
 		goto out_dput;
 	}
+	/*
+	 * Have to set DIR mode temporarily on inode and dentry, before
+	 * calling make_root, because make_root sets the
+	 * DCACHE_DIRECTORY_TYPE dentry flag only if the inode is of type
+	 * dir.  Now, later below, we'll be copying the lower inode
+	 * attributes anyway, which'll set our inode's mode to type==DIR,
+	 * but it's too late for the dentry to have the
+	 * DCACHE_DIRECTORY_TYPE flag set.
+	 */
+	inode->i_mode = S_IFDIR | 0755;
 	sb->s_root = d_make_root(inode);
+	d_set_type(sb->s_root, DCACHE_DIRECTORY_TYPE);
 	if (unlikely(!sb->s_root)) {
 		err = -ENOMEM;
 		goto out_iput;

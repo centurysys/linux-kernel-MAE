@@ -169,8 +169,7 @@ static int unionfs_readdir(struct file *file, struct dir_context *ctx)
 		uds->dirpos = offset;
 
 		/* Copy the atime. */
-		fsstack_copy_attr_atime(inode,
-					lower_file->f_path.dentry->d_inode);
+		fsstack_copy_attr_atime(inode, file_inode(lower_file));
 
 		if (err < 0)
 			goto out;

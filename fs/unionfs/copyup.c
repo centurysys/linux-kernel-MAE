@@ -145,14 +145,14 @@ static int copyup_permissions(struct super_block *sb,
 		ATTR_ATIME_SET | ATTR_MTIME_SET | ATTR_FORCE |
 		ATTR_GID | ATTR_UID;
 	mutex_lock(&new_lower_dentry->d_inode->i_mutex);
-	err = notify_change(new_lower_dentry, &newattrs);
+	err = notify_change(new_lower_dentry, &newattrs, NULL);
 	if (err)
 		goto out;
 
 	/* now try to change the mode and ignore EOPNOTSUPP on symlinks */
 	newattrs.ia_mode = i->i_mode;
 	newattrs.ia_valid = ATTR_MODE | ATTR_FORCE;
-	err = notify_change(new_lower_dentry, &newattrs);
+	err = notify_change(new_lower_dentry, &newattrs, NULL);
 	if (err == -EOPNOTSUPP &&
 	    S_ISLNK(new_lower_dentry->d_inode->i_mode)) {
 		printk(KERN_WARNING
@@ -498,7 +498,7 @@ out_unlink:
 	 * quota, or something else happened so let's unlink; we don't
 	 * really care about the return value of vfs_unlink
 	 */
-	vfs_unlink(new_lower_parent_dentry->d_inode, new_lower_dentry);
+	vfs_unlink(new_lower_parent_dentry->d_inode, new_lower_dentry, NULL);
 
 	if (copyup_file) {
 		/* need to close the file */

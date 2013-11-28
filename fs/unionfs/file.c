@@ -39,7 +39,7 @@ static ssize_t unionfs_read(struct file *file, char __user *buf,
 	/* update our inode atime upon a successful lower read */
 	if (err >= 0) {
 		fsstack_copy_attr_atime(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+					file_inode(lower_file));
 		unionfs_check_file(file);
 	}
 
@@ -71,9 +71,9 @@ static ssize_t unionfs_write(struct file *file, const char __user *buf,
 	/* update our inode times+sizes upon a successful lower write */
 	if (err >= 0) {
 		fsstack_copy_inode_size(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+					file_inode(lower_file));
 		fsstack_copy_attr_times(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+					file_inode(lower_file));
 		UNIONFS_F(file)->wrote_to_file = true; /* for delayed copyup */
 		unionfs_check_file(file);
 	}
@@ -320,7 +320,7 @@ static ssize_t unionfs_splice_read(struct file *file, loff_t *ppos,
 	/* update our inode atime upon a successful lower splice-read */
 	if (err >= 0) {
 		fsstack_copy_attr_atime(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+					file_inode(lower_file));
 		unionfs_check_file(file);
 	}
 
@@ -353,9 +353,9 @@ static ssize_t unionfs_splice_write(struct pipe_inode_info *pipe,
 	/* update our inode times+sizes upon a successful lower write */
 	if (err >= 0) {
 		fsstack_copy_inode_size(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+					file_inode(lower_file));
 		fsstack_copy_attr_times(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+					file_inode(lower_file));
 		unionfs_check_file(file);
 	}
 

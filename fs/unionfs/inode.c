@@ -275,7 +275,7 @@ static int unionfs_link(struct dentry *old_dentry, struct inode *dir,
 		/* see Documentation/filesystems/unionfs/issues.txt */
 		lockdep_off();
 		err = vfs_link(lower_old_dentry, lower_dir_dentry->d_inode,
-			       lower_new_dentry);
+			       lower_new_dentry, NULL);
 		lockdep_on();
 	}
 	unlock_dir(lower_dir_dentry);
@@ -304,7 +304,7 @@ docopyup:
 			/* do vfs_link */
 			err = vfs_link(lower_old_dentry,
 				       lower_dir_dentry->d_inode,
-				       lower_new_dentry);
+				       lower_new_dentry, NULL);
 			lockdep_on();
 			unlock_dir(lower_dir_dentry);
 			goto check_link;
@@ -999,7 +999,7 @@ static int unionfs_setattr(struct dentry *dentry, struct iattr *ia)
 	}
 
 	mutex_lock(&lower_dentry->d_inode->i_mutex);
-	err = notify_change(lower_dentry, &lower_ia);
+	err = notify_change(lower_dentry, &lower_ia, NULL);
 	mutex_unlock(&lower_dentry->d_inode->i_mutex);
 	if (err)
 		goto out;
@@ -1030,6 +1030,45 @@ out:
 out_err:
 	return err;
 }
+
+#if 0
+// XXX: may need this code in future
+static int unionfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+			   struct kstat *stat)
+{
+	int err;
+	struct dentry *parent;
+	struct kstat lower_stat;
+	struct path lower_path;
+
+	unionfs_read_lock(dentry->d_sb, UNIONFS_SMUTEX_CHILD);
+	parent = unionfs_lock_parent(dentry, UNIONFS_DMUTEX_PARENT);
+	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
+
+	if (unlikely(!__unionfs_d_revalidate(dentry, parent, false, 0))) {
+		err = -ESTALE;
+		goto out;
+	}
+
+	lower_path.dentry = unionfs_lower_dentry(dentry);
+	lower_path.mnt = unionfs_lower_mnt(dentry);
+	err = vfs_getattr(&lower_path, &lower_stat);
+	if (err)
+		goto out;
+	fsstack_copy_attr_all(dentry->d_inode,
+			      lower_path.dentry->d_inode);
+	generic_fillattr(dentry->d_inode, stat);
+	stat->blocks = lower_stat.blocks;
+
+out:
+	unionfs_check_dentry(dentry);
+	unionfs_unlock_dentry(dentry);
+	unionfs_unlock_parent(dentry, parent);
+	unionfs_read_unlock(dentry->d_sb);
+
+	return err;
+}
+#endif
 
 struct inode_operations unionfs_symlink_iops = {
 	.readlink	= unionfs_readlink,

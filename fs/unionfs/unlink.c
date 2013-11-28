@@ -72,10 +72,10 @@ static int unionfs_unlink_whiteout(struct inode *dir, struct dentry *dentry,
 			lockdep_off();
 			if (!S_ISDIR(lower_dentry->d_inode->i_mode))
 				err = vfs_unlink(lower_dir_dentry->d_inode,
-								lower_dentry);
+						 lower_dentry, NULL);
 			else
 				err = vfs_rmdir(lower_dir_dentry->d_inode,
-								lower_dentry);
+						lower_dentry);
 			lockdep_on();
 		}
 

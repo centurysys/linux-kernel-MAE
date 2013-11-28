@@ -96,6 +96,6 @@ void __unionfs_unlink(struct work_struct *work)
 	struct sioq_args *args = container_of(work, struct sioq_args, work);
 	struct unlink_args *u = &args->unlink;
 
-	args->err = vfs_unlink(u->parent, u->dentry);
+	args->err = vfs_unlink(u->parent, u->dentry, NULL);
 	complete(&args->comp);
 }
