@@ -657,6 +657,34 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 	return ret;
 }
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+/**
+ * serial_omap_gpio_irq() - This handles the GPIO interrupt from one port
+ * @irq: uart port irq number
+ * @dev_id: uart port info
+ */
+static irqreturn_t serial_omap_gpio_irq(int irq, void *dev_id)
+{
+	struct uart_omap_port *up = dev_id;
+	irqreturn_t ret = IRQ_HANDLED;
+
+	spin_lock(&up->port.lock);
+	pm_runtime_get_sync(up->dev);
+
+	check_modem_status(up);
+
+	spin_unlock(&up->port.lock);
+
+	tty_flip_buffer_push(&up->port.state->port);
+
+	pm_runtime_mark_last_busy(up->dev);
+	pm_runtime_put_autosuspend(up->dev);
+	up->port_activity = jiffies;
+
+	return ret;
+}
+#endif
+
 static unsigned int serial_omap_tx_empty(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
@@ -788,6 +816,48 @@ static int serial_omap_startup(struct uart_port *port)
 		disable_irq(up->wakeirq);
 	}
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	/* Extra DSR/CD/RI IRQ */
+
+	if (up->DSR_active && gpio_is_valid(up->DSR_gpio)) {
+		retval = request_irq(gpio_to_irq(up->DSR_gpio), serial_omap_gpio_irq,
+				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				     "UART DSR", up);
+		if (retval)
+			goto err_DSR;
+	}
+
+	if (up->CD_active && gpio_is_valid(up->CD_gpio)) {
+		retval = request_irq(gpio_to_irq(up->CD_gpio), serial_omap_gpio_irq,
+				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				     "UART DCD", up);
+		if (retval)
+			goto err_CD;
+	}
+
+	if (up->RI_active && gpio_is_valid(up->RI_gpio)) {
+		retval = request_irq(gpio_to_irq(up->RI_gpio), serial_omap_gpio_irq,
+				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				     "UART RI", up);
+		if (retval)
+			goto err_RI;
+	}
+
+	goto GPIO_IRQ_OK;
+
+err_RI:
+	if (up->CD_active && gpio_is_valid(up->CD_gpio))
+		free_irq(gpio_to_irq(up->CD_gpio), up);
+err_CD:
+	if (up->DSR_active && gpio_is_valid(up->DSR_gpio))
+		free_irq(gpio_to_irq(up->DSR_gpio), up);
+err_DSR:
+	free_irq(up->port.irq, up);
+	return retval;
+
+GPIO_IRQ_OK:
+#endif
+
 	dev_dbg(up->port.dev, "serial_omap_startup+%d\n", up->port.line);
 
 	pm_runtime_get_sync(up->dev);
@@ -876,6 +946,14 @@ static void serial_omap_shutdown(struct uart_port *port)
 	free_irq(up->port.irq, up);
 	if (up->wakeirq)
 		free_irq(up->wakeirq, up);
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	if (up->RI_active && gpio_is_valid(up->RI_gpio))
+		free_irq(gpio_to_irq(up->RI_gpio), up);
+	if (up->CD_active && gpio_is_valid(up->CD_gpio))
+		free_irq(gpio_to_irq(up->CD_gpio), up);
+	if (up->DSR_active && gpio_is_valid(up->DSR_gpio))
+		free_irq(gpio_to_irq(up->DSR_gpio), up);
+#endif
 }
 
 static void serial_omap_uart_qos_work(struct work_struct *work)
