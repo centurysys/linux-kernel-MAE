@@ -819,7 +819,7 @@ static int serial_omap_startup(struct uart_port *port)
 #ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
 	/* Extra DSR/CD/RI IRQ */
 
-	if (up->DSR_active && gpio_is_valid(up->DSR_gpio)) {
+	if (gpio_is_valid(up->DSR_gpio)) {
 		retval = request_irq(gpio_to_irq(up->DSR_gpio), serial_omap_gpio_irq,
 				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				     "UART DSR", up);
@@ -827,7 +827,7 @@ static int serial_omap_startup(struct uart_port *port)
 			goto err_DSR;
 	}
 
-	if (up->CD_active && gpio_is_valid(up->CD_gpio)) {
+	if (gpio_is_valid(up->CD_gpio)) {
 		retval = request_irq(gpio_to_irq(up->CD_gpio), serial_omap_gpio_irq,
 				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				     "UART DCD", up);
@@ -835,7 +835,7 @@ static int serial_omap_startup(struct uart_port *port)
 			goto err_CD;
 	}
 
-	if (up->RI_active && gpio_is_valid(up->RI_gpio)) {
+	if (gpio_is_valid(up->RI_gpio)) {
 		retval = request_irq(gpio_to_irq(up->RI_gpio), serial_omap_gpio_irq,
 				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				     "UART RI", up);
@@ -846,10 +846,10 @@ static int serial_omap_startup(struct uart_port *port)
 	goto GPIO_IRQ_OK;
 
 err_RI:
-	if (up->CD_active && gpio_is_valid(up->CD_gpio))
+	if (gpio_is_valid(up->CD_gpio))
 		free_irq(gpio_to_irq(up->CD_gpio), up);
 err_CD:
-	if (up->DSR_active && gpio_is_valid(up->DSR_gpio))
+	if (gpio_is_valid(up->DSR_gpio))
 		free_irq(gpio_to_irq(up->DSR_gpio), up);
 err_DSR:
 	free_irq(up->port.irq, up);
@@ -947,11 +947,11 @@ static void serial_omap_shutdown(struct uart_port *port)
 	if (up->wakeirq)
 		free_irq(up->wakeirq, up);
 #ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
-	if (up->RI_active && gpio_is_valid(up->RI_gpio))
+	if (gpio_is_valid(up->RI_gpio))
 		free_irq(gpio_to_irq(up->RI_gpio), up);
-	if (up->CD_active && gpio_is_valid(up->CD_gpio))
+	if (gpio_is_valid(up->CD_gpio))
 		free_irq(gpio_to_irq(up->CD_gpio), up);
-	if (up->DSR_active && gpio_is_valid(up->DSR_gpio))
+	if (gpio_is_valid(up->DSR_gpio))
 		free_irq(gpio_to_irq(up->DSR_gpio), up);
 #endif
 }
@@ -1678,7 +1678,7 @@ static void of_get_uart_port_info_ex(struct device *dev,
 			info->PINL ## _inverted = (flags & GPIO_ACTIVE_HIGH) ? 0 : 1; \
 			info->PINL ## _present = 1;			\
 		} else {						\
-			info->PINL ## _gpio = 0;			\
+			info->PINL ## _gpio = -EINVAL;			\
 		}							\
 	} while (0)
 
