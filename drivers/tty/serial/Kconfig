@@ -1151,6 +1151,10 @@ config SERIAL_OMAP_CONSOLE
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
 
+config SERIAL_OMAP_FULL_MODEM_GPIO
+	bool "Full Modem signal support on OMAP serial port"
+	depends on SERIAL_OMAP=y
+
 config SERIAL_OF_PLATFORM_NWPSERIAL
 	tristate "NWP serial port driver"
 	depends on PPC_OF && PPC_DCR

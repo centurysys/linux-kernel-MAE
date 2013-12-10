@@ -42,6 +42,19 @@ struct omap_uart_port_info {
 	int			DTR_inverted;
 	int			DTR_present;
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	int			DSR_gpio;
+	int			DSR_inverted;
+	int			DSR_present;
+
+	int			CD_gpio;
+	int			CD_inverted;
+	int			CD_present;
+
+	int			RI_gpio;
+	int			RI_inverted;
+	int			RI_present;
+#endif
 	int (*get_context_loss_count)(struct device *);
 	void (*enable_wakeup)(struct device *, bool);
 };
