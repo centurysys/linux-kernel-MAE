@@ -167,6 +167,20 @@ struct uart_omap_port {
 	int			DTR_inverted;
 	int			DTR_active;
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	int			DSR_gpio;
+	int			DSR_inverted;
+	int			DSR_active;
+
+	int			CD_gpio;
+	int			CD_inverted;
+	int			CD_active;
+
+	int			RI_gpio;
+	int			RI_inverted;
+	int			RI_active;
+#endif
+
 	struct serial_rs485	rs485;
 	int			rts_gpio;
 
@@ -1571,6 +1585,34 @@ static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
 	}
 }
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+static void of_get_uart_port_info_ex(struct device *dev,
+				     struct omap_uart_port_info *info)
+{
+	enum of_gpio_flags flags;
+
+#define OF_PROBE_UART_PINS(PINL, PINS) \
+	do { \
+		info->PINL ## _gpio = \
+			of_get_named_gpio_flags(dev->of_node, #PINS "-gpio", \
+						 0, &flags); \
+		if (gpio_is_valid(info->PINL ## _gpio)) {		\
+			info->PINL ## _inverted = (flags & GPIO_ACTIVE_HIGH) ? 0 : 1; \
+			info->PINL ## _present = 1;			\
+		} else {						\
+			info->PINL ## _gpio = 0;			\
+		}							\
+	} while (0)
+
+	OF_PROBE_UART_PINS(DTR, dtr);
+	OF_PROBE_UART_PINS(DSR, dsr);
+	OF_PROBE_UART_PINS(CD, cd);
+	OF_PROBE_UART_PINS(RI, ri);
+
+#undef OF_PROBE_UART_PINS
+}
+#endif
+
 static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 {
 	struct omap_uart_port_info *omap_up_info;
@@ -1581,6 +1623,11 @@ static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 
 	of_property_read_u32(dev->of_node, "clock-frequency",
 					 &omap_up_info->uartclk);
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	/* read extra property from DT (DTR_gpio, DSR_gpio, etc...) */
+	of_get_uart_port_info_ex(dev, omap_up_info);
+#endif
+
 	return omap_up_info;
 }
 
