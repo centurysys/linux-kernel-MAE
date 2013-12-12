@@ -107,8 +107,8 @@ retry:
 		counter++;
 		sprintf(suffix, "%*.*x", countersize, countersize, counter);
 
-		pr_debug("unionfs: trying to rename %s to %s\n",
-			 dentry->d_name.name, name);
+		pr_debug("unionfs: trying to rename %pd to %s\n",
+			 dentry, name);
 
 		tmp_dentry = lookup_lck_len(name, lower_dentry->d_parent,
 					    nlen);
@@ -426,8 +426,7 @@ out_may_copyup:
 	if (willwrite && IS_WRITE_FLAG(file->f_flags) &&
 	    !IS_WRITE_FLAG(unionfs_lower_file(file)->f_flags) &&
 	    is_robranch(dentry)) {
-		pr_debug("unionfs: do delay copyup of \"%s\"\n",
-			 dentry->d_name.name);
+		pr_debug("unionfs: do delay copyup of \"%pd\"\n", dentry);
 		err = do_delayed_copyup(file, parent);
 		/* regular files have only one open lower file */
 		if (!err && !S_ISDIR(dentry->d_inode->i_mode))
@@ -476,8 +475,8 @@ int unionfs_file_revalidate(struct file *file, struct dentry *parent,
 	dgen = atomic_read(&UNIONFS_D(dentry)->generation);
 
 	if (unlikely(sbgen > dgen)) { /* XXX: should never happen */
-		pr_debug("unionfs: failed to revalidate dentry (%s)\n",
-			 dentry->d_name.name);
+		pr_debug("unionfs: failed to revalidate dentry (%pd)\n",
+			 dentry);
 		err = -ESTALE;
 		goto out;
 	}
