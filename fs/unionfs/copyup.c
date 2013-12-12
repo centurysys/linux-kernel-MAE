@@ -156,8 +156,8 @@ static int copyup_permissions(struct super_block *sb,
 	if (err == -EOPNOTSUPP &&
 	    S_ISLNK(new_lower_dentry->d_inode->i_mode)) {
 		printk(KERN_WARNING
-		       "unionfs: changing \"%s\" symlink mode unsupported\n",
-		       new_lower_dentry->d_name.name);
+		       "unionfs: changing \"%pd\" symlink mode unsupported\n",
+		       new_lower_dentry);
 		err = 0;
 	}
 

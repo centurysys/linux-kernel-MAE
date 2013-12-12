@@ -248,8 +248,8 @@ static int do_unionfs_rename(struct inode *old_dir,
 			err = create_whiteout(old_dentry, bindex);
 			if (err) {
 				printk(KERN_ERR "unionfs: can't create a "
-				       "whiteout for %s in rename (err=%d)\n",
-				       old_dentry->d_name.name, err);
+				       "whiteout for %pd in rename (err=%d)\n",
+				       old_dentry, err);
 				continue;
 			}
 			err = __unionfs_rename(old_dir, old_dentry, old_parent,
@@ -276,7 +276,7 @@ static int do_unionfs_rename(struct inode *old_dir,
 		if (err) {
 			/* can't fix anything now, so we exit with -EIO */
 			printk(KERN_ERR "unionfs: can't create a whiteout for "
-			       "%s in rename!\n", old_dentry->d_name.name);
+			       "%pd in rename!\n", old_dentry);
 			err = -EIO;
 		}
 	}

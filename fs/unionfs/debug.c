@@ -494,9 +494,9 @@ void __show_dinode_times(const struct dentry *dentry,
 		lower_inode = unionfs_lower_inode_idx(inode, bindex);
 		if (!lower_inode)
 			continue;
-		pr_debug("DT(%s:%lu:%d): %s:%s:%d "
+		pr_debug("DT(%pd:%lu:%d): %s:%s:%d "
 			 "um=%lu/%lu lm=%lu/%lu uc=%lu/%lu lc=%lu/%lu\n",
-			 dentry->d_name.name, inode->i_ino, bindex,
+			 dentry, inode->i_ino, bindex,
 			 file, fxn, line,
 			 inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
 			 lower_inode->i_mtime.tv_sec,

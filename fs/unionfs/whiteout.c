@@ -191,8 +191,8 @@ int unlink_whiteout(struct dentry *wh_dentry)
 		err = inode->i_op->unlink(inode, wh_dentry);
 	}
 	if (err)
-		printk(KERN_ERR "unionfs: could not unlink whiteout %s, "
-		       "err = %d\n", wh_dentry->d_name.name, err);
+		printk(KERN_ERR "unionfs: could not unlink whiteout %pd, "
+		       "err = %d\n", wh_dentry, err);
 
 	return err;
 
@@ -236,8 +236,8 @@ int check_unlink_whiteout(struct dentry *dentry, struct dentry *lower_dentry,
 	/* check if regular file and whiteout were both found */
 	if (unlikely(lower_dentry->d_inode))
 		printk(KERN_WARNING "unionfs: removing whiteout; regular "
-		       "file exists in directory %s (branch %d)\n",
-		       lower_dir_dentry->d_name.name, bindex);
+		       "file exists in directory %pd (branch %d)\n",
+		       lower_dir_dentry, bindex);
 
 	/* check if branch is writeable */
 	err = is_robranch_super(dentry->d_sb, bindex);

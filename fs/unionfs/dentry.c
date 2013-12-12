@@ -266,8 +266,8 @@ bool is_newer_lower(const struct dentry *dentry)
 			if ((lower_inode->i_mtime.tv_sec -
 			     inode->i_mtime.tv_sec) > UNIONFS_MIN_CC_TIME) {
 				pr_info("unionfs: new lower inode mtime "
-					"(bindex=%d, name=%s)\n", bindex,
-					dentry->d_name.name);
+					"(bindex=%d, name=%pd)\n", bindex,
+					dentry);
 				show_dinode_times(dentry);
 			}
 			return true;
@@ -277,8 +277,8 @@ bool is_newer_lower(const struct dentry *dentry)
 			if ((lower_inode->i_ctime.tv_sec -
 			     inode->i_ctime.tv_sec) > UNIONFS_MIN_CC_TIME) {
 				pr_info("unionfs: new lower inode ctime "
-					"(bindex=%d, name=%s)\n", bindex,
-					dentry->d_name.name);
+					"(bindex=%d, name=%pd)\n", bindex,
+					dentry);
 				show_dinode_times(dentry);
 			}
 			return true;
