@@ -40,6 +40,10 @@ config TI_DAVINCI_MDIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called davinci_mdio.  This is recommended.
 
+config DAVINCI_MDIO_PHYRESET
+       bool "TI DaVinci Reset PHY before probe"
+       depends on TI_DAVINCI_MDIO
+
 config TI_DAVINCI_CPDMA
 	tristate "TI DaVinci CPDMA Support"
 	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS
