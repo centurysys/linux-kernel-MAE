@@ -198,6 +198,12 @@
 			/* PHY0/1 Reset */
 			0x1a0 (PIN_OUTPUT | MUX_MODE7)		/* mcasp0_aclkr.gpio3_18 */
 			0x1a4 (PIN_OUTPUT | MUX_MODE7)		/* mcasp0_fsr.gpio3_19 */
+
+			/* Link LED GPIO */
+			0x0c0 (PIN_OUTPUT | MUX_MODE7)		/* lcd_data8.gpio2_14 */
+			0x0c4 (PIN_OUTPUT | MUX_MODE7)		/* lcd_data9.gpio2_15 */
+			0x0c8 (PIN_OUTPUT | MUX_MODE7)		/* lcd_data10.gpio2_16 */
+			0x0cc (PIN_OUTPUT | MUX_MODE7)		/* lcd_data11.gpio2_17 */
 		>;
 	};
 
@@ -477,12 +483,16 @@
 	phy_id = <&davinci_mdio>, <0>;
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <1>;
+	led-fast-gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
+	led-giga-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
 };
 
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <3>;
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <2>;
+	led-fast-gpio = <&gpio2 16 GPIO_ACTIVE_LOW>;
+	led-giga-gpio = <&gpio2 17 GPIO_ACTIVE_LOW>;
 };
 
 &mmc1 {
