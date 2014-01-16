@@ -328,7 +328,6 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 		return -EINVAL;
 
 #ifdef CONFIG_DAVINCI_MDIO_PHYRESET
-	printk("***** %s: probe PHY_RESET pins...\n", __FUNCTION__);
 	phy_reset_gpio[0] = of_get_named_gpio(node, "phy0-reset-gpio", 0);
 	phy_reset_gpio[1] = of_get_named_gpio(node, "phy1-reset-gpio", 0);
 
@@ -336,14 +335,11 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 		return -EPROBE_DEFER;
 
 	for (i = 0; i < 2; i++) {
-		printk(" PHY_RESET%d --> %d\n", i, phy_reset_gpio[i]);
-
 		if (gpio_is_valid(phy_reset_gpio[i])) {
 			sprintf(gpio_name, "phy_reset%d", i);
 			gpio_request(phy_reset_gpio[i], gpio_name);
 
 			data->phy_reset_gpio[i] = phy_reset_gpio[i];
-			//gpio_direction_output(phy_reset_gpio[i], 1);
 		}
 	}
 #endif
