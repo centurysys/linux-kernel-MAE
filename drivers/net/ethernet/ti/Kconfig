@@ -89,6 +89,10 @@ config TI_CPTS
 	  the CPSW Ethernet Switch. The unit can time stamp PTP UDP/IPv4
 	  and Layer 2 packets, and the driver offers a PTP Hardware Clock.
 
+config CPSW_LED_GPIO
+	boolean "TI CPSW GPIO Controlled Link LED Support"
+	depends on TI_CPSW
+
 config TI_KEYSTONE_NETCP
 	tristate "TI Keystone NETCP Core Support"
 	select TI_CPSW_ALE

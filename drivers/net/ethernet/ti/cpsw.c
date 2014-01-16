@@ -31,6 +31,10 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#ifdef CONFIG_CPSW_LED_GPIO
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+#endif
 #include <linux/of_device.h>
 #include <linux/if_vlan.h>
 
@@ -898,6 +902,21 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 	if (mac_control != slave->mac_control) {
 		phy_print_status(phy);
 		__raw_writel(mac_control, &slave->sliver->mac_control);
+#ifdef CONFIG_CPSW_LED_GPIO
+		{
+			int val;
+
+			val = (phy->speed == 1000) ? 0 : 1;
+
+			if (gpio_is_valid(slave->data->led_giga_gpio))
+				gpio_direction_output(slave->data->led_giga_gpio, val);
+
+			val = (phy->speed == 100) ? 0 : 1;
+
+			if (gpio_is_valid(slave->data->led_fast_gpio))
+				gpio_direction_output(slave->data->led_fast_gpio, val);
+		}
+#endif
 	}
 
 	slave->mac_control = mac_control;
@@ -2027,7 +2046,10 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		const __be32 *parp;
 		struct device_node *mdio_node;
 		struct platform_device *mdio;
-
+#ifdef CONFIG_CPSW_LED_GPIO
+		int led_fast_gpio, led_giga_gpio;
+		char gpio_name[16];
+#endif
 		/* This is no slave child node, continue */
 		if (strcmp(slave_node->name, "slave"))
 			continue;
@@ -2068,6 +2090,31 @@ no_phy_slave:
 					return ret;
 			}
 		}
+
+#ifdef CONFIG_CPSW_LED_GPIO
+		led_fast_gpio = of_get_named_gpio(slave_node, "led-fast-gpio", 0);
+		led_giga_gpio = of_get_named_gpio(slave_node, "led-giga-gpio", 0);
+
+		printk("---- %s: fast: %d, giga: %d\n", __FUNCTION__,
+		       led_fast_gpio, led_giga_gpio);
+
+		if (gpio_is_valid(led_fast_gpio)) {
+			sprintf(gpio_name, "phy_fast%d", i);
+			gpio_request(led_fast_gpio, gpio_name);
+			slave_data->led_fast_gpio = led_fast_gpio;
+		} else {
+			slave_data->led_fast_gpio = -1;
+		}
+
+		if (gpio_is_valid(led_giga_gpio)) {
+			sprintf(gpio_name, "phy_giga%d", i);
+			gpio_request(led_giga_gpio, gpio_name);
+			slave_data->led_giga_gpio = led_giga_gpio;
+		} else {
+			slave_data->led_giga_gpio = -1;
+		}
+#endif
+
 		if (data->dual_emac) {
 			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",
 						 &prop)) {
