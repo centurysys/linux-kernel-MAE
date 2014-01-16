@@ -61,6 +61,9 @@
 		pinctrl-single,pins = <
 			0x188 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
 			0x18c (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
+
+			/* TCA6507 Reset# */
+			0x178 (PIN_OUTPUT | MUX_MODE7)		/* gpmc_ben1.gpio1_28 */
 		>;
 	};
 
@@ -247,6 +250,51 @@
 
 	tps: tps@24 {
 		reg = <0x24>;
+	};
+
+	tca6507@45 {
+		compatible = "ti,tca6507";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x45>;
+
+		reset-gpio = <&gpio1 28 GPIO_ACTIVE_LOW>;
+
+		led0: power-status-red@0 {
+			label = "power-stat:r";
+			reg = <0x0>;
+		};
+
+		led1: system-status1-red@1 {
+			label = "system-status1:r";
+			reg = <0x1>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led2: system-status2-red@2 {
+			label = "system-status2:r";
+			reg = <0x2>;
+		};
+
+		led3: system-status3-red@3 {
+			label = "system-status3:r";
+			reg = <0x3>;
+		};
+
+		led4: system-status1-green@4 {
+			label = "system-status1:g";
+			reg = <0x4>;
+		};
+
+		led5: system-status2-green@5 {
+			label = "system-status2:g";
+			reg = <0x5>;
+		};
+
+		led6: system-status3-green@6 {
+			label = "system-status3:g";
+			reg = <0x6>;
+		};
 	};
 };
 
