@@ -739,8 +739,8 @@ static int serial_omap_startup(struct uart_port *port)
 		}
 		disable_irq(up->wakeirq);
 	} else {
-		dev_info(up->port.dev, "no wakeirq for uart%d\n",
-			 up->port.line);
+		dev_dbg(up->port.dev, "no wakeirq for uart%d\n",
+			up->port.line);
 	}
 
 	dev_dbg(up->port.dev, "serial_omap_startup+%d\n", up->port.line);
