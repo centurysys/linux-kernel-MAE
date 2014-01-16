@@ -22,6 +22,10 @@ struct cpsw_slave_data {
 	int		phy_if;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
+#ifdef CONFIG_CPSW_LED_GPIO
+	int		led_fast_gpio;
+	int		led_giga_gpio;
+#endif
 };
 
 struct cpsw_platform_data {
