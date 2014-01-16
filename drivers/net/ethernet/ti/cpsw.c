@@ -1838,9 +1838,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		led_fast_gpio = of_get_named_gpio(slave_node, "led-fast-gpio", 0);
 		led_giga_gpio = of_get_named_gpio(slave_node, "led-giga-gpio", 0);
 
-		printk("---- %s: fast: %d, giga: %d\n", __FUNCTION__,
-		       led_fast_gpio, led_giga_gpio);
-
 		if (gpio_is_valid(led_fast_gpio)) {
 			sprintf(gpio_name, "phy_fast%d", i);
 			gpio_request(led_fast_gpio, gpio_name);
@@ -1857,7 +1854,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			slave_data->led_giga_gpio = -1;
 		}
 #endif
-
 		if (data->dual_emac) {
 			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",
 						 &prop)) {
