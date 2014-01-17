@@ -521,6 +521,18 @@
 	wp-gpios = <&gpio3 17 GPIO_ACTIVE_LOW>;
 };
 
+&spi0 {
+	status = "okay";
+	ti,spi-num-cs = <1>;
+
+	/* spi0.0: Micron 16Mbit NOR Flash (M25P16) */
+	spi-flash@0 {
+		compatible = "m25p16";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
 &sham {
 	status = "okay";
 };
