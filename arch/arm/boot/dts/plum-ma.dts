@@ -268,6 +268,11 @@
 		reg = <0x68>;
 	};
 
+	eeprom: m24c16@50 {
+		compatible = "24c16";
+		reg = <0x50>;
+	};
+
 	tca6507@45 {
 		compatible = "ti,tca6507";
 		#address-cells = <1>;
