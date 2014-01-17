@@ -258,6 +258,16 @@
 		reg = <0x24>;
 	};
 
+	sensor: lm75@48 {
+		compatible = "lm75";
+		reg = <0x48>;
+	};
+
+	rtc: m41t00@68 {
+		compatible = "m41t00";
+		reg = <0x68>;
+	};
+
 	tca6507@45 {
 		compatible = "ti,tca6507";
 		#address-cells = <1>;
