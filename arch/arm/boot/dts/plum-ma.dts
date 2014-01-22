@@ -358,7 +358,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&nandflash_pins_s0>;
-	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
+	ranges = <0 0 0x08000000 0x01000000	/* CS0 : NAND */
+		  1 0 0x10000000 0x01000000	/* CS1 : DIPSW */
+		  2 0 0x11000000 0x01000000>;	/* CS2 : eXternal I/O */
 	nand@0,0 {
 		reg = <0 0 0>; /* CS0, offset 0 */
 		nand-bus-width = <8>;
@@ -417,6 +419,16 @@
 			label = "Filesystem";
 			reg = <0x0AA00000 0x05600000>;
 		};
+	};
+
+	generic@1,0 {
+		reg = <1 0x00000000 0x000000ff>;
+		compatible = "ns16550a";
+	};
+
+	generic@2,0 {
+		reg = <2 0x00000000 0x000000ff>;
+		compatible = "ns16550a";
 	};
 };
 
