@@ -552,12 +552,17 @@
 
 		partition@3 {
 			label = "dtb.1";
-			reg = <0x000c0000 0x0000a0000>;
+			reg = <0x000c0000 0x000010000>;
 		};
 
 		partition@4 {
 			label = "dtb.2";
-			reg = <0x00160000 0x0000a0000>;
+			reg = <0x000d0000 0x000010000>;
+		};
+
+		partition@5 {
+			label = "data";
+			reg = <0x000e0000 0x000120000>;
 		};
 	};
 };
