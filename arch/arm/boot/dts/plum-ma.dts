@@ -530,6 +530,35 @@
 		compatible = "m25p16";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table */
+		partition@0 {
+			label = "MLO";
+			reg = <0x00000000 0x000020000>;
+		};
+
+		partition@1 {
+			label = "barebox.bin";
+			reg = <0x00020000 0x000080000>;
+		};
+
+		partition@2 {
+			label = "barebox.env";
+			reg = <0x000a0000 0x000020000>;
+		};
+
+		partition@3 {
+			label = "dtb.1";
+			reg = <0x000c0000 0x0000a0000>;
+		};
+
+		partition@4 {
+			label = "dtb.2";
+			reg = <0x00160000 0x0000a0000>;
+		};
 	};
 };
 
