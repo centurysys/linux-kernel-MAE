@@ -2048,7 +2048,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		struct platform_device *mdio;
 #ifdef CONFIG_CPSW_LED_GPIO
 		int led_fast_gpio, led_giga_gpio;
-		char gpio_name[16];
 #endif
 		/* This is no slave child node, continue */
 		if (strcmp(slave_node->name, "slave"))
@@ -2099,16 +2098,14 @@ no_phy_slave:
 		       led_fast_gpio, led_giga_gpio);
 
 		if (gpio_is_valid(led_fast_gpio)) {
-			sprintf(gpio_name, "phy_fast%d", i);
-			gpio_request(led_fast_gpio, gpio_name);
+			gpio_request(led_fast_gpio, "PHY_LED_100M");
 			slave_data->led_fast_gpio = led_fast_gpio;
 		} else {
 			slave_data->led_fast_gpio = -1;
 		}
 
 		if (gpio_is_valid(led_giga_gpio)) {
-			sprintf(gpio_name, "phy_giga%d", i);
-			gpio_request(led_giga_gpio, gpio_name);
+			gpio_request(led_giga_gpio, "PHY_LED_1G");
 			slave_data->led_giga_gpio = led_giga_gpio;
 		} else {
 			slave_data->led_giga_gpio = -1;
