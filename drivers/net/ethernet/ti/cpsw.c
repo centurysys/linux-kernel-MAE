@@ -2008,6 +2008,9 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	if (of_property_read_bool(node, "dual_emac"))
 		data->dual_emac = 1;
 
+	if (of_property_read_bool(node, "no_bd_ram"))
+		data->no_bd_ram = 1;
+
 	/*
 	 * Populate all the child nodes here...
 	 */
@@ -2293,8 +2296,13 @@ static int cpsw_probe(struct platform_device *pdev)
 		slave_offset         = CPSW2_SLAVE_OFFSET;
 		slave_size           = CPSW2_SLAVE_SIZE;
 		sliver_offset        = CPSW2_SLIVER_OFFSET;
-		dma_params.desc_mem_phys =
-			(u32 __force) ss_res->start + CPSW2_BD_OFFSET;
+		if (!data->no_bd_ram) {
+			dma_params.desc_mem_phys =
+				(u32 __force) ss_res->start + CPSW2_BD_OFFSET;
+		} else {
+			printk("cpsw: allocate desc_mem in DRAM.\n");
+			dma_params.desc_mem_phys = 0;
+		}
 		break;
 	default:
 		dev_err(priv->dev, "unknown version 0x%08x\n", priv->version);
