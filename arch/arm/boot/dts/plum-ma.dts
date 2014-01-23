@@ -478,6 +478,9 @@
 
 	phy0-reset-gpio = <&gpio3 18 GPIO_ACTIVE_LOW>;
 	phy1-reset-gpio = <&gpio3 19 GPIO_ACTIVE_LOW>;
+
+	tx-skew = <0x18>;
+	rx-skew = <0x13>;
 };
 
 &cpsw_emac0 {
