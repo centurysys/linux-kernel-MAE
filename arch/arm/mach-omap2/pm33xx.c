@@ -29,6 +29,7 @@
 #include <linux/ti_emif.h>
 #include <linux/omap-mailbox.h>
 
+#include <asm/unaligned.h>
 #include <asm/suspend.h>
 #include <asm/proc-fns.h>
 #include <asm/sizes.h>
@@ -48,7 +49,9 @@
 #include "control.h"
 
 #ifdef CONFIG_SUSPEND
+# ifdef CONFIG_SOC_AM43XX
 static void __iomem *scu_base;
+# endif
 static struct powerdomain *mpu_pwrdm, *per_pwrdm, *gfx_pwrdm;
 static struct clockdomain *gfx_l4ls_clkdm;
 static struct clockdomain *l3s_clkdm, *l4fw_clkdm, *clk_24mhz_clkdm;
@@ -363,6 +366,63 @@ static int __init am43xx_map_scu(void)
 }
 #endif
 
+static int __init am33xx_setup_sleep_sequence(void)
+{
+	int ret;
+	int sz;
+	const void *prop;
+	struct device *dev;
+	u32 freq_hz = 100000;
+	unsigned short freq_khz;
+
+	/*
+	 * We put the device tree node in the I2C controller that will
+	 * be sending the sequence. i2c1 is the only controller that can
+	 * be accessed by the firmware as it is the only controller in the
+	 * WKUP domain.
+	 */
+	dev = omap_device_get_by_hwmod_name("i2c1");
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+
+	of_property_read_u32(dev->of_node, "clock-frequency", &freq_hz);
+	freq_khz = freq_hz / 1000;
+
+	prop = of_get_property(dev->of_node, "sleep-sequence", &sz);
+	if (prop) {
+		/*
+		 * Length is sequence length + 2 bytes for freq_khz, and 1
+		 * byte for terminator.
+		 */
+		am33xx_i2c_sleep_sequence = kzalloc(sz + 3, GFP_KERNEL);
+
+		if (!am33xx_i2c_sleep_sequence)
+			return -ENOMEM;
+		put_unaligned_le16(freq_khz, am33xx_i2c_sleep_sequence);
+		memcpy(am33xx_i2c_sleep_sequence + 2, prop, sz);
+		i2c_sleep_sequence_sz = sz + 3;
+	}
+
+	prop = of_get_property(dev->of_node, "wake-sequence", &sz);
+	if (prop) {
+		am33xx_i2c_wake_sequence = kzalloc(sz + 3, GFP_KERNEL);
+		if (!am33xx_i2c_wake_sequence) {
+			ret = -ENOMEM;
+			goto cleanup_sleep;
+		}
+		put_unaligned_le16(freq_khz, am33xx_i2c_wake_sequence);
+		memcpy(am33xx_i2c_wake_sequence + 2, prop, sz);
+		i2c_wake_sequence_sz = sz + 3;
+	}
+
+	return 0;
+
+cleanup_sleep:
+	kfree(am33xx_i2c_sleep_sequence);
+	am33xx_i2c_sleep_sequence = NULL;
+	return ret;
+}
+
 static int am33xx_suspend_init(void)
 {
 	u32 temp;
@@ -482,6 +542,7 @@ static struct am33xx_pm_ops am43xx_ops = {
 
 int __init am33xx_pm_init(void)
 {
+	struct powerdomain *cefuse_pwrdm;
 #ifdef CONFIG_CPU_PM
 	int ret;
 	u32 temp;
@@ -598,6 +659,7 @@ int __init am33xx_pm_init(void)
 
 	if (wkup_m3_is_valid())
 		am33xx_m3_fw_ready_cb();
+#endif /* CONFIG_CPU_PM */
 
 	return 0;
 

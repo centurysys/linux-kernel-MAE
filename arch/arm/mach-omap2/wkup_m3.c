@@ -58,6 +58,9 @@
 struct wkup_m3_context {
 	struct device	*dev;
 	void __iomem	*code;
+	void __iomem	*data;
+	void __iomem	*data_end;
+	size_t		data_size;
 	void __iomem	*ipc;
 	u8		is_valid;
 	struct wkup_m3_ops *ops;
@@ -155,6 +158,50 @@ int wkup_m3_ping(void)
 	 * registers.
 	 */
 	ret = omap_mbox_msg_send(wkup_m3->mbox, 0xABCDABCD);
+
+	return ret;
+}
+
+/*
+ * This pair of functions allows data to be stuffed into the end of the
+ * CM3 data memory. This is currently used for passing the I2C sleep/wake
+ * sequences to the firmware.
+ */
+
+/* Clear out the pointer for data stored at the end of DMEM */
+void wkup_m3_reset_data_pos(void)
+{
+	wkup_m3->data_end = wkup_m3->data + wkup_m3->data_size;
+}
+
+/*
+ * Store a block of data at the end of DMEM, return the offset within DMEM
+ * that the data is stored at, or -ENOMEM if the data did not fit
+ */
+int wkup_m3_copy_data(const u8 *data, size_t size)
+{
+	if (wkup_m3->data + size > wkup_m3->data_end)
+		return -ENOMEM;
+	wkup_m3->data_end -= size;
+	memcpy_toio(wkup_m3->data_end, data, size);
+	return wkup_m3->data_end - wkup_m3->data;
+}
+
+int wkup_m3_ping_noirq(void)
+{
+	int ret = 0;
+
+	if (!wkup_m3->mbox) {
+		pr_err("PM: No IPC channel to communicate with wkup_m3!\n");
+		return -EIO;
+	}
+
+	/*
+	 * Write a dummy message to the mailbox in order to trigger the RX
+	 * interrupt to alert the M3 that data is available in the IPC
+	 * registers.
+	 */
+	ret = omap_mbox_msg_send_noirq(wkup_m3->mbox, 0xABCDABCD);
 
 	return ret;
 }
