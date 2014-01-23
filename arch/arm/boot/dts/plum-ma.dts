@@ -394,43 +394,28 @@
 
 		/* MTD partition table */
 		partition@0 {
-			label = "SPL1";
-			reg = <0x00000000 0x000020000>;
+			label = "Kernel.1";
+			reg = <0x00000000 0x00500000>;
 		};
 
 		partition@1 {
-			label = "SPL2";
-			reg = <0x00020000 0x00020000>;
+			label = "Kernel.2";
+			reg = <0x00500000 0x00500000>;
 		};
 
 		partition@2 {
-			label = "SPL3";
-			reg = <0x00040000 0x00020000>;
+			label = "Rootdev.1";
+			reg = <0x00A00000 0x05000000>;
 		};
 
 		partition@3 {
-			label = "SPL4";
-			reg = <0x00060000 0x00020000>;
+			label = "Rootdev.2";
+			reg = <0x05A00000 0x05000000>;
 		};
 
 		partition@4 {
-			label = "U-boot";
-			reg = <0x00080000 0x001e0000>;
-		};
-
-		partition@5 {
-			label = "environment";
-			reg = <0x00260000 0x00020000>;
-		};
-
-		partition@6 {
-			label = "Kernel";
-			reg = <0x00280000 0x00500000>;
-		};
-
-		partition@7 {
-			label = "File-System";
-			reg = <0x00780000 0x0F880000>;
+			label = "Filesystem";
+			reg = <0x0AA00000 0x05600000>;
 		};
 	};
 };
