@@ -117,7 +117,6 @@ static int ksz9031_mmd_write(struct phy_device *phydev,
 
 	/* write to MMD register */
 	phy_write(phydev, MII_KSZ9031_MMD_CONTROL, addr | MMD_OP_DATA_NOINC);
-
 	return phy_write(phydev, MII_KSZ9031_MMD_DATA, val);
 }
 
@@ -128,7 +127,7 @@ static int ksz9031_mmd_read(struct phy_device *phydev,
 	phy_write(phydev, MII_KSZ9031_MMD_CONTROL, addr | MMD_OP_SETUP_REG);
 	phy_write(phydev, MII_KSZ9031_MMD_DATA, reg);
 
-	/* write to MMD register */
+	/* read from MMD register */
 	phy_write(phydev, MII_KSZ9031_MMD_CONTROL, addr | MMD_OP_DATA_NOINC);
 	return phy_read(phydev, MII_KSZ9031_MMD_DATA);
 }
