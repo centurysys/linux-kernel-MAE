@@ -66,6 +66,20 @@
 #define MII_KSZPHY_RX_DATA_PAD_SKEW             0x105
 #define MII_KSZPHY_TX_DATA_PAD_SKEW             0x106
 
+/* Write/read to/from MMD registers */
+#define MII_KSZ9031_MMD_CONTROL                 0x0d
+#define MII_KSZ9031_MMD_DATA                    0x0e
+
+/* MMD Access registers */
+#define MII_KSZ9031_CLOCK_PAD_SKEW_ADDR         0x02
+#define MII_KSZ9031_CLOCK_PAD_SKEW_REG          0x08
+
+#define MMD_ACCESS(x) ((x) << 14)
+#define MMD_OP_SETUP_REG   MMD_ACCESS(0x00)
+#define MMD_OP_DATA_NOINC  MMD_ACCESS(0x01)
+#define MMD_OP_DATA_INC_RW MMD_ACCESS(0x02)
+#define MMD_OP_DATA_INC_WO MMD_ACCESS(0x03)
+
 #define PS_TO_REG				200
 
 static int ksz_config_flags(struct phy_device *phydev)
@@ -92,6 +106,31 @@ static int kszphy_extended_read(struct phy_device *phydev,
 {
 	phy_write(phydev, MII_KSZPHY_EXTREG, regnum);
 	return phy_read(phydev, MII_KSZPHY_EXTREG_READ);
+}
+
+static int ksz9031_mmd_write(struct phy_device *phydev,
+			     u16 addr, u16 reg, u16 val)
+{
+	/* setup mmd register's addr/reg */
+	phy_write(phydev, MII_KSZ9031_MMD_CONTROL, addr | MMD_OP_SETUP_REG);
+	phy_write(phydev, MII_KSZ9031_MMD_DATA, reg);
+
+	/* write to MMD register */
+	phy_write(phydev, MII_KSZ9031_MMD_CONTROL, addr | MMD_OP_DATA_NOINC);
+
+	return phy_write(phydev, MII_KSZ9031_MMD_DATA, val);
+}
+
+static int ksz9031_mmd_read(struct phy_device *phydev,
+			    u16 addr, u16 reg)
+{
+	/* setup mmd register's addr/reg */
+	phy_write(phydev, MII_KSZ9031_MMD_CONTROL, addr | MMD_OP_SETUP_REG);
+	phy_write(phydev, MII_KSZ9031_MMD_DATA, reg);
+
+	/* write to MMD register */
+	phy_write(phydev, MII_KSZ9031_MMD_CONTROL, addr | MMD_OP_DATA_NOINC);
+	return phy_read(phydev, MII_KSZ9031_MMD_DATA);
 }
 
 static int kszphy_ack_interrupt(struct phy_device *phydev)
@@ -238,6 +277,40 @@ static int ksz9021_config_init(struct phy_device *phydev)
 				    MII_KSZPHY_TX_DATA_PAD_SKEW,
 				    "txd0-skew-ps", "txd1-skew-ps",
 				    "txd2-skew-ps", "txd3-skew-ps");
+	}
+	return 0;
+}
+
+static int ksz9031_config_init(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->dev;
+	struct device_node *of_node = dev->of_node;
+	u32 skew_tx, skew_rx;
+	u16 val;
+	int update = 0;
+
+	if (!of_node && dev->parent->of_node)
+		of_node = dev->parent->of_node;
+
+	if (of_node) {
+		val = ksz9031_mmd_read(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
+				       MII_KSZ9031_CLOCK_PAD_SKEW_REG);
+
+		if (!of_property_read_u32(of_node, "tx-skew", &skew_tx)) {
+			printk("KSZ9031: set tx-skew: 0x%02x\n", skew_tx);
+			val = (val & ~(0x1f << 5)) | ((skew_tx & 0x1f) << 5);
+			update++;
+		}
+
+		if (!of_property_read_u32(of_node, "rx-skew", &skew_rx)) {
+			printk("ksz9031: set rx-skew: 0x%02x\n", skew_rx);
+			val = (val & ~(0x1f << 0)) | ((skew_rx & 0x1f) << 0);
+			update++;
+		}
+
+		if (update > 0)
+			ksz9031_mmd_write(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
+					  MII_KSZ9031_CLOCK_PAD_SKEW_REG, val);
 	}
 	return 0;
 }
@@ -428,7 +501,7 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_GBIT_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= ksz9031_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
