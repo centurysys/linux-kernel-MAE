@@ -286,31 +286,31 @@ static int ksz9031_config_init(struct phy_device *phydev)
 	struct device *dev = &phydev->dev;
 	struct device_node *of_node = dev->of_node;
 	u32 skew_tx, skew_rx;
-	u16 val;
-	int update = 0;
+	u16 val, old_val;
 
 	if (!of_node && dev->parent->of_node)
 		of_node = dev->parent->of_node;
 
 	if (of_node) {
-		val = ksz9031_mmd_read(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
-				       MII_KSZ9031_CLOCK_PAD_SKEW_REG);
+		val = old_val = ksz9031_mmd_read(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
+						 MII_KSZ9031_CLOCK_PAD_SKEW_REG);
 
 		if (!of_property_read_u32(of_node, "tx-skew", &skew_tx)) {
-			printk("KSZ9031: set tx-skew: 0x%02x\n", skew_tx);
+			//printk("KSZ9031: set tx-skew: 0x%02x\n", skew_tx);
 			val = (val & ~(0x1f << 5)) | ((skew_tx & 0x1f) << 5);
-			update++;
 		}
 
 		if (!of_property_read_u32(of_node, "rx-skew", &skew_rx)) {
-			printk("ksz9031: set rx-skew: 0x%02x\n", skew_rx);
+			//printk("ksz9031: set rx-skew: 0x%02x\n", skew_rx);
 			val = (val & ~(0x1f << 0)) | ((skew_rx & 0x1f) << 0);
-			update++;
 		}
 
-		if (update > 0)
+		if (val != old_val) {
+			printk("KSZ9031: update clock-skew register: 0x%04x -> 0x%04x\n",
+			       old_val, val);
 			ksz9031_mmd_write(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
 					  MII_KSZ9031_CLOCK_PAD_SKEW_REG, val);
+		}
 	}
 	return 0;
 }
