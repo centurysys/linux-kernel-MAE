@@ -62,9 +62,9 @@ static struct am33xx_suspend_params susp_params;
 
 #ifdef CONFIG_SUSPEND
 
-static int am33xx_do_sram_idle(long unsigned int unused)
+static int am33xx_do_sram_idle(long unsigned int arg)
 {
-	am33xx_do_wfi_sram(&susp_params);
+	am33xx_do_wfi_sram((struct am33xx_suspend_params *)arg);
 	return 0;
 }
 
@@ -77,7 +77,8 @@ static int am33xx_pm_suspend(unsigned int state)
 
 	am33xx_pm->ops->pre_suspend(state);
 
-	ret = cpu_suspend(0, am33xx_do_sram_idle);
+	ret = cpu_suspend((long unsigned int) &susp_params,
+							am33xx_do_sram_idle);
 
 	am33xx_pm->ops->post_suspend(state);
 
@@ -217,7 +218,6 @@ static const struct platform_suspend_ops am33xx_pm_ops = {
 	.enter		= am33xx_pm_enter,
 	.valid		= am33xx_pm_valid,
 };
-#endif /* CONFIG_SUSPEND */
 
 static void am33xx_txev_handler(void)
 {
@@ -268,9 +268,7 @@ static void am33xx_m3_fw_ready_cb(void)
 					am33xx_pm->ver);
 	}
 
-#ifdef CONFIG_SUSPEND
 	suspend_set_ops(&am33xx_pm_ops);
-#endif /* CONFIG_SUSPEND */
 }
 
 static struct wkup_m3_ops am33xx_wkup_m3_ops = {
@@ -431,6 +429,8 @@ static struct am33xx_pm_ops am43xx_ops = {
 };
 #endif
 
+#endif /* CONFIG_SUSPEND */
+
 int __init am33xx_pm_init(void)
 {
 	int ret;
@@ -483,10 +483,24 @@ int __init am33xx_pm_init(void)
 	/* Determine Memory Type */
 	temp = readl(am33xx_emif_base + EMIF_SDRAM_CONFIG);
 	temp = (temp & SDRAM_TYPE_MASK) >> SDRAM_TYPE_SHIFT;
-	/* Parameters to pass to aseembly code */
+	/* Parameters to pass to assembly code */
+	susp_params.wfi_flags = 0;
 	susp_params.emif_addr_virt = am33xx_emif_base;
 	susp_params.dram_sync = am33xx_dram_sync;
-	susp_params.mem_type = temp;
+
+	switch (temp) {
+	case MEM_TYPE_DDR2:
+		susp_params.wfi_flags |= WFI_MEM_TYPE_DDR2;
+		break;
+	case MEM_TYPE_DDR3:
+		susp_params.wfi_flags |= WFI_MEM_TYPE_DDR3;
+		break;
+	}
+	susp_params.wfi_flags |= WFI_SELF_REFRESH;
+	susp_params.wfi_flags |= WFI_SAVE_EMIF;
+	susp_params.wfi_flags |= WFI_DISABLE_EMIF;
+	susp_params.wfi_flags |= WFI_WAKE_M3;
+
 	am33xx_pm->ipc.reg4 = temp & MEM_TYPE_MASK;
 
 	np = of_find_compatible_node(NULL, NULL, "ti,am3353-wkup-m3");
