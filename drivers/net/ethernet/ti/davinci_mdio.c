@@ -425,7 +425,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		goto bail_out;
 
 	/* scan and dump the bus */
-	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+	for (addr = 1; addr < PHY_MAX_ADDR; addr++) {
 		phy = data->bus->phy_map[addr];
 		if (phy) {
 			dev_info(dev, "phy[%d]: device %s, driver %s\n",
