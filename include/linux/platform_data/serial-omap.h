@@ -47,9 +47,9 @@ struct omap_uart_port_info {
 	int			DSR_inverted;
 	int			DSR_present;
 
-	int			CD_gpio;
-	int			CD_inverted;
-	int			CD_present;
+	int			DCD_gpio;
+	int			DCD_inverted;
+	int			DCD_present;
 
 	int			RI_gpio;
 	int			RI_inverted;
