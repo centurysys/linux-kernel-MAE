@@ -981,11 +981,14 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 	else
 		slave_write(slave, slave->port_vlan, CPSW2_PORT_VLAN);
 	cpsw_ale_add_vlan(priv->ale, slave->port_vlan, port_mask,
-			  port_mask, port_mask, 0);
+			  0, port_mask, port_mask);
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   port_mask, ALE_VLAN, slave->port_vlan, 0);
 	cpsw_ale_add_ucast(priv->ale, priv->mac_addr,
 		priv->host_port, ALE_VLAN, slave->port_vlan);
+	cpsw_ale_add_vlan(priv->ale, 0,
+		ALE_ALL_PORTS << priv->host_port,
+		ALE_ALL_PORTS << priv->host_port, priv->host_port, 0);
 }
 
 static void soft_reset_slave(struct cpsw_slave *slave)
