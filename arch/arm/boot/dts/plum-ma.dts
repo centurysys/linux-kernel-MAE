@@ -63,7 +63,7 @@
 			0x18c (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
 
 			/* TCA6507 Reset# */
-			0x178 (PIN_OUTPUT | MUX_MODE7)		/* gpmc_ben1.gpio1_28 */
+			0x078 (PIN_OUTPUT | MUX_MODE7)		/* gpmc_ben1.gpio1_28 */
 		>;
 	};
 
@@ -338,10 +338,12 @@
 
 	usb-phy@47401300 {
 		status = "okay";
+		vcc-supply = <&vbat>;
 	};
 
 	usb-phy@47401b00 {
 		status = "okay";
+		vcc-supply = <&vbat>;
 	};
 
 	usb@47401000 {
@@ -479,9 +481,9 @@
 	pinctrl-1 = <&cpsw_sleep>;
 	dual_emac = <1>;
 
-	no_bd_ram = <1>;
-	bd_ram_size = <0x20000>;
-	rx_descs = <2048>;
+//	no_bd_ram = <1>;
+//	bd_ram_size = <0x20000>;
+	rx_descs = <128>;
 };
 
 &davinci_mdio {
