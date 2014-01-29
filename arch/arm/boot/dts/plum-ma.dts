@@ -52,7 +52,14 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	aliases {
+		xio_00 = &xio_00;
+	};
 
+	xio_00: xio@00 {
+		#size-cells = <0>;
+		devices = <&uartx2_20 &uartx2_30>;
+	};
 };
 
 &am33xx_pinmux {
@@ -452,9 +459,11 @@
 		compatible = "ns16550a";
 	};
 
-	uart@2,0x20 {
+	uartx2_20: uart@2,0x20 {
 		reg = <2 0x00000020 0x00000008>;
 		compatible = "ns16550a";
+
+		status = "okay";
 
 		current-speed = <115200>;
 		reg-shift = <1>;
@@ -473,9 +482,11 @@
 		pinctrl-0 = <&uartx3_pins>;
 	};
 
-	uart@2,0x30 {
+	uartx2_30: uart@2,0x30 {
 		reg = <2 0x00000030 0x00000008>;
 		compatible = "ns16550a";
+
+		status = "disabled";
 
 		current-speed = <115200>;
 		reg-shift = <1>;
