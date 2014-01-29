@@ -131,9 +131,9 @@ do {								\
 #define CPSW_VLAN_AWARE		BIT(1)
 #define CPSW_ALE_VLAN_AWARE	1
 
-#define CPSW_FIFO_NORMAL_MODE		(0 << 15)
-#define CPSW_FIFO_DUAL_MAC_MODE		(1 << 15)
-#define CPSW_FIFO_RATE_LIMIT_MODE	(2 << 15)
+#define CPSW_FIFO_NORMAL_MODE		(0 << 16)
+#define CPSW_FIFO_DUAL_MAC_MODE		(1 << 16)
+#define CPSW_FIFO_RATE_LIMIT_MODE	(2 << 16)
 
 #define CPSW_INTPACEEN		(0x3f << 16)
 #define CPSW_INTPRESCALE_MASK	(0x7FF << 0)
@@ -981,11 +981,14 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 	else
 		slave_write(slave, slave->port_vlan, CPSW2_PORT_VLAN);
 	cpsw_ale_add_vlan(priv->ale, slave->port_vlan, port_mask,
-			  port_mask, port_mask, 0);
+			  0, port_mask, port_mask);
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   port_mask, ALE_VLAN, slave->port_vlan, 0);
 	cpsw_ale_add_ucast(priv->ale, priv->mac_addr,
 		priv->host_port, ALE_VLAN, slave->port_vlan);
+	cpsw_ale_add_vlan(priv->ale, 0,
+		ALE_ALL_PORTS << priv->host_port,
+		ALE_ALL_PORTS << priv->host_port, priv->host_port, 0);
 }
 
 static void soft_reset_slave(struct cpsw_slave *slave)
@@ -1793,6 +1796,9 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	if (of_property_read_bool(node, "dual_emac"))
 		data->dual_emac = 1;
 
+	if (of_property_read_bool(node, "no_bd_ram"))
+		data->no_bd_ram = 1;
+
 	/*
 	 * Populate all the child nodes here...
 	 */
@@ -1811,7 +1817,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		struct platform_device *mdio;
 #ifdef CONFIG_CPSW_LED_GPIO
 		int led_fast_gpio, led_giga_gpio;
-		char gpio_name[16];
 #endif
 		/* This is no slave child node, continue */
 		if (strcmp(slave_node->name, "slave"))
@@ -1839,16 +1844,14 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		led_giga_gpio = of_get_named_gpio(slave_node, "led-giga-gpio", 0);
 
 		if (gpio_is_valid(led_fast_gpio)) {
-			sprintf(gpio_name, "phy_fast%d", i);
-			gpio_request(led_fast_gpio, gpio_name);
+			gpio_request(led_fast_gpio, "PHY_LED_100M");
 			slave_data->led_fast_gpio = led_fast_gpio;
 		} else {
 			slave_data->led_fast_gpio = -1;
 		}
 
 		if (gpio_is_valid(led_giga_gpio)) {
-			sprintf(gpio_name, "phy_giga%d", i);
-			gpio_request(led_giga_gpio, gpio_name);
+			gpio_request(led_giga_gpio, "PHY_LED_1G");
 			slave_data->led_giga_gpio = led_giga_gpio;
 		} else {
 			slave_data->led_giga_gpio = -1;
@@ -2080,8 +2083,13 @@ static int cpsw_probe(struct platform_device *pdev)
 		slave_offset         = CPSW2_SLAVE_OFFSET;
 		slave_size           = CPSW2_SLAVE_SIZE;
 		sliver_offset        = CPSW2_SLIVER_OFFSET;
-		dma_params.desc_mem_phys =
-			(u32 __force) ss_res->start + CPSW2_BD_OFFSET;
+		if (!data->no_bd_ram) {
+			dma_params.desc_mem_phys =
+				(u32 __force) ss_res->start + CPSW2_BD_OFFSET;
+		} else {
+			printk("cpsw: allocate desc_mem in DRAM.\n");
+			dma_params.desc_mem_phys = 0;
+		}
 		break;
 	default:
 		dev_err(priv->dev, "unknown version 0x%08x\n", priv->version);

@@ -314,7 +314,6 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 	u32 prop;
 #ifdef CONFIG_DAVINCI_MDIO_PHYRESET
 	int i, phy_reset_gpio[2];
-	char gpio_name[16];
 #endif
 	if (!node)
 		return -EINVAL;
@@ -328,9 +327,7 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 
 	for (i = 0; i < 2; i++) {
 		if (gpio_is_valid(phy_reset_gpio[i])) {
-			sprintf(gpio_name, "phy_reset%d", i);
-			gpio_request(phy_reset_gpio[i], gpio_name);
-
+			gpio_request(phy_reset_gpio[i], "PHY-Reset");
 			data->phy_reset_gpio[i] = phy_reset_gpio[i];
 		}
 	}
@@ -428,7 +425,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		goto bail_out;
 
 	/* scan and dump the bus */
-	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+	for (addr = 1; addr < PHY_MAX_ADDR; addr++) {
 		phy = data->bus->phy_map[addr];
 		if (phy) {
 			dev_info(dev, "phy[%d]: device %s, driver %s\n",

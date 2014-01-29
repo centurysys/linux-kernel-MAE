@@ -63,7 +63,7 @@
 			0x18c (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
 
 			/* TCA6507 Reset# */
-			0x178 (PIN_OUTPUT | MUX_MODE7)		/* gpmc_ben1.gpio1_28 */
+			0x078 (PIN_OUTPUT | MUX_MODE7)		/* gpmc_ben1.gpio1_28 */
 		>;
 	};
 
@@ -73,9 +73,9 @@
 			0x174 (PIN_OUTPUT | MUX_MODE0) /* uart0_txd.uart0_txd */
 			0x16c (PIN_OUTPUT | MUX_MODE0) /* uart0_rtsn.uart0_rtsn */
 			0x168 (PIN_INPUT | MUX_MODE0)  /* uart0_ctsn.uart0_ctsn */
-			0x0e0 (PIN_OUTPUT | MUX_MODE7) /* lcd_vsync.gpio0_22 (DTR) */
-			0x0e4 (PIN_INPUT | MUX_MODE7)  /* lcd_hsync.gpio0_23 (DSR) */
-			0x0e8 (PIN_INPUT | MUX_MODE7)  /* lcd_pclk.gpio0_24  (DCD) */
+			0x0e0 (PIN_OUTPUT | MUX_MODE7) /* lcd_vsync.gpio2_22 (DTR) */
+			0x0e4 (PIN_INPUT | MUX_MODE7)  /* lcd_hsync.gpio2_23 (DSR) */
+			0x0e8 (PIN_INPUT | MUX_MODE7)  /* lcd_pclk.gpio2_24  (DCD) */
 		>;
 	};
 
@@ -231,19 +231,28 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
 
+	dtr-gpio = <&gpio2 22 GPIO_ACTIVE_LOW>;
+	dsr-gpio = <&gpio2 23 GPIO_ACTIVE_LOW>;
+	dcd-gpio = <&gpio2 24 GPIO_ACTIVE_LOW>;
+
 	status = "okay";
 };
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-1 = <&uart1_pins>;
+	pinctrl-0 = <&uart1_pins>;
+
+	dtr-gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
+	dsr-gpio = <&gpio1 13 GPIO_ACTIVE_LOW>;
+	dcd-gpio = <&gpio1 14 GPIO_ACTIVE_LOW>;
+	ri-gpio  = <&gpio0 27 GPIO_ACTIVE_LOW>;
 
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-2 = <&uart2_pins>;
+	pinctrl-0 = <&uart2_pins>;
 
 	status = "okay";
 };
@@ -329,10 +338,12 @@
 
 	usb-phy@47401300 {
 		status = "okay";
+		vcc-supply = <&vbat>;
 	};
 
 	usb-phy@47401b00 {
 		status = "okay";
+		vcc-supply = <&vbat>;
 	};
 
 	usb@47401000 {
@@ -481,6 +492,10 @@
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
 	dual_emac = <1>;
+
+//	no_bd_ram = <1>;
+//	bd_ram_size = <0x20000>;
+	rx_descs = <128>;
 };
 
 &davinci_mdio {
@@ -496,7 +511,7 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy_id = <&davinci_mdio>, <2>;
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <1>;
 	led-fast-gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
