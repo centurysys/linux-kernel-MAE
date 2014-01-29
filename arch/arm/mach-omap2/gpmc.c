@@ -558,10 +558,12 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 		return -ENOMEM;
 
 	spin_lock(&gpmc_mem_lock);
+#ifndef CONFIG_OMAP_GPMC_MULTIDEVICE_IN_ONE_CS
 	if (gpmc_cs_reserved(cs)) {
 		r = -EBUSY;
 		goto out;
 	}
+#endif
 	if (gpmc_cs_mem_enabled(cs))
 		r = adjust_resource(res, res->start & ~(size - 1), size);
 	if (r < 0)
@@ -1600,7 +1602,8 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 			ret = gpmc_probe_onenand_child(pdev, child);
 		else if (of_node_cmp(child->name, "ethernet") == 0 ||
 			 of_node_cmp(child->name, "nor") == 0 ||
-			 of_node_cmp(child->name, "uart") == 0)
+			 of_node_cmp(child->name, "uart") == 0 ||
+			 of_node_cmp(child->name, "generic") == 0)
 			ret = gpmc_probe_generic_child(pdev, child);
 
 		if (WARN(ret < 0, "%s: probing gpmc child %s failed\n",

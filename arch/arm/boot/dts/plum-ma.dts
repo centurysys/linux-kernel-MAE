@@ -51,6 +51,8 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+
 };
 
 &am33xx_pinmux {
@@ -225,6 +227,18 @@
 			0x19c (PIN_INPUT | MUX_MODE7) /* mcasp0_ahclkr.gpio3_17 */
 		>;
 	};
+
+	uartx3_pins: pinmux_uartx3_pins {
+		pinctrl-single,pins = <
+			0x20 (PIN_INPUT | MUX_MODE7)	/* gpmc_ad8.gpio0_22 */
+		>;
+	};
+
+	uartx4_pins: pinmux_uartx4_pins {
+		pinctrl-single,pins = <
+			0x20 (PIN_INPUT | MUX_MODE7)	/* gpmc_ad8.gpio0_22 */
+		>;
+	};
 };
 
 &uart0 {
@@ -369,7 +383,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&nandflash_pins_s0>;
-	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
+	ranges = <0 0 0x08000000 0x01000000	/* CS0 : NAND */
+		  1 0 0x10000000 0x01000000	/* CS1 : DIPSW */
+		  2 0 0x11000000 0x01000000>;	/* CS2 : eXternal I/O */
 	nand@0,0 {
 		reg = <0 0 0>; /* CS0, offset 0 */
 		nand-bus-width = <8>;
@@ -428,6 +444,51 @@
 			label = "Filesystem";
 			reg = <0x0AA00000 0x05600000>;
 		};
+	};
+
+	generic@1,0 {
+		/* DIPSW */
+		reg = <1 0x0000000 0x000000ff>;
+		compatible = "ns16550a";
+	};
+
+	uart@2,0x20 {
+		reg = <2 0x00000020 0x00000008>;
+		compatible = "ns16550a";
+
+		current-speed = <115200>;
+		reg-shift = <1>;
+		reg-io-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg-offset = <0x0>;
+		clock-frequency = <7372800>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uartx3_pins>;
+	};
+
+	uart@2,0x30 {
+		reg = <2 0x00000030 0x00000008>;
+		compatible = "ns16550a";
+
+		current-speed = <115200>;
+		reg-shift = <1>;
+		reg-io-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg-offset = <0x0>;
+		clock-frequency = <7372800>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 	};
 };
 
