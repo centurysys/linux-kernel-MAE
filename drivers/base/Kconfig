@@ -278,4 +278,8 @@ config CMA_AREAS
 
 endif
 
+config OMAP_GPMC_MULTIDEVICE_IN_ONE_CS
+	bool "Multiple Device in one CS on GPMC."
+	depends on SOC_AM33XX
+
 endmenu
