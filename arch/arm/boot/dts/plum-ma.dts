@@ -53,12 +53,17 @@
 	};
 
 	aliases {
-		xio_00 = &xio_00;
+		xio_01 = &xio_01;
+		xio_02 = &xio_02;
 	};
 
-	xio_00: xio@00 {
+	xio_01: xio@01 {
 		#size-cells = <0>;
 		devices = <&uartx2_20 &uartx2_30>;
+	};
+
+	xio_02: xio@02 {
+		#size-cells = <0>;
 	};
 };
 
@@ -463,7 +468,7 @@
 		reg = <2 0x00000020 0x00000008>;
 		compatible = "ns16550a";
 
-		status = "okay";
+		status = "disabled";
 
 		current-speed = <115200>;
 		reg-shift = <1>;
@@ -566,24 +571,46 @@
 	phy0-reset-gpio = <&gpio3 18 GPIO_ACTIVE_LOW>;
 	phy1-reset-gpio = <&gpio3 19 GPIO_ACTIVE_LOW>;
 
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+		tx-skew = <0x13>;
+		rx-skew = <0x11>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		tx-skew = <0x18>;
+		rx-skew = <0x13>;
+	};
+
 	tx-skew = <0x18>;
 	rx-skew = <0x13>;
 };
 
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <2>;
+	phy = <&phy0>;
+
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <1>;
 	led-fast-gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
 	led-giga-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
+
+	tx-skew = <0x18>;
+	rx-skew = <0x13>;
 };
 
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <3>;
+	phy = <&phy1>;
+
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <2>;
 	led-fast-gpio = <&gpio2 16 GPIO_ACTIVE_LOW>;
 	led-giga-gpio = <&gpio2 17 GPIO_ACTIVE_LOW>;
+
+	tx-skew = <0x18>;
+	rx-skew = <0x13>;
 };
 
 &mmc1 {
