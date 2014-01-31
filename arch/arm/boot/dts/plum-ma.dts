@@ -52,6 +52,19 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&power_led_pins>;
+
+		compatible = "gpio-leds";
+
+		led@1 {
+			label = "PowerLED";
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+	};
+
 	aliases {
 		xio_01 = &xio_01;
 		xio_02 = &xio_02;
@@ -237,6 +250,12 @@
 		pinctrl-single,pins = <
 			0x108 (PIN_INPUT | MUX_MODE7) /* mii1_col.gpio3_0 */
 			0x19c (PIN_INPUT | MUX_MODE7) /* mcasp0_ahclkr.gpio3_17 */
+		>;
+	};
+
+	power_led_pins: pinmux_power_led_pins {
+		pinctrl-single,pins = <
+			0x03c (PIN_OUTPUT | MUX_MODE7) /* gpmc_ad15.gpio1_15 */
 		>;
 	};
 
@@ -571,6 +590,9 @@
 	phy0-reset-gpio = <&gpio3 18 GPIO_ACTIVE_LOW>;
 	phy1-reset-gpio = <&gpio3 19 GPIO_ACTIVE_LOW>;
 
+	tx-skew = <0x18>;
+	rx-skew = <0x13>;
+
 	phy0: ethernet-phy@0 {
 		reg = <0>;
 		tx-skew = <0x13>;
@@ -582,9 +604,6 @@
 		tx-skew = <0x18>;
 		rx-skew = <0x13>;
 	};
-
-	tx-skew = <0x18>;
-	rx-skew = <0x13>;
 };
 
 &cpsw_emac0 {
