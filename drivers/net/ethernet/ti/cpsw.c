@@ -1796,8 +1796,11 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	if (of_property_read_bool(node, "dual_emac"))
 		data->dual_emac = 1;
 
-	if (of_property_read_bool(node, "no_bd_ram"))
-		data->no_bd_ram = 1;
+	if (of_property_read_u32(node, "no_bd_ram", &prop)) {
+		pr_err("Missing no_bd_ram property in the DT.\n");
+		return -EINVAL;
+	}
+	data->no_bd_ram = prop;
 
 	/*
 	 * Populate all the child nodes here...
