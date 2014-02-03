@@ -436,10 +436,6 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 			dev_info(dev, "phy[%d]: device %s, driver %s\n",
 				 phy->addr, dev_name(&phy->dev),
 				 phy->drv ? phy->drv->name : "unknown");
-
-			/* Drop Pause/Asymmetric Pause capabilities */
-			phy->supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
-			phy->advertising &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
 		}
 	}
 

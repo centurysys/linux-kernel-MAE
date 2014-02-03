@@ -1041,7 +1041,12 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 			slave->slave_num);
 		slave->phy = NULL;
 	} else {
-		dev_info(priv->dev, "phy found, phy_device = %p\n", slave->phy);
+		dev_info(priv->dev, "phy found, phy addr = %d\n", slave->phy->addr);
+
+		/* Drop Pause/Asymmetric Pause capabilities */
+		slave->phy->supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+		slave->phy->advertising &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+
 		phy_start(slave->phy);
 
 		/* Configure GMII_SEL register */
