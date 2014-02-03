@@ -63,6 +63,36 @@
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
+
+		led@x2 {
+			label = "FomaLED_G3";
+			gpios = <&gpiox0 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "FomaLED_G2";
+			gpios = <&gpiox0 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "FomaLED_G1";
+			gpios = <&gpiox0 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "FomaLED_R3";
+			gpios = <&gpiox0 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "FomaLED_R2";
+			gpios = <&gpiox0 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x7 {
+			label = "FomaLED_R1";
+			gpios = <&gpiox0 7 GPIO_ACTIVE_HIGH>;
+		};
 	};
 
 	aliases {
@@ -524,6 +554,16 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <22 8>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+	};
+
+	gpiox0: gpio@2,0x14 {
+		reg = <2 0x00000014 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "okay";
 	};
 };
 
