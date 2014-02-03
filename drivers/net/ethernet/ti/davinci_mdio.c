@@ -421,13 +421,10 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	}
 
 	/* register the mii bus */
-	if (pdev->dev.of_node) {
-		printk("%s: call of_mdiobus_register()\n", __FUNCTION__);
+	if (pdev->dev.of_node)
 		ret = of_mdiobus_register(data->bus, pdev->dev.of_node);
-	} else {
-		printk("%s: call mdiobus_register()\n", __FUNCTION__);
+	else
 		ret = mdiobus_register(data->bus);
-	}
 
 	if (ret)
 		goto bail_out;
