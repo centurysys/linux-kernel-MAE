@@ -565,6 +565,26 @@
 
 		status = "okay";
 	};
+
+	gpiox1: gpio@2,0x40 {
+		reg = <2 0x00000040 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "okay";
+	};
+
+	gpiox2: gpio@2,0x80 {
+		reg = <2 0x00000080 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "okay";
+	};
 };
 
 /include/ "tps65217.dtsi"
