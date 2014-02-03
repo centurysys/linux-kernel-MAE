@@ -37,6 +37,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
+#include <linux/of_mdio.h>
 #ifdef CONFIG_DAVINCI_MDIO_PHYRESET
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
@@ -420,7 +421,11 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	}
 
 	/* register the mii bus */
-	ret = mdiobus_register(data->bus);
+	if (pdev->dev.of_node)
+		ret = of_mdiobus_register(data->bus, pdev->dev.of_node);
+	else
+		ret = mdiobus_register(data->bus);
+
 	if (ret)
 		goto bail_out;
 
@@ -431,10 +436,6 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 			dev_info(dev, "phy[%d]: device %s, driver %s\n",
 				 phy->addr, dev_name(&phy->dev),
 				 phy->drv ? phy->drv->name : "unknown");
-
-			/* Drop Pause/Asymmetric Pause capabilities */
-			phy->supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
-			phy->advertising &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
 		}
 	}
 

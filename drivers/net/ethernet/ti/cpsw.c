@@ -31,6 +31,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/of_mdio.h>
 #ifdef CONFIG_CPSW_LED_GPIO
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
@@ -1033,15 +1034,19 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 				   1 << slave_port, 0, 0, ALE_MCAST_FWD_2);
 
-	slave->phy = phy_connect(priv->ndev, slave->data->phy_id,
-				 &cpsw_adjust_link, slave->data->phy_if);
+	slave->phy = of_phy_connect(priv->ndev, slave->data->phy_node,
+				    &cpsw_adjust_link, 0, slave->data->phy_if);
 	if (IS_ERR(slave->phy)) {
-		dev_err(priv->dev, "phy %s not found on slave %d\n",
-			slave->data->phy_id, slave->slave_num);
+		dev_err(priv->dev, "phy not found on slave %d\n",
+			slave->slave_num);
 		slave->phy = NULL;
 	} else {
-		dev_info(priv->dev, "phy found : id is : 0x%x\n",
-			 slave->phy->phy_id);
+		dev_info(priv->dev, "phy found, phy addr = %d\n", slave->phy->addr);
+
+		/* Drop Pause/Asymmetric Pause capabilities */
+		slave->phy->supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+		slave->phy->advertising &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+
 		phy_start(slave->phy);
 
 		/* Configure GMII_SEL register */
@@ -1796,8 +1801,11 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	if (of_property_read_bool(node, "dual_emac"))
 		data->dual_emac = 1;
 
-	if (of_property_read_bool(node, "no_bd_ram"))
-		data->no_bd_ram = 1;
+	if (of_property_read_u32(node, "no_bd_ram", &prop)) {
+		pr_err("Missing no_bd_ram property in the DT.\n");
+		return -EINVAL;
+	}
+	data->no_bd_ram = prop;
 
 	/*
 	 * Populate all the child nodes here...
@@ -1810,11 +1818,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	for_each_child_of_node(node, slave_node) {
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
 		const void *mac_addr = NULL;
-		u32 phyid;
-		int lenp;
-		const __be32 *parp;
-		struct device_node *mdio_node;
-		struct platform_device *mdio;
+		struct device_node *phy_node;
 #ifdef CONFIG_CPSW_LED_GPIO
 		int led_fast_gpio, led_giga_gpio;
 #endif
@@ -1822,16 +1826,12 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		if (strcmp(slave_node->name, "slave"))
 			continue;
 
-		parp = of_get_property(slave_node, "phy_id", &lenp);
-		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
-			pr_err("Missing slave[%d] phy_id property\n", i);
+		phy_node = of_parse_phandle(slave_node, "phy", 0);
+		if (!phy_node) {
+			pr_err("No associated PHY at slave[%d]\n", i);
 			return -EINVAL;
 		}
-		mdio_node = of_find_node_by_phandle(be32_to_cpup(parp));
-		phyid = be32_to_cpup(parp+1);
-		mdio = of_find_device_by_node(mdio_node);
-		snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
-			 PHY_ID_FMT, mdio->name, phyid);
+		slave_data->phy_node = phy_node;
 
 		mac_addr = of_get_mac_address(slave_node);
 		if (mac_addr)

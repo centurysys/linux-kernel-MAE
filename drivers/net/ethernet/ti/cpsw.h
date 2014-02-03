@@ -17,7 +17,7 @@
 #include <linux/if_ether.h>
 
 struct cpsw_slave_data {
-	char		phy_id[MII_BUS_ID_SIZE];
+	struct device_node *phy_node;
 	int		phy_if;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
