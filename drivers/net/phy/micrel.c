@@ -291,16 +291,15 @@ static int ksz9031_config_init(struct phy_device *phydev)
 		of_node = dev->parent->of_node;
 
 	if (of_node) {
-		val = old_val = ksz9031_mmd_read(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
-						 MII_KSZ9031_CLOCK_PAD_SKEW_REG);
+		val = ksz9031_mmd_read(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
+				       MII_KSZ9031_CLOCK_PAD_SKEW_REG);
+		val = old_val = val & 0x03ff;
 
 		if (!of_property_read_u32(of_node, "tx-skew", &skew_tx)) {
-			//printk("KSZ9031: set tx-skew: 0x%02x\n", skew_tx);
 			val = (val & ~(0x1f << 5)) | ((skew_tx & 0x1f) << 5);
 		}
 
 		if (!of_property_read_u32(of_node, "rx-skew", &skew_rx)) {
-			//printk("ksz9031: set rx-skew: 0x%02x\n", skew_rx);
 			val = (val & ~(0x1f << 0)) | ((skew_rx & 0x1f) << 0);
 		}
 
