@@ -96,17 +96,20 @@
 	};
 
 	aliases {
-		xio_01 = &xio_01;
 		xio_02 = &xio_02;
+		xio_03 = &xio_03;
 	};
 
-	xio_01: xio@01 {
+	/* XIO: (id: 0x02) FOMA only */
+	xio_02: xio@0x02 {
 		#size-cells = <0>;
-		devices = <&uartx2_20 &uartx2_30>;
+		devices = <&gpiox0>;
 	};
 
-	xio_02: xio@02 {
+	/* XIO: (id: 0x03) FOMA/UARTx2/DIO */
+	xio_03: xio@0x03 {
 		#size-cells = <0>;
+		devices = <&uartx2_20 &uartx2_30 &gpiox0 &gpiox1 &gpiox2 &gpiox3 &gpiox4>;
 	};
 };
 
@@ -567,7 +570,7 @@
 		gpio-controller;
 		reg-names = "dat";
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	/* DIO DIN */
@@ -578,7 +581,7 @@
 		gpio-controller;
 		reg-names = "dat";
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	/* DIO DOUT */
@@ -589,7 +592,7 @@
 		gpio-controller;
 		reg-names = "dat";
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	/* UART@0x20 TxEnable/RxEnable */
@@ -600,7 +603,7 @@
 		gpio-controller;
 		reg-names = "dat";
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	/* UART@0x30 TxEnable/RxEnable */
@@ -611,7 +614,7 @@
 		gpio-controller;
 		reg-names = "dat";
 
-		status = "okay";
+		status = "disabled";
 	};
 };
 
