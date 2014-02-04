@@ -556,8 +556,53 @@
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 	};
 
+	/* FOMA LED */
 	gpiox0: gpio@2,0x14 {
 		reg = <2 0x00000014 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "okay";
+	};
+
+	/* DIO DIN */
+	gpiox1: gpio@2,0x40 {
+		reg = <2 0x00000040 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "okay";
+	};
+
+	/* DIO DOUT */
+	gpiox2: gpio@2,0x80 {
+		reg = <2 0x00000080 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "okay";
+	};
+
+	/* UART@0x20 TxEnable/RxEnable */
+	gpiox3: gpio@2,0x18 {
+		reg = <2 0x00000018 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "okay";
+	};
+
+	/* UART@0x30 TxEnable/RxEnable */
+	gpiox4: gpio@2,0x1a {
+		reg = <2 0x0000001a 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
