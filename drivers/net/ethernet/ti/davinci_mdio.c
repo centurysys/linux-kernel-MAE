@@ -452,7 +452,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 
 bail_out:
 	if (data->bus->irq)
-		free(data->bus->irq);
+		kfree(data->bus->irq);
 	if (data->bus)
 		mdiobus_free(data->bus);
 
@@ -472,7 +472,7 @@ static int davinci_mdio_remove(struct platform_device *pdev)
 
 	if (data->bus) {
 		if (data->bus->irq)
-			free(data->bus->irq);
+			kfree(data->bus->irq);
 
 		mdiobus_unregister(data->bus);
 		mdiobus_free(data->bus);
