@@ -66,32 +66,80 @@
 
 		led@x2 {
 			label = "FomaLED_G3";
-			gpios = <&gpiox0 2 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x3 {
 			label = "FomaLED_G2";
-			gpios = <&gpiox0 3 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x4 {
 			label = "FomaLED_G1";
-			gpios = <&gpiox0 4 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x5 {
 			label = "FomaLED_R3";
-			gpios = <&gpiox0 5 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x6 {
 			label = "FomaLED_R2";
-			gpios = <&gpiox0 6 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x7 {
 			label = "FomaLED_R1";
-			gpios = <&gpiox0 7 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do0 {
+			label = "DO_0";
+			gpios = <&gpiox_0x80 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led@do1 {
+			label = "DO_1";
+			gpios = <&gpiox_0x80 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led@do2 {
+			label = "DO_2";
+			gpios = <&gpiox_0x80 2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led@do3 {
+			label = "DO_3";
+			gpios = <&gpiox_0x80 3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led@do4 {
+			label = "DO_4";
+			gpios = <&gpiox_0x80 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led@do5 {
+			label = "DO_5";
+			gpios = <&gpiox_0x80 5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led@do6 {
+			label = "DO_6";
+			gpios = <&gpiox_0x80 6 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led@do7 {
+			label = "DO_7";
+			gpios = <&gpiox_0x80 7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
 		};
 	};
 
@@ -103,13 +151,16 @@
 	/* XIO: (id: 0x02) FOMA only */
 	xio_02: xio@0x02 {
 		#size-cells = <0>;
-		devices = <&gpiox0>;
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14>;
 	};
 
 	/* XIO: (id: 0x03) FOMA/UARTx2/DIO */
 	xio_03: xio@0x03 {
 		#size-cells = <0>;
-		devices = <&uartx2_20 &uartx2_30 &gpiox0 &gpiox1 &gpiox2 &gpiox3 &gpiox4>;
+		devices = <&uartx2_0x20 &uartx2_0x30
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18 &gpiox_0x1a
+			   &gpiox_0x40 &gpiox_0x80>;
 	};
 };
 
@@ -519,7 +570,7 @@
 		status = "okay";
 	};
 
-	uartx2_20: uart@2,0x20 {
+	uartx2_0x20: uart@2,0x20 {
 		reg = <2 0x00000020 0x00000008>;
 		compatible = "ns16550a";
 
@@ -542,7 +593,7 @@
 		pinctrl-0 = <&uartx3_pins>;
 	};
 
-	uartx2_30: uart@2,0x30 {
+	uartx2_0x30: uart@2,0x30 {
 		reg = <2 0x00000030 0x00000008>;
 		compatible = "ns16550a";
 
@@ -562,8 +613,30 @@
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 	};
 
+	/* FOMA Control */
+	gpiox_0x10: gpio@2,0x10 {
+		reg = <2 0x00000010 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* FOMA Status */
+	gpiox_0x12: gpio@2,0x12 {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
 	/* FOMA LED */
-	gpiox0: gpio@2,0x14 {
+	gpiox_0x14: gpio@2,0x14 {
 		reg = <2 0x00000014 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
@@ -573,30 +646,8 @@
 		status = "disabled";
 	};
 
-	/* DIO DIN */
-	gpiox1: gpio@2,0x40 {
-		reg = <2 0x00000040 0x00000001>;
-		#gpio-cells = <2>;
-		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
-		gpio-controller;
-		reg-names = "dat";
-
-		status = "disabled";
-	};
-
-	/* DIO DOUT */
-	gpiox2: gpio@2,0x80 {
-		reg = <2 0x00000080 0x00000001>;
-		#gpio-cells = <2>;
-		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
-		gpio-controller;
-		reg-names = "dat";
-
-		status = "disabled";
-	};
-
 	/* UART@0x20 TxEnable/RxEnable */
-	gpiox3: gpio@2,0x18 {
+	gpiox_0x18: gpio@2,0x18 {
 		reg = <2 0x00000018 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
@@ -607,8 +658,30 @@
 	};
 
 	/* UART@0x30 TxEnable/RxEnable */
-	gpiox4: gpio@2,0x1a {
+	gpiox_0x1a: gpio@2,0x1a {
 		reg = <2 0x0000001a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* DIO DIN */
+	gpiox_0x40: gpio@2,0x40 {
+		reg = <2 0x00000040 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* DIO DOUT */
+	gpiox_0x80: gpio@2,0x80 {
+		reg = <2 0x00000080 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
