@@ -1819,6 +1819,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
 		const void *mac_addr = NULL;
 		struct device_node *phy_node;
+		enum of_gpio_flags flags;
+		int gpio_irq;
 #ifdef CONFIG_CPSW_LED_GPIO
 		int led_fast_gpio, led_giga_gpio;
 #endif
@@ -1832,6 +1834,12 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			return -EINVAL;
 		}
 		slave_data->phy_node = phy_node;
+
+		gpio_irq = of_get_named_gpio_flags(phy_node, "irq-gpio", 0, &flags);
+		if (gpio_is_valid(gpio_irq)) {
+			gpio_request(gpio_irq, "phy_interrupt");
+			slave_data->phy_irq_gpio = gpio_irq;
+		}
 
 		mac_addr = of_get_mac_address(slave_node);
 		if (mac_addr)
