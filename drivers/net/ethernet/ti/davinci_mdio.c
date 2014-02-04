@@ -351,7 +351,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	struct davinci_mdio_data *data;
 	struct resource *res;
 	struct phy_device *phy;
-	int ret, addr;
+	int ret, addr, i;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -380,6 +380,15 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	data->bus->reset	= davinci_mdio_reset,
 	data->bus->parent	= dev;
 	data->bus->priv		= data;
+
+	data->bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	if (!data->bus->irq) {
+		mdiobus_free(data->bus);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		data->bus->irq[i] = PHY_POLL;
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(&pdev->dev);
@@ -442,6 +451,8 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	return 0;
 
 bail_out:
+	if (data->bus->irq)
+		free(data->bus->irq);
 	if (data->bus)
 		mdiobus_free(data->bus);
 
@@ -460,6 +471,9 @@ static int davinci_mdio_remove(struct platform_device *pdev)
 	struct davinci_mdio_data *data = platform_get_drvdata(pdev);
 
 	if (data->bus) {
+		if (data->bus->irq)
+			free(data->bus->irq);
+
 		mdiobus_unregister(data->bus);
 		mdiobus_free(data->bus);
 	}
