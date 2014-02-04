@@ -52,11 +52,12 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	leds {
+	leds_foma: leds_foma {
 		pinctrl-names = "default";
 		pinctrl-0 = <&power_led_pins>;
 
 		compatible = "gpio-leds";
+		status = "disabled";
 
 		led@1 {
 			label = "PowerLED";
@@ -93,53 +94,50 @@
 			label = "FomaLED_R1";
 			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	leds_do: leds_do {
+		compatible = "gpio-leds";
+		status = "disabled";
 
 		led@do0 {
 			label = "DO_0";
 			gpios = <&gpiox_0x80 0 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 
 		led@do1 {
 			label = "DO_1";
 			gpios = <&gpiox_0x80 1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 
 		led@do2 {
 			label = "DO_2";
 			gpios = <&gpiox_0x80 2 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 
 		led@do3 {
 			label = "DO_3";
 			gpios = <&gpiox_0x80 3 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 
 		led@do4 {
 			label = "DO_4";
 			gpios = <&gpiox_0x80 4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 
 		led@do5 {
 			label = "DO_5";
 			gpios = <&gpiox_0x80 5 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 
 		led@do6 {
 			label = "DO_6";
 			gpios = <&gpiox_0x80 6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 
 		led@do7 {
 			label = "DO_7";
 			gpios = <&gpiox_0x80 7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 	};
 
@@ -151,7 +149,8 @@
 	/* XIO: (id: 0x02) FOMA only */
 	xio_02: xio@0x02 {
 		#size-cells = <0>;
-		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14>;
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &leds_foma>;
 	};
 
 	/* XIO: (id: 0x03) FOMA/UARTx2/DIO */
@@ -160,7 +159,8 @@
 		devices = <&uartx2_0x20 &uartx2_0x30
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x18 &gpiox_0x1a
-			   &gpiox_0x40 &gpiox_0x80>;
+			   &gpiox_0x40 &gpiox_0x80
+			   &leds_foma &leds_do>;
 	};
 };
 
