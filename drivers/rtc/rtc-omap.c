@@ -125,7 +125,7 @@
 
 #define	OMAP_RTC_HAS_KICKER		0x1
 
-#define SHUTDOWN_TIME_SEC		5
+#define SHUTDOWN_TIME_SEC		2
 
 /*
  * Few RTC IP revisions has special WAKE-EN Register to enable Wakeup
