@@ -383,8 +383,8 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 
 	data->bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
 	if (!data->bus->irq) {
-		mdiobus_free(data->bus);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto bail_out;
 	}
 
 	for (i = 0; i < PHY_MAX_ADDR; i++)
