@@ -38,6 +38,7 @@
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
 #ifdef CONFIG_DAVINCI_MDIO_PHYRESET
+#include <linux/reboot.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 #endif
@@ -314,6 +315,30 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 	return 0;
 }
 
+#ifdef CONFIG_DAVINCI_MDIO_PHYRESET
+static struct mdio_platform_data *mdio_pdata_nb;
+
+static int davinci_mdio_reboot_notifier(struct notifier_block *nb,
+					unsigned long code, void *unused)
+{
+	int i;
+
+	if (mdio_pdata_nb) {
+		for (i = 0; i < 2; i++) {
+			if (gpio_is_valid(mdio_pdata_nb->phy_reset_gpio[i])) {
+				gpio_direction_output(mdio_pdata_nb->phy_reset_gpio[i], 0);
+			}
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block davinci_mdio_reboot_nb = {
+	.notifier_call = davinci_mdio_reboot_notifier,
+};
+#endif
+
 #if IS_ENABLED(CONFIG_OF)
 static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			 struct platform_device *pdev)
@@ -339,6 +364,9 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			data->phy_reset_gpio[i] = phy_reset_gpio[i];
 		}
 	}
+
+	mdio_pdata_nb = data;
+	register_reboot_notifier(&davinci_mdio_reboot_nb);
 #endif
 
 	if (of_property_read_u32(node, "bus_freq", &prop)) {
