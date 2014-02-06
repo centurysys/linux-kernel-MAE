@@ -32,6 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #ifdef CONFIG_CPSW_LED_GPIO
+#include <linux/reboot.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 #endif
@@ -1947,6 +1948,35 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_regs	= cpsw_get_regs,
 };
 
+#ifdef CONFIG_CPSW_LED_GPIO
+static struct cpsw_platform_data *cpsw_pdata_nb;
+
+static int cpsw_reboot_notifier(struct notifier_block *nb,
+				unsigned long code, void *unused)
+{
+	int i;
+	struct cpsw_slave_data *slave_data;
+
+	if (cpsw_pdata_nb) {
+		for (i = 0; i < 2; i++) {
+			slave_data = cpsw_pdata_nb->slave_data + i;
+
+			if (gpio_is_valid(slave_data->led_fast_gpio))
+				gpio_direction_output(slave_data->led_fast_gpio, 1);
+
+			if (gpio_is_valid(slave_data->led_giga_gpio))
+				gpio_direction_output(slave_data->led_giga_gpio, 1);
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block cpsw_reboot_nb = {
+	.notifier_call = cpsw_reboot_notifier,
+};
+#endif
+
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
 			    u32 slave_reg_ofs, u32 sliver_reg_ofs)
 {
@@ -2141,6 +2171,10 @@ no_phy_slave:
 			break;
 	}
 
+#ifdef CONFIG_CPSW_LED_GPIO
+	cpsw_pdata_nb = data;
+	register_reboot_notifier(&cpsw_reboot_nb);
+#endif
 	return 0;
 }
 
