@@ -1422,11 +1422,36 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 #endif /*CONFIG_TI_CPTS*/
 
+static int cpsw_mii_read_reg(struct net_device *dev, int phy_id, u16 reg)
+{
+	struct cpsw_priv *priv = netdev_priv(dev);
+	struct cpsw_slave *slave;
+	struct mii_bus *bus;
+	int slave_no, res;
+	unsigned long flags;
+
+	slave_no = cpsw_slave_index(priv);
+	slave = &priv->slaves[slave_no];
+	bus = slave->phy->bus;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	res = bus->read(bus, phy_id, (int) reg);
+
+	if (res < 0)
+		printk("%s: failed with %d\n", __FUNCTION__, res);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return res;
+}
+
 static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
 	struct cpsw_priv *priv = netdev_priv(dev);
 	struct mii_ioctl_data *data = if_mii(req);
 	int slave_no = cpsw_slave_index(priv);
+	int res;
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -1439,6 +1464,16 @@ static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	case SIOCGMIIPHY:
 		data->phy_id = priv->slaves[slave_no].phy->addr;
 		break;
+
+	case SIOCGMIIREG:
+		res = cpsw_mii_read_reg(dev, data->phy_id & 0x1f,
+					data->reg_num & 0x1f);
+		if (res >= 0) {
+			data->val_out = (u16) res;
+			res = 0;
+		}
+		return res;
+
 	default:
 		return -ENOTSUPP;
 	}
