@@ -1436,7 +1436,31 @@ static int cpsw_mii_read_reg(struct net_device *dev, int phy_id, u16 reg)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	res = bus->read(bus, phy_id, (int) reg);
+	res = bus->read(bus, phy_id, reg);
+
+	if (res < 0)
+		printk("%s: failed with %d\n", __FUNCTION__, res);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return res;
+}
+
+static int cpsw_mii_write_reg(struct net_device *dev, int phy_id, u16 reg, u16 data)
+{
+	struct cpsw_priv *priv = netdev_priv(dev);
+	struct cpsw_slave *slave;
+	struct mii_bus *bus;
+	int slave_no, res;
+	unsigned long flags;
+
+	slave_no = cpsw_slave_index(priv);
+	slave = &priv->slaves[slave_no];
+	bus = slave->phy->bus;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	res = bus->write(bus, phy_id, reg, data);
 
 	if (res < 0)
 		printk("%s: failed with %d\n", __FUNCTION__, res);
@@ -1472,6 +1496,11 @@ static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 			data->val_out = (u16) res;
 			res = 0;
 		}
+		return res;
+
+	case SIOCSMIIREG:
+		res = cpsw_mii_write_reg(dev, data->phy_id & 0x1f,
+					  data->reg_num & 0x1f, data->val_in);
 		return res;
 
 	default:
