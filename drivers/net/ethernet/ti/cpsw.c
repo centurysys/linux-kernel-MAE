@@ -1500,7 +1500,7 @@ static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 	case SIOCSMIIREG:
 		res = cpsw_mii_write_reg(dev, data->phy_id & 0x1f,
-					  data->reg_num & 0x1f, data->val_in);
+					 data->reg_num & 0x1f, data->val_in);
 		return res;
 
 	default:
