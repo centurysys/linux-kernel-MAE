@@ -27,6 +27,8 @@
 #include <linux/micrel_phy.h>
 #include <linux/of.h>
 
+#include <linux/netdevice.h>
+
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
 #define KSZPHY_OMSO_B_CAST_OFF			(1 << 9)
@@ -43,8 +45,10 @@
 #define	KSZPHY_INTCS_LINK_DOWN			(1 << 10)
 #define	KSZPHY_INTCS_REMOTE_FAULT		(1 << 9)
 #define	KSZPHY_INTCS_LINK_UP			(1 << 8)
-#define	KSZPHY_INTCS_ALL			(KSZPHY_INTCS_LINK_UP |\
-						KSZPHY_INTCS_LINK_DOWN)
+#define	KSZPHY_INTCS_ALL			(KSZPHY_INTCS_LINK_UP | \
+							 KSZPHY_INTCS_RECEIVE_ERR | \
+							 KSZPHY_INTCS_REMOTE_FAULT | \
+							 KSZPHY_INTCS_LINK_DOWN)
 
 /* general PHY control reg in vendor specific block. */
 #define	MII_KSZPHY_CTRL			0x1F
@@ -290,6 +294,13 @@ static int ksz9031_config_init(struct phy_device *phydev)
 	if (!of_node && dev->parent->of_node)
 		of_node = dev->parent->of_node;
 
+#if 0
+	val = phy_read(phydev, MII_CTRL1000);
+	val |= CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER;
+	phy_write(phydev, MII_CTRL1000, val);
+	printk("%s: phy[%d] MII_CTRL1000 <- 0x%04x\n",
+	       __FUNCTION__, phydev->addr, val);
+#endif
 	if (of_node) {
 		val = ksz9031_mmd_read(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
 				       MII_KSZ9031_CLOCK_PAD_SKEW_REG);
@@ -311,6 +322,43 @@ static int ksz9031_config_init(struct phy_device *phydev)
 		}
 	}
 	return 0;
+}
+
+int ksz9031_read_status(struct phy_device *phydev)
+{
+	int res;
+	u16 val;
+
+	res = genphy_read_status(phydev);
+
+	if (res >= 0 && phydev->state == PHY_CHANGELINK) {
+		if (phydev->link == 1) {
+			val = phy_read(phydev, MII_STAT1000);
+
+			if ((val & 0x00ff) >= 0x7f) {
+				printk("%s: Idle Error detected, configure as master...\n",
+				       __FUNCTION__);
+				val = phy_read(phydev, MII_CTRL1000);
+				val |= CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER;
+				phy_write(phydev, MII_CTRL1000, val);
+
+				val = phy_read(phydev, MII_BMCR);
+				val |= BMCR_ANRESTART;
+				phy_write(phydev, MII_BMCR, val);
+
+				phydev->state = PHY_UP;
+				phydev->link = 1;
+
+				res = 1;
+			}
+		} else {
+			val = phy_read(phydev, MII_CTRL1000);
+			val &= ~(CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER);
+			phy_write(phydev, MII_CTRL1000, val);
+		}
+	}
+
+	return res;
 }
 
 #define KSZ8873MLL_GLOBAL_CONTROL_4	0x06
@@ -501,7 +549,7 @@ static struct phy_driver ksphy_driver[] = {
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
 	.config_init	= ksz9031_config_init,
 	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
+	.read_status	= ksz9031_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
 	.config_intr	= ksz9021_config_intr,
 	.suspend	= genphy_suspend,
