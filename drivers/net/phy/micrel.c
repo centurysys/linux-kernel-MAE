@@ -142,7 +142,6 @@ static int kszphy_ack_interrupt(struct phy_device *phydev)
 	int rc;
 
 	rc = phy_read(phydev, MII_KSZPHY_INTCS);
-	printk("%s[%d]: INT = 0x%04x\n", __FUNCTION__, phydev->addr, rc);
 
 	return (rc < 0) ? rc : 0;
 }
@@ -325,59 +324,37 @@ static int ksz9031_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static const char *phy_state_to_str[] = {
-	[PHY_DOWN]       = "PHY_DOWN",
-	[PHY_STARTING]   = "PHY_STARTING",
-	[PHY_READY]      = "PHY_READY",
-	[PHY_PENDING]    = "PHY_PENDING",
-	[PHY_UP]         = "PHY_UP",
-	[PHY_AN]         = "PHY_AN",
-	[PHY_RUNNING]    = "PHY_RUNNING",
-	[PHY_NOLINK]     = "PHY_NOLINK",
-	[PHY_FORCING]    = "PHY_FORCING",
-	[PHY_CHANGELINK] = "PHY_CHANGELINK",
-	[PHY_HALTED]     = "PHY_HALTED",
-	[PHY_RESUMING]   = "PHY_RESUMING",
-};
-
 int ksz9031_read_status(struct phy_device *phydev)
 {
-	int res, i;
+	int res;
 	u16 val;
 
 	res = genphy_read_status(phydev);
 
-	if (phydev->state == PHY_CHANGELINK) {
-		printk("phy_state is '%s'\n", phy_state_to_str[phydev->state]);
+	if (res >= 0 && phydev->state == PHY_CHANGELINK) {
+		if (phydev->link == 1) {
+			val = phy_read(phydev, MII_STAT1000);
 
-		if (res >= 0) {
-			if (phydev->link == 1) {
-				val = phy_read(phydev, MII_STAT1000);
-				printk(" REG[0x0a] = 0x%04x\n", val);
-
-				if ((val & 0x00ff) >= 0x7f) {
-					val = phy_read(phydev, MII_CTRL1000);
-					val |= CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER;
-					printk("%s: phy[%d] MII_CTRL1000 <- 0x%04x\n",
-					       __FUNCTION__, phydev->addr, val);
-					phy_write(phydev, MII_CTRL1000, val);
-
-					val = phy_read(phydev, MII_BMCR);
-					val |= BMCR_ANRESTART;
-					phy_write(phydev, MII_BMCR, val);
-
-					phydev->state = PHY_UP;
-					phydev->link = 1;
-
-					res = 1;
-				}
-			} else {
+			if ((val & 0x00ff) >= 0x7f) {
+				printk("%s: Idle Error detected, configure as master...\n",
+				       __FUNCTION__);
 				val = phy_read(phydev, MII_CTRL1000);
-				val &= ~(CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER);
-				printk("%s: phy[%d] MII_CTRL1000 <- 0x%04x\n",
-				       __FUNCTION__, phydev->addr, val);
+				val |= CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER;
 				phy_write(phydev, MII_CTRL1000, val);
+
+				val = phy_read(phydev, MII_BMCR);
+				val |= BMCR_ANRESTART;
+				phy_write(phydev, MII_BMCR, val);
+
+				phydev->state = PHY_UP;
+				phydev->link = 1;
+
+				res = 1;
 			}
+		} else {
+			val = phy_read(phydev, MII_CTRL1000);
+			val &= ~(CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER);
+			phy_write(phydev, MII_CTRL1000, val);
 		}
 	}
 
