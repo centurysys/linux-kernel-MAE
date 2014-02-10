@@ -862,8 +862,11 @@ void phy_state_machine(struct work_struct *work)
 		break;
 	case PHY_CHANGELINK:
 		err = phy_read_status(phydev);
-		if (err)
+		if (err) {
+			if (err > 0)
+				needs_aneg = 1;
 			break;
+		}
 
 		if (phydev->link) {
 			phydev->state = PHY_RUNNING;
