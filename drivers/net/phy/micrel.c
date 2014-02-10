@@ -27,6 +27,8 @@
 #include <linux/micrel_phy.h>
 #include <linux/of.h>
 
+#include <linux/netdevice.h>
+
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
 #define KSZPHY_OMSO_B_CAST_OFF			(1 << 9)
@@ -43,8 +45,10 @@
 #define	KSZPHY_INTCS_LINK_DOWN			(1 << 10)
 #define	KSZPHY_INTCS_REMOTE_FAULT		(1 << 9)
 #define	KSZPHY_INTCS_LINK_UP			(1 << 8)
-#define	KSZPHY_INTCS_ALL			(KSZPHY_INTCS_LINK_UP |\
-						KSZPHY_INTCS_LINK_DOWN)
+#define	KSZPHY_INTCS_ALL			(KSZPHY_INTCS_LINK_UP | \
+							 KSZPHY_INTCS_RECEIVE_ERR | \
+							 KSZPHY_INTCS_REMOTE_FAULT | \
+							 KSZPHY_INTCS_LINK_DOWN)
 
 /* general PHY control reg in vendor specific block. */
 #define	MII_KSZPHY_CTRL			0x1F
@@ -138,6 +142,7 @@ static int kszphy_ack_interrupt(struct phy_device *phydev)
 	int rc;
 
 	rc = phy_read(phydev, MII_KSZPHY_INTCS);
+	printk("%s[%d]: INT = 0x%04x\n", __FUNCTION__, phydev->addr, rc);
 
 	return (rc < 0) ? rc : 0;
 }
@@ -290,6 +295,13 @@ static int ksz9031_config_init(struct phy_device *phydev)
 	if (!of_node && dev->parent->of_node)
 		of_node = dev->parent->of_node;
 
+#if 0
+	val = phy_read(phydev, MII_CTRL1000);
+	val |= CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER;
+	phy_write(phydev, MII_CTRL1000, val);
+	printk("%s: phy[%d] MII_CTRL1000 <- 0x%04x\n",
+	       __FUNCTION__, phydev->addr, val);
+#endif
 	if (of_node) {
 		val = ksz9031_mmd_read(phydev, MII_KSZ9031_CLOCK_PAD_SKEW_ADDR,
 				       MII_KSZ9031_CLOCK_PAD_SKEW_REG);
@@ -312,6 +324,67 @@ static int ksz9031_config_init(struct phy_device *phydev)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_KSZ9031_REG_DEBUG
+static const char *phy_state_to_str[] = {
+	[PHY_DOWN]       = "PHY_DOWN",
+	[PHY_STARTING]   = "PHY_STARTING",
+	[PHY_READY]      = "PHY_READY",
+	[PHY_PENDING]    = "PHY_PENDING",
+	[PHY_UP]         = "PHY_UP",
+	[PHY_AN]         = "PHY_AN",
+	[PHY_RUNNING]    = "PHY_RUNNING",
+	[PHY_NOLINK]     = "PHY_NOLINK",
+	[PHY_FORCING]    = "PHY_FORCING",
+	[PHY_CHANGELINK] = "PHY_CHANGELINK",
+	[PHY_HALTED]     = "PHY_HALTED",
+	[PHY_RESUMING]   = "PHY_RESUMING",
+};
+
+int ksz9031_read_status(struct phy_device *phydev)
+{
+	int res, i;
+	u16 val;
+
+	res = genphy_read_status(phydev);
+
+	if (phydev->state == PHY_CHANGELINK) {
+		printk("phy_state is '%s'\n", phy_state_to_str[phydev->state]);
+
+		if (res >= 0) {
+			if (phydev->link == 1) {
+				val = phy_read(phydev, MII_STAT1000);
+				printk(" REG[0x0a] = 0x%04x\n", val);
+
+				if ((val & 0x00ff) >= 0x7f) {
+					val = phy_read(phydev, MII_CTRL1000);
+					val |= CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER;
+					printk("%s: phy[%d] MII_CTRL1000 <- 0x%04x\n",
+					       __FUNCTION__, phydev->addr, val);
+					phy_write(phydev, MII_CTRL1000, val);
+
+					val = phy_read(phydev, MII_BMCR);
+					val |= BMCR_ANRESTART;
+					phy_write(phydev, MII_BMCR, val);
+
+					phydev->state = PHY_UP;
+					phydev->link = 1;
+
+					res = 1;
+				}
+			} else {
+				val = phy_read(phydev, MII_CTRL1000);
+				val &= ~(CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER);
+				printk("%s: phy[%d] MII_CTRL1000 <- 0x%04x\n",
+				       __FUNCTION__, phydev->addr, val);
+				phy_write(phydev, MII_CTRL1000, val);
+			}
+		}
+	}
+
+	return res;
+}
+#endif
 
 #define KSZ8873MLL_GLOBAL_CONTROL_4	0x06
 #define KSZ8873MLL_GLOBAL_CONTROL_4_DUPLEX	(1 << 6)
@@ -501,7 +574,7 @@ static struct phy_driver ksphy_driver[] = {
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
 	.config_init	= ksz9031_config_init,
 	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
+	.read_status	= ksz9031_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
 	.config_intr	= ksz9021_config_intr,
 	.suspend	= genphy_suspend,
