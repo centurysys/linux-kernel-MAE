@@ -328,7 +328,6 @@ static int ksz9031_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-#ifdef CONFIG_PHY_MANUAL_MDIX
 static int ksz9031_config_advert(struct phy_device *phydev)
 {
 	u32 advertise;
@@ -380,7 +379,6 @@ static int ksz9031_config_advert(struct phy_device *phydev)
 
 	return changed;
 }
-#endif
 
 static int ksz9031_config_aneg(struct phy_device *phydev)
 {
