@@ -326,6 +326,9 @@ struct phy_device {
 	int duplex;
 	int pause;
 	int asym_pause;
+#ifdef CONFIG_PHY_MANUAL_MDIX
+	int mdix;
+#endif
 
 	/* The most recently read link state */
 	int link;

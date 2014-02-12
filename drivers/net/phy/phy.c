@@ -267,6 +267,10 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	phydev->duplex = cmd->duplex;
 
+#ifdef CONFIG_PHY_MANUAL_MDIX
+	phydev->mdix = cmd->eth_tp_mdix_ctrl;
+#endif
+
 	/* Restart the PHY */
 	phy_start_aneg(phydev);
 
@@ -288,7 +292,10 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 	cmd->transceiver = phy_is_internal(phydev) ?
 		XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->autoneg = phydev->autoneg;
-
+#ifdef CONFIG_PHY_MANUAL_MDIX
+	cmd->eth_tp_mdix = phydev->mdix;
+	cmd->eth_tp_mdix_ctrl = phydev->mdix;
+#endif
 	return 0;
 }
 EXPORT_SYMBOL(phy_ethtool_gset);
