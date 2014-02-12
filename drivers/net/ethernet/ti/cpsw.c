@@ -1716,6 +1716,26 @@ static int cpsw_get_ts_info(struct net_device *ndev,
 	return 0;
 }
 
+static int cpsw_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
+{
+	cmd->supported = phydev->supported;
+
+	cmd->advertising = phydev->advertising;
+
+	ethtool_cmd_speed_set(cmd, phydev->speed);
+	cmd->duplex = phydev->duplex;
+	cmd->port = PORT_TP;
+	cmd->phy_address = phydev->addr;
+	cmd->transceiver = phy_is_internal(phydev) ?
+		XCVR_INTERNAL : XCVR_EXTERNAL;
+	cmd->autoneg = phydev->autoneg;
+#ifdef CONFIG_PHY_MANUAL_MDIX
+	cmd->eth_tp_mdix = phydev->mdix;
+	cmd->eth_tp_mdix_ctrl = phydev->mdix;
+#endif
+	return 0;
+}
+
 static int cpsw_get_settings(struct net_device *ndev,
 			     struct ethtool_cmd *ecmd)
 {
@@ -1723,7 +1743,7 @@ static int cpsw_get_settings(struct net_device *ndev,
 	int slave_no = cpsw_slave_index(priv);
 
 	if (priv->slaves[slave_no].phy)
-		return phy_ethtool_gset(priv->slaves[slave_no].phy, ecmd);
+		return cpsw_ethtool_gset(priv->slaves[slave_no].phy, ecmd);
 	else
 		return -EOPNOTSUPP;
 }

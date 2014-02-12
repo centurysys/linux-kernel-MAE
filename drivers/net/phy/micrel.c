@@ -84,6 +84,10 @@
 #define MMD_OP_DATA_INC_RW MMD_ACCESS(0x02)
 #define MMD_OP_DATA_INC_WO MMD_ACCESS(0x03)
 
+/* Auto MDI/MDI-X */
+#define KSZ9031_AUTOMDI_MDISET  (1 << 7)
+#define KSZ9031_AUTOMDI_SWAPOFF (1 << 6)
+
 #define PS_TO_REG				200
 
 static int ksz_config_flags(struct phy_device *phydev)
@@ -324,11 +328,145 @@ static int ksz9031_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+#ifdef CONFIG_PHY_MANUAL_MDIX
+static int ksz9031_config_advert(struct phy_device *phydev)
+{
+	u32 advertise;
+	int oldadv, adv;
+	int err, changed = 0;
+
+	/* Only allow advertising what
+	 * this PHY supports */
+	phydev->advertising &= phydev->supported;
+	advertise = phydev->advertising;
+
+	/* Setup standard advertisement */
+	oldadv = adv = phy_read(phydev, MII_ADVERTISE);
+
+	if (adv < 0)
+		return adv;
+
+	adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP |
+		 ADVERTISE_PAUSE_ASYM);
+	adv |= ethtool_adv_to_mii_adv_t(advertise);
+
+	if (adv != oldadv) {
+		err = phy_write(phydev, MII_ADVERTISE, adv);
+
+		if (err < 0)
+			return err;
+		changed = 1;
+	}
+
+	/* Configure gigabit if it's supported */
+	if (phydev->supported & (SUPPORTED_1000baseT_Half |
+				SUPPORTED_1000baseT_Full)) {
+		oldadv = adv = phy_read(phydev, MII_CTRL1000);
+
+		if (adv < 0)
+			return adv;
+
+		adv &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
+		adv |= ethtool_adv_to_mii_ctrl1000_t(advertise);
+
+		if (adv != oldadv) {
+			err = phy_write(phydev, MII_CTRL1000, adv);
+
+			if (err < 0)
+				return err;
+			changed = 1;
+		}
+	}
+
+	return changed;
+}
+#endif
+
+static int ksz9031_config_aneg(struct phy_device *phydev)
+{
+	int result;
+#ifdef CONFIG_PHY_MANUAL_MDIX
+	u16 val;
+#endif
+
+	if (AUTONEG_ENABLE != phydev->autoneg)
+		return genphy_setup_forced(phydev);
+
+	result = ksz9031_config_advert(phydev);
+
+	if (result < 0) /* error */
+		return result;
+
+#ifdef CONFIG_PHY_MANUAL_MDIX
+	/* Configure Auto MDI/MDI-X */
+	switch (phydev->mdix) {
+	case ETH_TP_MDI_INVALID:
+	default:
+		phydev->mdix = ETH_TP_MDI_AUTO;
+		/* FALLTHROUGH */
+	case ETH_TP_MDI_AUTO:
+		val = 0;
+		break;
+
+	case ETH_TP_MDI:
+		val = KSZ9031_AUTOMDI_SWAPOFF | KSZ9031_AUTOMDI_MDISET;
+		break;
+
+	case ETH_TP_MDI_X:
+		val = KSZ9031_AUTOMDI_SWAPOFF;
+		break;
+	}
+
+	result = phy_write(phydev, MII_NCONFIG, val);
+
+	if (result < 0)
+		return result;
+	else
+		result = 1; /* do restart aneg */
+#endif
+
+	if (result == 0) {
+		/* Advertisement hasn't changed, but maybe aneg was never on to
+		 * begin with?  Or maybe phy was isolated? */
+		int ctl = phy_read(phydev, MII_BMCR);
+
+		if (ctl < 0)
+			return ctl;
+
+		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
+			result = 1; /* do restart aneg */
+	}
+
+	/* Only restart aneg if we are advertising something different
+	 * than we were before.	 */
+	if (result > 0)
+		result = genphy_restart_aneg(phydev);
+
+	return result;
+}
+
 int ksz9031_read_status(struct phy_device *phydev)
 {
 	int res;
 	u16 val;
 
+#ifdef CONFIG_PHY_MANUAL_MDIX
+	/* read Auto MDI/MDI-X register */
+	res = phy_read(phydev, MII_NCONFIG);
+	if (res < 0)
+		return res;
+
+	val = (u16) res;
+
+	if (!(res & KSZ9031_AUTOMDI_SWAPOFF)) {
+		phydev->mdix = ETH_TP_MDI_AUTO;	/* Auto MDI/MDI-X */
+	} else {
+		if (res & KSZ9031_AUTOMDI_MDISET)
+			phydev->mdix = ETH_TP_MDI;	/* Force MDI */
+		else
+			phydev->mdix = ETH_TP_MDI_X;	/* Force MDI-X */
+	}
+#endif
 	res = genphy_read_status(phydev);
 
 	if (res >= 0 && phydev->state == PHY_CHANGELINK) {
@@ -548,7 +686,8 @@ static struct phy_driver ksphy_driver[] = {
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
 	.config_init	= ksz9031_config_init,
-	.config_aneg	= genphy_config_aneg,
+//	.config_aneg	= genphy_config_aneg,
+	.config_aneg	= ksz9031_config_aneg,
 	.read_status	= ksz9031_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
 	.config_intr	= ksz9021_config_intr,

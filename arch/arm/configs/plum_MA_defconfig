@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.13.1 Kernel Configuration
+# Linux/arm 3.13.2 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1293,6 +1293,7 @@ CONFIG_CPSW_LED_GPIO=y
 # CONFIG_NET_VENDOR_VIA is not set
 # CONFIG_NET_VENDOR_WIZNET is not set
 CONFIG_PHYLIB=y
+CONFIG_PHY_MANUAL_MDIX=y
 
 #
 # MII PHY device drivers

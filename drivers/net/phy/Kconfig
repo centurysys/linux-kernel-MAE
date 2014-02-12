@@ -12,6 +12,10 @@ menuconfig PHYLIB
 
 if PHYLIB
 
+config PHY_MANUAL_MDIX
+	bool "Support Manual MDI/MDI-X configuration."
+	depends on PHYLIB
+
 comment "MII PHY device drivers"
 
 config AT803X_PHY
