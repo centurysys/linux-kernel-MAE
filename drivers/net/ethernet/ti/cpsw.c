@@ -560,7 +560,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 		 * common for both the interface as the interface shares
 		 * the same hardware resource.
 		 */
-		for (i = 0; i <= priv->data.slaves; i++)
+		for (i = 0; i < priv->data.slaves; i++)
 			if (priv->slaves[i].ndev->flags & IFF_PROMISC)
 				flag = true;
 
