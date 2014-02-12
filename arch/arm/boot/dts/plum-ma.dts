@@ -542,28 +542,8 @@
 
 		/* MTD partition table */
 		partition@0 {
-			label = "Kernel.1";
-			reg = <0x00000000 0x00500000>;
-		};
-
-		partition@1 {
-			label = "Kernel.2";
-			reg = <0x00500000 0x00500000>;
-		};
-
-		partition@2 {
-			label = "Rootdev.1";
-			reg = <0x00A00000 0x05000000>;
-		};
-
-		partition@3 {
-			label = "Rootdev.2";
-			reg = <0x05A00000 0x05000000>;
-		};
-
-		partition@4 {
-			label = "Filesystem";
-			reg = <0x0AA00000 0x05600000>;
+			label = "UBI";
+			reg = <0x00000000 0x10000000>;
 		};
 	};
 
