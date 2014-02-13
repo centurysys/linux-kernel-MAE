@@ -58,6 +58,11 @@
 #define KS8737_CTRL_INT_ACTIVE_HIGH		(1 << 14)
 #define KSZ8051_RMII_50MHZ_CLK			(1 << 7)
 
+/* 100BASE-T Status register (extend) */
+#define LPA_1000MASTERSLAVE_FAULT    0x8000
+#define LPA_1000LOCALPHY_MASTER      0x4000
+#define LPA_1000IDLE_ERROR_COUNT(x)  ((x) & 0x00ff)
+
 /* Write/read to/from extended registers */
 #define MII_KSZPHY_EXTREG                       0x0b
 #define KSZPHY_EXTREG_WRITE                     0x8000
@@ -471,20 +476,15 @@ int ksz9031_read_status(struct phy_device *phydev)
 		if (phydev->link == 1) {
 			val = phy_read(phydev, MII_STAT1000);
 
-			if ((val & 0x00ff) >= 0x7f) {
+			if ((val & LPA_1000FULL) &&
+			    LPA_1000IDLE_ERROR_COUNT(val) >= 0x7f) {
 				printk("%s: Idle Error detected, configure as master...\n",
 				       __FUNCTION__);
 				val = phy_read(phydev, MII_CTRL1000);
 				val |= CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER;
 				phy_write(phydev, MII_CTRL1000, val);
 
-				val = phy_read(phydev, MII_BMCR);
-				val |= BMCR_ANRESTART;
-				phy_write(phydev, MII_BMCR, val);
-
 				phydev->state = PHY_UP;
-				phydev->link = 1;
-
 				res = 1;
 			}
 		} else {
