@@ -126,7 +126,8 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 	void __iomem *epio = hw_ep->regs;
 	u16 csr;
 
-	if (!cppi41_channel->prog_len) {
+	if (!cppi41_channel->prog_len ||
+	    (cppi41_channel->channel.status == MUSB_DMA_STATUS_FREE)) {
 
 		/* done, complete */
 		cppi41_channel->channel.actual_len =
