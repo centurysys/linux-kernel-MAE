@@ -1525,6 +1525,7 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
+	netif_wake_queue(ndev);
 }
 
 static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
