@@ -474,9 +474,9 @@ int __init omap_wakeupgen_init(void)
 		secure_api_index = OMAP4_HAL_SAVEGIC_INDEX;
 		wakeupgen_ops = &omap4_wakeupgen_ops;
 	} else if (soc_is_omap54xx()) {
-		secure_api_index = OMAP5_HAL_SAVEGIC_INDEX;
+	//	secure_api_index = OMAP5_HAL_SAVEGIC_INDEX;
 		wakeupgen_ops = &omap5_wakeupgen_ops;
-	} else if (asoc_is_am43xx() {
+	} else if (soc_is_am43xx()) {
 		irq_banks = MAX_NR_REG_BANKS;
 		wakeupgen_ops = &am43xx_wakeupgen_ops;
 	}
