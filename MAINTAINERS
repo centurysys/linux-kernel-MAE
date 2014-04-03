@@ -9041,8 +9041,7 @@ F:	include/linux/cdrom.h
 F:	include/uapi/linux/cdrom.h
 
 UNION FILE SYSTEM
-P:	Erez Zadok
-M:	ezk@cs.sunysb.edu
+M:	Erez Zadok <ezk@cs.sunysb.edu>
 L:	unionfs@filesystems.org
 W:	http://unionfs.filesystems.org/
 T:	git git://git.fsl.cs.sunysb.edu/unionfs-latest.git
