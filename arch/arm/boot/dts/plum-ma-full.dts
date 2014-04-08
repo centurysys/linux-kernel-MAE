@@ -152,6 +152,7 @@
 	aliases {
 		xio_02 = &xio_02;
 		xio_03 = &xio_03;
+		xio_04 = &xio_04;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -166,6 +167,16 @@
 		#size-cells = <0>;
 		devices = <&uartx2_0x20 &uartx2_0x30
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18 &gpiox_0x1a
+			   &gpiox_0x40 &gpiox_0x80
+			   &leds_foma &leds_do>;
+	};
+
+	/* XIO: (id: 0x04) UARTx2/DIO */
+	xio_04: xio@0x04 {
+		#size-cells = <0>;
+		devices = <&uartx2_0x20 &uartx2_0x30
+			   &gpiox_0x14
 			   &gpiox_0x18 &gpiox_0x1a
 			   &gpiox_0x40 &gpiox_0x80
 			   &leds_foma &leds_do>;
@@ -582,6 +593,10 @@
 		interrupts = <22 8>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
+		txen_gpio = <&gpiox_0x18 0 GPIO_ACTIVE_HIGH>;
+		rxen_gpio = <&gpiox_0x18 1 GPIO_ACTIVE_LOW>;
+		type_gpio = <&gpiox_0x18 2 GPIO_ACTIVE_HIGH>;
+
 		pinctrl-names = "default";
 		pinctrl-0 = <&uartx3_pins>;
 	};
@@ -604,6 +619,10 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <22 8>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
+		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
+		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
 	};
 
 	/* FOMA Control */
