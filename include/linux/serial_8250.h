@@ -93,6 +93,10 @@ struct uart_8250_port {
 #define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
 	unsigned char		msr_saved_flags;
 
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	struct serial_rs485	rs485;
+#endif
+
 	struct uart_8250_dma	*dma;
 
 	/* 8250 specific callbacks */
