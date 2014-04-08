@@ -66,8 +66,45 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	enum of_gpio_flags flags;
 	int gpio_irq;
 	int ret;
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	int gpio;
+#endif
 
 	memset(port, 0, sizeof *port);
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	gpio = of_get_named_gpio_flags(np, "txen_gpio", 0, &flags);
+	if (gpio == -EPROBE_DEFER)
+		return gpio;
+
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_txen");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->txen_gpio = gpio;
+	}
+
+	gpio = of_get_named_gpio_flags(np, "rxen_gpio", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_rxen");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->rxen_gpio = gpio;
+	}
+
+	gpio = of_get_named_gpio_flags(np, "type_gpio", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_type");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->type_gpio = gpio;
+	}
+out_gpio:
+#endif
+
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 
 		/* Get clk rate through clk driver if present */
