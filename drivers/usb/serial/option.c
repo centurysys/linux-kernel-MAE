@@ -423,6 +423,7 @@ static void option_instat_callback(struct urb *urb);
 /* LG products */
 #define LG_VENDOR_ID				0x1004
 #define LG_PRODUCT_L02C				0x618f
+#define LG_PRODUCT_L03D				0x6326
 
 /* MediaTek products */
 #define MEDIATEK_VENDOR_ID			0x0e8d
@@ -1595,6 +1596,7 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(VIETTEL_VENDOR_ID, VIETTEL_PRODUCT_VT1000, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZD_VENDOR_ID, ZD_PRODUCT_7000, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE(LG_VENDOR_ID, LG_PRODUCT_L02C) }, /* docomo L-02C modem */
+	{ USB_DEVICE(LG_VENDOR_ID, LG_PRODUCT_L03D) }, /* docomo L-03D modem */
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a1, 0xff, 0x00, 0x00) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a1, 0xff, 0x02, 0x01) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a2, 0xff, 0x00, 0x00) },
