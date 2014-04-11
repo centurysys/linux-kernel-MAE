@@ -219,6 +219,9 @@
 			0x034 (PIN_INPUT | MUX_MODE7)  /* gpmc_ad13.gpio1_13 (DSR) */
 			0x038 (PIN_INPUT | MUX_MODE7)  /* gpmc_ad14.gpio1_14 (DCD) */
 			0x02c (PIN_INPUT | MUX_MODE7)  /* gpmc_ad11.gpio0_27 (RI)  */
+
+			0x1a8 (PIN_OUTPUT | MUX_MODE7) /* mcasp0_axr1.gpio3_20   (TxE) */
+			0x1ac (PIN_OUTPUT | MUX_MODE7) /* mcasp0_ahclkx.gpio3_21 (RxE) */
 		>;
 	};
 
@@ -392,6 +395,9 @@
 	dsr-gpio = <&gpio1 13 GPIO_ACTIVE_LOW>;
 	dcd-gpio = <&gpio1 14 GPIO_ACTIVE_LOW>;
 	ri-gpio  = <&gpio0 27 GPIO_ACTIVE_LOW>;
+
+	txe-gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+	rxe-gpio = <&gpio3 21 GPIO_ACTIVE_LOW>;
 
 	status = "okay";
 };
