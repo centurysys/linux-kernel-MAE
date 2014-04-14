@@ -132,7 +132,8 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 	struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
 	struct musb *musb = hw_ep->musb;
 
-	if (!cppi41_channel->prog_len) {
+	if (!cppi41_channel->prog_len ||
+	    (cppi41_channel->channel.status == MUSB_DMA_STATUS_FREE)) {
 
 		/* done, complete */
 		cppi41_channel->channel.actual_len =
@@ -189,9 +190,9 @@ static void cppi_trans_done_work(struct work_struct *work)
 	bool empty;
 
 	if (!cppi41_channel->is_tx && is_isoc(hw_ep, 1)) {
-			spin_lock_irqsave(&musb->lock, flags);
-			cppi41_trans_done(cppi41_channel);
-			spin_unlock_irqrestore(&musb->lock, flags);
+		spin_lock_irqsave(&musb->lock, flags);
+		cppi41_trans_done(cppi41_channel);
+		spin_unlock_irqrestore(&musb->lock, flags);
 	} else {
 		empty = musb_is_tx_fifo_empty(hw_ep);
 		if (empty) {
@@ -673,6 +674,7 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 		INIT_LIST_HEAD(&cppi41_channel->tx_check);
 		INIT_WORK(&cppi41_channel->dma_completion,
 			  cppi_trans_done_work);
+
 		musb_dma = &cppi41_channel->channel;
 		musb_dma->private_data = cppi41_channel;
 		musb_dma->status = MUSB_DMA_STATUS_FREE;
