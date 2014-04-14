@@ -1709,9 +1709,9 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			if (d->status != -EILSEQ && d->status != -EOVERFLOW)
 				d->status = 0;
 
-			if (++qh->iso_idx >= urb->number_of_packets)
+			if (++qh->iso_idx >= urb->number_of_packets) {
 				done = true;
-			else {
+			} else {
 #if defined(CONFIG_USB_TI_CPPI41_DMA)
 				struct dma_controller   *c;
 				dma_addr_t *buf;

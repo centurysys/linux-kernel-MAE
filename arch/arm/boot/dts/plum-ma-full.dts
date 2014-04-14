@@ -46,8 +46,13 @@
 	};
 
 	ocp {
-		rtc@44e3e000 {
-			/*compatible = "ti,am3352-rtc";*/
+		rtc: rtc@44e3e000 {
+			/* compatible = "ti,da830-rtc";*/
+			compatible = "ti,am3352-rtc";
+			reg = <0x44e3e000 0x1000>;
+			interrupts = <75
+				      76>;
+			ti,hwmods = "rtc";
 			ti,system-power-controller;
 			ti,enable-rtc-clk32k;
 		};
@@ -219,6 +224,9 @@
 			0x034 (PIN_INPUT | MUX_MODE7)  /* gpmc_ad13.gpio1_13 (DSR) */
 			0x038 (PIN_INPUT | MUX_MODE7)  /* gpmc_ad14.gpio1_14 (DCD) */
 			0x02c (PIN_INPUT | MUX_MODE7)  /* gpmc_ad11.gpio0_27 (RI)  */
+
+			0x1a8 (PIN_OUTPUT | MUX_MODE7) /* mcasp0_axr1.gpio3_20   (TxE) */
+			0x1ac (PIN_OUTPUT | MUX_MODE7) /* mcasp0_ahclkx.gpio3_21 (RxE) */
 		>;
 	};
 
@@ -393,6 +401,9 @@
 	dcd-gpio = <&gpio1 14 GPIO_ACTIVE_LOW>;
 	ri-gpio  = <&gpio0 27 GPIO_ACTIVE_LOW>;
 
+	txe-gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+	rxe-gpio = <&gpio3 21 GPIO_ACTIVE_LOW>;
+
 	status = "okay";
 };
 
@@ -419,7 +430,7 @@
 		reg = <0x48>;
 	};
 
-	rtc: m41t00@68 {
+	ext_rtc: m41t00@68 {
 		compatible = "m41t00";
 		reg = <0x68>;
 	};
@@ -478,18 +489,16 @@
 &usb {
 	status = "okay";
 
-	control@44e10000 {
+	control@44e10620 {
 		status = "okay";
 	};
 
 	usb-phy@47401300 {
 		status = "okay";
-		vcc-supply = <&vbat>;
 	};
 
 	usb-phy@47401b00 {
 		status = "okay";
-		vcc-supply = <&vbat>;
 	};
 
 	usb@47401000 {
@@ -502,7 +511,7 @@
 		dr_mode = "host";
 	};
 
-	dma-controller@07402000  {
+	dma-controller@47402000  {
 		status = "okay";
 	};
 };

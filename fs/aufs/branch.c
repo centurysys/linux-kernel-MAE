@@ -6,6 +6,7 @@
  * branch management
  */
 
+#include <linux/fs.h>
 #include <linux/compat.h>
 #include <linux/statfs.h>
 #include "aufs.h"
@@ -1107,10 +1108,10 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 		spin_lock(&hf->f_lock);
 		hf->f_mode &= ~FMODE_WRITE;
 		spin_unlock(&hf->f_lock);
-		if (!file_check_writeable(hf)) {
-			__mnt_drop_write(hf->f_path.mnt);
-			file_release_write(hf);
-		}
+		/* if (!file_check_writeable(hf)) { */
+		/* 	__mnt_drop_write(hf->f_path.mnt); */
+		/* 	file_release_write(hf); */
+		/* } */
 	}
 
 out_array:
