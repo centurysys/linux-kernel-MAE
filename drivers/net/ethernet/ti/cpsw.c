@@ -1551,6 +1551,7 @@ static int cpsw_mii_write_reg(struct net_device *dev, int phy_id, u16 reg, u16 d
 static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
 	struct cpsw_priv *priv = netdev_priv(dev);
+	struct mii_ioctl_data *data = if_mii(req);
 	int slave_no = cpsw_slave_index(priv);
 	int res;
 
