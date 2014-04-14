@@ -488,11 +488,16 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	void __iomem *dirout;
 	void __iomem *dirin;
 	unsigned long sz;
-	unsigned long flags = pdev->id_entry->driver_data;
+	unsigned long flags;
 	int err;
 	struct bgpio_chip *bgc;
 	struct bgpio_pdata *pdata = dev_get_platdata(dev);
 	const char *name;
+
+	if (pdev->id_entry)
+		flags = pdev->id_entry->driver_data;
+	else
+		flags = 0;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dat");
 	if (!r)
