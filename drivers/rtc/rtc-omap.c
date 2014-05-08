@@ -562,6 +562,9 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 	if (id_entry && (id_entry->driver_data & OMAP_RTC_HAS_KICKER))
 		rtc_writel(0, OMAP_RTC_KICK0_REG);
 
+	if (pm_power_off)
+		pm_power_off = NULL;
+
 	/* Disable the clock/module */
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
