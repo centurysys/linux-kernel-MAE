@@ -156,9 +156,8 @@ static int unionfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		}
 
-		lower_file->f_pos = ctx->pos;
 		err = iterate_dir(lower_file, &buf.ctx);
-		ctx->pos = buf.ctx.pos;
+		ctx->pos = buf.ctx.pos; /* XXX: not sure if needed (cf. ecryptfs) */
 
 		/* Save the position for when we continue. */
 		offset = vfs_llseek(lower_file, 0, SEEK_CUR);
