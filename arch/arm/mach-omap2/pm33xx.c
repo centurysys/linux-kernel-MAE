@@ -280,11 +280,13 @@ void am33xx_push_sram_idle(void)
 					(am33xx_do_wfi, am33xx_do_wfi_sz);
 }
 
+#ifdef CONFIG_SOC_AM43XX
 void am43xx_push_sram_idle(void)
 {
 	am33xx_do_wfi_sram = (void *)omap_sram_push
 					(am43xx_do_wfi, am43xx_do_wfi_sz);
 }
+#endif
 
 static int __init am33xx_map_emif(void)
 {
@@ -296,6 +298,7 @@ static int __init am33xx_map_emif(void)
 	return 0;
 }
 
+#ifdef CONFIG_SOC_AM43XX
 static int __init am43xx_map_scu(void)
 {
 	scu_base = ioremap(scu_a9_get_base(), SZ_256);
@@ -305,7 +308,7 @@ static int __init am43xx_map_scu(void)
 
 	return 0;
 }
-
+#endif
 
 static int am33xx_suspend_init(void)
 {
@@ -443,8 +446,10 @@ int __init am33xx_pm_init(void)
 
 	if (soc_is_am33xx())
 		am33xx_pm->ops = &am33xx_ops;
+#ifdef CONFIG_SOC_AM43XX
 	else if (soc_is_am43xx())
 		am33xx_pm->ops = &am43xx_ops;
+#endif
 
 	ret = am33xx_pm->ops->init();
 
