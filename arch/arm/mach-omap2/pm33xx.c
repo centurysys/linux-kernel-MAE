@@ -327,6 +327,7 @@ static int am33xx_suspend_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_SOC_AM43XX
 static int am43xx_suspend_init(void)
 {
 	int ret = 0;
@@ -352,6 +353,7 @@ static int am43xx_suspend_init(void)
 
 	return ret;
 }
+#endif
 
 static void am33xx_pre_suspend(unsigned int state)
 {
@@ -362,10 +364,12 @@ static void am33xx_pre_suspend(unsigned int state)
 	}
 }
 
+#ifdef CONFIG_SOC_AM43XX
 static void am43xx_pre_suspend(unsigned int state)
 {
 	scu_power_mode(scu_base, SCU_PM_POWEROFF);
 }
+#endif
 
 static void am33xx_post_suspend(unsigned int state)
 {
@@ -386,10 +390,12 @@ static void am33xx_post_suspend(unsigned int state)
 	clkdm_sleep(gfx_l4ls_clkdm);
 }
 
+#ifdef CONFIG_SOC_AM43XX
 static void am43xx_post_suspend(unsigned int state)
 {
 	scu_power_mode(scu_base, SCU_PM_NORMAL);
 }
+#endif
 
 static struct am33xx_pm_ops am33xx_ops = {
 	.init = am33xx_suspend_init,
@@ -397,11 +403,13 @@ static struct am33xx_pm_ops am33xx_ops = {
 	.post_suspend = am33xx_post_suspend,
 };
 
+#ifdef CONFIG_SOC_AM43XX
 static struct am33xx_pm_ops am43xx_ops = {
 	.init = am43xx_suspend_init,
 	.pre_suspend = am43xx_pre_suspend,
 	.post_suspend = am43xx_post_suspend,
 };
+#endif
 
 int __init am33xx_pm_init(void)
 {
