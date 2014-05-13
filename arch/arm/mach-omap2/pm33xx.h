@@ -54,6 +54,7 @@ struct am33xx_suspend_params {
 #endif
 
 #define	IPC_CMD_DS0				0x4
+#define	IPC_CMD_STANDBY			0xc
 #define IPC_CMD_RESET           0xe
 #define DS_IPC_DEFAULT			0xffffffff
 #define M3_VERSION_UNKNOWN		0x0000ffff

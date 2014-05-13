@@ -118,6 +118,7 @@ static int am33xx_pm_enter(suspend_state_t suspend_state)
 	int ret = 0;
 
 	switch (suspend_state) {
+	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		ret = am33xx_pm_suspend(suspend_state);
 		break;
@@ -161,6 +162,9 @@ static int am33xx_pm_begin(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		am33xx_pm->ipc.reg1	= IPC_CMD_DS0;
 		break;
+	case PM_SUSPEND_STANDBY:
+		am33xx_pm->ipc.reg1	= IPC_CMD_STANDBY;
+		break;
 	}
 
 	am33xx_pm->ipc.reg2		= DS_IPC_DEFAULT;
@@ -197,6 +201,7 @@ static void am33xx_pm_end(void)
 static int am33xx_pm_valid(suspend_state_t state)
 {
 	switch (state) {
+	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		return 1;
 	default:
