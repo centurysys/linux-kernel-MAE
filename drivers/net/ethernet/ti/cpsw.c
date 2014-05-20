@@ -1232,7 +1232,13 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	/* Add default VLAN */
 	if (!priv->data.dual_emac)
 		cpsw_add_default_vlan(priv);
-
+#ifdef CONFIG_CPSW_VLAN_PROMISC
+	else {
+		/* Enable ALE Bypass */
+		cpsw_ale_control_set(priv->ale, 0, ALE_BYPASS, 1);
+		dev_info(&ndev->dev, "promiscious enabled\n");
+	}
+#endif
 	if (!cpsw_common_res_usage_state(priv)) {
 		/* setup tx dma to fixed prio and zero offset */
 		cpdma_control_set(priv->dma, CPDMA_TX_PRIO_FIXED, 1);
@@ -1736,7 +1742,9 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_tx_timeout		= cpsw_ndo_tx_timeout,
 	.ndo_get_stats		= cpsw_ndo_get_stats,
+#ifndef CONFIG_CPSW_VLAN_PROMISC
 	.ndo_set_rx_mode	= cpsw_ndo_set_rx_mode,
+#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cpsw_ndo_poll_controller,
 #endif
