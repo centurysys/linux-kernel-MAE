@@ -1236,7 +1236,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	else {
 		/* Enable ALE Bypass */
 		cpsw_ale_control_set(priv->ale, 0, ALE_BYPASS, 1);
-		dev_info(&ndev->dev, "promiscious enabled\n");
+		dev_dbg(&ndev->dev, "promiscious enabled\n");
 	}
 #endif
 	if (!cpsw_common_res_usage_state(priv)) {
