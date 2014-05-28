@@ -546,6 +546,7 @@ static inline int cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
 		return slave_num;
 }
 
+#ifndef CONFIG_CPSW_VLAN_PROMISC
 static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -647,6 +648,7 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 		}
 	}
 }
+#endif
 
 static void cpsw_intr_enable(struct cpsw_priv *priv)
 {
