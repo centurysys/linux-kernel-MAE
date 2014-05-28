@@ -141,6 +141,7 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/suspend.h>
 
 #include <asm/system_misc.h>
 
@@ -207,6 +208,9 @@ static struct omap_hwmod *mpu_oh;
 
 /* io_chain_lock: used to serialize reconfigurations of the I/O chain */
 static DEFINE_SPINLOCK(io_chain_lock);
+
+/* _oh_force_mstandby_repeated_list for tracking nonstandard mstandby hwmods */
+static LIST_HEAD(_oh_force_mstandby_repeated_list);
 
 /*
  * linkspace: ptr to a buffer that struct omap_hwmod_link records are
@@ -1887,6 +1891,11 @@ static int _am33xx_disable_module(struct omap_hwmod *oh)
 		return -EINVAL;
 
 	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
+
+	if (oh->flags & HWMOD_INIT_NO_IDLE) {
+		pr_debug(" *** skip disabling %s\n", oh->name);
+		return 0;
+	}
 
 	if (_are_any_hardreset_lines_asserted(oh))
 		return 0;
@@ -3947,6 +3956,36 @@ int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 	return 0;
 }
 
+static int omap_hwmod_enable_force_mstandby_repeated(struct omap_hwmod *oh)
+{
+	struct omap_hwmod_list *oh_list_item = NULL;
+
+	oh_list_item = kzalloc(sizeof(*oh_list_item), GFP_KERNEL);
+	oh_list_item->oh = oh;
+	list_add(&oh_list_item->oh_list, &_oh_force_mstandby_repeated_list);
+
+	return 0;
+}
+
+static int _check_for_force_mstandby_repeated(struct omap_hwmod *oh, void *data)
+{
+	if (oh->flags & HWMOD_FORCE_MSTANDBY_REPEATED)
+		omap_hwmod_enable_force_mstandby_repeated(oh);
+
+	return 0;
+}
+
+int omap_hwmod_force_mstandby_repeated(void)
+{
+	omap_hwmod_for_each(_check_for_force_mstandby_repeated, NULL);
+	return 0;
+}
+
+struct list_head *omap_hwmod_force_mstandby_list_get(void)
+{
+	return &_oh_force_mstandby_repeated_list;
+}
+
 /**
  * omap_hwmod_assert_hardreset - assert the HW reset line of submodules
  * contained in the hwmod module.
@@ -4252,7 +4291,7 @@ void __init omap_hwmod_init(void)
 		soc_ops.disable_module = _omap4_disable_module;
 		soc_ops.wait_target_ready = _omap4_wait_target_ready;
 		soc_ops.assert_hardreset = _omap4_assert_hardreset;
-		soc_ops.deassert_hardreset = _omap4_deassert_hardreset;
+		soc_ops.deassert_hardreset = _am33xx_deassert_hardreset;
 		soc_ops.is_hardreset_asserted = _omap4_is_hardreset_asserted;
 		soc_ops.init_clkdm = _init_clkdm;
 	} else if (soc_is_am33xx()) {

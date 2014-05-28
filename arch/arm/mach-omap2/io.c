@@ -28,6 +28,7 @@
 #include <linux/omap-dma.h>
 
 #include "omap_hwmod.h"
+#include "omap_device.h"
 #include "soc.h"
 #include "iomap.h"
 #include "voltage.h"
@@ -313,6 +314,7 @@ void __init ti81xx_map_io(void)
 void __init am33xx_map_io(void)
 {
 	iotable_init(omapam33xx_io_desc, ARRAY_SIZE(omapam33xx_io_desc));
+	am33xx_dram_sync_init();
 }
 #endif
 
@@ -388,7 +390,7 @@ static void __init omap_hwmod_init_postsetup(void)
 static void __init __maybe_unused omap_common_late_init(void)
 {
 	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap2_common_suspend_init();
 	omap_soc_device_init();
 }
 
@@ -589,6 +591,9 @@ void __init am33xx_init_early(void)
 void __init am33xx_init_late(void)
 {
 	omap_common_late_init();
+	omap_device_force_mstandby_repeated();
+	omap2_common_pm_late_init();
+	am33xx_pm_init();
 }
 #endif
 
@@ -614,6 +619,11 @@ void __init am43xx_init_early(void)
 void __init am43xx_init_late(void)
 {
 	omap_common_late_init();
+	omap_hwmod_force_mstandby_repeated();
+	omap2_common_pm_late_init();
+	am33xx_pm_init();
+	omap_soc_device_init();
+	omap2_clk_enable_autoidle_all();
 }
 #endif
 

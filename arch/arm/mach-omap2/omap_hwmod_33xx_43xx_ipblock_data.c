@@ -333,7 +333,8 @@ struct omap_hwmod am33xx_cpgmac0_hwmod = {
 	.name		= "cpgmac0",
 	.class		= &am33xx_cpgmac0_hwmod_class,
 	.clkdm_name	= "cpsw_125mhz_clkdm",
-	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY),
+	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY |
+			   HWMOD_FORCE_MSTANDBY_REPEATED),
 	.main_clk	= "cpsw_125mhz_gclk",
 	.mpu_rt_idx	= 1,
 	.prcm		= {
@@ -909,7 +910,9 @@ struct omap_hwmod am33xx_rtc_hwmod = {
 	.name		= "rtc",
 	.class		= &am33xx_rtc_hwmod_class,
 	.clkdm_name	= "l4_rtc_clkdm",
-	.main_clk	= "clk_32768_ck",
+//	.main_clk	= "clk_32768_ck",
+	.flags		= HWMOD_INIT_NO_IDLE,
+	.main_clk	= "clkdiv32k_ick",
 	.prcm		= {
 		.omap4	= {
 			.modulemode	= MODULEMODE_SWCTRL,
@@ -1149,12 +1152,13 @@ static struct omap_hwmod_class am33xx_tptc_hwmod_class = {
 	.sysc		= &am33xx_tptc_sysc,
 };
 
-/* tptc0 */
+
 struct omap_hwmod am33xx_tptc0_hwmod = {
 	.name		= "tptc0",
 	.class		= &am33xx_tptc_hwmod_class,
 	.clkdm_name	= "l3_clkdm",
-	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY,
+	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY |
+			  HWMOD_FORCE_MSTANDBY_REPEATED,
 	.main_clk	= "l3_gclk",
 	.prcm		= {
 		.omap4	= {
@@ -1168,7 +1172,8 @@ struct omap_hwmod am33xx_tptc1_hwmod = {
 	.name		= "tptc1",
 	.class		= &am33xx_tptc_hwmod_class,
 	.clkdm_name	= "l3_clkdm",
-	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY),
+	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY |
+			   HWMOD_FORCE_MSTANDBY_REPEATED),
 	.main_clk	= "l3_gclk",
 	.prcm		= {
 		.omap4	= {
@@ -1182,7 +1187,8 @@ struct omap_hwmod am33xx_tptc2_hwmod = {
 	.name		= "tptc2",
 	.class		= &am33xx_tptc_hwmod_class,
 	.clkdm_name	= "l3_clkdm",
-	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY),
+	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY |
+			   HWMOD_FORCE_MSTANDBY_REPEATED),
 	.main_clk	= "l3_gclk",
 	.prcm		= {
 		.omap4	= {
@@ -1440,7 +1446,6 @@ static void omap_hwmod_am43xx_clkctrl(void)
 	CLKCTRL(am33xx_gpmc_hwmod, AM43XX_CM_PER_GPMC_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l4_ls_hwmod, AM43XX_CM_PER_L4LS_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l4_wkup_hwmod, AM43XX_CM_WKUP_L4WKUP_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_l3_main_hwmod, AM43XX_CM_PER_L3_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_tpcc_hwmod, AM43XX_CM_PER_TPCC_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_tptc0_hwmod, AM43XX_CM_PER_TPTC0_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_tptc1_hwmod, AM43XX_CM_PER_TPTC1_CLKCTRL_OFFSET);

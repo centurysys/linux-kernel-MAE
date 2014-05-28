@@ -306,13 +306,6 @@
 			ti,hwmods = "i2c3";
 		};
 
-		mailbox: mailbox@48094000 {
-			compatible = "ti,omap3-mailbox";
-			ti,hwmods = "mailbox";
-			reg = <0x48094000 0x200>;
-			interrupts = <26>;
-		};
-
 		mcspi1: spi@48098000 {
 			compatible = "ti,omap2-mcspi";
 			reg = <0x48098000 0x100>;
@@ -521,6 +514,17 @@
 			ti,hwmods = "smartreflex_mpu_iva";
 			reg = <0x480c9000 0x400>;
 			interrupts = <18>;
+		};
+
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap2-mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>;
+			ti,hwmods = "mailbox";
+			ti,mbox-num-users = <2>;
+			ti,mbox-num-fifos = <2>;
+			ti,mbox-names = "dsp";
+			ti,mbox-data = <0 1 0 0>;
 		};
 
 		timer1: timer@48318000 {

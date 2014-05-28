@@ -17,6 +17,7 @@ typedef int __bitwise omap_mbox_irq_t;
 #define IRQ_RX ((__force omap_mbox_irq_t) 2)
 
 int omap_mbox_msg_send(struct omap_mbox *, mbox_msg_t msg);
+int omap_mbox_msg_send_noirq(struct omap_mbox *mbox, mbox_msg_t msg);
 
 struct omap_mbox *omap_mbox_get(const char *, struct notifier_block *nb);
 void omap_mbox_put(struct omap_mbox *mbox, struct notifier_block *nb);

@@ -16,19 +16,14 @@
 #include <linux/workqueue.h>
 #include <linux/omap-mailbox.h>
 
-typedef int __bitwise omap_mbox_type_t;
-#define OMAP_MBOX_TYPE1 ((__force omap_mbox_type_t) 1)
-#define OMAP_MBOX_TYPE2 ((__force omap_mbox_type_t) 2)
-
 struct omap_mbox_ops {
-	omap_mbox_type_t	type;
 	int		(*startup)(struct omap_mbox *mbox);
 	void		(*shutdown)(struct omap_mbox *mbox);
 	/* fifo */
 	mbox_msg_t	(*fifo_read)(struct omap_mbox *mbox);
 	void		(*fifo_write)(struct omap_mbox *mbox, mbox_msg_t msg);
 	int		(*fifo_empty)(struct omap_mbox *mbox);
-	int		(*fifo_full)(struct omap_mbox *mbox);
+	int		(*poll_for_space)(struct omap_mbox *mbox);
 	/* irq */
 	void		(*enable_irq)(struct omap_mbox *mbox,
 						omap_mbox_irq_t irq);
@@ -50,18 +45,29 @@ struct omap_mbox_queue {
 	bool full;
 };
 
+struct omap_mbox_device {
+	struct device *dev;
+	struct mutex cfg_lock;
+	void __iomem *mbox_base;
+	u32 num_users;
+	u32 num_fifos;
+	struct omap_mbox **mboxes;
+	struct list_head elem;
+};
+
 struct omap_mbox {
 	const char		*name;
 	int			irq;
 	struct omap_mbox_queue	*txq, *rxq;
 	struct omap_mbox_ops	*ops;
 	struct device		*dev;
+	struct omap_mbox_device *parent;
 	void			*priv;
 	int			use_count;
 	struct blocking_notifier_head	notifier;
 };
 
-int omap_mbox_register(struct device *parent, struct omap_mbox **);
-int omap_mbox_unregister(void);
+int omap_mbox_register(struct omap_mbox_device *device);
+int omap_mbox_unregister(struct omap_mbox_device *device);
 
 #endif /* OMAP_MBOX_H */

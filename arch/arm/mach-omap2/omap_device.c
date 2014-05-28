@@ -35,6 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/notifier.h>
+#include <linux/suspend.h>
 
 #include "common.h"
 #include "soc.h"
@@ -774,6 +775,53 @@ int omap_device_idle(struct platform_device *pdev)
 
 	return ret;
 }
+
+/*
+ * There are some IPs that do not have MSTANDBY asserted by default
+ * which is necessary for PER domain transition. If the drivers
+ * are not compiled into the kernel HWMOD code will not change the
+ * state of the IPs if the IP was never enabled, so we keep track of
+ * them here to idle them with a pm_notifier.
+ */
+
+static int _omap_mstandby_pm_notifier(struct notifier_block *self,
+					unsigned long action, void *dev)
+{
+	struct omap_hwmod_list *oh_list_item = NULL;
+	struct platform_device *pdev;
+	struct omap_device *od;
+
+	switch (action) {
+	case PM_POST_SUSPEND:
+		list_for_each_entry(oh_list_item,
+			omap_hwmod_force_mstandby_list_get(), oh_list) {
+			pdev = to_platform_device(
+					omap_device_get_by_hwmod_name(
+						  oh_list_item->oh->name));
+
+			od = to_omap_device(pdev);
+			if (od && od->_driver_status !=
+					BUS_NOTIFY_BOUND_DRIVER) {
+				omap_hwmod_enable(oh_list_item->oh);
+				omap_hwmod_idle(oh_list_item->oh);
+			}
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+
+struct notifier_block pm_nb = {
+	.notifier_call = _omap_mstandby_pm_notifier,
+};
+
+int omap_device_force_mstandby_repeated(void)
+{
+	omap_hwmod_force_mstandby_repeated();
+	register_pm_notifier(&pm_nb);
+	return 0;
+}
+
 
 /**
  * omap_device_assert_hardreset - set a device's hardreset line
