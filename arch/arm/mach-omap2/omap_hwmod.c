@@ -1892,6 +1892,11 @@ static int _am33xx_disable_module(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
 
+	if (oh->flags & HWMOD_INIT_NO_IDLE) {
+		pr_debug(" *** skip disabling %s\n", oh->name);
+		return 0;
+	}
+
 	if (_are_any_hardreset_lines_asserted(oh))
 		return 0;
 
