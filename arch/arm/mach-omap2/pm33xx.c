@@ -167,7 +167,6 @@ static int am33xx_pm_enter(suspend_state_t suspend_state)
 
 	switch (suspend_state) {
 	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
 		ret = am33xx_pm_suspend(suspend_state);
 		break;
 	default:
@@ -250,7 +249,6 @@ static int am33xx_pm_valid(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
 		return 1;
 	default:
 		return 0;
