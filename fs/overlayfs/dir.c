@@ -650,7 +650,6 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 	bool is_dir = S_ISDIR(old->d_inode->i_mode);
 	bool new_is_dir = false;
 	struct dentry *opaquedir = NULL;
-	struct dentry *new_whiteout = NULL;
 	const struct cred *old_cred = NULL;
 	struct cred *override_cred = NULL;
 
@@ -844,8 +843,6 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 out_dput:
 	dput(newdentry);
 out_unlock:
-	if (new_whiteout && err)
-		ovl_cleanup(new_upperdir->d_inode, new_whiteout);
 	unlock_rename(new_upperdir, old_upperdir);
 out_revert_creds:
 	if (old_opaque || new_opaque) {
@@ -853,7 +850,6 @@ out_revert_creds:
 		put_cred(override_cred);
 	}
 out:
-	dput(new_whiteout);
 	dput(opaquedir);
 	return err;
 }
