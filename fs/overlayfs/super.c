@@ -381,6 +381,7 @@ static void ovl_put_super(struct super_block *sb)
 	if (!(sb->s_flags & MS_RDONLY))
 		mnt_drop_write(ufs->upper_mnt);
 
+	dput(ufs->workdir);
 	mntput(ufs->upper_mnt);
 	mntput(ufs->lower_mnt);
 
@@ -706,7 +707,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	mntput(upperpath.mnt);
 	mntput(lowerpath.mnt);
-	mntput(workpath.mnt);
+	path_put(&workpath);
 
 	oe->__upperdentry = dget(upperpath.dentry);
 	oe->lowerdentry = lowerpath.dentry;
