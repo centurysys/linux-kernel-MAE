@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/syscore_ops.h>
 #include <linux/tick.h>
 #include <trace/events/power.h>
@@ -46,6 +47,9 @@ static LIST_HEAD(cpufreq_policy_list);
 /* This one keeps track of the previously set governor of a removed CPU */
 static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
 #endif
+
+/* Flag to suspend/resume CPUFreq governors */
+static bool cpufreq_suspended;
 
 static inline bool has_target(void)
 {
@@ -1570,6 +1574,54 @@ static struct subsys_interface cpufreq_interface = {
 	.remove_dev	= cpufreq_remove_dev,
 };
 
+/*
+ * PM Notifier for suspending governors as some platforms can't change frequency
+ * after this point in suspend cycle. Because some of the devices (like: i2c,
+ * regulators, etc) they use for changing frequency are suspended quickly after
+ * this point.
+ */
+static int cpufreq_pm_notify(struct notifier_block *nb, unsigned long action,
+		void *data)
+{
+	struct cpufreq_policy *policy;
+	unsigned long flags;
+
+	if (!has_target())
+		return NOTIFY_OK;
+
+	if (action == PM_SUSPEND_PREPARE) {
+		pr_debug("%s: Suspending Governors\n", __func__);
+
+		list_for_each_entry(policy, &cpufreq_policy_list, policy_list)
+			if (__cpufreq_governor(policy, CPUFREQ_GOV_STOP))
+				pr_err("%s: Failed to stop governor for policy: %p\n",
+						__func__, policy);
+
+		write_lock_irqsave(&cpufreq_driver_lock, flags);
+		cpufreq_suspended = true;
+		write_unlock_irqrestore(&cpufreq_driver_lock, flags);
+	} else if (action == PM_POST_SUSPEND) {
+		pr_debug("%s: Resuming Governors\n", __func__);
+
+		write_lock_irqsave(&cpufreq_driver_lock, flags);
+		cpufreq_suspended = false;
+		write_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+		list_for_each_entry(policy, &cpufreq_policy_list, policy_list)
+			if (__cpufreq_governor(policy, CPUFREQ_GOV_START) ||
+					__cpufreq_governor(policy,
+						CPUFREQ_GOV_LIMITS))
+				pr_err("%s: Failed to start governor for policy: %p\n",
+						__func__, policy);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block cpufreq_pm_notifier = {
+	.notifier_call = cpufreq_pm_notify,
+};
+
 /**
  * cpufreq_bp_suspend - Prepare the boot CPU for system suspend.
  *
@@ -1851,6 +1903,8 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 static int __cpufreq_governor(struct cpufreq_policy *policy,
 					unsigned int event)
 {
+	unsigned long flags;
+	bool is_suspended;
 	int ret;
 
 	/* Only must be defined when default governor is known to have latency
@@ -1862,6 +1916,14 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 #else
 	struct cpufreq_governor *gov = NULL;
 #endif
+
+	/* Don't start any governor operations if we are entering suspend */
+	read_lock_irqsave(&cpufreq_driver_lock, flags);
+	is_suspended = cpufreq_suspended;
+	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+	if (is_suspended)
+		return 0;
 
 	if (policy->governor->max_transition_latency &&
 	    policy->cpuinfo.transition_latency >
@@ -2410,6 +2472,7 @@ static int __init cpufreq_core_init(void)
 	cpufreq_global_kobject = kobject_create();
 	BUG_ON(!cpufreq_global_kobject);
 	register_syscore_ops(&cpufreq_syscore_ops);
+	register_pm_notifier(&cpufreq_pm_notifier);
 
 	return 0;
 }
