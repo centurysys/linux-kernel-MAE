@@ -414,7 +414,15 @@ out:
 static int ovl_create_object(struct dentry *dentry, int mode, dev_t rdev,
 			     const char *link)
 {
-	return ovl_create_or_link(dentry, mode, rdev, link, NULL);
+	int err;
+
+	err = ovl_want_write(dentry);
+	if (!err) {
+		err = ovl_create_or_link(dentry, mode, rdev, link, NULL);
+		ovl_drop_write(dentry);
+	}
+
+	return err;
 }
 
 static int ovl_create(struct inode *dir, struct dentry *dentry, umode_t mode,
@@ -446,12 +454,19 @@ static int ovl_link(struct dentry *old, struct inode *newdir,
 	int err;
 	struct dentry *upper;
 
-	err = ovl_copy_up(old);
+	err = ovl_want_write(old);
 	if (err)
 		goto out;
 
+	err = ovl_copy_up(old);
+	if (err)
+		goto out_drop_write;
+
 	upper = ovl_dentry_upper(old);
 	err = ovl_create_or_link(new, upper->d_inode->i_mode, 0, NULL, upper);
+
+out_drop_write:
+	ovl_drop_write(old);
 out:
 	return err;
 }
@@ -581,9 +596,13 @@ static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 	if (err)
 		goto out;
 
-	err = ovl_copy_up(dentry->d_parent);
+	err = ovl_want_write(dentry);
 	if (err)
 		goto out;
+
+	err = ovl_copy_up(dentry->d_parent);
+	if (err)
+		goto out_drop_write;
 
 	type = ovl_path_type(dentry);
 	if (type == OVL_PATH_UPPER && !ovl_dentry_is_opaque(dentry)) {
@@ -595,7 +614,7 @@ static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 		err = -ENOMEM;
 		override_cred = prepare_creds();
 		if (!override_cred)
-			goto out;
+			goto out_drop_write;
 
 		/*
 		 * CAP_SYS_ADMIN for setting xattr on whiteout, opaque dir
@@ -616,6 +635,8 @@ static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 		revert_creds(old_cred);
 		put_cred(override_cred);
 	}
+out_drop_write:
+	ovl_drop_write(dentry);
 out:
 	return err;
 }
@@ -697,17 +718,21 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 		new_type = OVL_PATH_UPPER;
 	}
 
-	err = ovl_copy_up(old);
+	err = ovl_want_write(old);
 	if (err)
 		goto out;
 
+	err = ovl_copy_up(old);
+	if (err)
+		goto out_drop_write;
+
 	err = ovl_copy_up(new->d_parent);
 	if (err)
-		goto out;
+		goto out_drop_write;
 	if (!overwrite) {
 		err = ovl_copy_up(new);
 		if (err)
-			goto out;
+			goto out_drop_write;
 	}
 
 	old_opaque = ovl_dentry_is_opaque(old) || old_type != OVL_PATH_UPPER;
@@ -717,7 +742,7 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 		err = -ENOMEM;
 		override_cred = prepare_creds();
 		if (!override_cred)
-			goto out;
+			goto out_drop_write;
 
 		/*
 		 * CAP_SYS_ADMIN for setting xattr on whiteout, opaque dir
@@ -849,6 +874,8 @@ out_revert_creds:
 		revert_creds(old_cred);
 		put_cred(override_cred);
 	}
+out_drop_write:
+	ovl_drop_write(old);
 out:
 	dput(opaquedir);
 	return err;

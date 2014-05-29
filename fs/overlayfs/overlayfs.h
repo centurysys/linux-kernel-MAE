@@ -135,6 +135,8 @@ struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
 struct dentry *ovl_entry_real(struct ovl_entry *oe, bool *is_upper);
 struct dentry *ovl_workdir(struct dentry *dentry);
+int ovl_want_write(struct dentry *dentry);
+void ovl_drop_write(struct dentry *dentry);
 bool ovl_dentry_is_opaque(struct dentry *dentry);
 void ovl_dentry_set_opaque(struct dentry *dentry, bool opaque);
 bool ovl_is_whiteout(struct dentry *dentry);

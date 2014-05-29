@@ -95,15 +95,6 @@ void ovl_path_upper(struct dentry *dentry, struct path *path)
 	path->dentry = ovl_upperdentry_dereference(oe);
 }
 
-void ovl_path_lower(struct dentry *dentry, struct path *path)
-{
-	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	path->mnt = ofs->lower_mnt;
-	path->dentry = oe->lowerdentry;
-}
-
 enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path)
 {
 
@@ -155,6 +146,27 @@ struct dentry *ovl_entry_real(struct ovl_entry *oe, bool *is_upper)
 		*is_upper = false;
 	}
 	return realdentry;
+}
+
+void ovl_path_lower(struct dentry *dentry, struct path *path)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	path->mnt = ofs->lower_mnt;
+	path->dentry = oe->lowerdentry;
+}
+
+int ovl_want_write(struct dentry *dentry)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	return mnt_want_write(ofs->upper_mnt);
+}
+
+void ovl_drop_write(struct dentry *dentry)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	mnt_drop_write(ofs->upper_mnt);
 }
 
 struct dentry *ovl_workdir(struct dentry *dentry)
@@ -378,9 +390,6 @@ static void ovl_put_super(struct super_block *sb)
 {
 	struct ovl_fs *ufs = sb->s_fs_info;
 
-	if (!(sb->s_flags & MS_RDONLY))
-		mnt_drop_write(ufs->upper_mnt);
-
 	dput(ufs->workdir);
 	mntput(ufs->upper_mnt);
 	mntput(ufs->lower_mnt);
@@ -389,25 +398,6 @@ static void ovl_put_super(struct super_block *sb)
 	kfree(ufs->config.upperdir);
 	kfree(ufs->config.workdir);
 	kfree(ufs);
-}
-
-static int ovl_remount_fs(struct super_block *sb, int *flagsp, char *data)
-{
-	int flags = *flagsp;
-	struct ovl_fs *ufs = sb->s_fs_info;
-
-	/* When remounting rw or ro, we need to adjust the write access to the
-	 * upper fs.
-	 */
-	if (((flags ^ sb->s_flags) & MS_RDONLY) == 0)
-		/* No change to readonly status */
-		return 0;
-
-	if (flags & MS_RDONLY) {
-		mnt_drop_write(ufs->upper_mnt);
-		return 0;
-	} else
-		return mnt_want_write(ufs->upper_mnt);
 }
 
 /**
@@ -455,7 +445,6 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 
 static const struct super_operations ovl_super_operations = {
 	.put_super	= ovl_put_super,
-	.remount_fs	= ovl_remount_fs,
 	.statfs		= ovl_statfs,
 	.show_options	= ovl_show_options,
 };
@@ -521,12 +510,17 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 #define OVL_WORKDIR_NAME "work"
 
-static struct dentry *ovl_workdir_create(struct dentry *dentry)
+static struct dentry *ovl_workdir_create(struct vfsmount *mnt,
+					 struct dentry *dentry)
 {
 	struct inode *dir = dentry->d_inode;
 	struct dentry *work;
 	int err;
 	bool retried = false;
+
+	err = mnt_want_write(mnt);
+	if (err)
+		return ERR_PTR(err);
 
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 retry:
@@ -555,6 +549,7 @@ retry:
 	}
 out_unlock:
 	mutex_unlock(&dir->i_mutex);
+	mnt_drop_write(mnt);
 
 	return work;
 
@@ -669,7 +664,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_put_upper_mnt;
 	}
 
-	ufs->workdir = ovl_workdir_create(workpath.dentry);
+	ufs->workdir = ovl_workdir_create(ufs->upper_mnt, workpath.dentry);
 	err = PTR_ERR(ufs->workdir);
 	if (IS_ERR(ufs->workdir)) {
 		pr_err("overlayfs: failed to create directory %s/%s\n",
@@ -687,23 +682,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (ufs->upper_mnt->mnt_sb->s_flags & MS_RDONLY)
 		sb->s_flags |= MS_RDONLY;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		err = mnt_want_write(ufs->upper_mnt);
-		if (err) {
-			pr_err("overlayfs: upperdir is read-only\n");
-			err = -EINVAL;
-			goto out_put_workdir;
-		}
-	}
-
 	err = -ENOMEM;
 	root_inode = ovl_new_inode(sb, S_IFDIR, oe);
 	if (!root_inode)
-		goto out_drop_write;
+		goto out_put_workdir;
 
 	root_dentry = d_make_root(root_inode);
 	if (!root_dentry)
-		goto out_drop_write;
+		goto out_put_workdir;
 
 	mntput(upperpath.mnt);
 	mntput(lowerpath.mnt);
@@ -722,9 +708,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 
-out_drop_write:
-	if (!(sb->s_flags & MS_RDONLY))
-		mnt_drop_write(ufs->upper_mnt);
 out_put_workdir:
 	dput(ufs->workdir);
 out_put_lower_mnt:
