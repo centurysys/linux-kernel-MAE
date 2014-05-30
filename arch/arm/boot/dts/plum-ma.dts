@@ -462,6 +462,7 @@
 		led4: system-status1-green@4 {
 			label = "system-status1:g";
 			reg = <0x4>;
+			linux,default-trigger = "timer-suspend";
 		};
 
 		led5: system-status2-green@5 {
