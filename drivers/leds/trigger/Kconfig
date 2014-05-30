@@ -19,6 +19,10 @@ config LEDS_TRIGGER_TIMER
 
 	  If unsure, say Y.
 
+config LEDS_TRIGGER_TIMER_SUSPEND
+	tristate "LED Timer Trigger for SUSPEND"
+	depends on LEDS_TRIGGERS
+
 config LEDS_TRIGGER_ONESHOT
 	tristate "LED One-shot Trigger"
 	depends on LEDS_TRIGGERS
