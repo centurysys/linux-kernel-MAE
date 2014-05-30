@@ -25,6 +25,9 @@
 
 static int panic_heartbeats;
 
+/* Flag to suspend/resume heartbeat */
+static int suspend_heartbeats;
+
 struct heartbeat_trig_data {
 	unsigned int phase;
 	unsigned int period;
@@ -86,7 +89,9 @@ static void led_heartbeat_function(unsigned long data)
 		break;
 	}
 
-	led_set_brightness_nosleep(led_cdev, brightness);
+	if (likely(!suspend_heartbeats))
+		led_set_brightness_nosleep(led_cdev, brightness);
+
 	mod_timer(&heartbeat_data->timer, jiffies + delay);
 }
 
@@ -181,7 +186,10 @@ static int heartbeat_pm_notifier(struct notifier_block *nb,
 				 unsigned long code, void *unused)
 {
 	if (code == PM_SUSPEND_PREPARE) {
+		suspend_heartbeats = 1;
 		led_trigger_event(&heartbeat_led_trigger, LED_OFF);
+	} else if (code == PM_POST_SUSPEND) {
+		suspend_heartbeats = 0;
 	}
 
 	return NOTIFY_OK;
