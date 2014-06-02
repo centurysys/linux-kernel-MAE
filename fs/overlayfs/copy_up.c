@@ -15,11 +15,12 @@
 #include <linux/security.h>
 #include <linux/uaccess.h>
 #include <linux/sched.h>
+#include <linux/namei.h>
 #include "overlayfs.h"
 
 #define OVL_COPY_UP_CHUNK_SIZE (1 << 20)
 
-static int ovl_copy_up_xattr(struct dentry *old, struct dentry *new)
+int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
 	ssize_t list_size, size;
 	char *buf, *name, *value;
@@ -167,53 +168,88 @@ static int ovl_set_timestamps(struct dentry *upperdentry, struct kstat *stat)
 	return notify_change(upperdentry, &attr, NULL);
 }
 
-static int ovl_set_mode(struct dentry *upperdentry, umode_t mode)
+int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 {
-	struct iattr attr = {
-		.ia_valid = ATTR_MODE,
-		.ia_mode = mode,
-	};
+	int err = 0;
 
-	return notify_change(upperdentry, &attr, NULL);
+	mutex_lock(&upperdentry->d_inode->i_mutex);
+	if (!S_ISLNK(stat->mode)) {
+		struct iattr attr = {
+			.ia_valid = ATTR_MODE,
+			.ia_mode = stat->mode,
+		};
+		err = notify_change(upperdentry, &attr, NULL);
+	}
+	if (!err) {
+		struct iattr attr = {
+			.ia_valid = ATTR_UID | ATTR_GID,
+			.ia_uid = stat->uid,
+			.ia_gid = stat->gid,
+		};
+		err = notify_change(upperdentry, &attr, NULL);
+	}
+	if (!err)
+		ovl_set_timestamps(upperdentry, stat);
+	mutex_unlock(&upperdentry->d_inode->i_mutex);
+
+	return err;
+
 }
 
-static int ovl_copy_up_locked(struct dentry *upperdir, struct dentry *dentry,
-			      struct path *lowerpath, struct kstat *stat,
-			      const char *link)
+static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
+			      struct dentry *dentry, struct path *lowerpath,
+			      struct kstat *stat, const char *link)
 {
-	int err;
-	struct path newpath;
+	struct inode *wdir = workdir->d_inode;
+	struct inode *udir = upperdir->d_inode;
+	struct dentry *newdentry = NULL;
+	struct dentry *upper = NULL;
 	umode_t mode = stat->mode;
+	int err;
+
+	newdentry = ovl_lookup_temp(workdir, dentry);
+	err = PTR_ERR(newdentry);
+	if (IS_ERR(newdentry))
+		goto out;
+
+	upper = lookup_one_len(dentry->d_name.name, upperdir,
+			       dentry->d_name.len);
+	err = PTR_ERR(upper);
+	if (IS_ERR(upper))
+		goto out;
 
 	/* Can't properly set mode on creation because of the umask */
 	stat->mode &= S_IFMT;
-
-	ovl_path_upper(dentry, &newpath);
-	WARN_ON(newpath.dentry);
-	newpath.dentry = ovl_upper_create(upperdir, dentry, stat, link);
-	if (IS_ERR(newpath.dentry))
-		return PTR_ERR(newpath.dentry);
+	err = ovl_create_real(wdir, newdentry, stat, link, NULL, true);
+	stat->mode = mode;
+	if (err)
+		goto out;
 
 	if (S_ISREG(stat->mode)) {
-		err = ovl_copy_up_data(lowerpath, &newpath, stat->size);
+		struct path upperpath;
+		ovl_path_upper(dentry, &upperpath);
+		BUG_ON(upperpath.dentry != NULL);
+		upperpath.dentry = newdentry;
+
+		err = ovl_copy_up_data(lowerpath, &upperpath, stat->size);
 		if (err)
-			goto err_remove;
+			goto out_cleanup;
 	}
 
-	err = ovl_copy_up_xattr(lowerpath->dentry, newpath.dentry);
+	err = ovl_copy_xattr(lowerpath->dentry, newdentry);
 	if (err)
-		goto err_remove;
+		goto out_cleanup;
 
-	mutex_lock(&newpath.dentry->d_inode->i_mutex);
-	if (!S_ISLNK(stat->mode))
-		err = ovl_set_mode(newpath.dentry, mode);
-	if (!err)
-		err = ovl_set_timestamps(newpath.dentry, stat);
-	mutex_unlock(&newpath.dentry->d_inode->i_mutex);
+	err = ovl_set_attr(newdentry, stat);
 	if (err)
-		goto err_remove;
+		goto out_cleanup;
 
-	ovl_dentry_update(dentry, newpath.dentry);
+	err = ovl_do_rename(wdir, newdentry, udir, upper, 0);
+	if (err)
+		goto out_cleanup;
+
+	ovl_dentry_update(dentry, newdentry);
+	newdentry = NULL;
 
 	/*
 	 * Easiest way to get rid of the lower dentry reference is to
@@ -222,18 +258,14 @@ static int ovl_copy_up_locked(struct dentry *upperdir, struct dentry *dentry,
 	 */
 	if (!S_ISDIR(stat->mode))
 		d_drop(dentry);
-
-	return 0;
-
-err_remove:
-	if (S_ISDIR(stat->mode))
-		vfs_rmdir(upperdir->d_inode, newpath.dentry);
-	else
-		vfs_unlink(upperdir->d_inode, newpath.dentry, NULL);
-
-	dput(newpath.dentry);
-
+out:
+	dput(upper);
+	dput(newdentry);
 	return err;
+
+out_cleanup:
+	ovl_cleanup(wdir, newdentry);
+	goto out;
 }
 
 /*
@@ -254,6 +286,7 @@ err_remove:
 static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 			   struct path *lowerpath, struct kstat *stat)
 {
+	struct dentry *workdir = ovl_workdir(dentry);
 	int err;
 	struct kstat pstat;
 	struct path parentpath;
@@ -287,28 +320,34 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	 * CAP_DAC_OVERRIDE for create
 	 * CAP_FOWNER for chmod, timestamp update
 	 * CAP_FSETID for chmod
+	 * CAP_CHOWN for chown
 	 * CAP_MKNOD for mknod
 	 */
 	cap_raise(override_cred->cap_effective, CAP_SYS_ADMIN);
 	cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
 	cap_raise(override_cred->cap_effective, CAP_FOWNER);
 	cap_raise(override_cred->cap_effective, CAP_FSETID);
+	cap_raise(override_cred->cap_effective, CAP_CHOWN);
 	cap_raise(override_cred->cap_effective, CAP_MKNOD);
 	old_cred = override_creds(override_cred);
 
-	mutex_lock_nested(&upperdir->d_inode->i_mutex, I_MUTEX_PARENT);
+	err = -EIO;
+	if (lock_rename(workdir, upperdir) != NULL) {
+		pr_err("overlayfs: failed to lock workdir+upperdir\n");
+		goto out_unlock;
+	}
 	if (ovl_path_type(dentry) != OVL_PATH_LOWER) {
 		err = 0;
 	} else {
-		err = ovl_copy_up_locked(upperdir, dentry, lowerpath,
+		err = ovl_copy_up_locked(workdir, upperdir, dentry, lowerpath,
 					 stat, link);
 		if (!err) {
 			/* Restore timestamps on parent (best effort) */
 			ovl_set_timestamps(upperdir, &pstat);
 		}
 	}
-
-	mutex_unlock(&upperdir->d_inode->i_mutex);
+out_unlock:
+	unlock_rename(workdir, upperdir);
 
 	revert_creds(old_cred);
 	put_cred(override_cred);

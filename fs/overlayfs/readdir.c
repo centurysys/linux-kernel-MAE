@@ -33,7 +33,6 @@ struct ovl_readdir_data {
 	struct rb_root *root;
 	struct list_head *list;
 	struct list_head *middle;
-	struct dentry *dir;
 	int count;
 	int err;
 };
@@ -147,7 +146,7 @@ static int ovl_fill_lower(struct ovl_readdir_data *rdd,
 	return rdd->err;
 }
 
-static void ovl_cache_free(struct list_head *list)
+void ovl_cache_free(struct list_head *list)
 {
 	struct ovl_cache_entry *p;
 	struct ovl_cache_entry *n;
@@ -190,7 +189,7 @@ static inline int ovl_dir_read(struct path *realpath,
 	} while (!err && rdd->count);
 	fput(realfile);
 
-	return 0;
+	return err;
 }
 
 static void ovl_dir_reset(struct file *file)
@@ -211,7 +210,8 @@ static void ovl_dir_reset(struct file *file)
 	}
 }
 
-static int ovl_dir_mark_whiteouts(struct ovl_readdir_data *rdd)
+static int ovl_dir_mark_whiteouts(struct dentry *dir,
+				  struct ovl_readdir_data *rdd)
 {
 	struct ovl_cache_entry *p;
 	struct dentry *dentry;
@@ -225,26 +225,24 @@ static int ovl_dir_mark_whiteouts(struct ovl_readdir_data *rdd)
 	}
 
 	/*
-	 * CAP_SYS_ADMIN for getxattr
 	 * CAP_DAC_OVERRIDE for lookup
 	 */
-	cap_raise(override_cred->cap_effective, CAP_SYS_ADMIN);
 	cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
 	old_cred = override_creds(override_cred);
 
-	mutex_lock(&rdd->dir->d_inode->i_mutex);
+	mutex_lock(&dir->d_inode->i_mutex);
 	list_for_each_entry(p, rdd->list, l_node) {
-		if (p->type != DT_LNK)
+		if (p->type != DT_CHR)
 			continue;
 
-		dentry = lookup_one_len(p->name, rdd->dir, p->len);
+		dentry = lookup_one_len(p->name, dir, p->len);
 		if (IS_ERR(dentry))
 			continue;
 
 		p->is_whiteout = ovl_is_whiteout(dentry);
 		dput(dentry);
 	}
-	mutex_unlock(&rdd->dir->d_inode->i_mutex);
+	mutex_unlock(&dir->d_inode->i_mutex);
 
 	revert_creds(old_cred);
 	put_cred(override_cred);
@@ -267,26 +265,30 @@ static inline int ovl_dir_read_merged(struct path *upperpath,
 	};
 
 	if (upperpath->dentry) {
-		rdd.dir = upperpath->dentry;
 		err = ovl_dir_read(upperpath, &rdd);
 		if (err)
 			goto out;
 
-		err = ovl_dir_mark_whiteouts(&rdd);
-		if (err)
-			goto out;
+		if (lowerpath->dentry) {
+			err = ovl_dir_mark_whiteouts(upperpath->dentry, &rdd);
+			if (err)
+				goto out;
+		}
 	}
-	/*
-	 * Insert lowerpath entries before upperpath ones, this allows
-	 * offsets to be reasonably constant
-	 */
-	list_add(&middle, rdd.list);
-	rdd.middle = &middle;
-	rdd.is_merge = true;
-	err = ovl_dir_read(lowerpath, &rdd);
-	list_del(&middle);
+	if (lowerpath->dentry) {
+		/*
+		 * Insert lowerpath entries before upperpath ones, this allows
+		 * offsets to be reasonably constant
+		 */
+		list_add(&middle, rdd.list);
+		rdd.middle = &middle;
+		rdd.is_merge = true;
+		err = ovl_dir_read(lowerpath, &rdd);
+		list_del(&middle);
+	}
 out:
 	return err;
+
 }
 
 static void ovl_seek_cursor(struct ovl_dir_file *od, loff_t pos)
@@ -458,7 +460,7 @@ const struct file_operations ovl_dir_operations = {
 	.release	= ovl_dir_release,
 };
 
-static int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)
+int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)
 {
 	int err;
 	struct path lowerpath;
@@ -491,77 +493,26 @@ static int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)
 	return err;
 }
 
-static int ovl_remove_whiteouts(struct dentry *dir, struct list_head *list)
+void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 {
-	struct path upperpath;
-	struct dentry *upperdir;
 	struct ovl_cache_entry *p;
-	const struct cred *old_cred;
-	struct cred *override_cred;
-	int err;
 
-	ovl_path_upper(dir, &upperpath);
-	upperdir = upperpath.dentry;
-
-	override_cred = prepare_creds();
-	if (!override_cred)
-		return -ENOMEM;
-
-	/*
-	 * CAP_DAC_OVERRIDE for lookup and unlink
-	 * CAP_SYS_ADMIN for setxattr of "trusted" namespace
-	 * CAP_FOWNER for unlink in sticky directory
-	 */
-	cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
-	cap_raise(override_cred->cap_effective, CAP_SYS_ADMIN);
-	cap_raise(override_cred->cap_effective, CAP_FOWNER);
-	old_cred = override_creds(override_cred);
-
-	err = vfs_setxattr(upperdir, ovl_opaque_xattr, "y", 1, 0);
-	if (err)
-		goto out_revert_creds;
-
-	mutex_lock_nested(&upperdir->d_inode->i_mutex, I_MUTEX_PARENT);
+	mutex_lock_nested(&upper->d_inode->i_mutex, I_MUTEX_PARENT);
 	list_for_each_entry(p, list, l_node) {
 		struct dentry *dentry;
-		int ret;
 
 		if (!p->is_whiteout)
 			continue;
 
-		dentry = lookup_one_len(p->name, upperdir, p->len);
+		dentry = lookup_one_len(p->name, upper, p->len);
 		if (IS_ERR(dentry)) {
-			pr_warn(
-			    "overlayfs: failed to lookup whiteout %.*s: %li\n",
-			    p->len, p->name, PTR_ERR(dentry));
+			pr_err("overlayfs: lookup '%s/%.*s' failed (%i)\n",
+			       upper->d_name.name, p->len, p->name,
+			       (int) PTR_ERR(dentry));
 			continue;
 		}
-		ret = vfs_unlink(upperdir->d_inode, dentry, NULL);
+		ovl_cleanup(upper->d_inode, dentry);
 		dput(dentry);
-		if (ret)
-			pr_warn(
-			    "overlayfs: failed to unlink whiteout %.*s: %i\n",
-			    p->len, p->name, ret);
 	}
-	mutex_unlock(&upperdir->d_inode->i_mutex);
-
-out_revert_creds:
-	revert_creds(old_cred);
-	put_cred(override_cred);
-
-	return err;
-}
-
-int ovl_check_empty_and_clear(struct dentry *dentry, enum ovl_path_type type)
-{
-	int err;
-	LIST_HEAD(list);
-
-	err = ovl_check_empty_dir(dentry, &list);
-	if (!err && type == OVL_PATH_MERGE)
-		err = ovl_remove_whiteouts(dentry, &list);
-
-	ovl_cache_free(&list);
-
-	return err;
+	mutex_unlock(&upper->d_inode->i_mutex);
 }
