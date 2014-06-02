@@ -34,6 +34,7 @@
 #include <linux/of_mdio.h>
 #ifdef CONFIG_CPSW_LED_GPIO
 #include <linux/reboot.h>
+#include <linux/suspend.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 #endif
@@ -546,6 +547,7 @@ static inline int cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
 		return slave_num;
 }
 
+#ifndef CONFIG_CPSW_VLAN_PROMISC
 static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -647,6 +649,7 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 		}
 	}
 }
+#endif
 
 static void cpsw_intr_enable(struct cpsw_priv *priv)
 {
@@ -1229,8 +1232,15 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	for_each_slave(priv, cpsw_slave_open, priv);
 
 	/* Add default VLAN */
-	cpsw_add_default_vlan(priv);
-
+	if (!priv->data.dual_emac)
+		cpsw_add_default_vlan(priv);
+#ifdef CONFIG_CPSW_VLAN_PROMISC
+	else {
+		/* Enable ALE Bypass */
+		cpsw_ale_control_set(priv->ale, 0, ALE_BYPASS, 1);
+		dev_dbg(&ndev->dev, "promiscious enabled\n");
+	}
+#endif
 	if (!cpsw_common_res_usage_state(priv)) {
 		/* setup tx dma to fixed prio and zero offset */
 		cpdma_control_set(priv->dma, CPDMA_TX_PRIO_FIXED, 1);
@@ -1729,7 +1739,9 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_tx_timeout		= cpsw_ndo_tx_timeout,
+#ifndef CONFIG_CPSW_VLAN_PROMISC
 	.ndo_set_rx_mode	= cpsw_ndo_set_rx_mode,
+#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cpsw_ndo_poll_controller,
 #endif
@@ -1898,8 +1910,33 @@ static int cpsw_reboot_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static int cpsw_pm_notifier(struct notifier_block *nb,
+			    unsigned long code, void *unused)
+{
+	int i;
+	struct cpsw_slave_data *slave_data;
+
+	if (code == PM_SUSPEND_PREPARE && cpsw_pdata_nb) {
+		for (i = 0; i < 2; i++) {
+			slave_data = cpsw_pdata_nb->slave_data + i;
+
+			if (gpio_is_valid(slave_data->led_fast_gpio))
+				gpio_direction_output(slave_data->led_fast_gpio, 1);
+
+			if (gpio_is_valid(slave_data->led_giga_gpio))
+				gpio_direction_output(slave_data->led_giga_gpio, 1);
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
 static struct notifier_block cpsw_reboot_nb = {
 	.notifier_call = cpsw_reboot_notifier,
+};
+
+static struct notifier_block cpsw_pm_nb = {
+	.notifier_call = cpsw_pm_notifier,
 };
 #endif
 
@@ -2079,6 +2116,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 #ifdef CONFIG_CPSW_LED_GPIO
 	cpsw_pdata_nb = data;
 	register_reboot_notifier(&cpsw_reboot_nb);
+	register_pm_notifier(&cpsw_pm_nb);
 #endif
 	return 0;
 }

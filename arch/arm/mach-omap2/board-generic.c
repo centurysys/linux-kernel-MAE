@@ -163,9 +163,10 @@ static const char *am33xx_boards_compat[] __initdata = {
 };
 
 DT_MACHINE_START(AM33XX_DT, "Generic AM33XX (Flattened Device Tree)")
-	.reserve	= omap_reserve,
+	.reserve	= am33xx_reserve,
 	.map_io		= am33xx_map_io,
 	.init_early	= am33xx_init_early,
+	.init_late	= am33xx_init_late,
 	.init_irq	= omap_intc_of_init,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_generic_init,
@@ -228,6 +229,7 @@ static const char *am43_boards_compat[] __initdata = {
 };
 
 DT_MACHINE_START(AM43_DT, "Generic AM43 (Flattened Device Tree)")
+	.reserve	= am33xx_reserve,
 	.map_io		= am33xx_map_io,
 	.init_early	= am43xx_init_early,
 	.init_late	= am43xx_init_late,

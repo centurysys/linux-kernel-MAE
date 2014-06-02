@@ -85,6 +85,10 @@ config CPSW_LED_GPIO
 	boolean "TI CPSW GPIO Controlled Link LED Support"
 	depends on TI_CPSW
 
+config CPSW_VLAN_PROMISC
+	boolean "TI CPSW VLAN"
+	depends on TI_CPSW
+
 config TLAN
 	tristate "TI ThunderLAN support"
 	depends on (PCI || EISA)

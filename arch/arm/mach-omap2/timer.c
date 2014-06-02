@@ -128,6 +128,29 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 	}
 }
 
+static void omap_clkevt_suspend(struct clock_event_device *unused)
+{
+	struct omap_hwmod *oh;
+
+	oh = omap_hwmod_lookup(clockevent_gpt.name);
+	if (!oh)
+		return;
+
+	omap_hwmod_idle(oh);
+}
+
+static void omap_clkevt_resume(struct clock_event_device *unused)
+{
+	struct omap_hwmod *oh;
+
+	oh = omap_hwmod_lookup(clockevent_gpt.name);
+	if (!oh)
+		return;
+
+	omap_hwmod_enable(oh);
+	__omap_dm_timer_int_enable(&clkev, OMAP_TIMER_INT_OVERFLOW);
+}
+
 static struct clock_event_device clockevent_gpt = {
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 300,
@@ -333,6 +356,11 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 	clkev.id = gptimer_id;
 	clkev.errata = omap_dm_timer_get_errata();
 
+	if (soc_is_am33xx()) {
+		clockevent_gpt.suspend = omap_clkevt_suspend;
+		clockevent_gpt.resume = omap_clkevt_resume;
+	}
+
 	/*
 	 * For clock-event timers we never read the timer counter and
 	 * so we are not impacted by errata i103 and i767. Therefore,
@@ -454,6 +482,38 @@ static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 	return ret;
 }
 
+static unsigned omap2_gptimer_clksrc_load;
+
+static void omap2_gptimer_clksrc_suspend(struct clocksource *unused)
+{
+	struct omap_hwmod *oh;
+
+	omap2_gptimer_clksrc_load =
+		__omap_dm_timer_read_counter(&clksrc, OMAP_TIMER_NONPOSTED);
+
+	oh = omap_hwmod_lookup(clocksource_gpt.name);
+	if (!oh)
+		return;
+
+	omap_hwmod_idle(oh);
+}
+
+static void omap2_gptimer_clksrc_resume(struct clocksource *unused)
+{
+	struct omap_hwmod *oh;
+
+	oh = omap_hwmod_lookup(clocksource_gpt.name);
+	if (!oh)
+		return;
+
+	omap_hwmod_enable(oh);
+
+	__omap_dm_timer_load_start(&clksrc,
+				   OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR,
+				   omap2_gptimer_clksrc_load,
+				   OMAP_TIMER_NONPOSTED);
+}
+
 static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 						  const char *fck_source,
 						  const char *property)
@@ -462,6 +522,11 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 
 	clksrc.id = gptimer_id;
 	clksrc.errata = omap_dm_timer_get_errata();
+
+	if (soc_is_am43xx()) {
+		clocksource_gpt.suspend = omap2_gptimer_clksrc_suspend;
+		clocksource_gpt.resume = omap2_gptimer_clksrc_resume;
+	}
 
 	res = omap_dm_timer_init_one(&clksrc, fck_source, property,
 				     &clocksource_gpt.name,

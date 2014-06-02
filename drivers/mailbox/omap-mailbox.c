@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <linux/err.h>
@@ -33,10 +32,9 @@
 
 #include "omap-mbox.h"
 
-static struct omap_mbox **mboxes;
-
-static int mbox_configured;
-static DEFINE_MUTEX(mbox_configured_lock);
+/* global variables for the mailbox devices */
+static DEFINE_MUTEX(omap_mbox_devices_lock);
+static LIST_HEAD(omap_mbox_devices);
 
 static unsigned int mbox_kfifo_size = CONFIG_OMAP_MBOX_KFIFO_SIZE;
 module_param(mbox_kfifo_size, uint, S_IRUGO);
@@ -55,9 +53,9 @@ static inline int mbox_fifo_empty(struct omap_mbox *mbox)
 {
 	return mbox->ops->fifo_empty(mbox);
 }
-static inline int mbox_fifo_full(struct omap_mbox *mbox)
+static inline int mbox_poll_for_space(struct omap_mbox *mbox)
 {
-	return mbox->ops->fifo_full(mbox);
+	return mbox->ops->poll_for_space(mbox);
 }
 
 /* Mailbox IRQ handle functions */
@@ -74,35 +72,18 @@ static inline int is_mbox_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 /*
  * message sender
  */
-static int __mbox_poll_for_space(struct omap_mbox *mbox)
-{
-	int ret = 0, i = 1000;
-
-	while (mbox_fifo_full(mbox)) {
-		if (mbox->ops->type == OMAP_MBOX_TYPE2)
-			return -1;
-		if (--i == 0)
-			return -1;
-		udelay(1);
-	}
-	return ret;
-}
-
-int omap_mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg)
+int omap_mbox_msg_send_noirq(struct omap_mbox *mbox, mbox_msg_t msg)
 {
 	struct omap_mbox_queue *mq = mbox->txq;
-	int ret = 0, len;
-
-	spin_lock_bh(&mq->lock);
+	int len;
 
 	if (kfifo_avail(&mq->fifo) < sizeof(msg)) {
-		ret = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
-	if (kfifo_is_empty(&mq->fifo) && !__mbox_poll_for_space(mbox)) {
+	if (kfifo_is_empty(&mq->fifo) && !mbox_poll_for_space(mbox)) {
 		mbox_fifo_write(mbox, msg);
-		goto out;
+		return 0;
 	}
 
 	len = kfifo_in(&mq->fifo, (unsigned char *)&msg, sizeof(msg));
@@ -110,8 +91,19 @@ int omap_mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg)
 
 	tasklet_schedule(&mbox->txq->tasklet);
 
-out:
+	return 0;
+}
+EXPORT_SYMBOL(omap_mbox_msg_send_noirq);
+
+int omap_mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg)
+{
+	struct omap_mbox_queue *mq = mbox->txq;
+	int ret;
+
+	spin_lock_bh(&mq->lock);
+	ret = omap_mbox_msg_send_noirq(mbox, msg);
 	spin_unlock_bh(&mq->lock);
+
 	return ret;
 }
 EXPORT_SYMBOL(omap_mbox_msg_send);
@@ -158,7 +150,7 @@ static void mbox_tx_tasklet(unsigned long tx_data)
 	int ret;
 
 	while (kfifo_len(&mq->fifo)) {
-		if (__mbox_poll_for_space(mbox)) {
+		if (mbox_poll_for_space(mbox)) {
 			omap_mbox_enable_irq(mbox, IRQ_TX);
 			break;
 		}
@@ -223,9 +215,6 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 
 		len = kfifo_in(&mq->fifo, (unsigned char *)&msg, sizeof(msg));
 		WARN_ON(len != sizeof(msg));
-
-		if (mbox->ops->type == OMAP_MBOX_TYPE1)
-			break;
 	}
 
 	/* no more messages in the fifo. clear IRQ source. */
@@ -283,14 +272,12 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 {
 	int ret = 0;
 	struct omap_mbox_queue *mq;
+	struct omap_mbox_device *mdev = mbox->parent;
 
-	mutex_lock(&mbox_configured_lock);
-	if (!mbox_configured++) {
-		if (likely(mbox->ops->startup)) {
-			ret = mbox->ops->startup(mbox);
-			if (unlikely(ret))
-				goto fail_startup;
-		} else
+	mutex_lock(&mdev->cfg_lock);
+	if (mbox->ops->startup) {
+		ret = mbox->ops->startup(mbox);
+		if (ret)
 			goto fail_startup;
 	}
 
@@ -319,7 +306,7 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 
 		omap_mbox_enable_irq(mbox, IRQ_RX);
 	}
-	mutex_unlock(&mbox_configured_lock);
+	mutex_unlock(&mdev->cfg_lock);
 	return 0;
 
 fail_request_irq:
@@ -331,14 +318,15 @@ fail_alloc_txq:
 		mbox->ops->shutdown(mbox);
 	mbox->use_count--;
 fail_startup:
-	mbox_configured--;
-	mutex_unlock(&mbox_configured_lock);
+	mutex_unlock(&mdev->cfg_lock);
 	return ret;
 }
 
 static void omap_mbox_fini(struct omap_mbox *mbox)
 {
-	mutex_lock(&mbox_configured_lock);
+	struct omap_mbox_device *mdev = mbox->parent;
+
+	mutex_lock(&mdev->cfg_lock);
 
 	if (!--mbox->use_count) {
 		omap_mbox_disable_irq(mbox, IRQ_RX);
@@ -349,28 +337,44 @@ static void omap_mbox_fini(struct omap_mbox *mbox)
 		mbox_queue_free(mbox->rxq);
 	}
 
-	if (likely(mbox->ops->shutdown)) {
-		if (!--mbox_configured)
-			mbox->ops->shutdown(mbox);
-	}
+	if (mbox->ops->shutdown)
+		mbox->ops->shutdown(mbox);
 
-	mutex_unlock(&mbox_configured_lock);
+	mutex_unlock(&mdev->cfg_lock);
 }
 
-struct omap_mbox *omap_mbox_get(const char *name, struct notifier_block *nb)
+static struct omap_mbox *omap_mbox_device_find(struct omap_mbox_device *mdev,
+						const char *mbox_name)
 {
 	struct omap_mbox *_mbox, *mbox = NULL;
-	int i, ret;
+	struct omap_mbox **mboxes = mdev->mboxes;
+	int i;
 
 	if (!mboxes)
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
 	for (i = 0; (_mbox = mboxes[i]); i++) {
-		if (!strcmp(_mbox->name, name)) {
+		if (!strcmp(_mbox->name, mbox_name)) {
 			mbox = _mbox;
 			break;
 		}
 	}
+	return mbox;
+}
+
+struct omap_mbox *omap_mbox_get(const char *name, struct notifier_block *nb)
+{
+	struct omap_mbox *mbox = NULL;
+	struct omap_mbox_device *mdev;
+	int ret;
+
+	mutex_lock(&omap_mbox_devices_lock);
+	list_for_each_entry(mdev, &omap_mbox_devices, elem) {
+		mbox = omap_mbox_device_find(mdev, name);
+		if (mbox)
+			break;
+	}
+	mutex_unlock(&omap_mbox_devices_lock);
 
 	if (!mbox)
 		return ERR_PTR(-ENOENT);
@@ -397,19 +401,20 @@ EXPORT_SYMBOL(omap_mbox_put);
 
 static struct class omap_mbox_class = { .name = "mbox", };
 
-int omap_mbox_register(struct device *parent, struct omap_mbox **list)
+int omap_mbox_register(struct omap_mbox_device *mdev)
 {
 	int ret;
 	int i;
+	struct omap_mbox **mboxes;
 
-	mboxes = list;
-	if (!mboxes)
+	if (!mdev || !mdev->mboxes)
 		return -EINVAL;
 
+	mboxes = mdev->mboxes;
 	for (i = 0; mboxes[i]; i++) {
 		struct omap_mbox *mbox = mboxes[i];
 		mbox->dev = device_create(&omap_mbox_class,
-				parent, 0, mbox, "%s", mbox->name);
+				mdev->dev, 0, mbox, "%s", mbox->name);
 		if (IS_ERR(mbox->dev)) {
 			ret = PTR_ERR(mbox->dev);
 			goto err_out;
@@ -417,6 +422,11 @@ int omap_mbox_register(struct device *parent, struct omap_mbox **list)
 
 		BLOCKING_INIT_NOTIFIER_HEAD(&mbox->notifier);
 	}
+
+	mutex_lock(&omap_mbox_devices_lock);
+	list_add(&mdev->elem, &omap_mbox_devices);
+	mutex_unlock(&omap_mbox_devices_lock);
+
 	return 0;
 
 err_out:
@@ -426,16 +436,21 @@ err_out:
 }
 EXPORT_SYMBOL(omap_mbox_register);
 
-int omap_mbox_unregister(void)
+int omap_mbox_unregister(struct omap_mbox_device *mdev)
 {
 	int i;
+	struct omap_mbox **mboxes;
 
-	if (!mboxes)
+	if (!mdev || !mdev->mboxes)
 		return -EINVAL;
 
+	mutex_lock(&omap_mbox_devices_lock);
+	list_del(&mdev->elem);
+	mutex_unlock(&omap_mbox_devices_lock);
+
+	mboxes = mdev->mboxes;
 	for (i = 0; mboxes[i]; i++)
 		device_unregister(mboxes[i]->dev);
-	mboxes = NULL;
 	return 0;
 }
 EXPORT_SYMBOL(omap_mbox_unregister);
