@@ -1995,6 +1995,14 @@ static int shmem_rename(struct inode *old_dir, struct dentry *old_dentry, struct
 	return 0;
 }
 
+static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry, unsigned int flags)
+{
+	if (flags & ~(RENAME_NOREPLACE))
+		return -EINVAL;
+
+	return shmem_rename(old_dir, old_dentry, new_dir, new_dentry);
+}
+
 static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
 	int error;
@@ -2658,6 +2666,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
 	.rmdir		= shmem_rmdir,
 	.mknod		= shmem_mknod,
 	.rename		= shmem_rename,
+	.rename2	= shmem_rename2,
 	.tmpfile	= shmem_tmpfile,
 #endif
 #ifdef CONFIG_TMPFS_XATTR
