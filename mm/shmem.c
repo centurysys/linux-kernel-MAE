@@ -1970,7 +1970,7 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
  * it exists so that the VFS layer correctly free's it when it
  * gets overwritten.
  */
-static int shmem_rename(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
+static int shmem_do_rename(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry, unsigned int flags)
 {
 	struct inode *inode = old_dentry->d_inode;
 	int they_are_dirs = S_ISDIR(inode->i_mode);
@@ -1978,6 +1978,29 @@ static int shmem_rename(struct inode *old_dir, struct dentry *old_dentry, struct
 	if (!simple_empty(new_dentry))
 		return -ENOTEMPTY;
 
+	if (flags & RENAME_WHITEOUT) {
+		struct dentry *whiteout;
+		int error;
+
+		whiteout = d_alloc(old_dentry->d_parent, &old_dentry->d_name);
+		if (!whiteout)
+			return -ENOMEM;
+
+		error = shmem_mknod(old_dir, whiteout,
+				    S_IFCHR | WHITEOUT_MODE, WHITEOUT_DEV);
+		dput(whiteout);
+		if (error)
+			return error;
+
+		/*
+		 * Cheat and hash the whiteout while the old dentry is still in
+		 * place, instead of playing games with FS_RENAME_DOES_D_MOVE.
+		 *
+		 * d_lookup() will consistently find one of them at this point,
+		 * not sure which one, but that isn't even important.
+		 */
+		d_rehash(whiteout);
+	}
 	if (new_dentry->d_inode) {
 		(void) shmem_unlink(new_dir, new_dentry);
 		if (they_are_dirs)
@@ -2019,14 +2042,20 @@ static int shmem_exchange(struct inode *old_dir, struct dentry *old_dentry, stru
 
 static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry, unsigned int flags)
 {
-	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
 		return -EINVAL;
 
 	if (flags & RENAME_EXCHANGE)
 		return shmem_exchange(old_dir, old_dentry, new_dir, new_dentry);
 	else
-		return shmem_rename(old_dir, old_dentry, new_dir, new_dentry);
+		return shmem_do_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
 }
+
+static int shmem_rename(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
+{
+	return shmem_rename2(old_dir, old_dentry, new_dir, new_dentry, 0);
+}
+
 
 static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
