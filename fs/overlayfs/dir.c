@@ -253,7 +253,7 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 
 	unlock_rename(workdir, upperdir);
 	ovl_cleanup_whiteouts(upper, list);
-	mutex_lock(&wdir->i_mutex);
+	mutex_lock_nested(&wdir->i_mutex, I_MUTEX_PARENT);
 	ovl_cleanup(wdir, upper);
 	mutex_unlock(&wdir->i_mutex);
 
