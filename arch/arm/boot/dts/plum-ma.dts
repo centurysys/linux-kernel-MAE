@@ -52,45 +52,50 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	leds_foma: leds_foma {
+	leds_onboard: leds_onboard {
 		pinctrl-names = "default";
 		pinctrl-0 = <&power_led_pins>;
 
 		compatible = "gpio-leds";
-		status = "disabled";
+		status = "okay";
 
 		led@1 {
 			label = "PowerLED";
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
+	};
 
-		led@x2 {
+	leds_foma: leds_foma {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
 			label = "FomaLED_G3";
 			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
 		};
 
-		led@x3 {
+		led@x2 {
 			label = "FomaLED_G2";
 			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
 		};
 
-		led@x4 {
+		led@x3 {
 			label = "FomaLED_G1";
 			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
 		};
 
-		led@x5 {
+		led@x4 {
 			label = "FomaLED_R3";
 			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
 		};
 
-		led@x6 {
+		led@x5 {
 			label = "FomaLED_R2";
 			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
 		};
 
-		led@x7 {
+		led@x6 {
 			label = "FomaLED_R1";
 			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
 		};
