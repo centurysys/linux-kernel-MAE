@@ -98,6 +98,7 @@ int am33xx_do_sram_cpuidle(u32, u32);
 #define WFI_WAKE_M3		(1 << 4)
 #define WFI_DISABLE_EMIF	(1 << 7)
 
+
 /*
  * 9-4 = VTT GPIO PIN (6 Bits)
  *   3 = VTT Status (1 Bit)
@@ -109,6 +110,7 @@ int am33xx_do_sram_cpuidle(u32, u32);
 #define VTT_STAT_MASK		(0x1 << 3)
 #define VTT_GPIO_PIN_SHIFT	(0x4)
 #define VTT_GPIO_PIN_MASK	(0x3f << 4)
+#define VTP_OFF		(1 << 16)
 
 #define MPU_WAKE		0x800
 

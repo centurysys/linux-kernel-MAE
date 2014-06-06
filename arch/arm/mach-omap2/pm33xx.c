@@ -629,6 +629,25 @@ int __init am33xx_pm_init(void)
 		}
 	}
 
+	/* Century Systems MA-E3xx */
+	np = of_find_node_by_path("/board");
+	if (np) {
+		int len;
+		const char *rev;
+
+		rev = of_get_property(np, "revision", &len);
+
+		if (rev && len > 0) {
+			printk("MA-E3xx: Board Revision: %s\n", rev);
+
+			if (strncmp(rev, "A", 1) != 0) {
+				am33xx_pm->ipc.reg4 |= VTP_OFF;
+			}
+		}
+
+		of_node_put(np);
+	}
+
 #ifdef CONFIG_SUSPEND
 	ret = am33xx_setup_sleep_sequence();
 	if (ret) {
