@@ -158,6 +158,11 @@
 		xio_02 = &xio_02;
 		xio_03 = &xio_03;
 		xio_04 = &xio_04;
+
+		xio_07 = &xio_07_0a;
+		xio_08 = &xio_07_0a;
+		xio_09 = &xio_07_0a;
+		xio_0a = &xio_07_0a;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -185,6 +190,15 @@
 			   &gpiox_0x18 &gpiox_0x1a
 			   &gpiox_0x40 &gpiox_0x80
 			   &leds_foma &leds_do>;
+	};
+
+	/* XIO: (id: 0x07 .. 0x0a) FOMA/DIO(2x2) */
+	xio_07_0a: xio@0x07_0a {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04 &gpiox_0x06
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x40 &gpiox_0x80
+			   &leds_foma>;
 	};
 };
 
@@ -630,6 +644,28 @@
 		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
 		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
 		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* XIO Interrupt Enable */
+	gpiox_0x04: gpio@2,0x04 {
+		reg = <2 0x00000004 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* XIO Interrupt Status */
+	gpiox_0x06: gpio@2,0x06 {
+		reg = <2 0x00000006 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
 	};
 
 	/* FOMA Control */
