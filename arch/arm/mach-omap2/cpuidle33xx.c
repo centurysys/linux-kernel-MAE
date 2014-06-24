@@ -98,6 +98,7 @@ struct cpuidle_state am33xx_ddr3_states[] = {
 		.name = "C0",
 		.desc = "WFI",
 	},
+#ifndef CONFIG_USB_TI_CPPI41_DMA
 	{
 		.exit_latency = 130,
 		.target_residency = 200,
@@ -107,6 +108,7 @@ struct cpuidle_state am33xx_ddr3_states[] = {
 		.name = "C1",
 		.desc = "Bypass MPU PLL",
 	},
+#endif
 };
 
 static struct cpuidle_driver am33xx_idle_driver = {
