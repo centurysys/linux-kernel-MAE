@@ -747,8 +747,8 @@
 
 	/* KDDI KYM11 extension */
 	kym11ext: kym11ext@2,0x04 {
-		reg = <0x00000004 0x00000004
-		       0x0000000a 0x00000004>;
+		reg = <2 0x00000004 0x00000001
+		       2 0x0000000a 0x00000001>;
 		reg_names = "interrupt", "status";
 
 		#interrupt-cells = <2>;
