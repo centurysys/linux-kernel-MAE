@@ -1739,7 +1739,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			done = (urb->actual_length + xfer_len >=
 				urb->transfer_buffer_length
 				|| (dma->actual_len % qh->maxpacket) > 0
-				|| dma->actual_len < qh->maxpacket);
+				|| dma->actual_len < qh->maxpacket
+				|| dma->rx_packet_done);
 		}
 
 		/* send IN token for next packet, without AUTOREQ */
