@@ -698,6 +698,22 @@
 
 		status = "disabled";
 	};
+
+	/* KDDI KYM11 extension */
+	kym11ext: kym11ext@2,0x04 {
+		reg = <2 0x00000004 0x00000001
+		       2 0x0000000a 0x00000001>;
+		reg_names = "interrupt", "status";
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		compatible = "plum,kym11-ext";
+
+		status = "disabled";
+	};
 };
 
 /include/ "tps65217.dtsi"
