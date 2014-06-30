@@ -200,7 +200,7 @@ static int set_inode(struct inode *inode, struct dentry *dentry)
 	case S_IFSOCK:
 		btail = au_dbtail(dentry);
 		inode->i_op = &aufs_iop;
-		au_init_special_fop(inode, mode, h_inode->i_rdev);
+		init_special_inode(inode, mode, h_inode->i_rdev);
 		break;
 	default:
 		AuIOErr("Unknown file type 0%o\n", mode);
@@ -441,6 +441,7 @@ int au_test_ro(struct super_block *sb, aufs_bindex_t bindex,
 	       struct inode *inode)
 {
 	int err;
+	struct inode *hi;
 
 	err = au_br_rdonly(au_sbr(sb, bindex));
 
@@ -453,7 +454,7 @@ int au_test_ro(struct super_block *sb, aufs_bindex_t bindex,
 		 * permission check is unnecessary since vfsub routine
 		 * will be called later
 		 */
-		struct inode *hi = au_h_iptr(inode, bindex);
+		hi = au_h_iptr(inode, bindex);
 		if (hi)
 			err = IS_IMMUTABLE(hi) ? -EROFS : 0;
 	}

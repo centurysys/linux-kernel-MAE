@@ -75,18 +75,7 @@ struct file *au_h_open(struct dentry *dentry, aufs_bindex_t bindex, int flags,
 	atomic_inc(&br->br_count);
 	h_path.dentry = h_dentry;
 	h_path.mnt = au_br_mnt(br);
-	if (!au_special_file(h_inode->i_mode))
-		h_file = vfsub_dentry_open(&h_path, flags);
-	else {
-		/* this block depends upon the configuration */
-		di_read_unlock(dentry, AuLock_IR);
-		fi_write_unlock(file);
-		si_read_unlock(sb);
-		h_file = vfsub_dentry_open(&h_path, flags);
-		si_noflush_read_lock(sb);
-		fi_write_lock(file);
-		di_read_lock_child(dentry, AuLock_IR);
-	}
+	h_file = vfsub_dentry_open(&h_path, flags);
 	if (IS_ERR(h_file))
 		goto out_br;
 
@@ -107,6 +96,78 @@ out:
 	return h_file;
 }
 
+static int au_cpup_on_open(struct dentry *dentry)
+{
+	int err, coo;
+	struct au_pin pin;
+	struct au_cp_generic cpg = {
+		.dentry	= dentry,
+		.bdst	= -1,
+		.bsrc	= -1,
+		.len	= -1,
+		.pin	= &pin,
+		.flags	= AuCpup_DTIME | AuCpup_HOPEN
+	};
+	struct inode *inode;
+	struct super_block *sb;
+	struct au_branch *br;
+	struct dentry *parent;
+
+	DiMustWriteLock(dentry);
+	inode = dentry->d_inode;
+	IiMustWriteLock(inode);
+
+	err = 0;
+	if (IS_ROOT(dentry))
+		goto out;
+	cpg.bsrc = au_dbstart(dentry);
+	if (!cpg.bsrc)
+		goto out;
+
+	sb = dentry->d_sb;
+	br = au_sbr(sb, cpg.bsrc);
+	coo = au_br_coo(br->br_perm);
+	if (!coo)
+		goto out;
+	if (!S_ISREG(inode->i_mode))
+		coo &= AuBrAttr_COO_ALL;
+	if (!coo)
+		goto out;
+
+	parent = dget_parent(dentry);
+	di_write_lock_parent(parent);
+	err = au_wbr_do_copyup_bu(dentry, cpg.bsrc - 1);
+	cpg.bdst = err;
+	if (unlikely(err < 0)) {
+		err = 0;	/* there is no upper writable branch */
+		goto out_dgrade;
+	}
+	AuDbg("bsrc %d, bdst %d\n", cpg.bsrc, cpg.bdst);
+
+	/* do not respect the coo attrib for the target branch */
+	err = au_cpup_dirs(dentry, cpg.bdst);
+	if (unlikely(err))
+		goto out_dgrade;
+
+	di_downgrade_lock(parent, AuLock_IR);
+	err = au_pin(&pin, dentry, cpg.bdst, au_opt_udba(sb),
+		     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
+	if (!err) {
+		err = au_sio_cpup_simple(&cpg);
+		au_unpin(&pin);
+	}
+	goto out_parent;
+
+out_dgrade:
+	di_downgrade_lock(parent, AuLock_IR);
+out_parent:
+	di_read_unlock(parent, AuLock_IR);
+	dput(parent);
+out:
+	AuTraceErr(err);
+	return err;
+}
+
 int au_do_open(struct file *file, int (*open)(struct file *file, int flags),
 	       struct au_fidir *fidir)
 {
@@ -118,8 +179,11 @@ int au_do_open(struct file *file, int (*open)(struct file *file, int flags),
 		goto out;
 
 	dentry = file->f_dentry;
-	di_read_lock_child(dentry, AuLock_IR);
-	err = open(file, vfsub_file_flags(file));
+	di_write_lock_child(dentry);
+	err = au_cpup_on_open(dentry);
+	di_downgrade_lock(dentry, AuLock_IR);
+	if (!err)
+		err = open(file, vfsub_file_flags(file));
 	di_read_unlock(dentry, AuLock_IR);
 
 	fi_write_unlock(file);
@@ -140,7 +204,6 @@ int au_reopen_nondir(struct file *file)
 	struct file *h_file, *h_file_tmp;
 
 	dentry = file->f_dentry;
-	AuDebugOn(au_special_file(dentry->d_inode->i_mode));
 	bstart = au_dbstart(dentry);
 	h_file_tmp = NULL;
 	if (au_fbstart(file) == bstart) {
@@ -276,7 +339,6 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 
 	sb = cpg.dentry->d_sb;
 	inode = cpg.dentry->d_inode;
-	AuDebugOn(au_special_file(inode->i_mode));
 	cpg.bsrc = au_fbstart(file);
 	err = au_test_ro(sb, cpg.bsrc, inode);
 	if (!err && (au_hf_top(file)->f_mode & FMODE_WRITE)) {
@@ -584,7 +646,6 @@ int au_reval_and_lock_fdi(struct file *file, int (*reopen)(struct file *file),
 	err = 0;
 	dentry = file->f_dentry;
 	inode = dentry->d_inode;
-	AuDebugOn(au_special_file(inode->i_mode));
 	sigen = au_sigen(dentry->d_sb);
 	fi_write_lock(file);
 	figen = au_figen(file);
