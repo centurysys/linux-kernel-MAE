@@ -79,33 +79,80 @@
 		status = "disabled";
 
 		led@x1 {
-			label = "FomaLED_G3";
+			label = "MobileLED_G3";
 			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x2 {
-			label = "FomaLED_G2";
+			label = "MobileLED_G2";
 			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x3 {
-			label = "FomaLED_G1";
+			label = "MobileLED_G1";
 			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x4 {
-			label = "FomaLED_R3";
+			label = "MobileLED_R3";
 			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x5 {
-			label = "FomaLED_R2";
+			label = "MobileLED_R2";
 			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x6 {
-			label = "FomaLED_R1";
+			label = "MobileLED_R1";
 			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+	};
+
+	leds_au: leds_au {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "MobileLED_G3";
+			gpios = <&gpiox_0x0e 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "MobileLED_G2";
+			gpios = <&gpiox_0x0e 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "MobileLED_G1";
+			gpios = <&gpiox_0x0e 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_R3";
+			gpios = <&gpiox_0x0e 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_R2";
+			gpios = <&gpiox_0x0e 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_R1";
+			gpios = <&gpiox_0x0e 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x08 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
 		};
 	};
 
@@ -159,6 +206,8 @@
 		xio_03 = &xio_03;
 		xio_04 = &xio_04;
 
+		xio_06 = &xio_06;
+
 		xio_07 = &xio_07_0a;
 		xio_08 = &xio_07_0a;
 		xio_09 = &xio_07_0a;
@@ -190,6 +239,13 @@
 			   &gpiox_0x18 &gpiox_0x1a
 			   &gpiox_0x40 &gpiox_0x80
 			   &leds_foma &leds_do>;
+	};
+
+	/* XIO: (id: 0x06) KYM11 */
+	xio_06: xio@0x06 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x08 &gpiox_0x0e
+			   &leds_au>;
 	};
 
 	/* XIO: (id: 0x07 .. 0x0a) FOMA/DIO(2x2) */
@@ -660,6 +716,28 @@
 	/* XIO Interrupt Status */
 	gpiox_0x06: gpio@2,0x06 {
 		reg = <2 0x00000006 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM11 Control */
+	gpiox_0x08: gpio@2,0x08 {
+		reg = <2 0x00000008 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM11 LED */
+	gpiox_0x0e: gpio@2,0x0e {
+		reg = <2 0x0000000e 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
