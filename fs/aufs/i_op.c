@@ -89,7 +89,9 @@ static int aufs_permission(struct inode *inode, int mask)
 		goto out;
 #endif
 
-	if (!isdir || write_mask) {
+	if (!isdir
+	    || write_mask
+	    || au_opt_test(au_mntflags(sb), DIRPERM1)) {
 		err = au_busy_or_stale();
 		h_inode = au_h_iptr(inode, au_ibstart(inode));
 		if (unlikely(!h_inode
@@ -878,7 +880,7 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 			struct dentry *dentry, struct kstat *st)
 {
 	int err;
-	unsigned int mnt_flags;
+	unsigned int mnt_flags, sigen;
 	aufs_bindex_t bindex;
 	unsigned char udba_none, positive;
 	struct super_block *sb, *h_sb;
@@ -895,7 +897,7 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 
 	/* support fstat(2) */
 	if (!d_unlinked(dentry) && !udba_none) {
-		unsigned int sigen = au_sigen(sb);
+		sigen = au_sigen(sb);
 		err = au_digen_test(dentry, sigen);
 		if (!err) {
 			di_read_lock_child(dentry, AuLock_IR);
@@ -1069,9 +1071,15 @@ static int aufs_update_time(struct inode *inode, struct timespec *ts, int flags)
 	h_inode = au_h_iptr(inode, au_ibstart(inode));
 	err = vfsub_update_time(h_inode, ts, flags);
 	lockdep_off();
+	if (!err)
+		au_cpup_attr_timesizes(inode);
 	ii_write_unlock(inode);
 	si_read_unlock(sb);
 	lockdep_on();
+
+	if (!err && (flags & S_VERSION))
+		inode_inc_iversion(inode);
+
 	return err;
 }
 

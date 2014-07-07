@@ -35,6 +35,7 @@ enum {
 	Opt_refrof, Opt_norefrof,
 	Opt_verbose, Opt_noverbose,
 	Opt_sum, Opt_nosum, Opt_wsum,
+	Opt_dirperm1, Opt_nodirperm1,
 	Opt_tail, Opt_ignore, Opt_ignore_silent, Opt_err
 };
 
@@ -97,15 +98,16 @@ static match_table_t options = {
 	{Opt_nowarn_perm, "nowarn_perm"},
 
 	/* keep them temporary */
-	{Opt_ignore_silent, "coo=%s"},
 	{Opt_ignore_silent, "nodlgt"},
-	{Opt_ignore_silent, "nodirperm1"},
 	{Opt_ignore_silent, "clean_plink"},
 
 #ifdef CONFIG_AUFS_SHWH
 	{Opt_shwh, "shwh"},
 #endif
 	{Opt_noshwh, "noshwh"},
+
+	{Opt_dirperm1, "dirperm1"},
+	{Opt_nodirperm1, "nodirperm1"},
 
 	{Opt_rendir, "rendir=%d"},
 
@@ -152,15 +154,35 @@ static match_table_t options = {
 
 /* ---------------------------------------------------------------------- */
 
-static const char *au_parser_pattern(int val, struct match_token *token)
+static const char *au_parser_pattern(int val, match_table_t tbl)
 {
-	while (token->pattern) {
-		if (token->token == val)
-			return token->pattern;
-		token++;
+	struct match_token *p;
+
+	p = tbl;
+	while (p->pattern) {
+		if (p->token == val)
+			return p->pattern;
+		p++;
 	}
 	BUG();
 	return "??";
+}
+
+static const char *au_optstr(int *val, match_table_t tbl)
+{
+	struct match_token *p;
+	int v;
+
+	v = *val;
+	p = tbl;
+	while (p->token) {
+		if ((v & p->token) == p->token) {
+			*val &= ~p->token;
+			return p->pattern;
+		}
+		p++;
+	}
+	return NULL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -173,15 +195,20 @@ static match_table_t brperm = {
 };
 
 static match_table_t brattr = {
+	/* general */
+	{AuBrAttr_COO_REG, AUFS_BRATTR_COO_REG},
+	{AuBrAttr_COO_ALL, AUFS_BRATTR_COO_ALL},
 	{AuBrAttr_UNPIN, AUFS_BRATTR_UNPIN},
+
+	/* ro/rr branch */
 	{AuBrRAttr_WH, AUFS_BRRATTR_WH},
+
+	/* rw branch */
+	{AuBrWAttr_MOO, AUFS_BRWATTR_MOO},
 	{AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH},
+
 	{0, NULL}
 };
-
-#define AuBrStr_LONGEST	AUFS_BRPERM_RW \
-	"+" AUFS_BRATTR_UNPIN \
-	"+" AUFS_BRWATTR_NLWH
 
 static int br_attr_val(char *str, match_table_t table, substring_t args[])
 {
@@ -194,9 +221,11 @@ static int br_attr_val(char *str, match_table_t table, substring_t args[])
 		if (p)
 			*p = 0;
 		v = match_token(str, table, args);
-		if (v)
+		if (v) {
+			if (v & AuBrAttr_CMOO_Mask)
+				attr &= ~AuBrAttr_CMOO_Mask;
 			attr |= v;
-		else {
+		} else {
 			if (p)
 				*p = '+';
 			pr_warn("ignored branch attribute %s\n", str);
@@ -209,11 +238,43 @@ static int br_attr_val(char *str, match_table_t table, substring_t args[])
 	return attr;
 }
 
+static int au_do_optstr_br_attr(au_br_perm_str_t *str, int perm)
+{
+	int sz;
+	const char *p;
+	char *q;
+
+	sz = 0;
+	q = str->a;
+	*q = 0;
+	p = au_optstr(&perm, brattr);
+	if (p) {
+		sz = strlen(p);
+		memcpy(q, p, sz + 1);
+		q += sz;
+	} else
+		goto out;
+
+	do {
+		p = au_optstr(&perm, brattr);
+		if (p) {
+			*q++ = '+';
+			sz = strlen(p);
+			memcpy(q, p, sz + 1);
+			q += sz;
+		}
+	} while (p);
+
+out:
+	return sz;
+}
+
 static int noinline_for_stack br_perm_val(char *perm)
 {
-	int val;
-	char *p, *q;
+	int val, bad, sz;
+	char *p;
 	substring_t args[MAX_OPT_ARGS];
+	au_br_perm_str_t attr;
 
 	p = strchr(perm, '+');
 	if (p)
@@ -229,83 +290,51 @@ static int noinline_for_stack br_perm_val(char *perm)
 	if (!p)
 		goto out;
 
-	p++;
-	while (1) {
-		q = strchr(p, '+');
-		if (q)
-			*q = 0;
-		val |= br_attr_val(p, brattr, args);
-		if (q) {
-			*q = '+';
-			p = q + 1;
-		} else
-			break;
-	}
+	val |= br_attr_val(p + 1, brattr, args);
+
+	bad = 0;
 	switch (val & AuBrPerm_Mask) {
 	case AuBrPerm_RO:
 	case AuBrPerm_RR:
-		if (unlikely(val & AuBrWAttr_NoLinkWH)) {
-			pr_warn("ignored branch attribute %s\n",
-				AUFS_BRWATTR_NLWH);
-			val &= ~AuBrWAttr_NoLinkWH;
-		}
+		bad = val & AuBrWAttr_Mask;
+		val &= ~AuBrWAttr_Mask;
 		break;
 	case AuBrPerm_RW:
-		if (unlikely(val & AuBrRAttr_WH)) {
-			pr_warn("ignored branch attribute %s\n",
-				AUFS_BRRATTR_WH);
-			val &= ~AuBrRAttr_WH;
-		}
+		bad = val & AuBrRAttr_Mask;
+		val &= ~AuBrRAttr_Mask;
 		break;
+	}
+	if (unlikely(bad)) {
+		sz = au_do_optstr_br_attr(&attr, bad);
+		AuDebugOn(!sz);
+		pr_warn("ignored branch attribute %s\n", attr.a);
 	}
 
 out:
 	return val;
 }
 
-/* Caller should free the return value */
-char *au_optstr_br_perm(int brperm)
+void au_optstr_br_perm(au_br_perm_str_t *str, int perm)
 {
-	char *p, a[sizeof(AuBrStr_LONGEST)];
+	au_br_perm_str_t attr;
+	const char *p;
+	char *q;
 	int sz;
 
-#define SetPerm(str) do {			\
-		sz = sizeof(str);		\
-		memcpy(a, str, sz);		\
-		p = a + sz - 1;			\
-	} while (0)
+	q = str->a;
+	p = au_optstr(&perm, brperm);
+	AuDebugOn(!p || !*p);
+	sz = strlen(p);
+	memcpy(q, p, sz + 1);
+	q += sz;
 
-#define AppendAttr(flag, str) do {			\
-		if (brperm & flag) {		\
-			sz = sizeof(str);	\
-			*p++ = '+';		\
-			memcpy(p, str, sz);	\
-			p += sz - 1;		\
-		}				\
-	} while (0)
-
-	switch (brperm & AuBrPerm_Mask) {
-	case AuBrPerm_RO:
-		SetPerm(AUFS_BRPERM_RO);
-		break;
-	case AuBrPerm_RR:
-		SetPerm(AUFS_BRPERM_RR);
-		break;
-	case AuBrPerm_RW:
-		SetPerm(AUFS_BRPERM_RW);
-		break;
-	default:
-		AuDebugOn(1);
+	sz = au_do_optstr_br_attr(&attr, perm);
+	if (sz) {
+		*q++ = '+';
+		memcpy(q, attr.a, sz + 1);
 	}
 
-	AppendAttr(AuBrAttr_UNPIN, AUFS_BRATTR_UNPIN);
-	AppendAttr(AuBrRAttr_WH, AUFS_BRRATTR_WH);
-	AppendAttr(AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH);
-
-	AuDebugOn(strlen(a) >= sizeof(a));
-	return kstrdup(a, GFP_NOFS);
-#undef SetPerm
-#undef AppendAttr
+	AuDebugOn(strlen(str->a) >= sizeof(str->a));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -331,7 +360,7 @@ static int noinline_for_stack udba_val(char *str)
 
 const char *au_optstr_udba(int udba)
 {
-	return au_parser_pattern(udba, (void *)udbalevel);
+	return au_parser_pattern(udba, udbalevel);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -453,7 +482,7 @@ au_wbr_create_val(char *str, struct au_opt_wbr_create *create)
 
 const char *au_optstr_wbr_create(int wbr_create)
 {
-	return au_parser_pattern(wbr_create, (void *)au_wbr_create_policy);
+	return au_parser_pattern(wbr_create, au_wbr_create_policy);
 }
 
 static match_table_t au_wbr_copyup_policy = {
@@ -475,7 +504,7 @@ static int noinline_for_stack au_wbr_copyup_val(char *str)
 
 const char *au_optstr_wbr_copyup(int wbr_copyup)
 {
-	return au_parser_pattern(wbr_copyup, (void *)au_wbr_copyup_policy);
+	return au_parser_pattern(wbr_copyup, au_wbr_copyup_policy);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -577,6 +606,12 @@ static void dump_opts(struct au_opts *opts)
 			break;
 		case Opt_noshwh:
 			AuLabel(noshwh);
+			break;
+		case Opt_dirperm1:
+			AuLabel(dirperm1);
+			break;
+		case Opt_nodirperm1:
+			AuLabel(nodirperm1);
 			break;
 		case Opt_plink:
 			AuLabel(plink);
@@ -1081,6 +1116,8 @@ int au_opts_parse(struct super_block *sb, char *str, struct au_opts *opts)
 		case Opt_notrunc_xib:
 		case Opt_shwh:
 		case Opt_noshwh:
+		case Opt_dirperm1:
+		case Opt_nodirperm1:
 		case Opt_plink:
 		case Opt_noplink:
 		case Opt_list_plink:
@@ -1322,6 +1359,13 @@ static int au_opt_simple(struct super_block *sb, struct au_opt *opt,
 		au_opt_clr(sbinfo->si_mntflags, SHWH);
 		break;
 
+	case Opt_dirperm1:
+		au_opt_set(sbinfo->si_mntflags, DIRPERM1);
+		break;
+	case Opt_nodirperm1:
+		au_opt_clr(sbinfo->si_mntflags, DIRPERM1);
+		break;
+
 	case Opt_trunc_xino:
 		au_opt_set(sbinfo->si_mntflags, TRUNC_XINO);
 		break;
@@ -1479,6 +1523,10 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 	    && !au_opt_test(sbinfo->si_mntflags, XINO))
 		pr_warn("udba=*notify requires xino\n");
 
+	if (au_opt_test(sbinfo->si_mntflags, DIRPERM1))
+		pr_warn("dirperm1 breaks the protection"
+			" by the permission bits on the lower branch\n");
+
 	err = 0;
 	root = sb->s_root;
 	dir = root->d_inode;
@@ -1552,6 +1600,7 @@ int au_opts_mount(struct super_block *sb, struct au_opts *opts)
 	struct au_opt_xino *opt_xino, xino;
 	struct au_sbinfo *sbinfo;
 	struct au_branch *br;
+	struct inode *dir;
 
 	SiMustWriteLock(sb);
 
@@ -1625,7 +1674,7 @@ int au_opts_mount(struct super_block *sb, struct au_opts *opts)
 		/* go on even if err */
 	}
 	if (au_opt_test(tmp, UDBA_HNOTIFY)) {
-		struct inode *dir = sb->s_root->d_inode;
+		dir = sb->s_root->d_inode;
 		au_hn_reset(dir, au_hi_flags(dir, /*isdir*/1) & ~AuHi_XINO);
 	}
 
