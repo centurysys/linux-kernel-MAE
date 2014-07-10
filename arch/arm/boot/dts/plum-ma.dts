@@ -45,6 +45,14 @@
 		regulator-boot-on;
 	};
 
+	ocp {
+		rtc@44e3e000 {
+			compatible = "ti,am3352-rtc";
+			ti,system-power-controller;
+			ti,enable-rtc-clk32k;
+		};
+	};
+
 	vmmcsd_fixed: fixedregulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
@@ -71,33 +79,100 @@
 		status = "disabled";
 
 		led@x1 {
-			label = "FomaLED_G3";
+			label = "MobileLED_G3";
 			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x2 {
-			label = "FomaLED_G2";
+			label = "MobileLED_G2";
 			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x3 {
-			label = "FomaLED_G1";
+			label = "MobileLED_G1";
 			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x4 {
-			label = "FomaLED_R3";
+			label = "MobileLED_R3";
 			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x5 {
-			label = "FomaLED_R2";
+			label = "MobileLED_R2";
 			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@x6 {
-			label = "FomaLED_R1";
+			label = "MobileLED_R1";
 			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_foma_ctrl: leds_foma_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_au: leds_au {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "MobileLED_G3";
+			gpios = <&gpiox_0x0e 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "MobileLED_G2";
+			gpios = <&gpiox_0x0e 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "MobileLED_G1";
+			gpios = <&gpiox_0x0e 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_R3";
+			gpios = <&gpiox_0x0e 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_R2";
+			gpios = <&gpiox_0x0e 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_R1";
+			gpios = <&gpiox_0x0e 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_au_ctrl: leds_au_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x08 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x08 0 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -150,13 +225,20 @@
 		xio_02 = &xio_02;
 		xio_03 = &xio_03;
 		xio_04 = &xio_04;
+
+		xio_06 = &xio_06;
+
+		xio_07 = &xio_07_0a;
+		xio_08 = &xio_07_0a;
+		xio_09 = &xio_07_0a;
+		xio_0a = &xio_07_0a;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
 	xio_02: xio@0x02 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
-			   &leds_foma>;
+			   &leds_foma &leds_foma_ctrl>;
 	};
 
 	/* XIO: (id: 0x03) FOMA/UARTx2/DIO */
@@ -166,7 +248,8 @@
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x18 &gpiox_0x1a
 			   &gpiox_0x40 &gpiox_0x80
-			   &leds_foma &leds_do>;
+			   &leds_foma &leds_foma_ctrl
+			   &leds_do>;
 	};
 
 	/* XIO: (id: 0x04) UARTx2/DIO */
@@ -177,6 +260,22 @@
 			   &gpiox_0x18 &gpiox_0x1a
 			   &gpiox_0x40 &gpiox_0x80
 			   &leds_foma &leds_do>;
+	};
+
+	/* XIO: (id: 0x06) KYM11 */
+	xio_06: xio@0x06 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x08 &gpiox_0x0e
+			   &leds_au &leds_au_ctrl>;
+	};
+
+	/* XIO: (id: 0x07 .. 0x0a) FOMA/DIO(2x2) */
+	xio_07_0a: xio@0x07_0a {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04 &gpiox_0x06
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x40 &gpiox_0x80
+			   &leds_foma &leds_foma_ctrl>;
 	};
 };
 
@@ -422,7 +521,7 @@
 		reg = <0x48>;
 	};
 
-	ext_rtc: m41t00@68 {
+	rtc: m41t00@68 {
 		compatible = "m41t00";
 		reg = <0x68>;
 	};
@@ -483,10 +582,12 @@
 
 	usb-phy@47401300 {
 		status = "okay";
+		vcc-supply = <&vbat>;
 	};
 
 	usb-phy@47401b00 {
 		status = "okay";
+		vcc-supply = <&vbat>;
 	};
 
 	usb@47401000 {
@@ -620,6 +721,50 @@
 		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
 		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
 		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* XIO Interrupt Enable */
+	gpiox_0x04: gpio@2,0x04 {
+		reg = <2 0x00000004 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* XIO Interrupt Status */
+	gpiox_0x06: gpio@2,0x06 {
+		reg = <2 0x00000006 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM11 Control */
+	gpiox_0x08: gpio@2,0x08 {
+		reg = <2 0x00000008 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM11 LED */
+	gpiox_0x0e: gpio@2,0x0e {
+		reg = <2 0x0000000e 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
 	};
 
 	/* FOMA Control */
@@ -881,12 +1026,6 @@
 			reg = <0x00120000 0x000e0000>;
 		};
 	};
-};
-
-&rtc {
-	compatible = "ti,am3352-rtc";
-	ti,system-power-controller;
-	ti,enable-rtc-clk32k;
 };
 
 &sham {
