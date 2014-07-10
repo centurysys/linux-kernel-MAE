@@ -107,11 +107,21 @@
 			label = "MobileLED_R1";
 			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	leds_foma_ctrl: leds_foma_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
 
 		led@RESETN {
 			label = "Mobile_RESETN";
 			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -148,11 +158,21 @@
 			label = "MobileLED_R1";
 			gpios = <&gpiox_0x0e 7 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	leds_au_ctrl: leds_au_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
 
 		led@RESETN {
 			label = "Mobile_RESETN";
 			gpios = <&gpiox_0x08 6 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x08 0 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -218,7 +238,7 @@
 	xio_02: xio@0x02 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
-			   &leds_foma>;
+			   &leds_foma &leds_foma_ctrl>;
 	};
 
 	/* XIO: (id: 0x03) FOMA/UARTx2/DIO */
@@ -228,7 +248,8 @@
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x18 &gpiox_0x1a
 			   &gpiox_0x40 &gpiox_0x80
-			   &leds_foma &leds_do>;
+			   &leds_foma &leds_foma_ctrl
+			   &leds_do>;
 	};
 
 	/* XIO: (id: 0x04) UARTx2/DIO */
@@ -245,7 +266,7 @@
 	xio_06: xio@0x06 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x08 &gpiox_0x0e
-			   &leds_au>;
+			   &leds_au &leds_au_ctrl>;
 	};
 
 	/* XIO: (id: 0x07 .. 0x0a) FOMA/DIO(2x2) */
@@ -254,7 +275,7 @@
 		devices = <&gpiox_0x04 &gpiox_0x06
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x40 &gpiox_0x80
-			   &leds_foma>;
+			   &leds_foma &leds_foma_ctrl>;
 	};
 };
 
