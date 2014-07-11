@@ -166,7 +166,11 @@ static int debug_level;
 module_param(debug_level, int, 0);
 MODULE_PARM_DESC(debug_level, "cpsw debug level (NETIF_MSG bits)");
 
+#ifndef CONFIG_CPSW_VLAN_PROMISC
 static int ale_ageout = 10;
+#else
+static int ale_ageout = 0;
+#endif
 module_param(ale_ageout, int, 0);
 MODULE_PARM_DESC(ale_ageout, "cpsw ale ageout interval (seconds)");
 
