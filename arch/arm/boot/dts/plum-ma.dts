@@ -521,7 +521,7 @@
 		reg = <0x48>;
 	};
 
-	rtc: m41t00@68 {
+	rtc_i2c: m41t00@68 {
 		compatible = "m41t00";
 		reg = <0x68>;
 	};
