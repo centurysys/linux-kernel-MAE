@@ -952,7 +952,13 @@ static int set_filter(struct file *filep, const char __user *buf,
 	local_irq_save(flags);
 
 	if (din_group->filter != filter) {
-		dio_write_reg(filter << (groupno * 2), DIN_REG_FILTER);
+		u16 val;
+
+		val = dio_read_reg(DIN_REG_FILTER);
+		val &= ~(0x3 << (groupno * 2));
+		val |= filter << (groupno * 2);
+
+		dio_write_reg(val, DIN_REG_FILTER);
 		din_group->filter = filter;
 	}
 
