@@ -1244,7 +1244,13 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		cpsw_ale_control_set(priv->ale, 0, ALE_BYPASS, 1);
 		dev_dbg(&ndev->dev, "promiscious enabled\n");
 	}
+#else
+	else
+		cpsw_ale_add_vlan(priv->ale, priv->data.default_vlan,
+				  ALE_ALL_PORTS << priv->host_port,
+				  ALE_ALL_PORTS << priv->host_port, 0, 0);
 #endif
+
 	if (!cpsw_common_res_usage_state(priv)) {
 		/* setup tx dma to fixed prio and zero offset */
 		cpdma_control_set(priv->dma, CPDMA_TX_PRIO_FIXED, 1);
