@@ -406,6 +406,12 @@ config GPIO_TB10X
 	select GENERIC_IRQ_CHIP
 	select OF_GPIO
 
+config GPIO_XIOIRQ
+	tristate "MA-E3xx eXternal I/O GPIO support"
+	depends on OF
+	select OF_GPIO
+
+
 comment "I2C GPIO expanders:"
 
 config GPIO_ARIZONA

@@ -1512,6 +1512,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 */
 	if (of_device_is_compatible(child, "ns16550a") ||
 	    of_device_is_compatible(child, "basic-mmio-gpio") ||
+	    of_device_is_compatible(child, "plum,xioirq-gpio") ||
 	    of_device_is_compatible(child, "smsc,lan91c94") ||
 	    of_device_is_compatible(child, "smsc,lan91c111")) {
 		dev_warn(&pdev->dev,

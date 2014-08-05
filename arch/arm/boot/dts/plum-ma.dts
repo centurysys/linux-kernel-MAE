@@ -266,15 +266,16 @@
 	xio_06: xio@0x06 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x08 &gpiox_0x0e
+			   &gpiox_0x04_kym11
 			   &leds_au &leds_au_ctrl>;
 	};
 
 	/* XIO: (id: 0x07 .. 0x0a) FOMA/DIO(2x2) */
 	xio_07_0a: xio@0x07_0a {
 		#size-cells = <0>;
-		devices = <&gpiox_0x04 &gpiox_0x06
-			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_lisa
 			   &leds_foma &leds_foma_ctrl>;
 	};
 };
@@ -723,28 +724,6 @@
 		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
 	};
 
-	/* XIO Interrupt Enable */
-	gpiox_0x04: gpio@2,0x04 {
-		reg = <2 0x00000004 0x00000001>;
-		#gpio-cells = <2>;
-		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
-		gpio-controller;
-		reg-names = "dat";
-
-		status = "disabled";
-	};
-
-	/* XIO Interrupt Status */
-	gpiox_0x06: gpio@2,0x06 {
-		reg = <2 0x00000006 0x00000001>;
-		#gpio-cells = <2>;
-		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
-		gpio-controller;
-		reg-names = "dat";
-
-		status = "disabled";
-	};
-
 	/* KYM11 Control */
 	gpiox_0x08: gpio@2,0x08 {
 		reg = <2 0x00000008 0x00000001>;
@@ -844,20 +823,75 @@
 		status = "disabled";
 	};
 
-	/* KDDI KYM11 extension */
-	kym11ext: kym11ext@2,0x04 {
-		reg = <2 0x00000004 0x00000001
-		       2 0x0000000a 0x00000001>;
-		reg_names = "interrupt", "status";
+	/* XIO Interrupt Enable/Status (LISA) */
+	gpiox_0x04_lisa: gpio@2,0x04_LISA {
+		reg = <2 0x00000004 0x00000004>;
+		#gpio-cells = <2>;
+		compatible = "plum,xioirq-gpio";
+		gpio-controller;
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <22 8>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
-		compatible = "plum,kym11-ext";
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "xio_PowerFail";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "xio_RI";
+			reg = <1>;
+		};
+	};
+
+	/* XIO Interrupt Enable/Status (KYM-11) */
+	gpiox_0x04_kym11: gpio@2,0x04_KYM {
+		reg = <2 0x00000004 0x00000004>;
+		#gpio-cells = <2>;
+		compatible = "plum,xioirq-gpio";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
 		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "xio_PowerFail";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "xio_RI";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "xio_EMG_RI";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "xio_RESET_CHK";
+			reg = <3>;
+		};
+
+		stat@5 {
+			label = "xio_PS_HOLD";
+			reg = <4>;
+		};
 	};
 };
 
