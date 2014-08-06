@@ -888,7 +888,7 @@
 			reg = <3>;
 		};
 
-		stat@5 {
+		stat@4 {
 			label = "xio_PS_HOLD";
 			reg = <4>;
 		};
