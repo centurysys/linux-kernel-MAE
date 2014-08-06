@@ -155,7 +155,7 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 		goto out;
 
 	if (request_irq(gpio->irq, xio_interrupt,
-			IRQF_TRIGGER_LOW | IRQF_SHARED,
+			IRQF_TRIGGER_FALLING | IRQF_SHARED,
 			"XIOIRQ", gpio) < 0) {
 		pr_warn("%s: Can't get IRQ %d (XIO)\n", __FUNCTION__, gpio->irq);
 	}
