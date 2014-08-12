@@ -22,6 +22,7 @@
 #include <linux/file.h>
 #include <linux/list.h>
 #include <linux/fs.h>
+#include <linux/aio.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mount.h>
