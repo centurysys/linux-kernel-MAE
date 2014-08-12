@@ -101,12 +101,18 @@ out:
 }
 
 /*
- * XXX: the default address_space_ops for unionfs is empty.  We cannot set
- * our inode->i_mapping->a_ops to NULL because too many code paths expect
- * the a_ops vector to be non-NULL.
+ * This function should never be called directly.
+ * It's here only for the check a_ops->direct_IO during vfs_open.
  */
+static ssize_t unionfs_direct_IO(int rw, struct kiocb *iocb,
+				 const struct iovec *iov, loff_t offset,
+				 unsigned long nr_segs)
+{
+	return -EINVAL;
+}
+
 struct address_space_operations unionfs_aops = {
-	/* empty on purpose */
+	.direct_IO	= unionfs_direct_IO,
 };
 
 /*
