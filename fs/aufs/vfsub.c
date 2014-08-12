@@ -486,7 +486,7 @@ long vfsub_splice_to(struct file *in, loff_t *ppos,
 	long err;
 
 	lockdep_off();
-	err = do_splice_to(in, ppos, pipe, len, flags);
+	err = vfs_splice_to(in, ppos, pipe, len, flags);
 	lockdep_on();
 	file_accessed(in);
 	if (err >= 0)
@@ -500,7 +500,7 @@ long vfsub_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	long err;
 
 	lockdep_off();
-	err = do_splice_from(pipe, out, ppos, len, flags);
+	err = vfs_splice_from(pipe, out, ppos, len, flags);
 	lockdep_on();
 	if (err >= 0)
 		vfsub_update_h_iattr(&out->f_path, /*did*/NULL); /*ignore*/
