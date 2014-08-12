@@ -312,6 +312,10 @@ static int unionfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	unionfs_lock_dentry(dentry, UNIONFS_DMUTEX_CHILD);
 
 	lower_dentry = unionfs_lower_dentry(dentry);
+	if (!lower_dentry) {
+		err = 0;
+		goto out;
+	}
 	if (!(lower_dentry->d_flags & DCACHE_OP_REVALIDATE))
 		goto out;
 
