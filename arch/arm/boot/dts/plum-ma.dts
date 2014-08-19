@@ -232,6 +232,8 @@
 		xio_08 = &xio_07_0a;
 		xio_09 = &xio_07_0a;
 		xio_0a = &xio_07_0a;
+
+		xio_0b = &xio_0b;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -265,7 +267,7 @@
 	/* XIO: (id: 0x06) KYM11 */
 	xio_06: xio@0x06 {
 		#size-cells = <0>;
-		devices = <&gpiox_0x08 &gpiox_0x0e
+		devices = <&gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
 			   &gpiox_0x04_kym11
 			   &leds_au &leds_au_ctrl>;
 	};
@@ -277,6 +279,14 @@
 			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_lisa
 			   &leds_foma &leds_foma_ctrl>;
+	};
+
+	/* XIO: (id: 0x0b) KYM11_AD */
+	xio_0b: xio@0x0b {
+		#size-cells = <0>;
+		devices = <&gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
+			   &gpiox_0x04_kym11
+			   &leds_au &leds_au_ctrl>;
 	};
 };
 
@@ -727,6 +737,28 @@
 	/* KYM11 Control */
 	gpiox_0x08: gpio@2,0x08 {
 		reg = <2 0x00000008 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM11 Mobile Status 1 */
+	gpiox_0x0a: gpio@2,0x0a {
+		reg = <2 0x0000000a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM11 Mobile Status 2 */
+	gpiox_0x0c: gpio@2,0x0c {
+		reg = <2 0x0000000c 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
