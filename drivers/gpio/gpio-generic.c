@@ -579,6 +579,7 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	struct bgpio_chip *bgc;
 	struct bgpio_pdata *pdata = dev_get_platdata(dev);
 	const char *name;
+	struct device_node *np = pdev->dev.of_node, *child;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dat");
 	if (!r)
@@ -631,9 +632,46 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 			bgc->gc.ngpio = pdata->ngpio;
 	}
 
+	bgc->names = devm_kzalloc(dev, sizeof(char *) * bgc->bits, GFP_KERNEL);
+
+	for_each_child_of_node(np, child) {
+		const char *name;
+		u32 reg;
+		int ret;
+
+		name = of_get_property(child, "label", NULL);
+		ret = of_property_read_u32(child, "reg", &reg);
+
+		if (name && ret == 0 && reg >= 0 && reg < bgc->gc.ngpio) {
+			bgc->names[reg] = name;
+		}
+	}
+
+	bgc->gc.names = bgc->names;
+
 	platform_set_drvdata(pdev, bgc);
 
-	return gpiochip_add(&bgc->gc);
+	err = gpiochip_add(&bgc->gc);
+
+	if (err == 0) {
+		int i, status, gpio;
+
+		for (i = 0; i < bgc->gc.ngpio; i++) {
+			if (bgc->names[i] != NULL) {
+				gpio = bgc->gc.base + i;
+
+				status = gpio_request(gpio, bgc->names[i]);
+
+				if (status == 0) {
+					status = gpio_export(gpio, true);
+					if (status < 0)
+						gpio_free(gpio);
+				}
+			}
+		}
+	}
+
+	return err;
 }
 
 static int bgpio_pdev_remove(struct platform_device *pdev)

@@ -57,6 +57,8 @@ struct bgpio_chip {
 
 	/* Shadowed direction registers to clear/set direction safely. */
 	unsigned long dir;
+
+	const char **names;
 };
 
 static inline struct bgpio_chip *to_bgpio_chip(struct gpio_chip *gc)
