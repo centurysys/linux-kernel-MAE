@@ -164,15 +164,21 @@
 		compatible = "gpio-leds";
 		status = "disabled";
 
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x08 0 GPIO_ACTIVE_HIGH>;
+		};
+
 		led@RESETN {
 			label = "Mobile_RESETN";
 			gpios = <&gpiox_0x08 6 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
 		};
 
-		led@MobilePower {
-			label = "Mobile_Power";
-			gpios = <&gpiox_0x08 0 GPIO_ACTIVE_HIGH>;
+		led@PWR_ON {
+			label = "Mobile_PWR_ON";
+			gpios = <&gpiox_0x08 7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
 		};
 	};
 
@@ -754,6 +760,19 @@
 		reg-names = "dat";
 
 		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
 	};
 
 	/* KYM11 Mobile Status 2 */
@@ -765,6 +784,49 @@
 		reg-names = "dat";
 
 		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "RI";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "EMG_RI";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "ANTINF_0";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "ANTINF_1";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "MOS_IND";
+			reg = <4>;
+		};
+
+		stat@5 {
+			label = "RESET_CHK";
+			reg = <5>;
+		};
+
+		stat@6 {
+			label = "PS_HOLD";
+			reg = <6>;
+		};
+
+		stat@7 {
+			label = "AREA_IND";
+			reg = <7>;
+		};
 	};
 
 	/* KYM11 LED */
