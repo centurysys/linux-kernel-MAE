@@ -90,7 +90,7 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node, *child;
 	enum of_gpio_flags flags;
 	int gpio_irq, gpios = 0;
-	int err = 0;
+	int i, err = 0;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
@@ -153,6 +153,20 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	err = gpiochip_add(chip);
 	if (err)
 		goto out;
+
+	for (i = 0; i < gpios; i++) {
+		int gpio, status;
+
+		gpio = chip->base + i;
+		status = gpio_request(gpio, chip->names[i] ?
+				      chip->names[i] : "XIOIRQ");
+
+		if (status == 0) {
+			status = gpio_export(gpio, false);
+			if (status < 0)
+				gpio_free(gpio);
+		}
+	}
 
 	if (request_irq(gpio->irq, xio_interrupt,
 			IRQF_TRIGGER_FALLING | IRQF_SHARED,
