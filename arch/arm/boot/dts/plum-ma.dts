@@ -860,6 +860,24 @@
 		reg-names = "dat";
 
 		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "ModuleAvailable";
+			reg = <2>;
+		};
 	};
 
 	/* FOMA LED */
@@ -904,6 +922,49 @@
 		reg-names = "dat";
 
 		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		din@0 {
+			label = "DI_00";
+			reg = <0>;
+		};
+
+		din@1 {
+			label = "DI_01";
+			reg = <1>;
+		};
+
+		din@2 {
+			label = "DI_02";
+			reg = <2>;
+		};
+
+		din@3 {
+			label = "DI_03";
+			reg = <3>;
+		};
+
+		din@4 {
+			label = "DI_04";
+			reg = <4>;
+		};
+
+		din@5 {
+			label = "DI_05";
+			reg = <5>;
+		};
+
+		din@6 {
+			label = "DI_06";
+			reg = <6>;
+		};
+
+		din@7 {
+			label = "DI_07";
+			reg = <7>;
+		};
 	};
 
 	/* DIO DOUT */
