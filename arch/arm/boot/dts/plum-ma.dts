@@ -290,7 +290,10 @@
 	/* XIO: (id: 0x0b) KYM11_AD */
 	xio_0b: xio@0x0b {
 		#size-cells = <0>;
-		devices = <&gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
+		devices = <&uartx2_0x20
+			   &gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
+			   &gpiox_0x18
+			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_kym11
 			   &leds_au &leds_au_ctrl>;
 	};
