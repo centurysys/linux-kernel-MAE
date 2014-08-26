@@ -718,6 +718,13 @@ config SENSORS_LTC4261
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc4261.
 
+config SENSORS_LTC185X
+	tristate "Linear Technology LTC185x"
+	depends on SPI_MASTER && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Linear Technology
+	  LT185x chip family.
+
 config SENSORS_LM95241
 	tristate "National Semiconductor LM95241 and compatibles"
 	depends on I2C
