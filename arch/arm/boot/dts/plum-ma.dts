@@ -1159,6 +1159,14 @@
 	led-giga-gpio = <&gpio2 17 GPIO_ACTIVE_LOW>;
 };
 
+&tscadc {
+	status = "okay";
+
+	adc {
+		ti,adc-channels = <0 1>;
+	};
+};
+
 &mmc1 {
 	status = "okay";
 	vmmc-supply = <&vmmcsd_fixed>;
