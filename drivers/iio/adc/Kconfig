@@ -346,4 +346,13 @@ config XILINX_XADC
 	  The driver can also be build as a module. If so, the module will be called
 	  xilinx-xadc.
 
+config LTC185X_IIO
+	tristate "Linear Technology LTC185x ADC driver"
+	depends on SPI_MASTER
+	select IIO_BUFFER
+	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Linear Technology LT185x ADCs.
+
 endmenu
