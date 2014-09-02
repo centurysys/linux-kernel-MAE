@@ -204,4 +204,13 @@ config VIPERBOARD_ADC
 	  Say yes here to access the ADC part of the Nano River
 	  Technologies Viperboard.
 
+config LTC185X_IIO
+	tristate "Linear Technology LTC185x ADC driver"
+	depends on SPI_MASTER
+	select IIO_BUFFER
+	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Linear Technology LT185x ADCs.
+
 endmenu
