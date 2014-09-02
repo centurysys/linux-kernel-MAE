@@ -60,6 +60,17 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	xio_adc_supply: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "xio-adc-supply";
+		regulator-min-microvolt = <15000000>;
+		regulator-max-microvolt = <15000000>;
+
+		gpio = <&gpiox_0x00 4 GPIO_ACTIVE_HIGH>;
+
+		enable-active-high;
+	};
+
 	leds_onboard: leds_onboard {
 		pinctrl-names = "default";
 		pinctrl-0 = <&power_led_pins>;
@@ -290,8 +301,9 @@
 	/* XIO: (id: 0x0b) KYM11_AD */
 	xio_0b: xio@0x0b {
 		#size-cells = <0>;
-		devices = <&uartx2_0x20
-			   &gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
+		devices = <&spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
 			   &gpiox_0x18
 			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_kym11
@@ -470,6 +482,15 @@
 		pinctrl-single,pins = <
 			0x108 (PIN_INPUT | MUX_MODE7) /* mii1_col.gpio3_0 */
 			0x19c (PIN_INPUT | MUX_MODE7) /* mcasp0_ahclkr.gpio3_17 */
+		>;
+	};
+
+	spi1_pins: pinmux_spi1_pins {
+		pinctrl-single,pins = <
+			0x190 (PIN_OUTPUT | MUX_MODE3) /* mcasp0_aclkx.spi1_sclk */
+			0x194 (PIN_INPUT  | MUX_MODE3) /* mcasp0_fsx.spi1_d0 */
+			0x198 (PIN_OUTPUT | MUX_MODE3) /* mcasp0_axr0.spi1_d1 */
+			0x144 (PIN_OUTPUT | MUX_MODE2) /* rmii_ref_clk.spi1_cs0 */
 		>;
 	};
 
@@ -741,6 +762,20 @@
 		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
 		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
 		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* XIO Board Control */
+	gpiox_0x00: gpio@2,0x00 {
+		reg = <2 0x00000000 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 	/* KYM11 Control */
@@ -1225,6 +1260,23 @@
 			label = "hist_boot";
 			reg = <0x00120000 0x000e0000>;
 		};
+	};
+};
+
+&spi1 {
+	ti,spi-num-cs = <1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
+
+	ltc1859@0 {
+		compatible = "ltc185x";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-cpha;
+		spi-cpol;
+
+		vcc-supply = <&xio_adc_supply>;
 	};
 };
 
