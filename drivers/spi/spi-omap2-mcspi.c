@@ -1173,6 +1173,9 @@ static void omap2_mcspi_work(struct omap2_mcspi *mcspi, struct spi_message *m)
 			cs_active = 0;
 		}
 
+		if (t->delay_usecs2)
+			udelay(t->delay_usecs2);
+
 		omap2_mcspi_set_enable(spi, 0);
 
 		if (mcspi->fifo_depth > 0)
