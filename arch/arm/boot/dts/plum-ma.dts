@@ -37,7 +37,7 @@
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator_vbat@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -53,14 +53,14 @@
 		};
 	};
 
-	vmmcsd_fixed: fixedregulator@0 {
+	vmmcsd_fixed: fixedregulator_mmc@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
 
-	xio_adc_supply: fixedregulator@0 {
+	xio_adc_supply: fixedregulator_adc@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "xio-adc-supply";
 		regulator-min-microvolt = <15000000>;
@@ -487,7 +487,7 @@
 
 	spi1_pins: pinmux_spi1_pins {
 		pinctrl-single,pins = <
-			0x190 (PIN_OUTPUT | MUX_MODE3) /* mcasp0_aclkx.spi1_sclk */
+			0x190 (PIN_OUTPUT | PIN_INPUT | MUX_MODE3) /* mcasp0_aclkx.spi1_sclk */
 			0x194 (PIN_INPUT  | MUX_MODE3) /* mcasp0_fsx.spi1_d0 */
 			0x198 (PIN_OUTPUT | MUX_MODE3) /* mcasp0_axr0.spi1_d1 */
 			0x144 (PIN_OUTPUT | MUX_MODE2) /* rmii_ref_clk.spi1_cs0 */
@@ -1273,8 +1273,8 @@
 		compatible = "ltc185x";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
-		spi-cpha;
-		spi-cpol;
+		//spi-cpha;
+		//spi-cpol;
 
 		vcc-supply = <&xio_adc_supply>;
 	};
