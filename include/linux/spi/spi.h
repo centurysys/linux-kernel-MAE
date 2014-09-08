@@ -623,6 +623,7 @@ struct spi_transfer {
 #define	SPI_NBITS_QUAD		0x04 /* 4bits transfer */
 	u8		bits_per_word;
 	u16		delay_usecs;
+	u16		delay_usecs2;
 	u32		speed_hz;
 
 	struct list_head transfer_list;
