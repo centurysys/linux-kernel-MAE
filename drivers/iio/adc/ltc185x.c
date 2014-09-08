@@ -42,6 +42,7 @@ struct ltc185x_state {
 	 * transfer buffers to live in their own cache lines.
 	 */
 	__be16				rx_buf[8] ____cacheline_aligned;
+//	__be16				rx_buf[8];
 	__be16				tx_buf;
 };
 
@@ -64,7 +65,7 @@ static int ltc185x_update_scan_mode(struct iio_dev *indio_dev,
 			command = ((i << 4) |
 				   (st->chan_setting[i].uni << 3) |
 				   (st->chan_setting[i].gain << 2)) << 8;
-			st->tx_buf = cpu_to_be16(command);
+			st->tx_buf = command;
 
 			st->ring_xfer[i].tx_buf = &st->tx_buf;
 			st->ring_xfer[i].len = 2;
@@ -118,10 +119,11 @@ static int ltc185x_scan_direct(struct ltc185x_state *st, unsigned ch)
 	unsigned short command;
 
 	ch = ch & 0x03;
+
 	command = ((ch << 4) |
 		   (st->chan_setting[ch].uni << 3) |
 		   (st->chan_setting[ch].gain << 2)) << 8;
-	st->tx_buf = cpu_to_be16(command);
+	st->tx_buf = command;
 
 	ret = spi_sync(st->spi, &st->scan_single_msg);
 	if (ret)
@@ -139,9 +141,12 @@ static int ltc185x_scan_direct(struct ltc185x_state *st, unsigned ch)
 				printk("rx[%d]: 0x%04x\n", i,
 				       *(u16 *) st->scan_single_xfer[i].rx_buf);
 		}
+
+		printk("st->rx_buf[0] = 0x%04x\n", st->rx_buf[0]);
+		printk("st->rx_buf[1] = 0x%04x\n", st->rx_buf[1]);
 	}
 
-	return be16_to_cpu(st->rx_buf[0]);
+	return st->rx_buf[0];
 }
 
 static int ltc185x_read_raw(struct iio_dev *indio_dev,
@@ -173,20 +178,74 @@ static int ltc185x_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-#define LTC185X_CHAN(index) \
-	{ \
-		.type = IIO_VOLTAGE, \
-		.indexed = 1, \
-		.channel = index,\
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
-		.address = index, \
-		.scan_index = index, \
-		.scan_type = { \
-			.sign = 'u', \
-			.realbits = 16, \
-			.storagebits = 16, \
-			.endianness = IIO_BE, \
-		}, \
+static const char * const ltc185x_ranges[] = {
+	"-5Vto+5V",	/* UNI: 0, GAIN: 0 */
+	"-10Vto+10V",	/* UNI: 0, GAIN: 1 */
+	"0Vto5V",	/* UNI: 1, GAIN: 0 */
+	"0Vto10V",	/* UNI: 1, GAIN: 1 */
+};
+
+static int ltc185x_get_range(struct iio_dev *indio_dev,
+			     const struct iio_chan_spec *chan)
+{
+	struct ltc185x_state *st = iio_priv(indio_dev);
+	u8 uni, gain;
+
+	uni = st->chan_setting[chan->channel].uni;
+	gain = st->chan_setting[chan->channel].gain;
+
+	printk("%s: UNI: %d, GAIN: %d\n", __FUNCTION__, uni, gain);
+
+	return (uni << 1 | gain);
+}
+
+static int ltc185x_set_range(struct iio_dev *indio_dev,
+			     const struct iio_chan_spec *chan, unsigned int mode)
+{
+	struct ltc185x_state *st = iio_priv(indio_dev);
+	u8 uni, gain;
+
+	mutex_lock(&indio_dev->mlock);
+	uni = (mode & 0x02) >> 1;
+	gain = mode & 0x01;
+
+	printk("%s: UNI: %d, GAIN: %d\n", __FUNCTION__, uni, gain);
+
+	st->chan_setting[chan->channel].uni = uni;
+	st->chan_setting[chan->channel].gain = gain;
+
+	mutex_unlock(&indio_dev->mlock);
+
+	return 0;
+}
+
+static const struct iio_enum ltc185x_range_enum = {
+	.items = ltc185x_ranges,
+	.num_items = ARRAY_SIZE(ltc185x_ranges),
+	.get = ltc185x_get_range,
+	.set = ltc185x_set_range,
+};
+
+static const struct iio_chan_spec_ext_info ltc185x_ext_info[] = {
+	IIO_ENUM("range", IIO_SEPARATE, &ltc185x_range_enum),
+	IIO_ENUM_AVAILABLE("ranges", &ltc185x_range_enum),
+	{},
+};
+
+#define LTC185X_CHAN(index) { \
+	.type = IIO_VOLTAGE, \
+	.indexed = 1, \
+	.channel = index, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.address = index, \
+	.scan_index = index, \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = 16, \
+		.storagebits = 16, \
+		.endianness = IIO_BE, \
+	}, \
+	.ext_info = ltc185x_ext_info, \
 }
 
 static const struct iio_chan_spec ltc185x_channels[] = {
@@ -224,7 +283,6 @@ static int ltc185x_probe(struct spi_device *spi)
 		return ret;
 
 	spi_set_drvdata(spi, indio_dev);
-
 	st->spi = spi;
 
 	/* Establish that the iio_dev is a child of the spi device */
@@ -238,10 +296,14 @@ static int ltc185x_probe(struct spi_device *spi)
 
 	st->scan_single_xfer[0].tx_buf = &st->tx_buf;
 	st->scan_single_xfer[0].len = 2;
+	st->scan_single_xfer[0].bits_per_word = 16;
+	st->scan_single_xfer[0].delay_usecs2 = 8;
 	st->scan_single_xfer[0].cs_change = 1;
+
 	st->scan_single_xfer[1].tx_buf = &st->tx_buf;
 	st->scan_single_xfer[1].rx_buf = &st->rx_buf[0];
 	st->scan_single_xfer[1].len = 2;
+	st->scan_single_xfer[1].bits_per_word = 16;
 
 	spi_message_init(&st->scan_single_msg);
 	spi_message_add_tail(&st->scan_single_xfer[0], &st->scan_single_msg);
