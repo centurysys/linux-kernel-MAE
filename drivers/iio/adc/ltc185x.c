@@ -41,9 +41,8 @@ struct ltc185x_state {
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	__be16				rx_buf[8] ____cacheline_aligned;
-//	__be16				rx_buf[8];
-	__be16				tx_buf;
+	u16				rx_buf[8] ____cacheline_aligned;
+	u16				tx_buf;
 };
 
 static int ltc185x_update_scan_mode(struct iio_dev *indio_dev,
@@ -113,16 +112,17 @@ done:
 	return IRQ_HANDLED;
 }
 
-static int ltc185x_scan_direct(struct ltc185x_state *st, unsigned ch)
+static int ltc185x_scan_direct(struct ltc185x_state *st, unsigned ch, int *val)
 {
 	int ret;
 	unsigned short command;
+	u8 uni, gain;
 
 	ch = ch & 0x03;
+	uni = st->chan_setting[ch].uni;
+	gain = st->chan_setting[ch].gain;
 
-	command = ((ch << 4) |
-		   (st->chan_setting[ch].uni << 3) |
-		   (st->chan_setting[ch].gain << 2)) << 8;
+	command = ((ch << 4) | (uni << 3) | (gain << 2)) << 8;
 	st->tx_buf = command;
 
 	ret = spi_sync(st->spi, &st->scan_single_msg);
@@ -130,7 +130,7 @@ static int ltc185x_scan_direct(struct ltc185x_state *st, unsigned ch)
 		return ret;
 
 	// debug
-	{
+	if (0) {
 		int i;
 
 		for (i = 0; i < 2; i++) {
@@ -141,12 +141,14 @@ static int ltc185x_scan_direct(struct ltc185x_state *st, unsigned ch)
 				printk("rx[%d]: 0x%04x\n", i,
 				       *(u16 *) st->scan_single_xfer[i].rx_buf);
 		}
-
-		printk("st->rx_buf[0] = 0x%04x\n", st->rx_buf[0]);
-		printk("st->rx_buf[1] = 0x%04x\n", st->rx_buf[1]);
 	}
 
-	return st->rx_buf[0];
+	if (uni == 0)
+		*val = (int) ((s16) st->rx_buf[0]);
+	else
+		*val = (int) ((u16) st->rx_buf[0]);
+
+	return 0;
 }
 
 static int ltc185x_read_raw(struct iio_dev *indio_dev,
@@ -155,8 +157,9 @@ static int ltc185x_read_raw(struct iio_dev *indio_dev,
 			   int *val2,
 			   long m)
 {
-	int ret;
 	struct ltc185x_state *st = iio_priv(indio_dev);
+	u8 uni, gain;
+	int ret, raw_val = 0;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
@@ -164,15 +167,31 @@ static int ltc185x_read_raw(struct iio_dev *indio_dev,
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
 		else
-			ret = ltc185x_scan_direct(st, chan->address);
+			ret = ltc185x_scan_direct(st, chan->address, &raw_val);
 		mutex_unlock(&indio_dev->mlock);
 
 		if (ret < 0)
 			return ret;
 
-		*val = ret;
+		*val = raw_val;
 
 		return IIO_VAL_INT;
+
+	case IIO_CHAN_INFO_SCALE:
+		uni = st->chan_setting[chan->address].uni;
+		gain = st->chan_setting[chan->address].gain;
+
+		if (gain == 0)
+			*val = 5;
+		else
+			*val = 10;
+
+		if (uni == 0)
+			*val2 = 15;
+		else
+			*val2 = 16;
+
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 
 	return -EINVAL;
@@ -194,8 +213,6 @@ static int ltc185x_get_range(struct iio_dev *indio_dev,
 	uni = st->chan_setting[chan->channel].uni;
 	gain = st->chan_setting[chan->channel].gain;
 
-	printk("%s: UNI: %d, GAIN: %d\n", __FUNCTION__, uni, gain);
-
 	return (uni << 1 | gain);
 }
 
@@ -208,8 +225,6 @@ static int ltc185x_set_range(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	uni = (mode & 0x02) >> 1;
 	gain = mode & 0x01;
-
-	printk("%s: UNI: %d, GAIN: %d\n", __FUNCTION__, uni, gain);
 
 	st->chan_setting[chan->channel].uni = uni;
 	st->chan_setting[chan->channel].gain = gain;
@@ -236,14 +251,14 @@ static const struct iio_chan_spec_ext_info ltc185x_ext_info[] = {
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
 	.channel = index, \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE), \
 	.address = index, \
 	.scan_index = index, \
 	.scan_type = { \
 		.sign = 'u', \
 		.realbits = 16, \
 		.storagebits = 16, \
-		.endianness = IIO_BE, \
+		.endianness = IIO_CPU, \
 	}, \
 	.ext_info = ltc185x_ext_info, \
 }
@@ -266,7 +281,7 @@ static int ltc185x_probe(struct spi_device *spi)
 {
 	struct ltc185x_state *st;
 	struct iio_dev *indio_dev;
-	int ret;
+	int i, ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
@@ -284,6 +299,12 @@ static int ltc185x_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
+
+	/* set default range: 0V to 5V */
+	for (i = 0; i < 4; i++) {
+		st->chan_setting[i].uni = 1;
+		st->chan_setting[i].gain = 0;
+	}
 
 	/* Establish that the iio_dev is a child of the spi device */
 	indio_dev->dev.parent = &spi->dev;
