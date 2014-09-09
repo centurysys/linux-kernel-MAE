@@ -307,7 +307,7 @@
 			   &gpiox_0x18
 			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_kym11
-			   &leds_au &leds_au_ctrl>;
+			   &leds_au &leds_au_ctrl &leds_do>;
 	};
 };
 
