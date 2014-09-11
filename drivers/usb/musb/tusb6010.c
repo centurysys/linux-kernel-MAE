@@ -24,7 +24,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 
 #include "musb_core.h"
 
@@ -1011,6 +1011,7 @@ static int tusb_musb_start(struct musb *musb)
 		goto err;
 	}
 
+	musb->tusb_revision = tusb_get_revision(musb);
 	ret = tusb_print_revision(musb);
 	if (ret < 2) {
 		printk(KERN_ERR "tusb: Unsupported TUSB6010 revision %i\n",
