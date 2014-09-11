@@ -68,11 +68,12 @@ static int ltc185x_update_scan_mode(struct iio_dev *indio_dev,
 
 			st->ring_xfer[i].tx_buf = &st->tx_buf;
 			st->ring_xfer[i].len = 2;
+			st->ring_xfer[i].bits_per_word = 16;
 			st->ring_xfer[i].cs_change = 1;
+			st->ring_xfer[i].delay_usecs2 = 8;
 
 			if (nums > 0) {
 				st->ring_xfer[i].rx_buf = &st->rx_buf[nums - 1];
-				st->ring_xfer[i].len = 2;
 			}
 
 			spi_message_add_tail(&st->ring_xfer[i], &st->ring_msg);
@@ -128,20 +129,6 @@ static int ltc185x_scan_direct(struct ltc185x_state *st, unsigned ch, int *val)
 	ret = spi_sync(st->spi, &st->scan_single_msg);
 	if (ret)
 		return ret;
-
-	// debug
-	if (0) {
-		int i;
-
-		for (i = 0; i < 2; i++) {
-			if (st->scan_single_xfer[i].tx_buf)
-				printk("tx[%d]: 0x%04x\n", i,
-				       *(u16 *) st->scan_single_xfer[i].tx_buf);
-			if (st->scan_single_xfer[i].rx_buf)
-				printk("rx[%d]: 0x%04x\n", i,
-				       *(u16 *) st->scan_single_xfer[i].rx_buf);
-		}
-	}
 
 	if (uni == 0)
 		*val = (int) ((s16) st->rx_buf[0]);
@@ -200,8 +187,8 @@ static int ltc185x_read_raw(struct iio_dev *indio_dev,
 static const char * const ltc185x_ranges[] = {
 	"-5Vto+5V",	/* UNI: 0, GAIN: 0 */
 	"-10Vto+10V",	/* UNI: 0, GAIN: 1 */
-	"0Vto5V",	/* UNI: 1, GAIN: 0 */
-	"0Vto10V",	/* UNI: 1, GAIN: 1 */
+	"0Vto+5V",	/* UNI: 1, GAIN: 0 */
+	"0Vto+10V",	/* UNI: 1, GAIN: 1 */
 };
 
 static int ltc185x_get_range(struct iio_dev *indio_dev,
@@ -360,6 +347,34 @@ static int ltc185x_remove(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ltc185x_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ltc185x_state *st = iio_priv(indio_dev);
+
+	regulator_disable(st->reg);
+
+	return 0;
+}
+
+static int ltc185x_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ltc185x_state *st = iio_priv(indio_dev);
+	int res;
+
+	res = regulator_enable(st->reg);
+
+	return res;
+}
+
+static const struct dev_pm_ops ltc185x_pm_ops = {
+	.suspend = ltc185x_suspend,
+	.resume = ltc185x_resume,
+};
+#endif
+
 static const struct spi_device_id ltc185x_id[] = {
 	{"ltc1857", 0},
 	{"ltc1858", 0},
@@ -373,6 +388,9 @@ static struct spi_driver ltc185x_driver = {
 	.driver = {
 		.name	= "ltc185x",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &ltc185x_pm_ops,
+#endif
 	},
 	.probe		= ltc185x_probe,
 	.remove	= ltc185x_remove,
