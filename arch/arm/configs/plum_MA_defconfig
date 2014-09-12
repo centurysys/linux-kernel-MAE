@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.14.17 Kernel Configuration
+# Linux/arm 3.14.18 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1519,6 +1519,7 @@ CONFIG_SERIAL_NONSTANDARD=y
 CONFIG_N_HDLC=y
 # CONFIG_N_GSM is not set
 # CONFIG_TRACE_SINK is not set
+CONFIG_USBTTY_WORKAROUND=y
 CONFIG_DEVKMEM=y
 
 #
