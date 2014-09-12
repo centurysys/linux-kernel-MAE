@@ -210,18 +210,47 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
+#ifdef CONFIG_USBTTY_WORKAROUND
+	int ret;
+#endif
 #ifdef TTY_DEBUG_WAIT_UNTIL_SENT
 	char buf[64];
 
 	printk(KERN_DEBUG "%s wait until sent...\n", tty_name(tty, buf));
 #endif
-	if (!timeout)
+	if (!timeout) {
+#ifndef CONFIG_USBTTY_WORKAROUND
 		timeout = MAX_SCHEDULE_TIMEOUT;
+#else
+		/* workaround for USB tty device freeze at ppp down */
+		if (strlen(current->comm) == 4 &&
+		    strncmp(current->comm, "pppd", 4) == 0)
+			timeout = 10;
+		else
+			timeout = MAX_SCHEDULE_TIMEOUT;
+#endif
+	}
+#ifndef CONFIG_USBTTY_WORKAROUND
 	if (wait_event_interruptible_timeout(tty->write_wait,
 			!tty_chars_in_buffer(tty), timeout) >= 0) {
 		if (tty->ops->wait_until_sent)
 			tty->ops->wait_until_sent(tty, timeout);
 	}
+#else
+	ret = wait_event_interruptible_timeout(tty->write_wait,
+					       !tty_chars_in_buffer(tty), timeout);
+
+	if (ret > 0) {
+		if (tty->ops->wait_until_sent)
+			tty->ops->wait_until_sent(tty, timeout);
+	} else if (ret == 0) {
+		char name[64];
+
+		printk(KERN_WARNING "process %s (device: %s) "
+		       "timeout waiting for IO to finish.\n",
+		       current->comm, tty_name(tty, name));
+	}
+#endif
 }
 EXPORT_SYMBOL(tty_wait_until_sent);
 
