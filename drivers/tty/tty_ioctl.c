@@ -225,7 +225,7 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 		/* workaround for USB tty device freeze at ppp down */
 		if (strlen(current->comm) == 4 &&
 		    strncmp(current->comm, "pppd", 4) == 0)
-			timeout = 10;
+			timeout = 10 * HZ;
 		else
 			timeout = MAX_SCHEDULE_TIMEOUT;
 #endif
