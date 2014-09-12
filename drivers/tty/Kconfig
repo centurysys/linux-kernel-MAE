@@ -419,4 +419,7 @@ config DA_CONSOLE
 	help
 	  This enables a console on a Dash channel.
 
+config USBTTY_WORKAROUND
+        bool "TTY wait until forever workaround."
+
 endif # TTY
