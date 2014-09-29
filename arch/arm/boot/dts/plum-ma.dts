@@ -265,6 +265,9 @@
 		xio_0a = &xio_07_0a;
 
 		xio_0b = &xio_0b;
+
+		xio_0f = &xio_0f_10;
+		xio_10 = &xio_0f_10;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -324,6 +327,16 @@
 			   &gpiox_0x04_kym11
 			   &leds_au &leds_au_ctrl &leds_do>;
 	};
+
+	/* XIO: (id: 0x0f .. 0x10) FOMA/RM-92x */
+	xio_0f_10: xio@0x0f_10 {
+		#size-cells = <0>;
+		devices = <&uartx2_0x20
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_foma_ctrl>;
+	};
+
 };
 
 &am33xx_pinmux {
