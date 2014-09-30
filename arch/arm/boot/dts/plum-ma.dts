@@ -214,6 +214,7 @@
 		led@MobilePower {
 			label = "Mobile_Power";
 			gpios = <&gpiox_0x08 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 
 		led@XER {
@@ -224,6 +225,7 @@
 		led@USB_H_RDY {
 			label = "Mobile_USB_H_RDY";
 			gpios = <&gpiox_0x08 4 GPIO_ACTIVE_LOW>;
+			default-state = "on";
 		};
 
 		led@PWRKEY_OFF {
