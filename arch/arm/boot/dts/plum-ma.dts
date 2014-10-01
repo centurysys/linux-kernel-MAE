@@ -231,6 +231,7 @@
 		led@PWRKEY_OFF {
 			label = "Mobile_PWRKEY_OFF";
 			gpios = <&gpiox_0x08 5 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
 		};
 
 		led@SYSRST {
@@ -241,6 +242,7 @@
 		led@PWRKEY_ON {
 			label = "Mobile_PWRKEY_ON";
 			gpios = <&gpiox_0x08 7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
 		};
 	};
 
