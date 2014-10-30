@@ -68,6 +68,8 @@
 
 		gpio = <&gpiox_0x00 4 GPIO_ACTIVE_HIGH>;
 
+		status = "disabled";
+
 		enable-active-high;
 	};
 
@@ -358,7 +360,7 @@
 	/* XIO: (id: 0x0b) KYM11_AD */
 	xio_0b: xio@0x0b {
 		#size-cells = <0>;
-		devices = <&xio_di_supply
+		devices = <&xio_di_supply &xio_adc_supply
 			   &spi1
 			   &uartx2_0x20
 			   &gpiox_0x00 &gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
@@ -371,7 +373,7 @@
 	/* XIO: (id: 0x0c) UM03_AD */
 	xio_0c: xio@0x0c {
 		#size-cells = <0>;
-		devices = <&xio_di_supply
+		devices = <&xio_di_supply &xio_adc_supply
 			   &spi1
 			   &uartx2_0x20
 			   &gpiox_0x00 &gpiox_0x08
