@@ -152,6 +152,28 @@
 		};
 	};
 
+	leds_amp_ctrl: leds_amp_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWRKEY {
+			label = "Mobile_PWRKEY";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	leds_au: leds_au {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -393,7 +415,7 @@
 		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_lisa
-			   &leds_foma &leds_foma_ctrl>;
+			   &leds_foma &leds_amp_ctrl>;
 	};
 
 	/* XIO: (id: 0x0f .. 0x10) FOMA/RM-92x */
