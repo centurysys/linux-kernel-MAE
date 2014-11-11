@@ -308,6 +308,9 @@
 		xio_0b = &xio_0b;
 		xio_0c = &xio_0c;
 
+		xio_0d = &xio_0d_0e;
+		xio_0e = &xio_0d_0e;
+
 		xio_0f = &xio_0f_10;
 		xio_10 = &xio_0f_10;
 	};
@@ -382,6 +385,15 @@
 			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_um03ko
 			   &leds_au &leds_um03_ctrl &leds_do>;
+	};
+
+	/* XIO: (id: 0x0d .. 0x0e) LTE/DIO(2x2) */
+	xio_0d_0e: xio@0x0d_0e {
+		#size-cells = <0>;
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_foma_ctrl>;
 	};
 
 	/* XIO: (id: 0x0f .. 0x10) FOMA/RM-92x */
