@@ -588,3 +588,66 @@ void br_port_flags_change(struct net_bridge_port *p, unsigned long mask)
 	if (mask & BR_AUTO_MASK)
 		nbp_update_port_count(br);
 }
+
+/* br_port_dev_get()
+ *      Using the given addr, identify the port to which it is reachable,
+ *      returing a reference to the net device associated with that port.
+ *
+ * NOTE: Return NULL if given dev is not a bridge or the mac has no
+ * associated port.
+ */
+struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr)
+{
+	struct net_bridge_fdb_entry *fdbe;
+	struct net_bridge *br;
+	struct net_device *pdev;
+
+	/* Is this a bridge? */
+	if (!(dev->priv_flags & IFF_EBRIDGE))
+		return NULL;
+
+	/* Lookup the fdb entry */
+	br = netdev_priv(dev);
+	rcu_read_lock();
+	fdbe = __br_fdb_get(br, addr, 0);
+	if (!fdbe) {
+		rcu_read_unlock();
+		return NULL;
+	}
+
+	/* Get reference to the port dev */
+	if (!fdbe->dst) {
+		rcu_read_unlock();
+		return NULL;
+	}
+	pdev = fdbe->dst->dev;
+	dev_hold(pdev);
+	rcu_read_unlock();
+
+	return pdev;
+}
+EXPORT_SYMBOL_GPL(br_port_dev_get);
+
+/* Update bridge statistics for bridge packets processed by offload engines */
+void br_dev_update_stats(struct net_device *dev,
+			 struct rtnl_link_stats64 *nlstats)
+{
+	struct net_bridge *br;
+	struct pcpu_sw_netstats *stats;
+
+	/* Is this a bridge? */
+	if (!(dev->priv_flags & IFF_EBRIDGE))
+		return;
+
+	br = netdev_priv(dev);
+	stats = per_cpu_ptr(br->stats, 0);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_packets += nlstats->rx_packets;
+	stats->rx_bytes += nlstats->rx_bytes;
+	stats->tx_packets += nlstats->tx_packets;
+	stats->tx_bytes += nlstats->tx_bytes;
+	u64_stats_update_end(&stats->syncp);
+}
+EXPORT_SYMBOL_GPL(br_dev_update_stats);
+
