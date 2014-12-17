@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.14.26 Kernel Configuration
+# Linux/arm 3.14.27 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1152,7 +1152,7 @@ CONFIG_MTD_PLATRAM=m
 # Self-contained MTD device drivers
 #
 # CONFIG_MTD_DATAFLASH is not set
-CONFIG_MTD_M25P80=m
+CONFIG_MTD_M25P80=y
 # CONFIG_MTD_SST25L is not set
 # CONFIG_MTD_SLRAM is not set
 # CONFIG_MTD_PHRAM is not set
