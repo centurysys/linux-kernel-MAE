@@ -1603,8 +1603,8 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 		status = of_get_property(child, "status", &statlen);
 		if (status && statlen > 0) {
 			if (!(!strcmp(status, "okay") || !strcmp(status, "ok"))) {
-				printk(" %s is disabled, continue...\n",
-				       child->full_name);
+				/* printk(" %s is disabled, continue...\n", */
+				/*        child->full_name); */
 				continue;
 			}
 		}
