@@ -599,6 +599,8 @@ static bool  sw_babble_control(struct musb *musb)
 			 */
 			dev_dbg(musb->controller, "J not cleared, misc (%x)\n",
 				babble_ctl);
+			dev_info(musb->controller, "Need to restart MUSB to recover"
+				 " from Babble\n");
 			session_restart = true;
 		}
 	} else {
@@ -623,7 +625,7 @@ static int dsps_musb_reset(struct musb *musb)
 	 * reset is needed
 	 */
 	if (session_restart || !glue->sw_babble_enabled) {
-		dev_info(musb->controller, "Restarting MUSB to recover from Babble\n");
+		/*dev_info(musb->controller, "Restarting MUSB to recover from Babble\n");*/
 		dsps_writel(musb->ctrl_base, wrp->control, (1 << wrp->reset));
 		usleep_range(100, 200);
 		usb_phy_shutdown(musb->xceiv);
