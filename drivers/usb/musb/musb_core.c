@@ -755,8 +755,9 @@ b_host:
 		case OTG_STATE_A_SUSPEND:
 			musb_host_resume_root_hub(musb);
 			musb_root_disconnect(musb);
-			schedule_delayed_work(&musb->recover_work,
-					      msecs_to_jiffies(100));
+			if (musb->hcd->self.busnum == 2)
+				schedule_delayed_work(&musb->recover_work,
+						      msecs_to_jiffies(100));
 			if (musb->a_wait_bcon != 0)
 				musb_platform_try_idle(musb, jiffies
 					+ msecs_to_jiffies(musb->a_wait_bcon));
