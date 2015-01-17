@@ -645,9 +645,36 @@ static int pptp_ppp_ioctl(struct ppp_channel *chan, unsigned int cmd,
 	return err;
 }
 
+/* pptp_hold_chan() */
+static void pptp_hold_chan(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+
+	sock_hold(sk);
+}
+
+/* pptp_release_chan() */
+static void pptp_release_chan(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+
+	sock_put(sk);
+}
+
+/* pptp_get_channel_protocol()
+ *     Return the protocol type of the PPTP over PPP protocol
+ */
+static int pptp_get_channel_protocol(struct ppp_channel *chan)
+{
+	return PX_PROTO_PPTP;
+}
+
 static const struct ppp_channel_ops pptp_chan_ops = {
 	.start_xmit = pptp_xmit,
 	.ioctl      = pptp_ppp_ioctl,
+	.get_channel_protocol = pptp_get_channel_protocol,
+	.hold = pptp_hold_chan,
+	.release = pptp_release_chan,
 };
 
 static struct proto pptp_sk_proto __read_mostly = {

@@ -131,9 +131,15 @@ struct pppol2tp_session {
 };
 
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
+static int pppol2tp_get_channel_protocol(struct ppp_channel *);
+static void pppol2tp_hold_chan(struct ppp_channel *);
+static void pppol2tp_release_chan(struct ppp_channel *);
 
 static const struct ppp_channel_ops pppol2tp_chan_ops = {
 	.start_xmit =  pppol2tp_xmit,
+	.get_channel_protocol = pppol2tp_get_channel_protocol,
+	.hold = pppol2tp_hold_chan,
+	.release = pppol2tp_release_chan,
 };
 
 static const struct proto_ops pppol2tp_ops;
@@ -366,6 +372,30 @@ error_put_sess:
 	sock_put(sk);
 error:
 	return error;
+}
+
+/* pppol2tp_hold_chan() */
+static void pppol2tp_hold_chan(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+
+	sock_hold(sk);
+}
+
+/* pppol2tp_release_chan() */
+static void pppol2tp_release_chan(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+
+	sock_put(sk);
+}
+
+/* pppol2tp_get_channel_protocol()
+ * Return the protocol type of the L2TP over PPP protocol
+ */
+static int pppol2tp_get_channel_protocol(struct ppp_channel *chan)
+{
+	return PX_PROTO_OL2TP;
 }
 
 /* Transmit function called by generic PPP driver.  Sends PPP frame
