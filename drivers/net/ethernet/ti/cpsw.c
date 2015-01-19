@@ -1386,8 +1386,15 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	}
 	for_each_slave(priv, cpsw_slave_stop, priv);
 	pm_runtime_put_sync(&priv->pdev->dev);
-	if (priv->data.dual_emac)
-		priv->slaves[priv->emac_port].open_stat = false;
+	if (priv->data.dual_emac) {
+		struct cpsw_slave *slave;
+
+		slave = &priv->slaves[priv->emac_port];
+
+		slave->open_stat = false;
+		gpio_direction_output(slave->data->led_giga_gpio, 1);
+		gpio_direction_output(slave->data->led_fast_gpio, 1);
+	}
 	return 0;
 }
 
