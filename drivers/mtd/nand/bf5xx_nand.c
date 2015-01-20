@@ -866,7 +866,6 @@ static struct platform_driver bf5xx_nand_driver = {
 	.resume		= bf5xx_nand_resume,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

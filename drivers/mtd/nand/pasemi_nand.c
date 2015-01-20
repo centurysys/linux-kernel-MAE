@@ -224,7 +224,6 @@ static struct platform_driver pasemi_nand_driver =
 {
 	.driver = {
 		.name = driver_name,
-		.owner = THIS_MODULE,
 		.of_match_table = pasemi_nand_match,
 	},
 	.probe		= pasemi_nand_probe,
