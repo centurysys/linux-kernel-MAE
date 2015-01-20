@@ -1361,6 +1361,7 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 	int bitflip_count;
 	bool is_error_reported = false;
 	u32 bit_pos, byte_pos, error_max, pos;
+	int err;
 
 	switch (info->ecc_opt) {
 	case OMAP_ECC_BCH4_CODE_HW:
@@ -1446,8 +1447,12 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 	/* Decode BCH error using ELM module */
 	elm_decode_bch_error_page(info->elm_dev, ecc_vec, err_vec);
 
+	err = 0;
 	for (i = 0; i < eccsteps; i++) {
-		if (err_vec[i].error_reported) {
+		if (err_vec[i].error_uncorrectable) {
+			pr_err("nand: uncorrectable bit-flips found\n");
+			err = -EBADMSG;
+		} else if (err_vec[i].error_reported) {
 			for (j = 0; j < err_vec[i].error_count; j++) {
 				switch (info->ecc_opt) {
 				case OMAP_ECC_BCH4_CODE_HW:
@@ -1470,13 +1475,22 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 				byte_pos = (error_max - pos - 1) / 8;
 
 				if (pos < error_max) {
-					if (byte_pos < 512)
+					if (byte_pos < 512) {
+						pr_debug("bitflip@dat[%d]=%x\n",
+						     byte_pos, data[byte_pos]);
 						data[byte_pos] ^= 1 << bit_pos;
-					else
+					} else {
+						pr_debug("bitflip@oob[%d]=%x\n",
+							(byte_pos - 512),
+						     spare_ecc[byte_pos - 512]);
 						spare_ecc[byte_pos - 512] ^=
 							1 << bit_pos;
+					}
+				} else {
+					pr_err("invalid bit-flip @ %d:%d\n",
+							 byte_pos, bit_pos);
+					err = -EBADMSG;
 				}
-				/* else, not interested to correct ecc */
 			}
 		}
 
@@ -1488,12 +1502,7 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 		spare_ecc += ecc->bytes;
 	}
 
-	for (i = 0; i < eccsteps; i++)
-		/* Return error if uncorrectable error present */
-		if (err_vec[i].error_uncorrectable)
-			return -EINVAL;
-
-	return stat;
+	return (err) ? err : stat;
 }
 
 /**
@@ -1655,7 +1664,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 	mtd->owner		= THIS_MODULE;
 	nand_chip		= &info->nand;
 	nand_chip->ecc.priv	= NULL;
-	nand_chip->options	|= NAND_SKIP_BBTSCAN;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -1699,6 +1707,11 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->waitfunc = omap_wait;
 		nand_chip->chip_delay = 50;
 	}
+
+	if (pdata->flash_bbt)
+		nand_chip->bbt_options |= NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
+	else
+		nand_chip->options |= NAND_SKIP_BBTSCAN;
 
 	/* scan NAND device connected to chip controller */
 	nand_chip->options |= pdata->devsize & NAND_BUSWIDTH_16;
