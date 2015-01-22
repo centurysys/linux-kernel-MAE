@@ -149,6 +149,7 @@
 		led@MobilePower {
 			label = "Mobile_Power";
 			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 	};
 
