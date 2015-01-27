@@ -385,6 +385,9 @@ static inline bool ipv6_addr_is_solict_mult(const struct in6_addr *addr)
 #endif
 }
 
+struct net_device *ipv6_dev_find(struct net *net, struct in6_addr *addr,
+				 int strict);
+
 #ifdef CONFIG_PROC_FS
 int if6_proc_init(void);
 void if6_proc_exit(void);
