@@ -108,6 +108,13 @@ struct vlan_pcpu_stats {
 
 extern struct net_device *__vlan_find_dev_deep_rcu(struct net_device *real_dev,
 					       __be16 vlan_proto, u16 vlan_id);
+extern void __vlan_dev_update_accel_stats(struct net_device *dev,
+				    struct rtnl_link_stats64 *stats);
+
+extern u16 vlan_dev_get_egress_prio(struct net_device *dev, u32 skb_prio);
+
+extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
+					       __be16 vlan_proto, u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 extern __be16 vlan_dev_vlan_proto(const struct net_device *dev);
@@ -204,6 +211,19 @@ static inline int vlan_get_encap_level(struct net_device *dev)
 	return vlan_dev_priv(dev)->nest_level;
 }
 #else
+static inline void __vlan_dev_update_accel_stats(struct net_device *dev,
+					   struct rtnl_link_stats64 *stats)
+{
+
+}
+
+static inline u16 vlan_dev_get_egress_prio(struct net_device *dev,
+						u32 skb_prio)
+{
+	return 0;
+}
+
+
 static inline struct net_device *
 __vlan_find_dev_deep_rcu(struct net_device *real_dev,
 		     __be16 vlan_proto, u16 vlan_id)
