@@ -232,6 +232,28 @@
 		};
 	};
 
+	leds_au_wlan_ctrl: leds_au_wlan_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x0e_wlan 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x0e_wlan 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@PWR_ON {
+			label = "Mobile_PWR_ON";
+			gpios = <&gpiox_0x0e_wlan 7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+	};
+
 	leds_um03_ctrl: leds_um03_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -268,6 +290,68 @@
 			label = "Mobile_PWRKEY_ON";
 			gpios = <&gpiox_0x08 7 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
+		};
+	};
+
+	leds_wlan_ctrl: leds_wlan_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@WLAN_Power {
+			label = "WLAN_Power";
+			gpios = <&gpiox_0x08_wlan 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led@WPS_Pin {
+			label = "WPS_Pin";
+			gpios = <&gpiox_0x08_wlan 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
+	leds_mobile_wlan: leds_mobile_wlan {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "WiFiLED_G1";
+			gpios = <&gpiox_0x14 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "WiFiLED_R1";
+			gpios = <&gpiox_0x14 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "MobileLED_G3";
+			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_G2";
+			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_G1";
+			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_R3";
+			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x7 {
+			label = "MobileLED_R2";
+			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x8 {
+			label = "MobileLED_R1";
+			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -336,6 +420,9 @@
 
 		xio_0f = &xio_0f_10;
 		xio_10 = &xio_0f_10;
+
+		xio_12 = &xio_12_15;
+		xio_15 = &xio_12_15;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -427,6 +514,16 @@
 			   &gpiox_0x18
 			   &gpiox_0x04_lisa
 			   &leds_foma &leds_foma_ctrl>;
+	};
+
+	/* XIO: (id: 0x12/0x15) KYM_WLAN */
+	xio_12_15: xio@0x12_15 {
+		#size-cells = <0>;
+		devices = <&xio_di_supply &xio_adc_supply
+			   &spi1
+			   &gpiox_0x00 &gpiox_0x04_kym11 &gpiox_0x08_wlan &gpiox_0x0e_wlan
+			   &gpiox_0x10_kymwlan &gpiox_0x12_kymwlan &gpiox_0x14
+			   &leds_mobile_wlan &leds_wlan_ctrl &leds_au_wlan_ctrl>;
 	};
 };
 
@@ -908,6 +1005,17 @@
 		status = "disabled";
 	};
 
+	/* WLAN Control */
+	gpiox_0x08_wlan: gpio@2,0x08 {
+		reg = <2 0x00000008 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
 	/* KYM11 Mobile Status 1 */
 	gpiox_0x0a: gpio@2,0x0a {
 		reg = <2 0x0000000a 0x00000001>;
@@ -1010,7 +1118,7 @@
 		};
 	};
 
-	/* KYM11 Mobile Status 2 */
+	/* UM03-KO Mobile Status 2 */
 	gpiox_0x0c_um03ko: gpio@2,0x0c_um03ko {
 		reg = <2 0x0000000c 0x00000001>;
 		#gpio-cells = <2>;
@@ -1070,6 +1178,17 @@
 		status = "disabled";
 	};
 
+	/* KYM-WLAN Control */
+	gpiox_0x0e_wlan: gpio@2,0x0e {
+		reg = <2 0x0000000e 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
 	/* FOMA Control */
 	gpiox_0x10: gpio@2,0x10 {
 		reg = <2 0x00000010 0x00000001>;
@@ -1079,6 +1198,30 @@
 		reg-names = "dat";
 
 		status = "disabled";
+	};
+
+	/* KYM11 Mobile Status 1 (WLAN) */
+	gpiox_0x10_kymwlan: gpio@2,0x10 {
+		reg = <2 0x00000010 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
 	};
 
 	/* FOMA Status */
@@ -1107,6 +1250,60 @@
 		stat@2 {
 			label = "ModuleAvailable";
 			reg = <2>;
+		};
+	};
+
+	/* KYM11 Mobile Status 2 (WLAN) */
+	gpiox_0x12_kymwlan: gpio@2,0x12 {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "RI";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "EMG_RI";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "ANTINF_0";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "ANTINF_1";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "MOS_IND";
+			reg = <4>;
+		};
+
+		stat@5 {
+			label = "RESET_CHK";
+			reg = <5>;
+		};
+
+		stat@6 {
+			label = "PS_HOLD";
+			reg = <6>;
+		};
+
+		stat@7 {
+			label = "AREA_IND";
+			reg = <7>;
 		};
 	};
 
