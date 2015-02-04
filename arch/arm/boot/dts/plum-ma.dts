@@ -317,11 +317,13 @@
 		led@x1 {
 			label = "WiFiLED_G1";
 			gpios = <&gpiox_0x14 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0tpt";
 		};
 
 		led@x2 {
 			label = "WiFiLED_R1";
 			gpios = <&gpiox_0x14 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0rx";
 		};
 
 		led@x3 {
