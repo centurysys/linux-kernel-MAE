@@ -239,6 +239,12 @@
 		led@MobilePower {
 			label = "Mobile_Power";
 			gpios = <&gpiox_0x0e_wlan 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led@MobilePowerSel {
+			label = "Mobile_PowerSel";
+			gpios = <&gpiox_0x0e_wlan 1 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@RESETN {
@@ -300,12 +306,17 @@
 		led@WLAN_Power {
 			label = "WLAN_Power";
 			gpios = <&gpiox_0x08_wlan 0 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
+		};
+
+		led@WLAN_PowerSel {
+			label = "WLAN_PowerSel";
+			gpios = <&gpiox_0x08_wlan 1 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 
 		led@WPS_Pin {
 			label = "WPS_Pin";
-			gpios = <&gpiox_0x08_wlan 1 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiox_0x08_wlan 2 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 	};
