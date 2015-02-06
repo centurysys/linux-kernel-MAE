@@ -396,6 +396,53 @@
 		};
 	};
 
+	leds_mobile_wlan_mediatek: leds_mobile_wlan_mediatek {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "WiFiLED_G1";
+			gpios = <&gpiox_0x14 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0radio";
+		};
+
+		led@x2 {
+			label = "WiFiLED_R1";
+			gpios = <&gpiox_0x14 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0rx";
+		};
+
+		led@x3 {
+			label = "MobileLED_G3";
+			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_G2";
+			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_G1";
+			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_R3";
+			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x7 {
+			label = "MobileLED_R2";
+			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x8 {
+			label = "MobileLED_R1";
+			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	leds_do: leds_do {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -462,12 +509,12 @@
 		xio_0f = &xio_0f_10;
 		xio_10 = &xio_0f_10;
 
-		xio_12 = &xio_12_15;
-		xio_13 = &xio_13_17;
-		xio_14 = &xio_13_17;
-		xio_15 = &xio_12_15;
-		xio_16 = &xio_13_17;
-		xio_17 = &xio_13_17;
+		xio_12 = &xio_12;
+		xio_13 = &xio_13_14;
+		xio_14 = &xio_13_14;
+		xio_15 = &xio_15;
+		xio_16 = &xio_16_17;
+		xio_17 = &xio_16_17;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -561,8 +608,8 @@
 			   &leds_foma &leds_foma_ctrl>;
 	};
 
-	/* XIO: (id: 0x12/0x15) KYM_WLAN */
-	xio_12_15: xio@0x12_15 {
+	/* XIO: (id: 0x12) KYM_WLAN (Atheros) */
+	xio_12: xio@0x12 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x04_kym11
 			   &gpiox_0x08_wlan &gpiox_0x0e_wlan
@@ -570,12 +617,29 @@
 			   &leds_mobile_wlan &leds_wlan_ctrl &leds_au_wlan_ctrl>;
 	};
 
-	/* XIO: (id: 0x13/0x14/0x16/0x17) AMP_WLAN */
-	xio_13_17: xio@0x13_17 {
+	/* XIO: (id: 0x13/0x14) AMP_WLAN (Atheros) */
+	xio_13_14: xio@0x13_14 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x04_lisa
 			   &gpiox_0x08_wlan &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &leds_amp_wlan_ctrl &leds_mobile_wlan &leds_wlan_ctrl>;
+	};
+
+	/* XIO: (id: 0x15) KYM_WLAN (Mediatek) */
+	xio_15: xio@0x15 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04_kym11
+			   &gpiox_0x08_wlan &gpiox_0x0e_wlan
+			   &gpiox_0x10_kymwlan &gpiox_0x12_kymwlan &gpiox_0x14
+			   &leds_mobile_wlan_mediatek &leds_wlan_ctrl &leds_au_wlan_ctrl>;
+	};
+
+	/* XIO: (id: 0x16/0x17) AMP_WLAN (Mediatek) */
+	xio_16_17: xio@0x16_17 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04_lisa
+			   &gpiox_0x08_wlan &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &leds_amp_wlan_ctrl &leds_mobile_wlan_mediatek &leds_wlan_ctrl>;
 	};
 };
 
