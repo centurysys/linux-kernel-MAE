@@ -248,7 +248,11 @@ static void cppi41_dma_callback(void *private_data)
 			transferred < cppi41_channel->packet_sz)
 		cppi41_channel->prog_len = 0;
 
-	empty = musb_is_tx_fifo_empty(hw_ep);
+	if (cppi41_channel->is_tx)
+		empty = musb_is_tx_fifo_empty(hw_ep);
+	else
+		empty = true;
+
 	if (empty) {
 		cppi41_trans_done(cppi41_channel);
 	} else {
