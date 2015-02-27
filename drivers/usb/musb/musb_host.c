@@ -109,7 +109,6 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
  */
 static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 {
-	struct musb	*musb = ep->musb;
 	void __iomem	*epio = ep->regs;
 	u16		csr;
 
@@ -124,10 +123,21 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 static void musb_h_ep0_flush_fifo(struct musb_hw_ep *ep)
 {
 	void __iomem	*epio = ep->regs;
+	u16             csr;
+	int             retries = 5;
 
-	/* endpoint 0: just flush */
-	musb_writew(epio, MUSB_TXCSR, MUSB_CSR0_FLUSHFIFO);
-	musb_writew(epio, MUSB_TXCSR, MUSB_CSR0_FLUSHFIFO);
+	/* scrub any data left in the fifo */
+	do {
+		csr = musb_readw(epio, MUSB_TXCSR);
+		if (!(csr & (MUSB_CSR0_TXPKTRDY | MUSB_CSR0_RXPKTRDY)))
+			break;
+		musb_writew(epio, MUSB_TXCSR, MUSB_CSR0_FLUSHFIFO);
+		csr = musb_readw(epio, MUSB_TXCSR);
+		udelay(10);
+	} while (--retries);
+
+	WARN(!retries, "Could not flush host TX%d fifo: csr: %04x\n",
+	     ep->epnum, csr);
 
 	/* and reset for the next transfer */
 	musb_writew(epio, MUSB_TXCSR, 0);
