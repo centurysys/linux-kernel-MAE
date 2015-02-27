@@ -229,7 +229,7 @@ static void cppi41_dma_callback(void *private_data)
 	unsigned long flags;
 	struct dma_tx_state txstate;
 	u32 transferred;
-	bool empty;
+	bool empty = false;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -250,10 +250,8 @@ static void cppi41_dma_callback(void *private_data)
 
 	if (cppi41_channel->is_tx)
 		empty = musb_is_tx_fifo_empty(hw_ep);
-	else
-		empty = true;
 
-	if (empty) {
+	if (!cppi41_channel->is_tx || empty) {
 		cppi41_trans_done(cppi41_channel);
 	} else {
 		struct cppi41_dma_controller *controller;
