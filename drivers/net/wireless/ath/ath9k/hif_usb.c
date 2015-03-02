@@ -652,6 +652,7 @@ static void ath9k_hif_usb_rx_cb(struct urb *urb)
 	case -ECONNRESET:
 	case -ENODEV:
 	case -ESHUTDOWN:
+	case -EPROTO:
 		goto free;
 	default:
 		goto resubmit;
