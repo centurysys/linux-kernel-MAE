@@ -231,14 +231,14 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 #endif
 	}
 #ifndef CONFIG_USBTTY_WORKAROUND
+
 	if (wait_event_interruptible_timeout(tty->write_wait,
-			!tty_chars_in_buffer(tty), timeout) >= 0) {
-		if (tty->ops->wait_until_sent)
-			tty->ops->wait_until_sent(tty, timeout);
+			!tty_chars_in_buffer(tty), timeout) < 0) {
+		return;
 	}
 #else
 	ret = wait_event_interruptible_timeout(tty->write_wait,
-					       !tty_chars_in_buffer(tty), timeout);
+			!tty_chars_in_buffer(tty), timeout);
 
 	if (ret > 0) {
 		if (tty->ops->wait_until_sent)
@@ -251,6 +251,12 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 		       current->comm, tty_name(tty, name));
 	}
 #endif
+
+	if (timeout == MAX_SCHEDULE_TIMEOUT)
+		timeout = 0;
+
+	if (tty->ops->wait_until_sent)
+		tty->ops->wait_until_sent(tty, timeout);
 }
 EXPORT_SYMBOL(tty_wait_until_sent);
 
