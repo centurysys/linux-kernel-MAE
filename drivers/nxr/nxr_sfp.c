@@ -162,20 +162,6 @@ sfp_remove(struct i2c_client * client)
 	return 0;
 }
 
-#if 0
-static const struct of_device_id sf_of_id_table[] = {
-	{.compatible = "sfp0-a0"},
-	{.compatible = "sfp0-a2"},
-	{.compatible = "sfp1-a0"},
-	{.compatible = "sfp1-a2"},
-	{.compatible = "sfp2-a0"},
-	{.compatible = "sfp2-a2"},
-	{.compatible = "sfp3-a0"},
-	{.compatible = "sfp3-a2"},
-	{},
-};
-#endif
-
 static const struct i2c_device_id sfp_id[] = {
 	{"sfp0-a0", 0},
 	{"sfp0-a2", 0},
@@ -192,7 +178,6 @@ static struct i2c_driver sfp_driver = {
 	.driver = {
 		.name		= "sfp",
 		.owner		= THIS_MODULE,
-		//.of_match_table	= of_match_ptr(sf_of_id_table),
 	},
 	.probe		= sfp_probe,
 	.remove		= sfp_remove,
