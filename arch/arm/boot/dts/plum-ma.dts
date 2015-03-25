@@ -1,0 +1,1842 @@
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "am33xx.dtsi"
+
+/ {
+	model = "Century Systems Plum-MA";
+	compatible = "ti,plum-ma", "ti,am33xx";
+
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&dcdc2_reg>;
+
+			/*
+			 * To consider voltage drop between PMIC and SoC,
+			 * tolerance value is reduced to 2% from 4% and
+			 * voltage value is increased as a precaution.
+			 */
+			operating-points = <
+				/* kHz    uV */
+				1000000 1325000
+				800000  1300000
+				600000  1112000
+				300000   969000
+			>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>; /* 512 MB */
+	};
+
+	vbat: fixedregulator_vbat@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+
+	ocp {
+		rtc@44e3e000 {
+			compatible = "ti,am3352-rtc";
+			ti,system-power-controller;
+			ti,enable-rtc-clk32k;
+		};
+	};
+
+	vmmcsd_fixed: fixedregulator_mmc@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcsd_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	xio_adc_supply: fixedregulator_adc@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "xio-adc-supply";
+		regulator-min-microvolt = <15000000>;
+		regulator-max-microvolt = <15000000>;
+
+		gpio = <&gpiox_0x00 4 GPIO_ACTIVE_HIGH>;
+
+		status = "disabled";
+
+		enable-active-high;
+	};
+
+	xio_di_supply: fixedregulator_di@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "xio-di-supply";
+		regulator-min-microvolt = <24000000>;
+		regulator-max-microvolt = <24000000>;
+
+		gpio = <&gpiox_0x00 5 GPIO_ACTIVE_HIGH>;
+
+		status = "disabled";
+
+		regulator-boot-on;
+		enable-active-high;
+	};
+
+	leds_onboard: leds_onboard {
+		pinctrl-names = "default";
+		pinctrl-0 = <&power_led_pins>;
+
+		compatible = "gpio-leds";
+		status = "okay";
+
+		led@1 {
+			label = "PowerLED";
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+	};
+
+	leds_foma: leds_foma {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "MobileLED_G3";
+			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "MobileLED_G2";
+			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "MobileLED_G1";
+			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_R3";
+			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_R2";
+			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_R1";
+			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_foma_ctrl: leds_foma_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	leds_amp_ctrl: leds_amp_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWRKEY {
+			label = "Mobile_PWRKEY";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_amp_wlan_ctrl: leds_amp_wlan_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWRKEY {
+			label = "Mobile_PWRKEY";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePowerSel {
+			label = "Mobile_PowerSel";
+			gpios = <&gpiox_0x10 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+};
+
+	leds_au: leds_au {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "MobileLED_G3";
+			gpios = <&gpiox_0x0e 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "MobileLED_G2";
+			gpios = <&gpiox_0x0e 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "MobileLED_G1";
+			gpios = <&gpiox_0x0e 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_R3";
+			gpios = <&gpiox_0x0e 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_R2";
+			gpios = <&gpiox_0x0e 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_R1";
+			gpios = <&gpiox_0x0e 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_au_ctrl: leds_au_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x08 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x08 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@PWR_ON {
+			label = "Mobile_PWR_ON";
+			gpios = <&gpiox_0x08 7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+	};
+
+	leds_au_wlan_ctrl: leds_au_wlan_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x0e_wlan 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led@MobilePowerSel {
+			label = "Mobile_PowerSel";
+			gpios = <&gpiox_0x0e_wlan 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x0e_wlan 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@PWR_ON {
+			label = "Mobile_PWR_ON";
+			gpios = <&gpiox_0x0e_wlan 7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+	};
+
+	leds_um03_ctrl: leds_um03_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x08 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led@XER {
+			label = "Mobile_XER";
+			gpios = <&gpiox_0x08 3 GPIO_ACTIVE_LOW>;
+		};
+
+		led@USB_H_RDY {
+			label = "Mobile_USB_H_RDY";
+			gpios = <&gpiox_0x08 4 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+
+		led@PWRKEY_OFF {
+			label = "Mobile_PWRKEY_OFF";
+			gpios = <&gpiox_0x08 5 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@SYSRST {
+			label = "Mobile_SYSRST";
+			gpios = <&gpiox_0x08 6 GPIO_ACTIVE_LOW>;
+		};
+
+		led@PWRKEY_ON {
+			label = "Mobile_PWRKEY_ON";
+			gpios = <&gpiox_0x08 7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+	};
+
+	leds_wlan_ctrl: leds_wlan_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@WLAN_Power {
+			label = "WLAN_Power";
+			gpios = <&gpiox_0x08_wlan 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@WLAN_PowerSel {
+			label = "WLAN_PowerSel";
+			gpios = <&gpiox_0x08_wlan 1 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led@WPS_Pin {
+			label = "WPS_Pin";
+			gpios = <&gpiox_0x08_wlan 2 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
+	leds_mobile_wlan: leds_mobile_wlan {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "WiFiLED_G1";
+			gpios = <&gpiox_0x14 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0tpt";
+		};
+
+		led@x2 {
+			label = "WiFiLED_R1";
+			gpios = <&gpiox_0x14 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0rx";
+		};
+
+		led@x3 {
+			label = "MobileLED_G3";
+			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_G2";
+			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_G1";
+			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_R3";
+			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x7 {
+			label = "MobileLED_R2";
+			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x8 {
+			label = "MobileLED_R1";
+			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_mobile_wlan_mediatek: leds_mobile_wlan_mediatek {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "WiFiLED_G1";
+			gpios = <&gpiox_0x14 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0radio";
+		};
+
+		led@x2 {
+			label = "WiFiLED_R1";
+			gpios = <&gpiox_0x14 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0rx";
+		};
+
+		led@x3 {
+			label = "MobileLED_G3";
+			gpios = <&gpiox_0x14 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_G2";
+			gpios = <&gpiox_0x14 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_G1";
+			gpios = <&gpiox_0x14 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_R3";
+			gpios = <&gpiox_0x14 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x7 {
+			label = "MobileLED_R2";
+			gpios = <&gpiox_0x14 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x8 {
+			label = "MobileLED_R1";
+			gpios = <&gpiox_0x14 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_do: leds_do {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@do0 {
+			label = "DO_0";
+			gpios = <&gpiox_0x80 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do1 {
+			label = "DO_1";
+			gpios = <&gpiox_0x80 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do2 {
+			label = "DO_2";
+			gpios = <&gpiox_0x80 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do3 {
+			label = "DO_3";
+			gpios = <&gpiox_0x80 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do4 {
+			label = "DO_4";
+			gpios = <&gpiox_0x80 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do5 {
+			label = "DO_5";
+			gpios = <&gpiox_0x80 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do6 {
+			label = "DO_6";
+			gpios = <&gpiox_0x80 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do7 {
+			label = "DO_7";
+			gpios = <&gpiox_0x80 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	aliases {
+		xio_02 = &xio_02;
+		xio_03 = &xio_03;
+		xio_04 = &xio_04;
+
+		xio_06 = &xio_06;
+
+		xio_07 = &xio_07_0a;
+		xio_08 = &xio_07_0a;
+		xio_09 = &xio_07_0a;
+		xio_0a = &xio_07_0a;
+
+		xio_0b = &xio_0b;
+		xio_0c = &xio_0c;
+
+		xio_0d = &xio_0d_0e;
+		xio_0e = &xio_0d_0e;
+
+		xio_0f = &xio_0f_10;
+		xio_10 = &xio_0f_10;
+
+		xio_12 = &xio_12;
+		xio_13 = &xio_13_14;
+		xio_14 = &xio_13_14;
+		xio_15 = &xio_15;
+		xio_16 = &xio_16_17;
+		xio_17 = &xio_16_17;
+	};
+
+	/* XIO: (id: 0x02) FOMA only */
+	xio_02: xio@0x02 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &leds_foma &leds_foma_ctrl>;
+	};
+
+	/* XIO: (id: 0x03) FOMA/UARTx2/DIO */
+	xio_03: xio@0x03 {
+		#size-cells = <0>;
+		devices = <&uartx2_0x20 &uartx2_0x30
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18 &gpiox_0x1a
+			   &gpiox_0x40 &gpiox_0x80
+			   &leds_foma &leds_foma_ctrl
+			   &leds_do>;
+	};
+
+	/* XIO: (id: 0x04) UARTx2/DIO */
+	xio_04: xio@0x04 {
+		#size-cells = <0>;
+		devices = <&uartx2_0x20 &uartx2_0x30
+			   &gpiox_0x14
+			   &gpiox_0x18 &gpiox_0x1a
+			   &gpiox_0x40 &gpiox_0x80
+			   &leds_foma &leds_do>;
+	};
+
+	/* XIO: (id: 0x06) KYM11 */
+	xio_06: xio@0x06 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
+			   &gpiox_0x04_kym11
+			   &leds_au &leds_au_ctrl>;
+	};
+
+	/* XIO: (id: 0x07 .. 0x0a) FOMA/DIO(2x2) */
+	xio_07_0a: xio@0x07_0a {
+		#size-cells = <0>;
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_foma_ctrl>;
+	};
+
+	/* XIO: (id: 0x0b) KYM11_AD */
+	xio_0b: xio@0x0b {
+		#size-cells = <0>;
+		devices = <&xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
+			   &gpiox_0x18
+			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_kym11
+			   &leds_au &leds_au_ctrl &leds_do>;
+	};
+
+	/* XIO: (id: 0x0c) UM03_AD */
+	xio_0c: xio@0x0c {
+		#size-cells = <0>;
+		devices = <&xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08
+			   &gpiox_0x0a_um03ko &gpiox_0x0c_um03ko &gpiox_0x0e
+			   &gpiox_0x18
+			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_um03ko
+			   &leds_au &leds_um03_ctrl &leds_do>;
+	};
+
+	/* XIO: (id: 0x0d .. 0x0e) LTE/DIO(2x2) */
+	xio_0d_0e: xio@0x0d_0e {
+		#size-cells = <0>;
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_amp_ctrl>;
+	};
+
+	/* XIO: (id: 0x0f .. 0x10) FOMA/RM-92x */
+	xio_0f_10: xio@0x0f_10 {
+		#size-cells = <0>;
+		devices = <&uartx2_0x20
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_foma_ctrl>;
+	};
+
+	/* XIO: (id: 0x12) KYM_WLAN (Atheros) */
+	xio_12: xio@0x12 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04_kym11
+			   &gpiox_0x08_wlan &gpiox_0x0e_wlan
+			   &gpiox_0x10_kymwlan &gpiox_0x12_kymwlan &gpiox_0x14
+			   &leds_mobile_wlan &leds_wlan_ctrl &leds_au_wlan_ctrl>;
+	};
+
+	/* XIO: (id: 0x13/0x14) AMP_WLAN (Atheros) */
+	xio_13_14: xio@0x13_14 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04_lisa
+			   &gpiox_0x08_wlan &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &leds_amp_wlan_ctrl &leds_mobile_wlan &leds_wlan_ctrl>;
+	};
+
+	/* XIO: (id: 0x15) KYM_WLAN (Mediatek) */
+	xio_15: xio@0x15 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04_kym11
+			   &gpiox_0x08_wlan &gpiox_0x0e_wlan
+			   &gpiox_0x10_kymwlan &gpiox_0x12_kymwlan &gpiox_0x14
+			   &leds_mobile_wlan_mediatek &leds_wlan_ctrl &leds_au_wlan_ctrl>;
+	};
+
+	/* XIO: (id: 0x16/0x17) AMP_WLAN (Mediatek) */
+	xio_16_17: xio@0x16_17 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04_lisa
+			   &gpiox_0x08_wlan &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &leds_amp_wlan_ctrl &leds_mobile_wlan_mediatek &leds_wlan_ctrl>;
+	};
+};
+
+&am33xx_pinmux {
+	pinctrl-names = "default";
+	//pinctrl-0 = <&clkout2_pin>;
+
+	i2c0_pins: pinmux_i2c0_pins {
+		pinctrl-single,pins = <
+			0x188 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
+			0x18c (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
+
+			/* TCA6507 Reset# */
+			0x078 (PIN_OUTPUT | MUX_MODE7)		/* gpmc_ben1.gpio1_28 */
+		>;
+	};
+
+	uart0_pins: pinmux_uart0_pins {
+		pinctrl-single,pins = <
+			0x170 (PIN_INPUT | MUX_MODE0)  /* uart0_rxd.uart0_rxd */
+			0x174 (PIN_OUTPUT | MUX_MODE0) /* uart0_txd.uart0_txd */
+			0x16c (PIN_OUTPUT | MUX_MODE0) /* uart0_rtsn.uart0_rtsn */
+			0x168 (PIN_INPUT | MUX_MODE0)  /* uart0_ctsn.uart0_ctsn */
+			0x0e0 (PIN_OUTPUT | MUX_MODE7) /* lcd_vsync.gpio2_22 (DTR) */
+			0x0e4 (PIN_INPUT | MUX_MODE7)  /* lcd_hsync.gpio2_23 (DSR) */
+			0x0e8 (PIN_INPUT | MUX_MODE7)  /* lcd_pclk.gpio2_24  (DCD) */
+		>;
+	};
+
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			0x180 (PIN_INPUT | MUX_MODE0)  /* uart1_rxd.uart1_rxd */
+			0x184 (PIN_OUTPUT | MUX_MODE0) /* uart1_txd.uart1_txd */
+			0x17c (PIN_OUTPUT | MUX_MODE0) /* uart1_rtsn.uart1_rtsn */
+			0x178 (PIN_INPUT | MUX_MODE0)  /* uart1_ctsn.uart1_ctsn */
+			0x030 (PIN_OUTPUT | MUX_MODE7) /* gpmc_ad12.gpio1_12 (DTR) */
+			0x034 (PIN_INPUT | MUX_MODE7)  /* gpmc_ad13.gpio1_13 (DSR) */
+			0x038 (PIN_INPUT | MUX_MODE7)  /* gpmc_ad14.gpio1_14 (DCD) */
+			0x02c (PIN_INPUT | MUX_MODE7)  /* gpmc_ad11.gpio0_27 (RI)  */
+
+			0x1a8 (PIN_OUTPUT | MUX_MODE7) /* mcasp0_axr1.gpio3_20   (TxE) */
+			0x1ac (PIN_OUTPUT | MUX_MODE7) /* mcasp0_ahclkx.gpio3_21 (RxE) */
+		>;
+	};
+
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			0x110 (PIN_INPUT | MUX_MODE6)  /* mii1_crs.uart2_rxd */
+			0x10c (PIN_OUTPUT | MUX_MODE6) /* mii1_rx_er.uart2_txd */
+		>;
+	};
+
+	nandflash_pins_s0: nandflash_pins_s0 {
+		pinctrl-single,pins = <
+			0x0 (PIN_INPUT | MUX_MODE0)	/* gpmc_ad0.gpmc_ad0 */
+			0x4 (PIN_INPUT | MUX_MODE0)	/* gpmc_ad1.gpmc_ad1 */
+			0x8 (PIN_INPUT | MUX_MODE0)	/* gpmc_ad2.gpmc_ad2 */
+			0xc (PIN_INPUT | MUX_MODE0)	/* gpmc_ad3.gpmc_ad3 */
+			0x10 (PIN_INPUT | MUX_MODE0)	/* gpmc_ad4.gpmc_ad4 */
+			0x14 (PIN_INPUT | MUX_MODE0)	/* gpmc_ad5.gpmc_ad5 */
+			0x18 (PIN_INPUT | MUX_MODE0)	/* gpmc_ad6.gpmc_ad6 */
+			0x1c (PIN_INPUT | MUX_MODE0)	/* gpmc_ad7.gpmc_ad7 */
+			0x70 (PIN_INPUT | MUX_MODE0)	/* gpmc_wait0.gpmc_wait0 */
+			0x74 (PIN_OUTPUT | MUX_MODE7)	/* gpmc_wpn.gpio0_30 */
+			0x7c (PIN_OUTPUT | MUX_MODE0)	/* gpmc_csn0.gpmc_csn0  */
+			0x90 (PIN_OUTPUT | MUX_MODE0)	/* gpmc_advn_ale.gpmc_advn_ale */
+			0x94 (PIN_OUTPUT | MUX_MODE0)	/* gpmc_oen_ren.gpmc_oen_ren */
+			0x98 (PIN_OUTPUT | MUX_MODE0)	/* gpmc_wen.gpmc_wen */
+			0x9c (PIN_OUTPUT | MUX_MODE0)	/* gpmc_be0n_cle.gpmc_be0n_cle */
+		>;
+	};
+
+	cpsw_default: cpsw_default {
+		pinctrl-single,pins = <
+			/* Slave 1 */
+			0x114 (PIN_OUTPUT_PULLDOWN | MUX_MODE2) /* mii1_txen.rgmii1_tctl */
+			0x118 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* mii1_rxdv.rgmii1_rctl */
+			0x11c (PIN_OUTPUT_PULLDOWN | MUX_MODE2) /* mii1_txd3.rgmii1_td3 */
+			0x120 (PIN_OUTPUT_PULLDOWN | MUX_MODE2) /* mii1_txd2.rgmii1_td2 */
+			0x124 (PIN_OUTPUT_PULLDOWN | MUX_MODE2) /* mii1_txd1.rgmii1_td1 */
+			0x128 (PIN_OUTPUT_PULLDOWN | MUX_MODE2) /* mii1_txd0.rgmii1_td0 */
+			0x12c (PIN_OUTPUT_PULLDOWN | MUX_MODE2) /* mii1_txclk.rgmii1_tclk */
+			0x130 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* mii1_rxclk.rgmii1_rclk */
+			0x134 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* mii1_rxd3.rgmii1_rd3 */
+			0x138 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* mii1_rxd2.rgmii1_rd2 */
+			0x13c (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* mii1_rxd1.rgmii1_rd1 */
+			0x140 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* mii1_rxd0.rgmii1_rd0 */
+
+			/* Slave 2 */
+			0x40 (PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a0.rgmii2_tctl */
+			0x44 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a1.rgmii2_rctl */
+			0x48 (PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a2.rgmii2_td3 */
+			0x4c (PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a3.rgmii2_td2 */
+			0x50 (PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a4.rgmii2_td1 */
+			0x54 (PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a5.rgmii2_td0 */
+			0x58 (PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a6.rgmii2_tclk */
+			0x5c (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a7.rgmii2_rclk */
+			0x60 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a8.rgmii2_rd3 */
+			0x64 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a9.rgmii2_rd2 */
+			0x68 (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a10.rgmii2_rd1 */
+			0x6c (PIN_INPUT_PULLDOWN | MUX_MODE2)	/* gpmc_a11.rgmii2_rd0 */
+		>;
+	};
+
+	cpsw_sleep: cpsw_sleep {
+		pinctrl-single,pins = <
+			/* Slave 1 reset value */
+			0x114 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x118 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x11c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x120 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x124 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x128 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x12c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x130 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x134 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x138 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x13c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x140 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+
+			/* Slave 2 reset value*/
+			0x40 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x44 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x48 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x4c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x50 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x54 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x58 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x5c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x60 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x64 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x68 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x6c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+		>;
+	};
+
+	davinci_mdio_default: davinci_mdio_default {
+		pinctrl-single,pins = <
+			/* MDIO */
+			0x148 (PIN_INPUT | SLEWCTRL_FAST | MUX_MODE0)	/* mdio_data.mdio_data */
+			0x14c (PIN_OUTPUT | MUX_MODE0)			/* mdio_clk.mdio_clk */
+
+			/* PHY0/1 Reset */
+			0x1a0 (PIN_OUTPUT | MUX_MODE7)		/* mcasp0_aclkr.gpio3_18 */
+			0x1a4 (PIN_OUTPUT | MUX_MODE7)		/* mcasp0_fsr.gpio3_19 */
+
+			/* PHY0/1 Interrupt */
+			0x160 (PIN_INPUT | MUX_MODE7)		/* spi0_cs1.gpio0_6 */
+			0x1b4 (PIN_INPUT | MUX_MODE7)		/* xdma_event_intr1.gpio0_20 */
+
+			/* Link LED GPIO */
+			0x0c0 (PIN_OUTPUT | MUX_MODE7)		/* lcd_data8.gpio2_14 */
+			0x0c4 (PIN_OUTPUT | MUX_MODE7)		/* lcd_data9.gpio2_15 */
+			0x0c8 (PIN_OUTPUT | MUX_MODE7)		/* lcd_data10.gpio2_16 */
+			0x0cc (PIN_OUTPUT | MUX_MODE7)		/* lcd_data11.gpio2_17 */
+		>;
+	};
+
+	davinci_mdio_sleep: davinci_mdio_sleep {
+		pinctrl-single,pins = <
+			/* MDIO reset value */
+			0x148 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x14c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+
+			/* PHY0/1 Reset */
+			0x1a0 (PIN_OUTPUT | MUX_MODE7)		/* mcasp0_aclkr.gpio3_18 */
+			0x1a4 (PIN_OUTPUT | MUX_MODE7)		/* mcasp0_fsr.gpio3_19 */
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			0x108 (PIN_INPUT | MUX_MODE7) /* mii1_col.gpio3_0 */
+			0x19c (PIN_INPUT | MUX_MODE7) /* mcasp0_ahclkr.gpio3_17 */
+		>;
+	};
+
+	spi1_pins: pinmux_spi1_pins {
+		pinctrl-single,pins = <
+			0x190 (PIN_OUTPUT | PIN_INPUT | MUX_MODE3) /* mcasp0_aclkx.spi1_sclk */
+			0x194 (PIN_INPUT  | MUX_MODE3) /* mcasp0_fsx.spi1_d0 */
+			0x198 (PIN_OUTPUT | MUX_MODE3) /* mcasp0_axr0.spi1_d1 */
+			0x144 (PIN_OUTPUT | MUX_MODE2) /* rmii_ref_clk.spi1_cs0 */
+		>;
+	};
+
+	power_led_pins: pinmux_power_led_pins {
+		pinctrl-single,pins = <
+			0x03c (PIN_OUTPUT | MUX_MODE7) /* gpmc_ad15.gpio1_15 */
+		>;
+	};
+
+	uartx3_pins: pinmux_uartx3_pins {
+		pinctrl-single,pins = <
+			0x20 (PIN_INPUT | MUX_MODE7)	/* gpmc_ad8.gpio0_22 */
+		>;
+	};
+
+	uartx4_pins: pinmux_uartx4_pins {
+		pinctrl-single,pins = <
+			0x20 (PIN_INPUT | MUX_MODE7)	/* gpmc_ad8.gpio0_22 */
+		>;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+
+	dtr-gpio = <&gpio2 22 GPIO_ACTIVE_LOW>;
+	dsr-gpio = <&gpio2 23 GPIO_ACTIVE_LOW>;
+	dcd-gpio = <&gpio2 24 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+
+	dtr-gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
+	dsr-gpio = <&gpio1 13 GPIO_ACTIVE_LOW>;
+	dcd-gpio = <&gpio1 14 GPIO_ACTIVE_LOW>;
+	ri-gpio  = <&gpio0 27 GPIO_ACTIVE_LOW>;
+
+	txe-gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+	rxe-gpio = <&gpio3 21 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tps: tps@24 {
+		reg = <0x24>;
+	};
+
+	sensor: lm75@48 {
+		compatible = "lm75";
+		reg = <0x48>;
+	};
+
+	rtc68: m41t00@68 {
+		compatible = "m41t00";
+		reg = <0x68>;
+	};
+
+	tca6507@45 {
+		compatible = "ti,tca6507";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x45>;
+
+		reset-gpio = <&gpio1 28 GPIO_ACTIVE_LOW>;
+
+		led0: power-status-red@0 {
+			label = "power-stat:r";
+			reg = <0x0>;
+		};
+
+		led1: system-status1-red@1 {
+			label = "system-status1:r";
+			reg = <0x1>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led2: system-status2-red@2 {
+			label = "system-status2:r";
+			reg = <0x2>;
+		};
+
+		led3: system-status3-red@3 {
+			label = "system-status3:r";
+			reg = <0x3>;
+		};
+
+		led4: system-status1-green@4 {
+			label = "system-status1:g";
+			reg = <0x4>;
+			linux,default-trigger = "timer-suspend";
+		};
+
+		led5: system-status2-green@5 {
+			label = "system-status2:g";
+			reg = <0x5>;
+		};
+
+		led6: system-status3-green@6 {
+			label = "system-status3:g";
+			reg = <0x6>;
+		};
+	};
+};
+
+&usb {
+	status = "okay";
+
+	control@44e10620 {
+		status = "okay";
+	};
+
+	usb-phy@47401300 {
+		status = "okay";
+		vcc-supply = <&vbat>;
+	};
+
+	usb-phy@47401b00 {
+		status = "okay";
+		vcc-supply = <&vbat>;
+	};
+
+	usb@47401000 {
+		status = "okay";
+		dr_mode = "host";
+	};
+
+	usb@47401800 {
+		status = "okay";
+		dr_mode = "host";
+	};
+
+	dma-controller@47402000  {
+		status = "okay";
+	};
+};
+
+&elm {
+	status = "okay";
+};
+
+&gpmc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&nandflash_pins_s0>;
+	ranges = <0 0 0x08000000 0x01000000	/* CS0 : NAND */
+		  1 0 0x10000000 0x01000000	/* CS1 : DIPSW */
+		  2 0 0x11000000 0x01000000>;	/* CS2 : eXternal I/O */
+	nand@0,0 {
+		reg = <0 0 0>; /* CS0, offset 0 */
+		nand-bus-width = <8>;
+		ti,nand-ecc-opt = "bch8";
+		gpmc,device-nand = "true";
+		gpmc,device-width = <1>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <60>;
+		gpmc,cs-wr-off-ns = <50>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <60>;
+		gpmc,adv-wr-off-ns = <50>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <30>;
+		gpmc,oe-on-ns = <10>;
+		gpmc,oe-off-ns = <60>;
+		gpmc,access-ns = <50>;
+		gpmc,rd-cycle-ns = <60>;
+		gpmc,wr-cycle-ns = <50>;
+		gpmc,wait-on-read = "false";
+		gpmc,wait-on-write = "false";
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <10>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,wr-access-ns = <30>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		elm_id = <&elm>;
+
+		/* MTD partition table */
+		partition@0 {
+			label = "UBI";
+			reg = <0x00000000 0x0ff00000>;
+		};
+
+		partition@1 {
+			label = "OOPS";
+			reg = <0x0ff00000 0x00100000>;
+		};
+	};
+
+	/* Onboard DIPSW */
+	gpio_diopsw: gpio@1,0x00 {
+		reg = <1 0x0000000 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "okay";
+	};
+
+	uartx2_0x20: uart@2,0x20 {
+		reg = <2 0x00000020 0x00000008>;
+		compatible = "ns16550a";
+
+		status = "disabled";
+
+		current-speed = <115200>;
+		reg-shift = <1>;
+		reg-io-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg-offset = <0x0>;
+		clock-frequency = <7372800>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		txen_gpio = <&gpiox_0x18 0 GPIO_ACTIVE_HIGH>;
+		rxen_gpio = <&gpiox_0x18 1 GPIO_ACTIVE_LOW>;
+		type_gpio = <&gpiox_0x18 2 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uartx3_pins>;
+	};
+
+	uartx2_0x30: uart@2,0x30 {
+		reg = <2 0x00000030 0x00000008>;
+		compatible = "ns16550a";
+
+		status = "disabled";
+
+		current-speed = <115200>;
+		reg-shift = <1>;
+		reg-io-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg-offset = <0x0>;
+		clock-frequency = <7372800>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
+		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
+		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* XIO Board Control */
+	gpiox_0x00: gpio@2,0x00 {
+		reg = <2 0x00000000 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	/* KYM11/UM03-KO Control */
+	gpiox_0x08: gpio@2,0x08 {
+		reg = <2 0x00000008 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* WLAN Control */
+	gpiox_0x08_wlan: gpio@2,0x08 {
+		reg = <2 0x00000008 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM11 Mobile Status 1 */
+	gpiox_0x0a: gpio@2,0x0a {
+		reg = <2 0x0000000a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
+	};
+
+	/* UM03KO Mobile Status 1 */
+	gpiox_0x0a_um03ko: gpio@2,0x0a_um03ko {
+		reg = <2 0x0000000a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
+	};
+
+	/* KYM11 Mobile Status 2 */
+	gpiox_0x0c: gpio@2,0x0c {
+		reg = <2 0x0000000c 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "RI";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "EMG_RI";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "ANTINF_0";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "ANTINF_1";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "MOS_IND";
+			reg = <4>;
+		};
+
+		stat@5 {
+			label = "RESET_CHK";
+			reg = <5>;
+		};
+
+		stat@6 {
+			label = "PS_HOLD";
+			reg = <6>;
+		};
+
+		stat@7 {
+			label = "AREA_IND";
+			reg = <7>;
+		};
+	};
+
+	/* UM03-KO Mobile Status 2 */
+	gpiox_0x0c_um03ko: gpio@2,0x0c_um03ko {
+		reg = <2 0x0000000c 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "RI";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "CBS_ETWS_N";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "SMS_N";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "GPS_N";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "ADL_N";
+			reg = <4>;
+		};
+
+		stat@5 {
+			label = "LEDGMS_N";
+			reg = <5>;
+		};
+
+		stat@6 {
+			label = "LEDG_N";
+			reg = <6>;
+		};
+	};
+
+	/* KYM11 LED */
+	gpiox_0x0e: gpio@2,0x0e {
+		reg = <2 0x0000000e 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM-WLAN Control */
+	gpiox_0x0e_wlan: gpio@2,0x0e {
+		reg = <2 0x0000000e 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* FOMA Control */
+	gpiox_0x10: gpio@2,0x10 {
+		reg = <2 0x00000010 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KYM11 Mobile Status 1 (WLAN) */
+	gpiox_0x10_kymwlan: gpio@2,0x10_KYM {
+		reg = <2 0x00000010 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
+	};
+
+	/* FOMA Status */
+	gpiox_0x12: gpio@2,0x12 {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "ModuleAvailable";
+			reg = <2>;
+		};
+	};
+
+	/* KYM11 Mobile Status 2 (WLAN) */
+	gpiox_0x12_kymwlan: gpio@2,0x12_KYM {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "RI";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "EMG_RI";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "ANTINF_0";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "ANTINF_1";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "MOS_IND";
+			reg = <4>;
+		};
+
+		stat@5 {
+			label = "RESET_CHK";
+			reg = <5>;
+		};
+
+		stat@6 {
+			label = "PS_HOLD";
+			reg = <6>;
+		};
+
+		stat@7 {
+			label = "AREA_IND";
+			reg = <7>;
+		};
+	};
+
+	/* FOMA LED */
+	gpiox_0x14: gpio@2,0x14 {
+		reg = <2 0x00000014 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* UART@0x20 TxEnable/RxEnable */
+	gpiox_0x18: gpio@2,0x18 {
+		reg = <2 0x00000018 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* UART@0x30 TxEnable/RxEnable */
+	gpiox_0x1a: gpio@2,0x1a {
+		reg = <2 0x0000001a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* DIO DIN */
+	gpiox_0x40: gpio@2,0x40 {
+		reg = <2 0x00000040 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		din@0 {
+			label = "DI_00";
+			reg = <0>;
+		};
+
+		din@1 {
+			label = "DI_01";
+			reg = <1>;
+		};
+
+		din@2 {
+			label = "DI_02";
+			reg = <2>;
+		};
+
+		din@3 {
+			label = "DI_03";
+			reg = <3>;
+		};
+
+		din@4 {
+			label = "DI_04";
+			reg = <4>;
+		};
+
+		din@5 {
+			label = "DI_05";
+			reg = <5>;
+		};
+
+		din@6 {
+			label = "DI_06";
+			reg = <6>;
+		};
+
+		din@7 {
+			label = "DI_07";
+			reg = <7>;
+		};
+	};
+
+	/* DIO DOUT */
+	gpiox_0x80: gpio@2,0x80 {
+		reg = <2 0x00000080 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* XIO Interrupt Enable/Status (LISA) */
+	gpiox_0x04_lisa: gpio@2,0x04_LISA {
+		reg = <2 0x00000004 0x00000004>;
+		#gpio-cells = <2>;
+		compatible = "plum,xioirq-gpio";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "xio_PowerFail";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "xio_RI";
+			reg = <1>;
+		};
+	};
+
+	/* XIO Interrupt Enable/Status (KYM-11) */
+	gpiox_0x04_kym11: gpio@2,0x04_KYM {
+		reg = <2 0x00000004 0x00000004>;
+		#gpio-cells = <2>;
+		compatible = "plum,xioirq-gpio";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "xio_PowerFail";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "xio_RI";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "xio_EMG_RI";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "xio_RESET_CHK";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "xio_PS_HOLD";
+			reg = <4>;
+		};
+	};
+
+	/* XIO Interrupt Enable/Status (UM03-KO) */
+	gpiox_0x04_um03ko: gpio@2,0x04_UM03KO {
+		reg = <2 0x00000004 0x00000004>;
+		#gpio-cells = <2>;
+		compatible = "plum,xioirq-gpio";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "xio_PowerFail";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "xio_RI";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "xio_CBS_ETWS";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "xio_SMS";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "xio_LEDGMS";
+			reg = <4>;
+		};
+
+		stat@5 {
+			label = "xio_LEDG";
+			reg = <5>;
+		};
+	};
+};
+
+/include/ "tps65217.dtsi"
+
+&tps {
+	/*ti,pmic-shutdown-controller;*/
+
+	regulators {
+		dcdc1_reg: regulator@0 {
+			regulator-always-on;
+		};
+
+		dcdc2_reg: regulator@1 {
+			/* VDD_MPU voltage limits 0.95V - 1.26V with +/-4% tolerance */
+			regulator-name = "vdd_mpu";
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1325000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc3_reg: regulator@2 {
+			/* VDD_CORE voltage limits 0.95V - 1.1V with +/-4% tolerance */
+			regulator-name = "vdd_core";
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1150000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		ldo1_reg: regulator@3 {
+			regulator-always-on;
+		};
+
+		ldo2_reg: regulator@4 {
+			regulator-always-on;
+		};
+
+		ldo3_reg: regulator@5 {
+			regulator-always-on;
+		};
+
+		ldo4_reg: regulator@6 {
+			regulator-always-on;
+		};
+	};
+};
+
+&mac {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cpsw_default>;
+	pinctrl-1 = <&cpsw_sleep>;
+	mac_control = <0x38>;
+	dual_emac = <1>;
+
+	no_bd_ram = <0>;
+	rx_descs = <128>;
+};
+
+&davinci_mdio {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&davinci_mdio_default>;
+	pinctrl-1 = <&davinci_mdio_sleep>;
+
+	phy0-reset-gpio = <&gpio3 18 GPIO_ACTIVE_LOW>;
+	phy1-reset-gpio = <&gpio3 19 GPIO_ACTIVE_LOW>;
+
+	phy0: ethernet-phy@0 {
+		reg = <2>;
+		tx-skew = <0x13>;
+		rx-skew = <0x11>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <6 8>;
+		irq-gpio = <&gpio0 6 GPIO_ACTIVE_LOW>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <3>;
+		tx-skew = <0x18>;
+		rx-skew = <0x13>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <20 8>;
+		irq-gpio = <&gpio0 20 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&cpsw_emac0 {
+	phy = <&phy0>;
+
+	phy-mode = "rgmii-txid";
+	dual_emac_res_vlan = <1>;
+	led-fast-gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
+	led-giga-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
+};
+
+&cpsw_emac1 {
+	phy = <&phy1>;
+
+	phy-mode = "rgmii-txid";
+	dual_emac_res_vlan = <2>;
+	led-fast-gpio = <&gpio2 16 GPIO_ACTIVE_LOW>;
+	led-giga-gpio = <&gpio2 17 GPIO_ACTIVE_LOW>;
+};
+
+&tscadc {
+	status = "okay";
+
+	adc {
+		ti,adc-channels = <0 1>;
+	};
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	cd-gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio3 17 GPIO_ACTIVE_LOW>;
+};
+
+&spi0 {
+	status = "okay";
+	ti,spi-num-cs = <1>;
+
+	/* spi0.0: Micron 16Mbit NOR Flash (M25P16) */
+	spi-flash@0 {
+		compatible = "m25p16";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table */
+		partition@0 {
+			label = "MLO";
+			reg = <0x00000000 0x00020000>;
+		};
+
+		partition@1 {
+			label = "barebox.bin";
+			reg = <0x00020000 0x00080000>;
+		};
+
+		partition@2 {
+			label = "barebox.env";
+			reg = <0x000a0000 0x00020000>;
+		};
+
+		partition@3 {
+			label = "dtb.0";
+			reg = <0x000c0000 0x00020000>;
+		};
+
+		partition@4 {
+			label = "dtb.1";
+			reg = <0x000e0000 0x00020000>;
+		};
+
+		partition@5 {
+			label = "hist_firmup";
+			reg = <0x00100000 0x00020000>;
+		};
+
+		partition@6 {
+			label = "hist_boot";
+			reg = <0x00120000 0x000e0000>;
+		};
+	};
+};
+
+&spi1 {
+	ti,spi-num-cs = <1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
+
+	ltc1859@0 {
+		compatible = "ltc185x";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		//spi-cpha;
+		//spi-cpol;
+
+		vcc-supply = <&xio_adc_supply>;
+	};
+};
+
+&sham {
+	status = "okay";
+};
+
+&aes {
+	status = "okay";
+};
