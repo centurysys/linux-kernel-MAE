@@ -1940,6 +1940,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 {
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
 	bool active_low = false;
+	const char *label = NULL;
 	int ret;
 
 	if (!fwnode)
@@ -1964,7 +1965,11 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	if (IS_ERR(desc))
 		return desc;
 
-	ret = gpiod_request(desc, NULL);
+	if (is_of_node(fwnode) && fwnode_property_present(fwnode, "label")) {
+		fwnode_property_read_string(fwnode, "label", &label);
+	}
+
+	ret = gpiod_request(desc, label);
 	if (ret)
 		return ERR_PTR(ret);
 
