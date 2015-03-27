@@ -574,7 +574,7 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	void __iomem *dirout;
 	void __iomem *dirin;
 	unsigned long sz;
-	unsigned long flags = pdev->id_entry->driver_data;
+	unsigned long flags;
 	int err;
 	struct bgpio_chip *bgc;
 	struct bgpio_pdata *pdata = dev_get_platdata(dev);
@@ -607,14 +607,21 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	name = platform_get_device_id(pdev)->name;
-	if (name && !strcmp(name, "basic-mmio-gpio-be"))
-		flags |= BGPIOF_BIG_ENDIAN;
+	if (pdev->id_entry) {
+		flags = pdev->id_entry->driver_data;
+	} else {
+		flags = 0;
 
-	if (pdev->dev.of_node &&
-	    of_device_is_compatible(pdev->dev.of_node,
-				    "linux,basic-mmio-gpio-be"))
-		flags |= BGPIOF_BIG_ENDIAN;
+		name = platform_get_device_id(pdev)->name;
+
+		if (name && !strcmp(name, "basic-mmio-gpio-be"))
+			flags |= BGPIOF_BIG_ENDIAN;
+
+		if (pdev->dev.of_node &&
+		    of_device_is_compatible(pdev->dev.of_node,
+					    "linux,basic-mmio-gpio-be"))
+			flags |= BGPIOF_BIG_ENDIAN;
+	}
 
 	bgc = devm_kzalloc(&pdev->dev, sizeof(*bgc), GFP_KERNEL);
 	if (!bgc)
