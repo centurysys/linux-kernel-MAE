@@ -1755,10 +1755,10 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 * REVISIT: Add timing support from slls644g.pdf.
 	 */
 	if (!gpmc_t.cs_rd_off) {
-		WARN(1, "enable GPMC debug to configure .dts timings for CS%i\n",
-			cs);
-		gpmc_cs_show_timings(cs,
-				     "please add GPMC bootloader timings to .dts");
+		//WARN(1, "enable GPMC debug to configure .dts timings for CS%i\n",
+		//	cs);
+		//gpmc_cs_show_timings(cs,
+		//		     "please add GPMC bootloader timings to .dts");
 		goto no_timings;
 	}
 
@@ -1870,6 +1870,7 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 		else if (of_node_cmp(child->name, "ethernet") == 0 ||
 			 of_node_cmp(child->name, "nor") == 0 ||
 			 of_node_cmp(child->name, "uart") == 0 ||
+			 of_node_cmp(child->name, "gpio") == 0 ||
 			 of_node_cmp(child->name, "generic") == 0)
 			ret = gpmc_probe_generic_child(pdev, child);
 
