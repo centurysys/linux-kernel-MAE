@@ -13,10 +13,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/nwpserial.h>
 #include <linux/clk.h>
@@ -61,6 +63,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	struct resource resource;
 	struct device_node *np = ofdev->dev.of_node;
 	u32 clk, spd, prop;
+	enum of_gpio_flags flags;
+	int gpio_irq;
 	int ret;
 
 	memset(port, 0, sizeof *port);
@@ -124,6 +128,10 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 			goto out;
 		}
 	}
+
+	gpio_irq = of_get_named_gpio_flags(np, "irq-gpio", 0, &flags);
+	if (gpio_is_valid(gpio_irq))
+		gpio_request(gpio_irq, "of_serial_irq");
 
 	port->type = type;
 	port->uartclk = clk;
