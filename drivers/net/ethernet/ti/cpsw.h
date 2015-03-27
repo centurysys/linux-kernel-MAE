@@ -26,6 +26,7 @@ struct cpsw_slave_data {
 	int		led_fast_gpio;
 	int		led_giga_gpio;
 #endif
+	int		phy_irq_gpio;
 };
 
 struct cpsw_platform_data {
