@@ -2046,6 +2046,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		const __be32 *parp;
 		struct device_node *mdio_node;
 		struct platform_device *mdio;
+		enum of_gpio_flags flags;
+		int gpio_irq;
 #ifdef CONFIG_CPSW_LED_GPIO
 		int led_fast_gpio, led_giga_gpio;
 #endif
@@ -2076,6 +2078,12 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			return slave_data->phy_if;
 		}
 
+		gpio_irq = of_get_named_gpio_flags(slave_node, "irq-gpio", 0, &flags);
+		if (gpio_is_valid(gpio_irq)) {
+			gpio_request(gpio_irq, "phy_interrupt");
+			slave_data->phy_irq_gpio = gpio_irq;
+		}
+
 no_phy_slave:
 		mac_addr = of_get_mac_address(slave_node);
 		if (mac_addr) {
@@ -2093,9 +2101,6 @@ no_phy_slave:
 #ifdef CONFIG_CPSW_LED_GPIO
 		led_fast_gpio = of_get_named_gpio(slave_node, "led-fast-gpio", 0);
 		led_giga_gpio = of_get_named_gpio(slave_node, "led-giga-gpio", 0);
-
-		printk("---- %s: fast: %d, giga: %d\n", __FUNCTION__,
-		       led_fast_gpio, led_giga_gpio);
 
 		if (gpio_is_valid(led_fast_gpio)) {
 			gpio_request(led_fast_gpio, "PHY_LED_100M");
