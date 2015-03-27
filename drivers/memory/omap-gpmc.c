@@ -766,10 +766,12 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 		return -ENOMEM;
 
 	spin_lock(&gpmc_mem_lock);
+#ifndef CONFIG_OMAP_GPMC_MULTIDEVICE_IN_ONE_CS
 	if (gpmc_cs_reserved(cs)) {
 		r = -EBUSY;
 		goto out;
 	}
+#endif
 	if (gpmc_cs_mem_enabled(cs))
 		r = adjust_resource(res, res->start & ~(size - 1), size);
 	if (r < 0)
