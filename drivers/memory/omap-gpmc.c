@@ -1848,9 +1848,20 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
+		const char *status;
+		int statlen;
 
 		if (!child->name)
 			continue;
+
+		status = of_get_property(child, "status", &statlen);
+		if (status && statlen > 0) {
+			if (!(!strcmp(status, "okay") || !strcmp(status, "ok"))) {
+				printk(" %s is disabled, continue...\n",
+				       child->full_name);
+				continue;
+			}
+		}
 
 		if (of_node_cmp(child->name, "nand") == 0)
 			ret = gpmc_probe_nand_child(pdev, child);
