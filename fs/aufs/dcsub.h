@@ -14,8 +14,6 @@
 #include <linux/dcache.h>
 #include <linux/fs.h>
 
-struct dentry;
-
 struct au_dpage {
 	int ndentry;
 	struct dentry **dentries;
@@ -105,7 +103,8 @@ static inline int au_qstreq(struct qstr *a, struct qstr *b)
 
 /*
  * by the commit
- * 360f547 2015-01-25 dcache: let the dentry count go down to zero without taking d_lock
+ * 360f547 2015-01-25 dcache: let the dentry count go down to zero without
+ *			taking d_lock
  * the type of d_lockref.count became int, but the inlined function d_count()
  * still returns unsigned int.
  * I don't know why. Maybe it is for every d_count() users?
