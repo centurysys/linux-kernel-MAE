@@ -1717,6 +1717,9 @@
 	led-fast-gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
 	led-giga-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
 
+	txc-skew-ps = <1140>;
+	rxc-skew-ps = <1020>;
+
 	#interrupt-cells = <2>;
 	interrupt-parent = <&gpio0>;
 	interrupts = <6 8>;
@@ -1730,6 +1733,9 @@
 
 	led-fast-gpio = <&gpio2 16 GPIO_ACTIVE_LOW>;
 	led-giga-gpio = <&gpio2 17 GPIO_ACTIVE_LOW>;
+
+	txc-skew-ps = <1440>;
+	rxc-skew-ps = <1140>;
 
 	#interrupt-cells = <2>;
 	interrupt-parent = <&gpio0>;
