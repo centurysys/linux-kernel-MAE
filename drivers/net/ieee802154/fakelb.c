@@ -186,6 +186,9 @@ static int fakelb_add_one(struct device *dev, struct fakelb_priv *fake)
 
 	hw->parent = dev;
 
+#ifdef CONFIG_IEEE802154_FAKELB_RANDOM_ADDR
+	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
+#endif
 	err = ieee802154_register_hw(hw);
 	if (err)
 		goto err_reg;
