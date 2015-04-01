@@ -28,6 +28,15 @@
 
 #include "llsec.h"
 
+/* IEEE 802.15.4 transceivers can sleep during the xmit session, so process
+ * packets through the workqueue.
+ */
+struct ieee802154_xmit_cb {
+	struct sk_buff *skb;
+	struct work_struct work;
+	struct ieee802154_local *local;
+};
+
 /* mac802154 device private data */
 struct ieee802154_local {
 	struct ieee802154_hw hw;
@@ -59,6 +68,8 @@ struct ieee802154_local {
 
 	struct tasklet_struct tasklet;
 	struct sk_buff_head skb_queue;
+
+	struct ieee802154_xmit_cb ieee802154_xmit_cb;
 };
 
 enum {
