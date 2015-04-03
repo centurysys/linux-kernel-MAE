@@ -1,5 +1,5 @@
 /*
- * ZigBee TTY line discipline.
+ * Serial-802.15.4 TTY line discipline.
  *
  * Provides interface between ZigBee stack and IEEE 802.15.4 compatible
  * firmware over serial line. Communication protocol is described below.
@@ -31,6 +31,7 @@
 #include <linux/tty.h>
 #include <linux/skbuff.h>
 #include <linux/sched.h>
+#include <linux/spinlock.h>
 #include <linux/ieee802154.h>
 
 #include <net/mac802154.h>
@@ -42,7 +43,7 @@
 #define START_BYTE2	'b'
 #define MAX_DATA_SIZE	127
 
-#define TIMEOUT 1000
+#define TIMEOUT 5000
 
 #define IDLE_MODE	0x00
 #define RX_MODE		0x02
@@ -116,6 +117,8 @@ struct zb_device {
 	/* locks the ldisc for the command */
 	struct mutex		mutex;
 
+	spinlock_t lock;
+
 	/* command completition */
 	wait_queue_head_t	wq;
 	u8			status;
@@ -167,10 +170,11 @@ static int _send_pending_data(struct zb_device *zbdev)
 
 	zbdev->status = STATUS_WAIT;
 
-	/* Debug info */
-	printk(KERN_INFO "%s, %d bytes\n", __func__,
-	       zbdev->pending_size);
 #ifdef DEBUG
+	/* Debug info */
+	printk(KERN_DEBUG "%s, %d bytes\n", __func__,
+	       zbdev->pending_size);
+
 	print_hex_dump_bytes("send_pending_data ", DUMP_PREFIX_NONE,
 			     zbdev->pending_data, zbdev->pending_size);
 #endif
@@ -181,6 +185,7 @@ static int _send_pending_data(struct zb_device *zbdev)
 		return -1;
 	}
 
+	cleanup(zbdev);
 	return 0;
 }
 
@@ -198,7 +203,6 @@ static int __maybe_unused send_cmd(struct zb_device *zbdev, u8 id)
 			return -EAGAIN;
 	}
 
-	pr_debug("%s(): id = %u\n", __func__, id);
 	if (zbdev->pending_size) {
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
@@ -233,7 +237,6 @@ static int send_cmd2(struct zb_device *zbdev, u8 id, u8 extra)
 			return -EAGAIN;
 	}
 
-	pr_debug("%s(): id = %u\n", __func__, id);
 	if (zbdev->pending_size) {
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
@@ -269,7 +272,6 @@ static int __maybe_unused send_cmd3(struct zb_device *zbdev, u8 id, u8 extra1, u
 			return -EAGAIN;
 	}
 
-	pr_debug("%s(): id = %u\n", __func__, id);
 	if (zbdev->pending_size) {
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
@@ -300,11 +302,10 @@ static int send_block(struct zb_device *zbdev, u8 len, u8 *data)
 	BUG_ON(!zbdev);
 
 	if (!zbdev->opened) {
-		if (!_close_dev(zbdev) || !_open_dev(zbdev))
+		if (_close_dev(zbdev) != 0 || _open_dev(zbdev) != 0)
 			return -EAGAIN;
 	}
 
-	pr_debug("%s(): id = %u\n", __func__, DATA_XMIT_BLOCK);
 	if (zbdev->pending_size) {
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
@@ -331,16 +332,9 @@ static int is_command(unsigned char c)
 {
 	switch (c) {
 	/* ids we can get here: */
-	case RESP_OPEN:
-	case RESP_CLOSE:
-	case RESP_SET_CHANNEL:
-	case RESP_ED:
 	case RESP_XMIT_BLOCK:
+	case DATA_XMIT_BLOCK:
 	case DATA_RECV_BLOCK:
-	case RESP_ADDRESS:
-	case RESP_SET_PAN_ID:
-	case RESP_SET_SHORT_ADDRESS:
-	case RESP_SET_LONG_ADDRESS:
 		return 1;
 	}
 	return 0;
@@ -348,25 +342,10 @@ static int is_command(unsigned char c)
 
 static int _match_pending_id(struct zb_device *zbdev)
 {
-	return ((CMD_OPEN == zbdev->pending_id &&
-		 RESP_OPEN == zbdev->id) ||
-		(CMD_CLOSE == zbdev->pending_id &&
-		 RESP_CLOSE == zbdev->id) ||
-		(CMD_SET_CHANNEL == zbdev->pending_id &&
-		 RESP_SET_CHANNEL == zbdev->id) ||
-		(CMD_ED == zbdev->pending_id &&
-		 RESP_ED == zbdev->id) ||
-		(DATA_XMIT_BLOCK == zbdev->pending_id &&
-		 RESP_XMIT_BLOCK == zbdev->id) ||
-		(DATA_RECV_BLOCK == zbdev->id) ||
-		(CMD_ADDRESS == zbdev->pending_id &&
-		 RESP_ADDRESS == zbdev->id)) ||
-		(CMD_SET_PAN_ID == zbdev->pending_id &&
-		 RESP_SET_PAN_ID ==  zbdev->id) ||
-		(CMD_SET_SHORT_ADDRESS == zbdev->pending_id &&
-		 RESP_SET_SHORT_ADDRESS == zbdev->id) ||
-		(CMD_SET_LONG_ADDRESS == zbdev->pending_id &&
-		 RESP_SET_LONG_ADDRESS  == zbdev->id);
+	return ((zbdev->pending_id == DATA_XMIT_BLOCK &&
+		 zbdev->id == RESP_XMIT_BLOCK) ||
+		zbdev->id == DATA_XMIT_BLOCK ||
+		zbdev->id == RESP_XMIT_BLOCK);
 }
 
 static void serial_net_rx(struct zb_device *zbdev)
@@ -376,16 +355,24 @@ static void serial_net_rx(struct zb_device *zbdev)
 	 * zbdev->data is data itself
 	 */
 	struct sk_buff *skb;
-	skb = alloc_skb(zbdev->param2, GFP_ATOMIC);
-	skb_put(skb, zbdev->param2);
-	skb_copy_to_linear_data(skb, zbdev->data, zbdev->param2);
-	ieee802154_rx_irqsafe(zbdev->hw, skb, zbdev->param1);
+
+	spin_lock(&zbdev->lock);
+
+	skb = alloc_skb(zbdev->param1 + 2, GFP_ATOMIC);
+	skb_put(skb, zbdev->param1);
+	skb_copy_to_linear_data(skb, zbdev->data, zbdev->param1);
+
+	ieee802154_rx_irqsafe(zbdev->hw, skb, 0xcc);
+
+	spin_unlock(&zbdev->lock);
 }
 
 static void process_command(struct zb_device *zbdev)
 {
 	/* Command processing */
 	if (!_match_pending_id(zbdev)) {
+		printk("%s: not match pending id (pending: 0x%02x, id: 0x%02x)\n",
+		       __FUNCTION__, zbdev->pending_id, zbdev->id);
 		cleanup(zbdev);
 		return;
 	}
@@ -400,17 +387,17 @@ static void process_command(struct zb_device *zbdev)
 
 	switch (zbdev->id) {
 	case DATA_XMIT_BLOCK:
-		pr_debug("Received block, lqi %02x, len %02x\n",
-			 zbdev->param1, zbdev->param2);
 		/* zbdev->param1 is LQ, zbdev->param2 is length */
 		serial_net_rx(zbdev);
 		send_cmd2(zbdev, RESP_XMIT_BLOCK, STATUS_SUCCESS);
 		break;
+
+	case RESP_XMIT_BLOCK:
+		//wake_up(&zbdev->wq);
+		break;
 	}
 
 	cleanup(zbdev);
-
-	wake_up(&zbdev->wq);
 }
 
 static void process_char(struct zb_device *zbdev, unsigned char c)
@@ -445,30 +432,22 @@ static void process_char(struct zb_device *zbdev, unsigned char c)
 	case STATE_WAIT_PARAM1:
 		zbdev->param1 = c;
 		if (zbdev->id == DATA_XMIT_BLOCK)
-			zbdev->state = STATE_WAIT_PARAM2;
+			zbdev->state = STATE_WAIT_DATA;
 		else
 			process_command(zbdev);
 		break;
 
-	case STATE_WAIT_PARAM2:
-		zbdev->param2 = c;
-		if (zbdev->id == DATA_RECV_BLOCK)
-			zbdev->state = STATE_WAIT_DATA;
-		else
-			cleanup(zbdev);
-		break;
-
 	case STATE_WAIT_DATA:
 		if ((zbdev->index < sizeof(zbdev->data)) &&
-		    (zbdev->param2 <= sizeof(zbdev->data))) {
-
+		    (zbdev->param1 <= sizeof(zbdev->data))) {
 			zbdev->data[zbdev->index] = c;
 			zbdev->index++;
+
 			/*
 			 * Pending data is received,
-			 * param2 is length for DATA_RECV_BLOCK
+			 * param1 is length for DATA_XMIT_BLOCK
 			 */
-			if (zbdev->index == zbdev->param2) {
+			if (zbdev->index == zbdev->param1) {
 				zbdev->state = STATE_WAIT_START1;
 				process_command(zbdev);
 			}
@@ -495,7 +474,6 @@ static int _open_dev(struct zb_device *zbdev)
 	if (zbdev->opened)
 		return 1;
 
-	pr_debug("%s()\n", __func__);
 	if (zbdev->pending_size) {
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
@@ -513,7 +491,6 @@ static int _close_dev(struct zb_device *zbdev)
 	/* Check arguments */
 	BUG_ON(!zbdev);
 
-	pr_debug("%s()\n", __func__);
 	if (zbdev->pending_size) {
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
@@ -529,13 +506,11 @@ static int _close_dev(struct zb_device *zbdev)
 /* Valid channels: 1-16 */
 static int ieee802154_serial_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
-	pr_debug("%s %d\n", __func__, channel);
 	return 0;
 }
 
 static int ieee802154_serial_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	pr_debug("%s end\n", __func__);
 	return 0;
 }
 
@@ -544,38 +519,30 @@ static int ieee802154_serial_start(struct ieee802154_hw *hw)
 	struct zb_device *zbdev;
 	int ret = 0;
 
-	pr_debug("%s\n", __func__);
-
 	zbdev = hw->priv;
 	if (NULL == zbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return -EINVAL;
 	}
 
-	pr_debug("%s end (retval: %d)\n", __func__, ret);
 	return ret;
 }
 
 static void ieee802154_serial_stop(struct ieee802154_hw *hw)
 {
 	struct zb_device *zbdev;
-	pr_debug("%s\n", __func__);
 
 	zbdev = hw->priv;
 	if (NULL == zbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return;
 	}
-
-	pr_debug("%s end\n", __func__);
 }
 
 static int ieee802154_serial_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct zb_device *zbdev;
 	int ret;
-
-	pr_debug("%s\n", __func__);
 
 	zbdev = hw->priv;
 	if (NULL == zbdev) {
@@ -590,6 +557,7 @@ static int ieee802154_serial_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	if (ret)
 		goto out;
 
+#if 0
 	if (wait_event_interruptible_timeout(zbdev->wq,
 					     zbdev->status != STATUS_WAIT,
 					     msecs_to_jiffies(TIMEOUT)) > 0) {
@@ -601,10 +569,10 @@ static int ieee802154_serial_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 		ret = -ETIMEDOUT;
 		goto out;
 	}
+#endif
 
 out:
 	mutex_unlock(&zbdev->mutex);
-	pr_debug("%s end\n", __func__);
 	return ret;
 }
 
@@ -631,7 +599,6 @@ static int ieee802154_tty_open(struct tty_struct *tty)
 	struct ieee802154_hw *hw;
 	int err;
 
-	pr_debug("Openning ldisc\n");
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
@@ -675,6 +642,8 @@ static int ieee802154_tty_open(struct tty_struct *tty)
 		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
+	spin_lock_init(&zbdev->lock);
+	
 	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
 	
 	err = ieee802154_register_hw(hw);
@@ -744,11 +713,9 @@ static int ieee802154_tty_ioctl(struct tty_struct *tty, struct file *file,
 {
 	struct zb_device *zbdev;
 
-	pr_debug("cmd = 0x%x\n", cmd);
-
 	zbdev = tty->disc_data;
-	if (NULL == zbdev) {
-		pr_debug("match is not found\n");
+	if (zbdev == NULL) {
+		printk("dev is not found\n");
 		return -EINVAL;
 	}
 
@@ -772,9 +739,6 @@ static void ieee802154_tty_receive(struct tty_struct *tty, const unsigned char *
 	struct zb_device *zbdev;
 	int i;
 
-	/* Debug info */
-	printk(KERN_INFO "%s, received %d bytes\n", __func__,
-	       count);
 #ifdef DEBUG
 	print_hex_dump_bytes("ieee802154_tty_receive ", DUMP_PREFIX_NONE,
 			     buf, count);
@@ -816,7 +780,7 @@ static struct tty_ldisc_ops ieee802154_ldisc = {
 
 static int __init ieee802154_serial_init(void)
 {
-	printk(KERN_INFO "Initializing ZigBee TTY interface\n");
+	printk(KERN_INFO "Initializing serial802154 TTY interface\n");
 
 	if (tty_register_ldisc(N_IEEE802154, &ieee802154_ldisc) != 0) {
 		printk(KERN_ERR "%s: line discipline register failed\n",
@@ -831,7 +795,7 @@ static void __exit ieee802154_serial_cleanup(void)
 {
 	if (tty_unregister_ldisc(N_IEEE802154) != 0)
 		printk(KERN_CRIT
-		       "failed to unregister ZigBee line discipline.\n");
+		       "failed to unregister serial802154 line discipline.\n");
 }
 
 module_init(ieee802154_serial_init);
