@@ -127,7 +127,7 @@ struct zb_device {
 	unsigned char		opened;
 	u8			pending_id;
 	unsigned int		pending_size;
-	u8			*pending_data;
+	u8			pending_data[MAX_DATA_SIZE + 4];
 	/* FIXME: WE NEED LOCKING!!! */
 
 	/* Command (rx) processing */
@@ -145,8 +145,7 @@ struct zb_device {
 static int _open_dev(struct zb_device *zbdev);
 static int _close_dev(struct zb_device *zbdev);
 
-static void
-cleanup(struct zb_device *zbdev)
+static void cleanup(struct zb_device *zbdev)
 {
 	zbdev->state = STATE_WAIT_START1;
 	zbdev->id = 0;
@@ -155,15 +154,9 @@ cleanup(struct zb_device *zbdev)
 	zbdev->index = 0;
 	zbdev->pending_id = 0;
 	zbdev->pending_size = 0;
-
-	if (zbdev->pending_data) {
-		kfree(zbdev->pending_data);
-		zbdev->pending_data = NULL;
-	}
 }
 
-static int
-_send_pending_data(struct zb_device *zbdev)
+static int _send_pending_data(struct zb_device *zbdev)
 {
 	struct tty_struct *tty;
 
@@ -191,8 +184,7 @@ _send_pending_data(struct zb_device *zbdev)
 	return 0;
 }
 
-static int
-send_cmd(struct zb_device *zbdev, u8 id)
+static int __maybe_unused send_cmd(struct zb_device *zbdev, u8 id)
 {
 	u8 len = 0;
 	/* 4 because of 2 start bytes, id and optional extra */
@@ -222,20 +214,12 @@ send_cmd(struct zb_device *zbdev, u8 id)
 
 	zbdev->pending_id = id;
 	zbdev->pending_size = len;
-	zbdev->pending_data = kzalloc(zbdev->pending_size, GFP_ATOMIC);
-	if (!zbdev->pending_data) {
-		printk(KERN_ERR "%s(): unable to allocate memory\n", __func__);
-		zbdev->pending_id = 0;
-		zbdev->pending_size = 0;
-		return -ENOMEM;
-	}
 	memcpy(zbdev->pending_data, buf, len);
 
 	return _send_pending_data(zbdev);
 }
 
-static int
-send_cmd2(struct zb_device *zbdev, u8 id, u8 extra)
+static int send_cmd2(struct zb_device *zbdev, u8 id, u8 extra)
 {
 	u8 len = 0;
 	/* 4 because of 2 start bytes, id and optional extra */
@@ -266,20 +250,12 @@ send_cmd2(struct zb_device *zbdev, u8 id, u8 extra)
 
 	zbdev->pending_id = id;
 	zbdev->pending_size = len;
-	zbdev->pending_data = kzalloc(zbdev->pending_size, GFP_ATOMIC);
-	if (!zbdev->pending_data) {
-		printk(KERN_ERR "%s(): unable to allocate memory\n", __func__);
-		zbdev->pending_id = 0;
-		zbdev->pending_size = 0;
-		return -ENOMEM;
-	}
 	memcpy(zbdev->pending_data, buf, len);
 
 	return _send_pending_data(zbdev);
 }
 
-static int __maybe_unused
-send_cmd3(struct zb_device *zbdev, u8 id, u8 extra1, u8 extra2)
+static int __maybe_unused send_cmd3(struct zb_device *zbdev, u8 id, u8 extra1, u8 extra2)
 {
 	u8 len = 0;
 	/* 5 because of 2 start bytes, id, extra1, extra2 */
@@ -311,20 +287,12 @@ send_cmd3(struct zb_device *zbdev, u8 id, u8 extra1, u8 extra2)
 
 	zbdev->pending_id = id;
 	zbdev->pending_size = len;
-	zbdev->pending_data = kzalloc(zbdev->pending_size, GFP_ATOMIC);
-	if (!zbdev->pending_data) {
-		printk(KERN_ERR "%s(): unable to allocate memory\n", __func__);
-		zbdev->pending_id = 0;
-		zbdev->pending_size = 0;
-		return -ENOMEM;
-	}
 	memcpy(zbdev->pending_data, buf, len);
 
 	return _send_pending_data(zbdev);
 }
 
-static int
-send_block(struct zb_device *zbdev, u8 len, u8 *data)
+static int send_block(struct zb_device *zbdev, u8 len, u8 *data)
 {
 	u8 i = 0, buf[4];	/* 4 because of 2 start bytes, id and len */
 
@@ -353,22 +321,13 @@ send_block(struct zb_device *zbdev, u8 len, u8 *data)
 
 	zbdev->pending_id = DATA_XMIT_BLOCK;
 	zbdev->pending_size = i + len;
-	zbdev->pending_data = kzalloc(zbdev->pending_size, GFP_ATOMIC);
-	if (!zbdev->pending_data) {
-		printk(KERN_ERR "%s(): unable to allocate memory\n", __func__);
-		zbdev->pending_id = 0;
-		zbdev->pending_size = 0;
-		return -ENOMEM;
-	}
 	memcpy(zbdev->pending_data, buf, i);
 	memcpy(zbdev->pending_data + i, data, len);
 
 	return _send_pending_data(zbdev);
 }
 
-
-static int
-is_command(unsigned char c)
+static int is_command(unsigned char c)
 {
 	switch (c) {
 	/* ids we can get here: */
@@ -387,8 +346,7 @@ is_command(unsigned char c)
 	return 0;
 }
 
-static int
-_match_pending_id(struct zb_device *zbdev)
+static int _match_pending_id(struct zb_device *zbdev)
 {
 	return ((CMD_OPEN == zbdev->pending_id &&
 		 RESP_OPEN == zbdev->id) ||
@@ -424,36 +382,11 @@ static void serial_net_rx(struct zb_device *zbdev)
 	ieee802154_rx_irqsafe(zbdev->hw, skb, zbdev->param1);
 }
 
-static void
-process_command(struct zb_device *zbdev)
+static void process_command(struct zb_device *zbdev)
 {
 	/* Command processing */
 	if (!_match_pending_id(zbdev)) {
 		cleanup(zbdev);
-		return;
-	}
-
-	if (RESP_OPEN == zbdev->id && STATUS_SUCCESS == zbdev->param1) {
-		zbdev->opened = 1;
-		pr_debug("Opened device\n");
-		complete(&zbdev->open_done);
-		/* Input is not processed during output, so
-		 * using completion is not possible during output.
-		 * so we need to handle open as any other command
-		 * and hope for best
-		 */
-		return;
-	}
-
-	if (RESP_CLOSE == zbdev->id && STATUS_SUCCESS == zbdev->param1) {
-		zbdev->opened = 0;
-		pr_debug("Closed device\n");
-		complete(&zbdev->close_done);
-		/* Input is not processed during output, so
-		 * using completion is not possible during output.
-		 * so we need to handle open as any other command
-		 * and hope for best
-		 */
 		return;
 	}
 
@@ -462,34 +395,16 @@ process_command(struct zb_device *zbdev)
 		return;
 	}
 
-
 	zbdev->pending_id = 0;
-	kfree(zbdev->pending_data);
-	zbdev->pending_data = NULL;
 	zbdev->pending_size = 0;
 
-	if (zbdev->id != DATA_RECV_BLOCK) {
-		/* XXX: w/around for old FW, REMOVE */
-		if (zbdev->param1 == STATUS_IDLE)
-			zbdev->status = STATUS_SUCCESS;
-		else
-			zbdev->status = zbdev->param1;
-	}
-
 	switch (zbdev->id) {
-	case RESP_ED:
-		zbdev->ed = zbdev->param2;
-		break;
-	case DATA_RECV_BLOCK:
+	case DATA_XMIT_BLOCK:
 		pr_debug("Received block, lqi %02x, len %02x\n",
 			 zbdev->param1, zbdev->param2);
 		/* zbdev->param1 is LQ, zbdev->param2 is length */
 		serial_net_rx(zbdev);
-		break;
-	case RESP_ADDRESS:
-		pr_debug("Received address, %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-			 zbdev->data[0], zbdev->data[1], zbdev->data[2], zbdev->data[3],
-			 zbdev->data[4], zbdev->data[5], zbdev->data[6], zbdev->data[7]);
+		send_cmd2(zbdev, RESP_XMIT_BLOCK, STATUS_SUCCESS);
 		break;
 	}
 
@@ -498,20 +413,19 @@ process_command(struct zb_device *zbdev)
 	wake_up(&zbdev->wq);
 }
 
-static void
-process_char(struct zb_device *zbdev, unsigned char c)
+static void process_char(struct zb_device *zbdev, unsigned char c)
 {
 	/* Data processing */
 	switch (zbdev->state) {
 	case STATE_WAIT_START1:
-		if (START_BYTE1 == c)
+		if (c == START_BYTE1)
 			zbdev->state = STATE_WAIT_START2;
 		else
 			cleanup(zbdev);
 		break;
 
 	case STATE_WAIT_START2:
-		if (START_BYTE2 == c)
+		if (c == START_BYTE2)
 			zbdev->state = STATE_WAIT_COMMAND;
 		else
 			cleanup(zbdev);
@@ -530,20 +444,15 @@ process_char(struct zb_device *zbdev, unsigned char c)
 
 	case STATE_WAIT_PARAM1:
 		zbdev->param1 = c;
-		if ((RESP_ED == zbdev->id) || (DATA_RECV_BLOCK == zbdev->id))
+		if (zbdev->id == DATA_XMIT_BLOCK)
 			zbdev->state = STATE_WAIT_PARAM2;
-		else if (RESP_ADDRESS == zbdev->id) {
-			zbdev->param2 = 8;
-			zbdev->state = STATE_WAIT_DATA;
-		} else
+		else
 			process_command(zbdev);
 		break;
 
 	case STATE_WAIT_PARAM2:
 		zbdev->param2 = c;
-		if (RESP_ED == zbdev->id)
-			process_command(zbdev);
-		else if (DATA_RECV_BLOCK == zbdev->id)
+		if (zbdev->id == DATA_RECV_BLOCK)
 			zbdev->state = STATE_WAIT_DATA;
 		else
 			cleanup(zbdev);
@@ -581,11 +490,6 @@ process_char(struct zb_device *zbdev, unsigned char c)
 
 static int _open_dev(struct zb_device *zbdev)
 {
-	int retries;
-	u8 len = 0;
-	/* 4 because of 2 start bytes, id and optional extra */
-	u8 buf[4];
-
 	/* Check arguments */
 	BUG_ON(!zbdev);
 	if (zbdev->opened)
@@ -600,52 +504,12 @@ static int _open_dev(struct zb_device *zbdev)
 		return -EAGAIN;
 	}
 
-	/* Prepare a message */
-	buf[len++] = START_BYTE1;
-	buf[len++] = START_BYTE2;
-	buf[len++] = CMD_OPEN;
-
-
-	zbdev->pending_id = CMD_OPEN;
-	zbdev->pending_size = len;
-	zbdev->pending_data = kzalloc(zbdev->pending_size, GFP_KERNEL);
-	if (!zbdev->pending_data) {
-		printk(KERN_ERR "%s(): unable to allocate memory\n", __func__);
-		zbdev->pending_id = 0;
-		zbdev->pending_size = 0;
-		return -ENOMEM;
-	}
-	memcpy(zbdev->pending_data, buf, len);
-
-	retries = 5;
-	while (!zbdev->opened && retries) {
-
-		if (_send_pending_data(zbdev) != 0)
-			return 0;
-
-		/* 3 second before retransmission */
-		wait_for_completion_interruptible_timeout(
-			&zbdev->open_done, msecs_to_jiffies(TIMEOUT));
-		--retries;
-	}
-
-	cleanup(zbdev);
-
-	if (zbdev->opened) {
-		printk(KERN_INFO "Opened connection to device\n");
-		return 1;
-	}
-
+	zbdev->opened = 1;
 	return 0;
 }
 
 static int _close_dev(struct zb_device *zbdev)
 {
-	int retries;
-	u8 len = 0;
-	/* 4 because of 2 start bytes, id and optional extra */
-	u8 buf[4];
-
 	/* Check arguments */
 	BUG_ON(!zbdev);
 
@@ -658,194 +522,31 @@ static int _close_dev(struct zb_device *zbdev)
 		return -EAGAIN;
 	}
 
-	/* Prepare a message */
-	buf[len++] = START_BYTE1;
-	buf[len++] = START_BYTE2;
-	buf[len++] = CMD_CLOSE;
-
-	zbdev->pending_id = CMD_CLOSE;
-	zbdev->pending_size = len;
-	zbdev->pending_data = kzalloc(zbdev->pending_size, GFP_KERNEL);
-	if (!zbdev->pending_data) {
-		printk(KERN_ERR "%s(): unable to allocate memory\n", __func__);
-		zbdev->pending_id = 0;
-		zbdev->pending_size = 0;
-		return -ENOMEM;
-	}
-	memcpy(zbdev->pending_data, buf, len);
-
-	retries = 5;
-	do {
-
-		if (_send_pending_data(zbdev) !=0)
-			return 0;
-
-		/* 1 second before retransmission */
-		wait_for_completion_interruptible_timeout(
-			&zbdev->close_done, msecs_to_jiffies(TIMEOUT));
-		--retries;
-	} while (zbdev->opened && retries) ;
-
-	cleanup(zbdev);
-
-	if (!zbdev->opened) {
-		printk(KERN_INFO "Closed connection to device\n");
-		return 1;
-	}
-
+	zbdev->opened = 0;
 	return 0;
 }
 
 /* Valid channels: 1-16 */
-static int
-ieee802154_serial_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
+static int ieee802154_serial_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
+{
+	pr_debug("%s %d\n", __func__, channel);
+	return 0;
+}
+
+static int ieee802154_serial_ed(struct ieee802154_hw *hw, u8 *level)
+{
+	pr_debug("%s end\n", __func__);
+	return 0;
+}
+
+static int ieee802154_serial_start(struct ieee802154_hw *hw)
 {
 	struct zb_device *zbdev;
 	int ret = 0;
 
-	pr_debug("%s %d\n", __func__, channel);
+	pr_debug("%s\n", __func__);
 
 	zbdev = hw->priv;
-	if (NULL == zbdev) {
-		printk(KERN_ERR "%s: wrong phy\n", __func__);
-		return -EINVAL;
-	}
-
-	BUG_ON(page != 0);
-	/* Our channels are actually from 11 to 26
-	 * We have IEEE802.15.4 channel no from 0 to 26.
-	 * channels 0-10 are not valid for us */
-	BUG_ON(channel < 11 || channel > 26);
-	/* ...  but our crappy firmware numbers channels from 1 to 16
-	 * which is a mystery. We suould enforce that using PIB API
-	 * but additional checking here won't kill, and gcc will
-	 * optimize this stuff anyway. */
-	BUG_ON((channel - 10) < 1 && (channel - 10) > 16);
-	if (mutex_lock_interruptible(&zbdev->mutex))
-		return -EINTR;
-	ret = send_cmd2(zbdev, CMD_SET_CHANNEL, channel - 10);
-	if (ret)
-		goto out;
-
-	if (wait_event_interruptible_timeout(zbdev->wq,
-					     zbdev->status != STATUS_WAIT,
-					     msecs_to_jiffies(TIMEOUT)) > 0) {
-		if (zbdev->status != STATUS_SUCCESS)
-			ret = -EBUSY;
-	} else
-		ret = -EINTR;
-
-	if (!ret)
-		zbdev->hw->phy->current_channel = channel;
-out:
-	mutex_unlock(&zbdev->mutex);
-	pr_debug("%s end\n", __func__);
-	return ret;
-}
-
-static int
-ieee802154_serial_ed(struct ieee802154_hw *dev, u8 *level)
-{
-	struct zb_device *zbdev;
-	int ret = 0;
-
-	pr_debug("%s\n", __func__);
-
-	zbdev = dev->priv;
-	if (NULL == zbdev) {
-		printk(KERN_ERR "%s: wrong phy\n", __func__);
-		return -EINVAL;
-	}
-
-	if (mutex_lock_interruptible(&zbdev->mutex))
-		return -EINTR;
-
-	ret = send_cmd(zbdev, CMD_ED);
-	if (ret)
-		goto out;
-
-	if (wait_event_interruptible_timeout(zbdev->wq,
-					     zbdev->status != STATUS_WAIT,
-					     msecs_to_jiffies(TIMEOUT)) > 0) {
-		*level = zbdev->ed;
-		if (zbdev->status != STATUS_SUCCESS)
-			ret = -EBUSY;
-	} else
-		ret = -ETIMEDOUT;
-out:
-
-	mutex_unlock(&zbdev->mutex);
-	pr_debug("%s end\n", __func__);
-	return ret;
-}
-
-static int __maybe_unused
-ieee802154_serial_set_laddr(struct zb_device *zbdev, u8 *addr)
-{
-	int ret = 0;
-	uint8_t len = 0;
-	/* 11 because of 2 start bytes, id and 8 bytes addr */
-	uint8_t buf[11];
-
-	pr_debug("%s\n", __func__);
-
-	if (mutex_lock_interruptible(&zbdev->mutex))
-		return -EINTR;
-
-
-	if (zbdev->pending_size) {
-		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
-		       __func__, zbdev->pending_id);
-		cleanup(zbdev);
-		return -EAGAIN;
-	}
-
-	/* Prepare a message */
-	buf[len++] = START_BYTE1;
-	buf[len++] = START_BYTE2;
-	buf[len++] = CMD_SET_LONG_ADDRESS;
-
-	memcpy(&buf[len], addr, IEEE802154_ADDR_LEN);
-
-	zbdev->pending_id = CMD_SET_LONG_ADDRESS;
-	zbdev->pending_size = len + IEEE802154_ADDR_LEN;
-	zbdev->pending_data = kzalloc(zbdev->pending_size, GFP_ATOMIC);
-	if (!zbdev->pending_data) {
-		printk(KERN_ERR "%s(): unable to allocate memory\n", __func__);
-		zbdev->pending_id = 0;
-		zbdev->pending_size = 0;
-		return -ENOMEM;
-	}
-	memcpy(zbdev->pending_data, buf, len);
-
-	ret =  _send_pending_data(zbdev);
-
-	if (ret)
-		goto out;
-
-	if (wait_event_interruptible_timeout(zbdev->wq,
-					     zbdev->status != STATUS_WAIT,
-					     msecs_to_jiffies(TIMEOUT)) > 0) {
-		if (zbdev->status != STATUS_SUCCESS)
-			ret = -EBUSY;
-	} else
-		ret = -ETIMEDOUT;
-
-out:
-	mutex_unlock(&zbdev->mutex);
-	pr_debug("%s end\n", __func__);
-	return ret;
-}
-
-static int
-ieee802154_serial_start(struct ieee802154_hw *dev)
-{
-	struct zb_device *zbdev;
-	int ret = 0;
-
-	pr_debug("%s\n", __func__);
-
-	zbdev = dev->priv;
 	if (NULL == zbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return -EINVAL;
@@ -855,13 +556,12 @@ ieee802154_serial_start(struct ieee802154_hw *dev)
 	return ret;
 }
 
-static void
-ieee802154_serial_stop(struct ieee802154_hw *dev)
+static void ieee802154_serial_stop(struct ieee802154_hw *hw)
 {
 	struct zb_device *zbdev;
 	pr_debug("%s\n", __func__);
 
-	zbdev = dev->priv;
+	zbdev = hw->priv;
 	if (NULL == zbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return;
@@ -870,15 +570,14 @@ ieee802154_serial_stop(struct ieee802154_hw *dev)
 	pr_debug("%s end\n", __func__);
 }
 
-static int
-ieee802154_serial_xmit(struct ieee802154_hw *dev, struct sk_buff *skb)
+static int ieee802154_serial_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct zb_device *zbdev;
 	int ret;
 
 	pr_debug("%s\n", __func__);
 
-	zbdev = dev->priv;
+	zbdev = hw->priv;
 	if (NULL == zbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return -EINVAL;
@@ -904,7 +603,6 @@ ieee802154_serial_xmit(struct ieee802154_hw *dev, struct sk_buff *skb)
 	}
 
 out:
-
 	mutex_unlock(&zbdev->mutex);
 	pr_debug("%s end\n", __func__);
 	return ret;
@@ -927,8 +625,7 @@ static struct ieee802154_ops serial_ops = {
  * Called when a tty is put into ZB line discipline. Called in process context.
  * Returns 0 on success.
  */
-static int
-ieee802154_tty_open(struct tty_struct *tty)
+static int ieee802154_tty_open(struct tty_struct *tty)
 {
 	struct zb_device *zbdev = tty->disc_data;
 	struct ieee802154_hw *hw;
@@ -1004,8 +701,7 @@ out_free:
  * zb_serial_dev struct. This routine must be called from process context, not
  * interrupt or softirq context.
  */
-static void
-ieee802154_tty_close(struct tty_struct *tty)
+static void ieee802154_tty_close(struct tty_struct *tty)
 {
 	struct zb_device *zbdev;
 
@@ -1031,8 +727,7 @@ ieee802154_tty_close(struct tty_struct *tty)
 /*
  * Called on tty hangup in process context.
  */
-static int
-ieee802154_tty_hangup(struct tty_struct *tty)
+static int ieee802154_tty_hangup(struct tty_struct *tty)
 {
 	ieee802154_tty_close(tty);
 	return 0;
@@ -1042,9 +737,8 @@ ieee802154_tty_hangup(struct tty_struct *tty)
  * Called in process context only. May be re-entered
  * by multiple ioctl calling threads.
  */
-static int
-ieee802154_tty_ioctl(struct tty_struct *tty, struct file *file,
-		     unsigned int cmd, unsigned long arg)
+static int ieee802154_tty_ioctl(struct tty_struct *tty, struct file *file,
+				unsigned int cmd, unsigned long arg)
 {
 	struct zb_device *zbdev;
 
@@ -1070,9 +764,8 @@ ieee802154_tty_ioctl(struct tty_struct *tty, struct file *file,
  * This can now be called from hard interrupt level as well
  * as soft interrupt level or mainline.
  */
-static void
-ieee802154_tty_receive(struct tty_struct *tty, const unsigned char *buf,
-		       char *cflags, int count)
+static void ieee802154_tty_receive(struct tty_struct *tty, const unsigned char *buf,
+				   char *cflags, int count)
 {
 	struct zb_device *zbdev;
 	int i;

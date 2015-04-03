@@ -60,4 +60,4 @@ config IEEE802154_CC2520
 
 config IEEE802154_FAKE
 	depends on IEEE802154_DRIVERS && MAC802154
-	tristate "Simple UART driver"
+	tristate "Simple UART CROSS driver"
