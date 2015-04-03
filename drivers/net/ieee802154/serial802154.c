@@ -675,6 +675,8 @@ static int ieee802154_tty_open(struct tty_struct *tty)
 		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
+	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
+	
 	err = ieee802154_register_hw(hw);
 	if (err) {
 		printk(KERN_ERR "%s: device register failed\n", __func__);
