@@ -25,6 +25,12 @@
 	aliases {
 		serial0 = &uart4;
 		mdio-gpio0 = &mdio0;
+		/*
+		 * U-Boot searches for these entries and patches
+		 * 'local-mac-address'
+		 */
+		ethernet0 = &gmac1;
+		ethernet1 = &gmac2;
 	};
 
 	chosen {
