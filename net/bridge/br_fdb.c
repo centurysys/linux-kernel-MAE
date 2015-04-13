@@ -407,6 +407,7 @@ struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(__br_fdb_get);
 
 #if IS_ENABLED(CONFIG_ATM_LANE)
 /* Interface used by ATM LANE hook to test
