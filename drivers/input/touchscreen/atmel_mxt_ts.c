@@ -1236,7 +1236,21 @@ static int mxt_acquire_irq(struct mxt_data *data)
 {
 	int error;
 
-	enable_irq(data->irq);
+	if (!data->irq) {
+		error = devm_request_threaded_irq(&data->client->dev,
+						  data->client->irq, NULL,
+						  mxt_interrupt, IRQF_ONESHOT,
+						  data->client->name, data);
+		if (error) {
+			dev_err(&data->client->dev, "Error requesting irq\n");
+			return error;
+		}
+
+		/* Presence of data->irq means IRQ initialised */
+		data->irq = data->client->irq;
+	} else {
+		enable_irq(data->irq);
+	}
 
 	if (data->use_retrigen_workaround) {
 		error = mxt_process_messages_until_invalid(data);
@@ -2907,7 +2921,7 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 		mxt_free_input_device(data);
 		mxt_free_object_table(data);
 	} else {
-		enable_irq(data->irq);
+		mxt_acquire_irq(data);
 	}
 
 	reinit_completion(&data->chg_completion);
@@ -3215,7 +3229,6 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 client->adapter->nr, client->addr);
 
 	data->client = client;
-	data->irq = client->irq;
 	i2c_set_clientdata(client, data);
 
 	init_completion(&data->chg_completion);
@@ -3259,15 +3272,6 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (IS_ERR(data->wake_gpio)) {
 		error = PTR_ERR(data->wake_gpio);
 		dev_err(&client->dev, "Failed to get wake gpio: %d\n", error);
-		return error;
-	}
-
-	error = devm_request_threaded_irq(&client->dev, client->irq,
-					  NULL, mxt_interrupt,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
-					  client->name, data);
-	if (error) {
-		dev_err(&client->dev, "Failed to register interrupt\n");
 		return error;
 	}
 
