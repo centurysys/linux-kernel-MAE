@@ -22,11 +22,36 @@
 #include <linux/spi/spi.h>
 
 #include "mt29f_spinand.h"
+#include "giga_spinand.h"
 
 #define BUFSIZE (10 * 64 * 2048)
 #define CACHE_BUF 2112
 
 struct spinand_ops spinand_dev[] = {
+#ifdef CONFIG_MTD_SPINAND_GIGADEVICE
+	{
+		NAND_MFR_GIGA,
+		0xb1,
+		gigadevice_set_defaults,
+		gigadevice_read_cmd,
+		gigadevice_read_data,
+		gigadevice_write_cmd,
+		gigadevice_write_data,
+		gigadevice_erase_blk,
+		gigadevice_parse_id,
+	},
+	{
+		NAND_MFR_GIGA,
+		0xa1,
+		gigadevice_set_defaults,
+		gigadevice_read_cmd,
+		gigadevice_read_data,
+		gigadevice_write_cmd,
+		gigadevice_write_data,
+		gigadevice_erase_blk,
+		gigadevice_parse_id,
+	},
+#endif
 	{ },
 };
 
