@@ -77,19 +77,6 @@
 #define BL_1_64_LOCKED     0x08
 #define BL_ALL_UNLOCKED    0
 
-struct spinand_info {
-	struct nand_ecclayout *ecclayout;
-	struct spi_device *spi;
-	void *priv;
-};
-
-struct spinand_state {
-	u32	col;
-	u32	row;
-	int		buf_ptr;
-	u8		*buf;
-};
-
 struct spinand_cmd {
 	u8		cmd;
 	u32		n_addr;		/* Number of address */
@@ -99,6 +86,35 @@ struct spinand_cmd {
 	u8		*tx_buf;	/* Tx buf */
 	u32		n_rx;		/* Number of rx bytes */
 	u8		*rx_buf;	/* Rx buf */
+};
+
+struct spinand_ops {
+	u8   maf_id;
+	u8   dev_id;
+	void (*spinand_set_defaults)(struct spi_device *spi_nand);
+	void (*spinand_read_cmd)(struct spinand_cmd *cmd, u32 page_id);
+	void (*spinand_read_data)(struct spinand_cmd *cmd, u16 column,
+				  u16 page_id);
+	void (*spinand_write_cmd)(struct spinand_cmd *cmd, u32 page_id);
+	void (*spinand_write_data)(struct spinand_cmd *cmd, u16 column,
+				   u16 page_id);
+	void (*spinand_erase_blk)(struct spinand_cmd *cmd, u32 page_id);
+	int (*spinand_parse_id)(struct spi_device *spi_nand, u8 *nand_id,
+				u8 *id);
+};
+
+struct spinand_info {
+	struct nand_ecclayout *ecclayout;
+	struct spi_device *spi;
+	void *priv;
+	struct spinand_ops *dev_ops;
+};
+
+struct spinand_state {
+	u32	col;
+	u32	row;
+	int		buf_ptr;
+	u8		*buf;
 };
 
 int spinand_mtd(struct mtd_info *mtd);
