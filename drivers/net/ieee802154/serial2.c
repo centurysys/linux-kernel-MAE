@@ -78,7 +78,7 @@ enum {
 	CMD_CLOSE		= 0x02, /* u8 id */
 	CMD_SET_CHANNEL	= 0x03, /* u8 id, u8 channel */
 	DATA_XMIT_BLOCK	= 0x04, /* u8 id, u8 len, u8 data[len] */
-	RESP_RECV_BLOCK	= 0x05, /* u8 id, u8 status */
+	DATA_RECV_BLOCK	= 0x05, /* u8 id, u8 status */
 	CMD_SET_LONG_ADDRESS	= 0x08, /* u8 id, u8 u8 u8 u8 u8 u8 u8 u8 address (MSB first) */
 	CMD_SET_SHORT_ADDRESS	= 0x09, /* u8 id, u8 u8 address  (MSB first)*/
 	CMD_SET_PAN_ID		= 0x0a, /* u8 id, u8 u8 panid (MSB first) */
@@ -88,7 +88,7 @@ enum {
 	RESP_CLOSE		= 0x82, /* u8 id, u8 status */
 	RESP_SET_CHANNEL	= 0x83, /* u8 id, u8 status */
 	RESP_XMIT_BLOCK	= 0x84, /* u8 id, u8 status */
-	DATA_RECV_BLOCK	= 0x85, /* u8 id, u8 lq, u8 len, u8 data[len] */
+	RESP_RECV_BLOCK	= 0x85, /* u8 id, u8 lq, u8 len, u8 data[len] */
 	RESP_SET_LONG_ADDRESS	= 0x88, /* u8 id, u8 status */
 	RESP_SET_SHORT_ADDRESS	= 0x89, /* u8 id, u8 status */
 	RESP_SET_PAN_ID	= 0x8a, /* u8 id, u8 status */
@@ -164,11 +164,12 @@ static int _send_pending_data(struct zb_device *zbdev)
 
 	zbdev->status = STATUS_WAIT;
 
-#ifdef DEBUG
 	/* Debug info */
 	printk(KERN_DEBUG "%s, %d bytes\n", __func__,
 	       zbdev->pending_size);
 
+//#ifdef DEBUG
+#if 0
 	print_hex_dump_bytes("send_pending_data ", DUMP_PREFIX_NONE,
 			     zbdev->pending_data, zbdev->pending_size);
 #endif
@@ -179,12 +180,13 @@ static int _send_pending_data(struct zb_device *zbdev)
 		return -1;
 	}
 
-	cleanup(zbdev);
+	//cleanup(zbdev);
 	return 0;
 }
 
 static int __maybe_unused send_cmd(struct zb_device *zbdev, u8 id)
 {
+	int res;
 	u8 len = 0;
 	/* 4 because of 2 start bytes, id and optional extra */
 	u8 buf[4];
@@ -197,6 +199,7 @@ static int __maybe_unused send_cmd(struct zb_device *zbdev, u8 id)
 			return -EAGAIN;
 	}
 
+#if 0
 	if (zbdev->pending_size) {
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
@@ -204,6 +207,7 @@ static int __maybe_unused send_cmd(struct zb_device *zbdev, u8 id)
 		cleanup(zbdev);
 		return -EAGAIN;
 	}
+#endif
 
 	/* Prepare a message */
 	buf[len++] = START_BYTE1;
@@ -214,11 +218,14 @@ static int __maybe_unused send_cmd(struct zb_device *zbdev, u8 id)
 	zbdev->pending_size = len;
 	memcpy(zbdev->pending_data, buf, len);
 
-	return _send_pending_data(zbdev);
+	res = _send_pending_data(zbdev);
+
+	return res;
 }
 
 static int send_cmd2(struct zb_device *zbdev, u8 id, u8 extra)
 {
+	int res;
 	u8 len = 0;
 	/* 4 because of 2 start bytes, id and optional extra */
 	u8 buf[4];
@@ -249,7 +256,9 @@ static int send_cmd2(struct zb_device *zbdev, u8 id, u8 extra)
 	zbdev->pending_size = len;
 	memcpy(zbdev->pending_data, buf, len);
 
-	return _send_pending_data(zbdev);
+	res = _send_pending_data(zbdev);
+
+	return res;
 }
 
 static int __maybe_unused send_cmd3(struct zb_device *zbdev, u8 id, u8 extra1, u8 extra2)
@@ -324,10 +333,11 @@ static int send_block(struct zb_device *zbdev, u8 len, u8 *data)
 
 static int is_command(unsigned char c)
 {
+	printk("%s: cmd: 0x%02x\n", __FUNCTION__, c);
+
 	switch (c) {
 	/* ids we can get here: */
 	case RESP_XMIT_BLOCK:
-	case DATA_XMIT_BLOCK:
 	case DATA_RECV_BLOCK:
 		return 1;
 	}
@@ -336,10 +346,14 @@ static int is_command(unsigned char c)
 
 static int _match_pending_id(struct zb_device *zbdev)
 {
+#if 0
 	return ((zbdev->pending_id == DATA_XMIT_BLOCK &&
 		 zbdev->id == RESP_XMIT_BLOCK) ||
 		zbdev->id == DATA_XMIT_BLOCK ||
 		zbdev->id == RESP_XMIT_BLOCK);
+#else
+	return 1;
+#endif
 }
 
 static void serial_net_rx(struct zb_device *zbdev)
@@ -356,6 +370,12 @@ static void serial_net_rx(struct zb_device *zbdev)
 	skb_put(skb, zbdev->param1);
 	skb_copy_to_linear_data(skb, zbdev->data, zbdev->param1);
 
+	//printk("%s: len: %d\n", __FUNCTION__, zbdev->param1);
+
+#if 0
+	print_hex_dump_bytes("serial_net_rx ", DUMP_PREFIX_NONE,
+			     zbdev->data, zbdev->param1);
+#endif
 	ieee802154_rx_irqsafe(zbdev->hw, skb, 0xcc);
 
 	spin_unlock(&zbdev->lock);
@@ -363,6 +383,8 @@ static void serial_net_rx(struct zb_device *zbdev)
 
 static void process_command(struct zb_device *zbdev)
 {
+	//printk("%s: \n", __FUNCTION__);
+
 	/* Command processing */
 	if (!_match_pending_id(zbdev)) {
 		printk("%s: not match pending id (pending: 0x%02x, id: 0x%02x)\n",
@@ -378,17 +400,19 @@ static void process_command(struct zb_device *zbdev)
 
 	zbdev->pending_id = 0;
 	zbdev->pending_size = 0;
+	zbdev->status = STATUS_SUCCESS;
 
 	switch (zbdev->id) {
-	case DATA_XMIT_BLOCK:
+	case DATA_RECV_BLOCK:
 		/* zbdev->param1 is LQ, zbdev->param2 is length */
 		serial_net_rx(zbdev);
-		send_cmd2(zbdev, RESP_XMIT_BLOCK, STATUS_SUCCESS);
+		//send_cmd2(zbdev, RESP_RECV_BLOCK, STATUS_SUCCESS);
 		break;
+	}
 
-	case RESP_XMIT_BLOCK:
-		//wake_up(&zbdev->wq);
-		break;
+	if (zbdev->id == RESP_XMIT_BLOCK) {
+		//printk("%s: --> wakeup!\n", __FUNCTION__);
+		wake_up(&zbdev->wq);
 	}
 
 	cleanup(zbdev);
@@ -425,9 +449,21 @@ static void process_char(struct zb_device *zbdev, unsigned char c)
 
 	case STATE_WAIT_PARAM1:
 		zbdev->param1 = c;
-		if (zbdev->id == DATA_XMIT_BLOCK)
+		if (zbdev->id == DATA_RECV_BLOCK) {
+			//printk("%s: DATA_RECV_BLOCK: data size = %d\n",
+			//       __FUNCTION__, (int) zbdev->param1);
 			zbdev->state = STATE_WAIT_DATA;
-		else
+		} else
+			process_command(zbdev);
+		break;
+
+	case STATE_WAIT_PARAM2:
+		zbdev->param2 = c;
+		if (zbdev->id == DATA_RECV_BLOCK) {
+			//printk("%s: DATA_RECV_BLOCK: data size = %d\n",
+			//       __FUNCTION__, (int) zbdev->param1);
+			zbdev->state = STATE_WAIT_DATA;
+		} else
 			process_command(zbdev);
 		break;
 
@@ -446,8 +482,8 @@ static void process_char(struct zb_device *zbdev, unsigned char c)
 				process_command(zbdev);
 			}
 		} else {
-			printk(KERN_ERR "%s(): data size is greater "
-			       "than buffer available\n", __func__);
+			printk(KERN_ERR "%s(): data size(%d) is greater "
+			       "than buffer available\n", __func__, zbdev->index);
 			cleanup(zbdev);
 		}
 		break;
@@ -547,20 +583,26 @@ static int ieee802154_serial_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	if (mutex_lock_interruptible(&zbdev->mutex))
 		return -EINTR;
 
+	//mdelay(20);
+
 	ret = send_block(zbdev, skb->len, skb->data);
 	if (ret)
 		goto out;
 
-#if 0
+#if 1
 	if (wait_event_interruptible_timeout(zbdev->wq,
 					     zbdev->status != STATUS_WAIT,
 					     msecs_to_jiffies(TIMEOUT)) > 0) {
 		if (zbdev->status != STATUS_SUCCESS) {
+			printk("%s: EBUSY\n", __FUNCTION__);
 			ret = -EBUSY;
+			cleanup(zbdev);
 			goto out;
 		}
 	} else {
 		ret = -ETIMEDOUT;
+		printk("%s: ETIMEDOUT\n", __FUNCTION__);
+		cleanup(zbdev);
 		goto out;
 	}
 #endif
@@ -615,7 +657,8 @@ static int ieee802154_tty_open(struct tty_struct *tty)
 	/* only 2.4 GHz band */
 	hw->phy->channels_supported[0] = 0x7fff800;
 
-	hw->flags = IEEE802154_HW_OMIT_CKSUM;
+	//hw->flags = IEEE802154_HW_OMIT_CKSUM;
+	hw->flags = IEEE802154_HW_RX_OMIT_CKSUM;
 
 	hw->parent = tty->dev;
 
