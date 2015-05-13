@@ -51,6 +51,17 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_erase_blk,
 		gigadevice_parse_id,
 	},
+	{
+		NAND_MFR_ATO,
+		0x12,
+		gigadevice_set_defaults,
+		gigadevice_read_cmd,
+		gigadevice_read_data,
+		gigadevice_write_cmd,
+		gigadevice_write_data,
+		gigadevice_erase_blk,
+		gigadevice_parse_id,
+	},
 #endif
 	{ },
 };

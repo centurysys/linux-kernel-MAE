@@ -71,11 +71,13 @@ void gigadevice_erase_blk(struct spinand_cmd *cmd, u32 page_id)
 
 int gigadevice_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
 {
-	if (nand_id[0] != NAND_MFR_GIGA)
+	if (nand_id[0] != NAND_MFR_GIGA && nand_id[0] != NAND_MFR_ATO)
 		return -EINVAL;
 
-	id[0] = nand_id[0];
-	id[1] = nand_id[1];
+	if (nand_id[0] == NAND_MFR_GIGA) {
+		id[0] = nand_id[0];
+		id[1] = nand_id[1];
+	}
 
 	return 0;
 }

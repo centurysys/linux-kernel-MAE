@@ -760,6 +760,7 @@ static inline struct mtd_info *nand_to_mtd(struct nand_chip *chip)
 #define NAND_MFR_INTEL		0x89
 #define NAND_MFR_ATO		0x9b
 #define NAND_MFR_GIGA		0xc8
+#define NAND_MFR_ATO		0x9b
 
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8
