@@ -110,6 +110,9 @@ static int
 ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 		      __le16 pan_id)
 {
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	int ret;
+
 	ASSERT_RTNL();
 
 	/* TODO
@@ -122,8 +125,11 @@ ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 	if (pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
 		return -EINVAL;
 
-	wpan_dev->pan_id = pan_id;
-	return 0;
+	ret = drv_set_pan_id(local, pan_id);
+	if (!ret)
+		wpan_dev->pan_id = pan_id;
+
+	return ret;
 }
 
 static int
