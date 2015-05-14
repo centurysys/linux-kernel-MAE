@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.14.33 Kernel Configuration
+# Linux/arm 3.14.41 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -3265,7 +3265,10 @@ CONFIG_NFS_V3=y
 CONFIG_NFS_SWAP=y
 CONFIG_ROOT_NFS=y
 CONFIG_NFS_FSCACHE=y
-# CONFIG_NFSD is not set
+CONFIG_NFSD=m
+CONFIG_NFSD_V3=y
+# CONFIG_NFSD_V3_ACL is not set
+# CONFIG_NFSD_V4 is not set
 CONFIG_LOCKD=y
 CONFIG_LOCKD_V4=y
 CONFIG_NFS_COMMON=y
