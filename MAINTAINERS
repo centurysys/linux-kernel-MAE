@@ -1948,7 +1948,7 @@ S:	Maintained
 F:	drivers/net/wireless/b43legacy/
 
 BACKLIGHT CLASS/SUBSYSTEM
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 M:	Lee Jones <lee.jones@linaro.org>
 S:	Maintained
 F:	drivers/video/backlight/
@@ -3931,7 +3931,7 @@ F:	drivers/extcon/
 F:	Documentation/extcon/
 
 EXYNOS DP DRIVER
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/exynos/exynos_dp*
@@ -7570,7 +7570,7 @@ S:	Maintained
 F:	drivers/pci/host/*rcar*
 
 PCI DRIVER FOR SAMSUNG EXYNOS
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
@@ -7578,7 +7578,7 @@ S:	Maintained
 F:	drivers/pci/host/pci-exynos.c
 
 PCI DRIVER FOR SYNOPSIS DESIGNWARE
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	drivers/pci/host/*designware*
@@ -8534,7 +8534,7 @@ S:	Supported
 F:	sound/soc/samsung/
 
 SAMSUNG FRAMEBUFFER DRIVER
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/s3c-fb.c
