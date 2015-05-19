@@ -43,7 +43,7 @@
 #define START_BYTE2	'2'
 #define MAX_DATA_SIZE	127
 
-#define TIMEOUT 5000
+#define TIMEOUT 200
 
 #define IDLE_MODE	0x00
 #define RX_MODE		0x02
@@ -507,6 +507,20 @@ static void process_command(struct zb_device *zbdev)
 
 static void process_char(struct zb_device *zbdev, unsigned char c)
 {
+	static u64 last = 0;
+	u64 now, timeout;
+
+	now = get_jiffies_64();
+
+	if (last != 0) {
+		timeout = last + msecs_to_jiffies(50);
+
+		if (time_after64(now, timeout))
+			cleanup(zbdev);
+	}
+
+	last = now;
+
 	/* Data processing */
 	switch (zbdev->state) {
 	case STATE_WAIT_START1:
@@ -696,7 +710,7 @@ static int ieee802154_serial_set_long_addr(struct ieee802154_hw *hw, __le64 addr
 	if (ret < 0)
 		return ret;
 
-	ret = _wait_response(zbdev, 5 * 1000);
+	ret = _wait_response(zbdev, 1 * 1000);
 
 	if (ret < 0) {
 		cleanup(zbdev);
