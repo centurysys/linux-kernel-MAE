@@ -43,7 +43,7 @@
 #define START_BYTE2	'2'
 #define MAX_DATA_SIZE	127
 
-#define TIMEOUT 200
+#define TIMEOUT (200 + 255 * 4)
 
 #define IDLE_MODE	0x00
 #define RX_MODE		0x02
