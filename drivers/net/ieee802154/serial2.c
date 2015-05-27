@@ -264,7 +264,7 @@ static int __maybe_unused send_cmd2(struct zb_device *zbdev, u8 id, u8 extra)
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
 //		BUG();
-		cleanup(zbdev);
+		//cleanup(zbdev);
 		return -EAGAIN;
 	}
 
@@ -301,7 +301,7 @@ static int __maybe_unused send_cmd3(struct zb_device *zbdev, u8 id, u8 extra1, u
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
 //		BUG();
-		cleanup(zbdev);
+		//cleanup(zbdev);
 		return -EAGAIN;
 	}
 
@@ -338,7 +338,7 @@ static int __maybe_unused send_cmd_n(struct zb_device *zbdev, u8 id,
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
 //		BUG();
-		cleanup(zbdev);
+		//cleanup(zbdev);
 		return -EAGAIN;
 	}
 
@@ -373,7 +373,7 @@ static int send_block(struct zb_device *zbdev, u8 len, u8 *data)
 		printk(KERN_ERR "%s(): cmd is already pending, id = %u\n",
 		       __func__, zbdev->pending_id);
 		//BUG();
-		cleanup(zbdev);
+		//cleanup(zbdev);
 		return -EAGAIN;
 	}
 
@@ -415,19 +415,27 @@ static int is_command(unsigned char c)
 
 static int _match_pending_id(struct zb_device *zbdev)
 {
-#if 0
 	return ((zbdev->pending_id == DATA_XMIT_BLOCK &&
 		 zbdev->id == RESP_XMIT_BLOCK) ||
+		(zbdev->id == DATA_RECV_BLOCK) ||
 		(zbdev->pending_id == CMD_NOOP &&
 		 zbdev->id == RESP_NOOP) ||
 		(zbdev->pending_id == CMD_OPEN &&
 		 zbdev->id == RESP_OPEN) ||
 		(zbdev->pending_id == CMD_CLOSE &&
 		 zbdev->id == RESP_CLOSE) ||
-		(zbdev->id == DATA_RECV_BLOCK));
-#else
-	return 1;
-#endif
+		(zbdev->pending_id == CMD_SET_CHANNEL &&
+		 zbdev->id == RESP_SET_CHANNEL) ||
+		(zbdev->pending_id == CMD_GET_LONG_ADDRESS &&
+		 zbdev->id == RESP_GET_LONG_ADDRESS) ||
+		(zbdev->pending_id == CMD_SET_LONG_ADDRESS &&
+		 zbdev->id == RESP_SET_LONG_ADDRESS) ||
+		(zbdev->pending_id == CMD_SET_SHORT_ADDRESS &&
+		 zbdev->id == RESP_SET_SHORT_ADDRESS) ||
+		(zbdev->pending_id == CMD_SET_PAN_ID &&
+		 zbdev->id == RESP_SET_PAN_ID) ||
+		(zbdev->pending_id == CMD_SET_PROMISC_MODE &&
+		 zbdev->id == RESP_SET_PROMISC_MODE));
 }
 
 static void serial_net_rx(struct zb_device *zbdev)
@@ -474,14 +482,11 @@ static void process_command(struct zb_device *zbdev)
 		return;
 	}
 
-	zbdev->pending_id = 0;
-	zbdev->pending_size = 0;
-	zbdev->status = STATUS_SUCCESS;
-
 	switch (zbdev->id) {
 	case DATA_RECV_BLOCK:
 		/* zbdev->param1 is LQ, zbdev->param2 is length */
 		serial_net_rx(zbdev);
+		zbdev->state = STATE_WAIT_START1;
 		break;
 
 	case RESP_NOOP:
@@ -494,15 +499,17 @@ static void process_command(struct zb_device *zbdev)
 	case RESP_SET_SHORT_ADDRESS:
 	case RESP_SET_PAN_ID:
 	case RESP_SET_PROMISC_MODE:
+		zbdev->pending_id = 0;
+		zbdev->pending_size = 0;
+		zbdev->status = STATUS_SUCCESS;
 		zbdev->result = zbdev->param1;
+		zbdev->state = STATE_WAIT_START1;
 		wake_up(&zbdev->wq);
 		break;
 
 	default:
 		break;
 	}
-
-	cleanup(zbdev);
 }
 
 static void process_char(struct zb_device *zbdev, unsigned char c)
@@ -511,14 +518,14 @@ static void process_char(struct zb_device *zbdev, unsigned char c)
 	u64 now, timeout;
 
 	now = get_jiffies_64();
-
+#if 0
 	if (last != 0) {
 		timeout = last + msecs_to_jiffies(50);
 
 		if (time_after64(now, timeout))
 			cleanup(zbdev);
 	}
-
+#endif
 	last = now;
 
 	/* Data processing */
@@ -569,6 +576,7 @@ static void process_char(struct zb_device *zbdev, unsigned char c)
 		if (zbdev->id == DATA_RECV_BLOCK) {
 			zbdev->state = STATE_WAIT_DATA;
 			zbdev->datalen = (int) zbdev->param2;
+			zbdev->index = 0;
 		} else {
 			process_command(zbdev);
 		}
