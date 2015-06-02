@@ -949,6 +949,11 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	flow_id is a flow ID to be passed to rps_may_expire_flow() later.
  *	Return the filter ID on success, or a negative error code.
  *
+ *	Get Default VLAN tag
+ * int (*ndo_get_default_vlan_tag)(struct net_device *net);
+ *	This api can be called by other modules to get
+ *	the default vlan tag
+ *
  *	Slave management functions (for bridge, bonding, etc).
  * int (*ndo_add_slave)(struct net_device *dev, struct net_device *slave_dev);
  *	Called to make another netdev an underling.
@@ -1163,6 +1168,7 @@ struct net_device_ops {
 						     const struct sk_buff *skb,
 						     u16 rxq_index,
 						     u32 flow_id);
+	int			(*ndo_get_default_vlan_tag)(struct net_device *net);
 #endif
 	int			(*ndo_add_slave)(struct net_device *dev,
 						 struct net_device *slave_dev);
