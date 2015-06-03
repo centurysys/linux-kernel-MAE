@@ -515,6 +515,9 @@
 		xio_15 = &xio_15;
 		xio_16 = &xio_16_17;
 		xio_17 = &xio_16_17;
+
+		xio_1d = &xio_1d_1e;
+		xio_1e = &xio_1d_1e;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -640,6 +643,20 @@
 		devices = <&gpiox_0x04_lisa
 			   &gpiox_0x08_wlan &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &leds_amp_wlan_ctrl &leds_mobile_wlan_mediatek &leds_wlan_ctrl>;
+	};
+
+	/* XIO: (id: 0x1d/0x1e) AMP_AD */
+	xio_1d_1e: xio@0x1d_1e {
+		#size-cells = <0>;
+		devices = <&xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18
+			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_amp_wlan_ctrl &leds_do>;
 	};
 };
 
