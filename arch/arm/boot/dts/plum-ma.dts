@@ -349,6 +349,39 @@
 		};
 	};
 
+	leds_802154_ctrl: leds_802154_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@802154_PA3 {
+			label = "802154_CONF0";
+			gpios = <&gpiox_0x08_802154 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@802154_PA1 {
+			label = "802154_CONF1";
+			gpios = <&gpiox_0x08_802154 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@802154_PB8 {
+			label = "802154_CONF2";
+			gpios = <&gpiox_0x08_802154 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@802154_BOOT0 {
+			label = "802154_BOOT0";
+			gpios = <&gpiox_0x08_802154 3 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led@802154_RST_N {
+			label = "802154_RESETN";
+			gpios = <&gpiox_0x08_802154 4 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			default-state = "off";
+		};
+	};
+
 	leds_mobile_wlan: leds_mobile_wlan {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -601,14 +634,15 @@
 			   &leds_foma &leds_amp_ctrl>;
 	};
 
-	/* XIO: (id: 0x0f .. 0x10) FOMA/RM-92x */
+	/* XIO: (id: 0x0f .. 0x10) FOMA/MMA-200 */
 	xio_0f_10: xio@0x0f_10 {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x18
 			   &gpiox_0x04_lisa
-			   &leds_foma &leds_foma_ctrl>;
+			   &gpiox_0x08_802154
+			   &leds_foma &leds_foma_ctrl &leds_802154_ctrl>;
 	};
 
 	/* XIO: (id: 0x12) KYM_WLAN (Atheros) */
@@ -1140,6 +1174,17 @@
 
 	/* WLAN Control */
 	gpiox_0x08_wlan: gpio@2,0x08 {
+		reg = <2 0x00000008 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* IEEE802.15.4 module Control */
+	gpiox_0x08_802154: gpio@2,0x08 {
 		reg = <2 0x00000008 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
