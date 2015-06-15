@@ -15,6 +15,8 @@
  */
 
 #include "qcom-ipq4019.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK04.1";
@@ -275,6 +277,17 @@
 
 		nand: qpic-nand@79b0000 {
 			status = "ok";
+		};
+
+		gpio_keys {
+			compatible = "gpio-keys";
+
+			button@1 {
+				label = "wps";
+				linux,code = <KEY_WPS_BUTTON>;
+				gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
+				linux,input-type = <1>;
+			};
 		};
 	};
 };
