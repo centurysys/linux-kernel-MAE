@@ -54,6 +54,26 @@
 				bias-disable;
 			};
 
+			nss_spi_pins: nss_spi_pins {
+				mux {
+					pins = "gpio14", "gpio15", "gpio16",
+					       "gpio17", "gpio55", "gpio56",
+					       "gpio57", "gpio58";
+					function = "nss-spi";
+					drive-strengh = <10>;
+				};
+				data {
+					pins = "gpio14", "gpio15", "gpio55",
+					       "gpio56";
+					bias-none;
+				};
+				cs {
+					pins = "gpio16", "gpio17", "gpio57",
+					       "gpio58";
+					bias-pull-up;
+				};
+			};
+
 			spi_pins: spi_pins {
 				mux {
 					pins = "gpio18", "gpio19", "gpio21";
@@ -203,6 +223,8 @@
 
 		nss0: nss@40000000 {
 			compatible = "qcom,nss";
+			pinctrl-0 = <&nss_spi_pins>;
+			pinctrl-names = "default";
 			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36000000 0x1000 0x39000000 0x10000>;
