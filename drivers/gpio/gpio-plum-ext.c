@@ -57,6 +57,7 @@ struct plum_gpio_port {
 
 static const struct of_device_id plum_gpio_dt_ids[] = {
 	{ .compatible = "plum-gpio", },
+	{ .compatible = "plum,ext-DI", },
 	{ /* sentinel */ }
 };
 
@@ -231,7 +232,7 @@ static void __init plum_gpio_init_gc(struct plum_gpio_port *port, int irq_base)
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 
-	gc = irq_alloc_generic_chip("gpio-plum-ext", 1, irq_base,
+	gc = irq_alloc_generic_chip("plum-DI", 1, irq_base,
 				    port->base, handle_level_irq);
 	gc->private = port;
 
@@ -259,7 +260,8 @@ static int plum_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 
 static int plum_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = pdev->dev.of_node, *child;
+	struct device *dev = &pdev->dev;
 	struct plum_gpio_port *port;
 	struct resource *iores;
 	int irq_base;
@@ -286,24 +288,48 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	irq_set_chained_handler(port->irq, plum_gpio_irq_handler);
 	irq_set_handler_data(port->irq, port);
 
-	err = bgpio_init(&port->bgc, &pdev->dev, 8,
+	err = bgpio_init(&port->bgc, &pdev->dev, 1,
 			 port->base + GPIO_STATUS,
 			 NULL, NULL,
 			 NULL, NULL, 0);
-	if (err)
+	if (err) {
+		dev_info(&pdev->dev, "%s bgpio_init() failed with errno %d\n",
+			 __func__, err);
 		goto out_bgio;
+	}
 
 	port->bgc.gc.to_irq = plum_gpio_to_irq;
-	port->bgc.gc.base = (pdev->id < 0) ? of_alias_get_id(np, "gpio") * 32 :
-					     pdev->id * 32;
+	port->bgc.gc.base = -1;
+
+	port->bgc.names = devm_kzalloc(dev, sizeof(char *) * port->bgc.bits, GFP_KERNEL);
+
+	for_each_child_of_node(np, child) {
+		const char *name;
+		u32 reg;
+		int ret;
+
+		name = of_get_property(child, "label", NULL);
+		ret = of_property_read_u32(child, "reg", &reg);
+
+		if (name && ret == 0 && reg >= 0 && reg < port->bgc.gc.ngpio) {
+			port->bgc.names[reg] = name;
+		}
+	}
+
+	port->bgc.gc.names = port->bgc.names;
 
 	err = gpiochip_add(&port->bgc.gc);
-	if (err)
+	if (err) {
+		dev_info(&pdev->dev, "%s gpiochip_add() failed with errno %d\n",
+			 __func__, err);
 		goto out_bgpio_remove;
+	}
 
 	irq_base = irq_alloc_descs(-1, 0, 8, numa_node_id());
 	if (irq_base < 0) {
 		err = irq_base;
+		dev_info(&pdev->dev, "%s irq_alloc_descs() failed with errno %d\n",
+			 __func__, err);
 		goto out_gpiochip_remove;
 	}
 
@@ -312,6 +338,24 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	if (!port->domain) {
 		err = -ENODEV;
 		goto out_irqdesc_free;
+	}
+
+	if (err == 0) {
+		int i, status, gpio;
+
+		for (i = 0; i < port->bgc.gc.ngpio; i++) {
+			if (port->bgc.names[i] != NULL) {
+				gpio = port->bgc.gc.base + i;
+
+				status = gpio_request(gpio, port->bgc.names[i]);
+
+				if (status == 0) {
+					status = gpio_export(gpio, true);
+					if (status < 0)
+						gpio_free(gpio);
+				}
+			}
+		}
 	}
 
 	/* gpio-plum-ext can be a generic irq chip */
@@ -332,7 +376,7 @@ out_bgio:
 
 static struct platform_driver plum_gpio_driver = {
 	.driver		= {
-		.name	= "gpio-plum-ext",
+		.name	= "gpio-plum-DI",
 		.owner	= THIS_MODULE,
 		.of_match_table = plum_gpio_dt_ids,
 	},
