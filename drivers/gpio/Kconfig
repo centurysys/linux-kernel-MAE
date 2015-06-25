@@ -411,6 +411,11 @@ config GPIO_XIOIRQ
 	depends on OF
 	select OF_GPIO
 
+config GPIO_PLUM_DI
+	tristate "MA-E3xx external DI GPIO support"
+	depends on OF
+	select OF_GPIO
+
 
 comment "I2C GPIO expanders:"
 

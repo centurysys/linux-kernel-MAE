@@ -1530,6 +1530,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	if (of_device_is_compatible(child, "ns16550a") ||
 	    of_device_is_compatible(child, "basic-mmio-gpio") ||
 	    of_device_is_compatible(child, "plum,xioirq-gpio") ||
+	    of_device_is_compatible(child, "plum,ext-DI") ||
 	    of_device_is_compatible(child, "smsc,lan91c94") ||
 	    of_device_is_compatible(child, "smsc,lan91c111")) {
 		dev_warn(&pdev->dev,
@@ -1634,6 +1635,7 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 			 of_node_cmp(child->name, "nor") == 0 ||
 			 of_node_cmp(child->name, "uart") == 0 ||
 			 of_node_cmp(child->name, "gpio") == 0 ||
+			 of_node_cmp(child->name, "ext-DI") == 0 ||
 			 of_node_cmp(child->name, "generic") == 0)
 			ret = gpmc_probe_generic_child(pdev, child);
 

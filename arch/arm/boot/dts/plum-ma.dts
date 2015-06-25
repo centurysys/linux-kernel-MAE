@@ -1475,10 +1475,17 @@
 
 	/* DIO DIN */
 	gpiox_0x40: gpio@2,0x40 {
-		reg = <2 0x00000040 0x00000001>;
+		reg = <2 0x00000040 0x00000012>;
 		#gpio-cells = <2>;
-		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		compatible = "plum,ext-DI";
 		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		interrupt-controller;
+
 		reg-names = "dat";
 
 		status = "disabled";
