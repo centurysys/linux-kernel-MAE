@@ -46,6 +46,14 @@
 #define EDGE_RISING(x)		(0 << (x))
 #define EDGE_FALLING(x)	(1 << (x))
 
+#define FILTER_NONE(x)		(0 << ((x) * 2))
+#define FILTER_1ms(x)		(1 << ((x) * 2))
+#define FILTER_5ms(x)		(2 << ((x) * 2))
+#define FILTER_20ms(x)		(3 << ((x) * 2))
+
+static unsigned reg2filter[] = { 0, 1, 5, 20 };
+
+
 struct plum_gpio_port {
 	struct list_head node;
 	void __iomem *base;
@@ -60,6 +68,24 @@ static const struct of_device_id plum_gpio_dt_ids[] = {
 	{ .compatible = "plum,ext-DI", },
 	{ /* sentinel */ }
 };
+
+static int plum_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
+{
+	struct bgpio_chip *bgc = to_bgpio_chip(gc);
+	struct plum_gpio_port *port =
+		container_of(bgc, struct plum_gpio_port, bgc);
+
+	return irq_find_mapping(port->domain, offset);
+}
+
+static struct plum_gpio_port *plum_gpio_to_port(struct gpio_chip *gc, unsigned offset)
+{
+	struct bgpio_chip *bgc = to_bgpio_chip(gc);
+	struct plum_gpio_port *port =
+		container_of(bgc, struct plum_gpio_port, bgc);
+
+	return port;
+}
 
 static int gpio_set_irq_type(struct irq_data *d, u32 type)
 {
@@ -174,6 +200,57 @@ static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
 	return 0;
 }
 
+static int plum_gpio_set_debounce(struct gpio_chip *gc, unsigned offset, unsigned debounce)
+{
+	struct plum_gpio_port *port = plum_gpio_to_port(gc, offset);
+	int group, filter_val;
+	u8 reg;
+
+	if (offset < 4)
+		group = 0;
+	else if (offset < 8)
+		group = 1;
+	else
+		return -EINVAL;
+
+	if (debounce == 0) {
+		filter_val = FILTER_NONE(group);
+	} else if (debounce < 5) {
+		filter_val = FILTER_1ms(group);
+	} else if (debounce < 20) {
+		filter_val = FILTER_5ms(group);
+	} else {
+		filter_val = FILTER_20ms(group);
+	}
+
+	reg = readb(port->base + GPIO_FILTER);
+	reg &= ~FILTER_20ms(group);
+	reg |= filter_val;
+
+	writeb(reg, port->base + GPIO_FILTER);
+
+	return 0;
+}
+
+static unsigned plum_gpio_get_debounce(struct gpio_chip *gc, unsigned offset)
+{
+	struct plum_gpio_port *port = plum_gpio_to_port(gc, offset);
+	int group;
+	u8 reg;
+	unsigned filter_val;
+
+	if (offset < 4)
+		group = 0;
+	else
+		group = 1;
+
+	reg = readb(port->base + GPIO_FILTER);
+
+	filter_val = (reg >> (2 * group)) & 0x03;
+
+	return reg2filter[filter_val];
+}
+
 /**
  * irq_ack_set_bit - Ack pending interrupt via setting bit
  * @d: irq_data
@@ -249,15 +326,6 @@ static void __init plum_gpio_init_gc(struct plum_gpio_port *port, int irq_base)
 			       IRQ_NOREQUEST, 0);
 }
 
-static int plum_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
-{
-	struct bgpio_chip *bgc = to_bgpio_chip(gc);
-	struct plum_gpio_port *port =
-		container_of(bgc, struct plum_gpio_port, bgc);
-
-	return irq_find_mapping(port->domain, offset);
-}
-
 static int plum_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node, *child;
@@ -297,6 +365,9 @@ static int plum_gpio_probe(struct platform_device *pdev)
 			 __func__, err);
 		goto out_bgio;
 	}
+
+	port->bgc.gc.set_debounce = plum_gpio_set_debounce;
+	port->bgc.gc.get_debounce = plum_gpio_get_debounce;
 
 	port->bgc.gc.to_irq = plum_gpio_to_irq;
 	port->bgc.gc.base = -1;

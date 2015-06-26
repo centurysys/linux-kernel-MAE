@@ -82,6 +82,8 @@ struct gpio_chip {
 	int			(*set_debounce)(struct gpio_chip *chip,
 						unsigned offset,
 						unsigned debounce);
+	unsigned		(*get_debounce)(struct gpio_chip *chip,
+						unsigned offset);
 
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
