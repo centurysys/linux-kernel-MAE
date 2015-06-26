@@ -489,8 +489,9 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 
 	id = desc->flags >> ID_SHIFT;
 	value_sd = idr_find(&dirent_idr, id);
-	if (value_sd)
-		free_irq(irq, value_sd);
+	if (value_sd) {
+		free_irq(irq, desc);
+	}
 
 	desc->flags &= ~GPIO_TRIGGER_MASK;
 
