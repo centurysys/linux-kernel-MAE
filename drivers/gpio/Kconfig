@@ -81,6 +81,12 @@ config GPIO_SYSFS
 	  Kernel drivers may also request that a particular GPIO be
 	  exported to userspace; this can be useful when debugging.
 
+config GPIO_COUNTER
+	bool "GPIO counter support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a counter node on sysfs interface.
+
 config GPIO_GENERIC
 	tristate
 

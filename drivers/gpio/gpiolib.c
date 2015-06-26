@@ -69,6 +69,10 @@ struct gpio_desc {
 #ifdef CONFIG_DEBUG_FS
 	const char		*label;
 #endif
+#ifdef CONFIG_GPIO_COUNTER
+	unsigned long counter;
+#endif
+	struct kernfs_node	*value_sd;
 };
 static struct gpio_desc gpio_desc[ARCH_NR_GPIOS];
 
@@ -411,10 +415,60 @@ static ssize_t gpio_value_store(struct device *dev,
 static DEVICE_ATTR(value, 0644,
 		gpio_value_show, gpio_value_store);
 
+#ifdef CONFIG_GPIO_COUNTER
+static ssize_t gpio_counter_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	ssize_t			status;
+
+	mutex_lock(&sysfs_lock);
+
+	if (!test_bit(FLAG_EXPORT, &desc->flags))
+		status = -EIO;
+	else
+		status = sprintf(buf, "%lu\n", desc->counter);
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t gpio_counter_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	ssize_t			status;
+
+	mutex_lock(&sysfs_lock);
+
+	if (!test_bit(FLAG_EXPORT, &desc->flags))
+		status = -EIO;
+	else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			desc->counter = value;
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static DEVICE_ATTR(counter, 0644,
+		gpio_counter_show, gpio_counter_store);
+#endif
+
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
-	struct kernfs_node	*value_sd = priv;
+	struct gpio_desc	*desc = priv;
+	struct kernfs_node	*value_sd = desc->value_sd;
 
+#ifdef CONFIG_GPIO_COUNTER
+	desc->counter++;
+#endif
 	sysfs_notify_dirent(value_sd);
 	return IRQ_HANDLED;
 }
@@ -475,8 +529,10 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 		}
 	}
 
+	desc->value_sd = value_sd;
+
 	ret = request_any_context_irq(irq, gpio_sysfs_irq, irq_flags,
-				"gpiolib", value_sd);
+				"gpiolib", desc);
 	if (ret < 0)
 		goto free_id;
 
@@ -639,6 +695,9 @@ static DEVICE_ATTR(active_low, 0644,
 static struct attribute *gpio_attrs[] = {
 	&dev_attr_value.attr,
 	&dev_attr_active_low.attr,
+#ifdef CONFIG_GPIO_COUNTER
+	&dev_attr_counter.attr,
+#endif
 	NULL,
 };
 
