@@ -461,6 +461,69 @@ static DEVICE_ATTR(counter, 0644,
 		gpio_counter_show, gpio_counter_store);
 #endif
 
+#ifdef CONFIG_GPIO_FILTER
+static ssize_t gpio_debounce_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+	unsigned		debounce;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->chip;
+
+	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
+		status = -EIO;
+	} else if (!chip->get_debounce) {
+		return -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		debounce = chip->get_debounce(chip, offset);
+		status = sprintf(buf, "%lu ms\n", debounce);
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t gpio_debounce_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->chip;
+
+	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
+		status = -EIO;
+	} else if (!chip->set_debounce) {
+		return -ENOTSUPP;
+	} else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			offset = gpio_chip_hwgpio(desc);
+			chip->set_debounce(chip, offset, value);
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static DEVICE_ATTR(debounce, 0644,
+		gpio_debounce_show, gpio_debounce_store);
+#endif
+
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
 	struct gpio_desc	*desc = priv;
@@ -698,6 +761,9 @@ static struct attribute *gpio_attrs[] = {
 	&dev_attr_active_low.attr,
 #ifdef CONFIG_GPIO_COUNTER
 	&dev_attr_counter.attr,
+#endif
+#ifdef CONFIG_GPIO_FILTER
+	&dev_attr_debounce.attr,
 #endif
 	NULL,
 };
