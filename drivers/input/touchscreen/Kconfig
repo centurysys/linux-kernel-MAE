@@ -1106,4 +1106,16 @@ config TOUCHSCREEN_ROHM_BU21023
 	  To compile this driver as a module, choose M here: the
 	  module will be called bu21023_ts.
 
+config TOUCHSCREEN_GSL1680
+	tristate "Silead's GSL1680 capacitive touch screens"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using the Silead's
+	  GSL1680 capacitive touch screen driver.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gsl1680.
+
 endif
