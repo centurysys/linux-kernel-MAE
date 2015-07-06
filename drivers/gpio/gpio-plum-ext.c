@@ -78,7 +78,7 @@ static int plum_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 	return irq_find_mapping(port->domain, offset);
 }
 
-static struct plum_gpio_port *plum_gpio_to_port(struct gpio_chip *gc, unsigned offset)
+static struct plum_gpio_port *plum_gpio_to_port(struct gpio_chip *gc)
 {
 	struct bgpio_chip *bgc = to_bgpio_chip(gc);
 	struct plum_gpio_port *port =
@@ -202,7 +202,7 @@ static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
 
 static int plum_gpio_set_debounce(struct gpio_chip *gc, unsigned offset, unsigned debounce)
 {
-	struct plum_gpio_port *port = plum_gpio_to_port(gc, offset);
+	struct plum_gpio_port *port = plum_gpio_to_port(gc);
 	int group, filter_val;
 	u8 reg;
 
@@ -234,7 +234,7 @@ static int plum_gpio_set_debounce(struct gpio_chip *gc, unsigned offset, unsigne
 
 static unsigned plum_gpio_get_debounce(struct gpio_chip *gc, unsigned offset)
 {
-	struct plum_gpio_port *port = plum_gpio_to_port(gc, offset);
+	struct plum_gpio_port *port = plum_gpio_to_port(gc);
 	int group;
 	u8 reg;
 	unsigned filter_val;
@@ -326,6 +326,30 @@ static void __init plum_gpio_init_gc(struct plum_gpio_port *port, int irq_base)
 			       IRQ_NOREQUEST, 0);
 }
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/seq_file.h>
+
+static void plum_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
+{
+	struct plum_gpio_port *port = plum_gpio_to_port(gc);
+
+	seq_printf(s, "-----------------------------\n");
+	seq_printf(s, " DIN Pri L port status:  %02x\n",
+		   readb_relaxed(port->base + GPIO_STATUS));
+	seq_printf(s, " DIN Pri L IRQ status:   %02x\n",
+		   readb_relaxed(port->base + GPIO_INT_STATUS));
+	seq_printf(s, " DIN Pri L IRQ enable:   %02x\n",
+		   readb_relaxed(port->base + GPIO_INT_ENABLE));
+	seq_printf(s, " DIN Pri L IRQ polarity: %02x\n",
+		   readb_relaxed(port->base + GPIO_EDGE_SEL));
+	seq_printf(s, " DIN Filter select:      %02x\n",
+		   readb_relaxed(port->base + GPIO_FILTER));
+	seq_printf(s, "-----------------------------\n");
+}
+#else
+#define plum_gpio_dbg_show NULL
+#endif
+
 static int plum_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node, *child;
@@ -368,6 +392,7 @@ static int plum_gpio_probe(struct platform_device *pdev)
 
 	port->bgc.gc.set_debounce = plum_gpio_set_debounce;
 	port->bgc.gc.get_debounce = plum_gpio_get_debounce;
+	port->bgc.gc.dbg_show = plum_gpio_dbg_show;
 
 	port->bgc.gc.to_irq = plum_gpio_to_irq;
 	port->bgc.gc.base = -1;
