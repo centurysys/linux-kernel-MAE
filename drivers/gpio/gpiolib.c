@@ -482,7 +482,7 @@ static ssize_t gpio_debounce_show(struct device *dev,
 	} else {
 		offset = gpio_chip_hwgpio(desc);
 		debounce = chip->get_debounce(chip, offset);
-		status = sprintf(buf, "%lu ms\n", debounce);
+		status = sprintf(buf, "%lu ms\n", (unsigned long) debounce);
 	}
 
 	mutex_unlock(&sysfs_lock);
@@ -2733,10 +2733,10 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 		seq_printf(s, ", can sleep");
 	seq_printf(s, ":\n");
 
+	gpiolib_dbg_show(s, chip);
+
 	if (chip->dbg_show)
 		chip->dbg_show(s, chip);
-	else
-		gpiolib_dbg_show(s, chip);
 
 	return 0;
 }
