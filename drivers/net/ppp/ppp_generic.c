@@ -2372,6 +2372,20 @@ char *ppp_dev_name(struct ppp_channel *chan)
 	return name;
 }
 
+/* Return the PPP net device index */
+int ppp_dev_index(struct ppp_channel *chan)
+{
+	struct channel *pch = chan->ppp;
+	int ifindex = 0;
+
+	if (pch) {
+		read_lock_bh(&pch->upl);
+		if (pch->ppp && pch->ppp->dev)
+			ifindex = pch->ppp->dev->ifindex;
+		read_unlock_bh(&pch->upl);
+	}
+	return ifindex;
+}
 
 /*
  * Disconnect a channel from the generic layer.
@@ -3234,6 +3248,7 @@ EXPORT_SYMBOL(ppp_unregister_channel);
 EXPORT_SYMBOL(ppp_channel_index);
 EXPORT_SYMBOL(ppp_unit_number);
 EXPORT_SYMBOL(ppp_dev_name);
+EXPORT_SYMBOL(ppp_dev_index);
 EXPORT_SYMBOL(ppp_input);
 EXPORT_SYMBOL(ppp_input_error);
 EXPORT_SYMBOL(ppp_output_wakeup);
