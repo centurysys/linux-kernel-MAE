@@ -75,7 +75,7 @@ static int plum_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 	struct plum_gpio_port *port =
 		container_of(bgc, struct plum_gpio_port, bgc);
 
-	return irq_find_mapping(port->domain, offset);
+	return irq_create_mapping(port->domain, offset);
 }
 
 static struct plum_gpio_port *plum_gpio_to_port(struct gpio_chip *gc)
@@ -87,10 +87,29 @@ static struct plum_gpio_port *plum_gpio_to_port(struct gpio_chip *gc)
 	return port;
 }
 
-static int gpio_set_irq_type(struct irq_data *d, u32 type)
+static void plum_gpio_irq_mask(struct irq_data *d)
 {
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct plum_gpio_port *port = gc->private;
+	struct plum_gpio_port *port = irq_data_get_irq_chip_data(d);
+	u8 reg;
+
+	reg = readb(port->base + GPIO_INT_ENABLE);
+	reg &= ~(1 << (d->hwirq));
+	writeb(reg, port->base + GPIO_INT_ENABLE);
+}
+
+static void plum_gpio_irq_unmask(struct irq_data *d)
+{
+	struct plum_gpio_port *port = irq_data_get_irq_chip_data(d);
+	u8 reg;
+
+	reg = readb(port->base + GPIO_INT_ENABLE);
+	reg |= 1 << (d->hwirq);
+	writeb(reg, port->base + GPIO_INT_ENABLE);
+}
+
+static int plum_gpio_irq_set_type(struct irq_data *d, u32 type)
+{
+	struct plum_gpio_port *port = irq_data_get_irq_chip_data(d);
 	u32 val;
 	u32 gpio_idx = d->hwirq;
 	u32 gpio = port->bgc.gc.base + gpio_idx;
@@ -146,7 +165,6 @@ static void plum_flip_edge(struct plum_gpio_port *port, u32 gpio)
 	writeb(edge_sel, port->base + GPIO_EDGE_SEL);
 }
 
-/* handle 32 interrupts in one status register */
 static void _plum_gpio_irq_handler(struct plum_gpio_port *port, u8 irq_stat)
 {
 	while (irq_stat != 0) {
@@ -161,43 +179,24 @@ static void _plum_gpio_irq_handler(struct plum_gpio_port *port, u8 irq_stat)
 	}
 }
 
-static void plum_gpio_irq_handler(u32 irq, struct irq_desc *desc)
+static irqreturn_t plum_gpio_irq_handler(int irq, void *data)
 {
-	u8 irq_stat;
-	struct plum_gpio_port *port = irq_get_handler_data(irq);
-	struct irq_chip *chip = irq_get_chip(irq);
+	int handled = 0;
+	u8 irq_stat, irq_enable;
+	struct plum_gpio_port *port = data;
 
-	chained_irq_enter(chip, desc);
+	irq_stat = readb(port->base + GPIO_INT_STATUS);
+	irq_enable = readb(port->base + GPIO_INT_ENABLE);
 
-	irq_stat = readb(port->base + GPIO_INT_STATUS) & \
-		readb(port->base + GPIO_INT_ENABLE);
+	/* clear pending irq */
+	writeb(irq_stat, port->base + GPIO_INT_STATUS);
 
-	_plum_gpio_irq_handler(port, irq_stat);
-
-	chained_irq_exit(chip, desc);
-}
-
-/*
- * Set interrupt number "irq" in the GPIO as a wake-up source.
- * While system is running, all registered GPIO interrupts need to have
- * wake-up enabled. When system is suspended, only selected GPIO interrupts
- * need to have wake-up enabled.
- * @param  irq          interrupt source number
- * @param  enable       enable as wake-up if equal to non-zero
- * @return       This function returns 0 on success.
- */
-static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct plum_gpio_port *port = gc->private;
-
-	if (enable) {
-		enable_irq_wake(port->irq);
-	} else {
-		disable_irq_wake(port->irq);
+	if (irq_stat & irq_enable) {
+		handled = 1;
+		_plum_gpio_irq_handler(port, irq_stat & irq_enable);
 	}
 
-	return 0;
+	return IRQ_RETVAL(handled);
 }
 
 static int plum_gpio_set_debounce(struct gpio_chip *gc, unsigned offset, unsigned debounce)
@@ -251,80 +250,13 @@ static unsigned plum_gpio_get_debounce(struct gpio_chip *gc, unsigned offset)
 	return reg2filter[filter_val];
 }
 
-/**
- * irq_ack_set_bit - Ack pending interrupt via setting bit
- * @d: irq_data
- */
-static void irq_ack_set_bit(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct irq_chip_type *ct = irq_data_get_chip_type(d);
-	u32 mask = d->mask;
+static struct irq_chip plum_gpio_irq_chip = {
+	.name			= "plum_DI",
+	.irq_mask		= plum_gpio_irq_mask,
+	.irq_unmask		= plum_gpio_irq_unmask,
+	.irq_set_type		= plum_gpio_irq_set_type,
+};
 
-	irq_gc_lock(gc);
-	writeb((u8) mask, gc->reg_base + ct->regs.ack);
-	irq_gc_unlock(gc);
-}
-
-/**
- * irq_mask_clr_bit - Mask chip via clearing bit in mask register
- * @d: irq_data
- *
- * Chip has a single mask register. Values of this register are cached
- * and protected by gc->lock
- */
-static void irq_mask_clr_bit(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct irq_chip_type *ct = irq_data_get_chip_type(d);
-	u32 mask = d->mask;
-
-	irq_gc_lock(gc);
-	*ct->mask_cache &= ~mask;
-	writeb((u8) *ct->mask_cache, gc->reg_base + ct->regs.mask);
-	irq_gc_unlock(gc);
-}
-
-/**
- * irq_mask_set_bit - Mask chip via setting bit in mask register
- * @d: irq_data
- *
- * Chip has a single mask register. Values of this register are cached
- * and protected by gc->lock
- */
-static void irq_mask_set_bit(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct irq_chip_type *ct = irq_data_get_chip_type(d);
-	u32 mask = d->mask;
-
-	irq_gc_lock(gc);
-	*ct->mask_cache |= mask;
-	writeb((u8) *ct->mask_cache, gc->reg_base + ct->regs.mask);
-	irq_gc_unlock(gc);
-}
-
-static void __init plum_gpio_init_gc(struct plum_gpio_port *port, int irq_base)
-{
-	struct irq_chip_generic *gc;
-	struct irq_chip_type *ct;
-
-	gc = irq_alloc_generic_chip("plum-DI", 1, irq_base,
-				    port->base, handle_level_irq);
-	gc->private = port;
-
-	ct = gc->chip_types;
-	ct->chip.irq_ack = irq_ack_set_bit;
-	ct->chip.irq_mask = irq_mask_clr_bit;
-	ct->chip.irq_unmask = irq_mask_set_bit;
-	ct->chip.irq_set_type = gpio_set_irq_type;
-	ct->chip.irq_set_wake = gpio_set_wake_irq;
-	ct->regs.ack = GPIO_INT_STATUS;
-	ct->regs.mask = GPIO_INT_ENABLE;
-
-	irq_setup_generic_chip(gc, IRQ_MSK(8), IRQ_GC_INIT_NESTED_LOCK,
-			       IRQ_NOREQUEST, 0);
-}
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
@@ -350,13 +282,52 @@ static void plum_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 #define plum_gpio_dbg_show NULL
 #endif
 
+static int plum_gpio_irq_map(struct irq_domain *d, unsigned int irq,
+			     irq_hw_number_t hwirq)
+{
+	struct plum_gpio_port *port = d->host_data;
+
+	irq_clear_status_flags(irq, IRQ_NOREQUEST);
+	irq_set_chip_data(irq, port);
+	irq_set_chip_and_handler(irq, &plum_gpio_irq_chip, handle_level_irq);
+	set_irq_flags(irq, IRQF_VALID);
+
+	return 0;
+}
+
+static const struct irq_domain_ops plum_gpio_irq_domain_ops = {
+	.map = plum_gpio_irq_map,
+};
+
+static int plum_gpio_irq_domain_init(struct plum_gpio_port *port,
+				     struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	int status;
+
+	port->domain = irq_domain_add_linear(pdev->dev.of_node,
+					     port->bgc.gc.ngpio,
+					     &plum_gpio_irq_domain_ops,
+					     port);
+	
+	/* enable real irq */
+	status = devm_request_threaded_irq(dev,
+					   port->irq,
+					   plum_gpio_irq_handler,
+					   NULL,
+					   IRQF_SHARED,
+					   dev_name(dev),
+					   port);
+
+	return 0;
+}
+
 static int plum_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node, *child;
 	struct device *dev = &pdev->dev;
 	struct plum_gpio_port *port;
 	struct resource *iores;
-	int irq_base;
 	int err;
 
 	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
@@ -375,10 +346,6 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	/* disable the interrupt and clear the status */
 	writeb(0x00, port->base + GPIO_INT_ENABLE);
 	writeb(0xff, port->base + GPIO_INT_STATUS);
-
-	/* setup one handler for each entry */
-	irq_set_chained_handler(port->irq, plum_gpio_irq_handler);
-	irq_set_handler_data(port->irq, port);
 
 	err = bgpio_init(&port->bgc, &pdev->dev, 1,
 			 port->base + GPIO_STATUS,
@@ -412,6 +379,8 @@ static int plum_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
+	plum_gpio_irq_domain_init(port, pdev);
+
 	port->bgc.gc.names = port->bgc.names;
 
 	err = gpiochip_add(&port->bgc.gc);
@@ -419,21 +388,6 @@ static int plum_gpio_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "%s gpiochip_add() failed with errno %d\n",
 			 __func__, err);
 		goto out_bgpio_remove;
-	}
-
-	irq_base = irq_alloc_descs(-1, 0, 8, numa_node_id());
-	if (irq_base < 0) {
-		err = irq_base;
-		dev_info(&pdev->dev, "%s irq_alloc_descs() failed with errno %d\n",
-			 __func__, err);
-		goto out_gpiochip_remove;
-	}
-
-	port->domain = irq_domain_add_legacy(np, 8, irq_base, 0,
-					     &irq_domain_simple_ops, NULL);
-	if (!port->domain) {
-		err = -ENODEV;
-		goto out_irqdesc_free;
 	}
 
 	if (err == 0) {
@@ -454,15 +408,8 @@ static int plum_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* gpio-plum-ext can be a generic irq chip */
-	plum_gpio_init_gc(port, irq_base);
-
 	return 0;
 
-out_irqdesc_free:
-	irq_free_descs(irq_base, 8);
-out_gpiochip_remove:
-	WARN_ON(gpiochip_remove(&port->bgc.gc) < 0);
 out_bgpio_remove:
 	bgpio_remove(&port->bgc);
 out_bgio:
