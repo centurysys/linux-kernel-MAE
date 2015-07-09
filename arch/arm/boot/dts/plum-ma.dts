@@ -51,6 +51,10 @@
 			ti,system-power-controller;
 			ti,enable-rtc-clk32k;
 		};
+
+		gpio0: gpio@44e07000 {
+			wakeup-source;
+		};
 	};
 
 	vmmcsd_fixed: fixedregulator_mmc@0 {
