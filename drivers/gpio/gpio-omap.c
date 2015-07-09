@@ -24,6 +24,7 @@
 #include <linux/pm.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/delay.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/gpio.h>
@@ -81,6 +82,7 @@ struct gpio_bank {
 	int (*get_context_loss_count)(struct device *dev);
 
 	struct omap_gpio_reg_offs *regs;
+	bool wakeup_source;
 };
 
 #define GPIO_INDEX(bank, gpio) (gpio % bank->width)
@@ -1174,6 +1176,8 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	if (node) {
 		if (!of_property_read_bool(node, "ti,gpio-always-on"))
 			bank->loses_context = true;
+		if (of_find_property(node, "wakeup-source", NULL))
+			bank->wakeup_source = true;
 	} else {
 		bank->loses_context = pdata->loses_context;
 
@@ -1259,6 +1263,22 @@ static int omap_gpio_probe(struct platform_device *pdev)
 #if defined(CONFIG_PM_RUNTIME)
 static void omap_gpio_restore_context(struct gpio_bank *bank);
 
+static void omap_gpio_reset_bank(struct gpio_bank *bank)
+{
+	u32 sysconfig;
+
+	if (bank->regs->sysconfig) {
+		sysconfig = readl_relaxed(bank->base + bank->regs->sysconfig);
+
+		writel_relaxed(sysconfig | 2, bank->base + bank->regs->sysconfig);
+
+		udelay(1000);
+
+		writel_relaxed(sysconfig, bank->base + bank->regs->sysconfig);
+		omap_gpio_restore_context(bank);
+	}
+}
+
 static int omap_gpio_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1268,6 +1288,11 @@ static int omap_gpio_runtime_suspend(struct device *dev)
 	u32 wake_low, wake_hi;
 
 	spin_lock_irqsave(&bank->lock, flags);
+
+	if (bank->wakeup_source && bank->context_valid) {
+		/* workaround for wakeup */
+		omap_gpio_reset_bank(bank);
+	}
 
 	/*
 	 * Only edges can generate a wakeup event to the PRCM.
@@ -1574,6 +1599,7 @@ static struct omap_gpio_reg_offs omap4_gpio_regs = {
 	.debounce =		OMAP4_GPIO_DEBOUNCINGTIME,
 	.debounce_en =		OMAP4_GPIO_DEBOUNCENABLE,
 	.ctrl =			OMAP4_GPIO_CTRL,
+	.sysconfig =		OMAP4_GPIO_SYSCONFIG,
 	.wkup_en =		OMAP4_GPIO_IRQWAKEN0,
 	.leveldetect0 =		OMAP4_GPIO_LEVELDETECT0,
 	.leveldetect1 =		OMAP4_GPIO_LEVELDETECT1,
