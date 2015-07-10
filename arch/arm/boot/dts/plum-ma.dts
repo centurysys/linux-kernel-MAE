@@ -273,6 +273,7 @@
 			label = "Mobile_Power";
 			gpios = <&gpiox_0x0e_wlan 0 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
+			retain-suspend;
 		};
 
 		led@MobilePowerSel {
@@ -339,13 +340,13 @@
 		led@WLAN_Power {
 			label = "WLAN_Power";
 			gpios = <&gpiox_0x08_wlan 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 			retain-suspend;
 		};
 
 		led@WLAN_PowerSel {
 			label = "WLAN_PowerSel";
 			gpios = <&gpiox_0x08_wlan 1 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
 			retain-suspend;
 		};
 
