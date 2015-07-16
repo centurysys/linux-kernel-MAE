@@ -22,6 +22,7 @@
 #include <linux/init.h>
 
 #include <linux/kernel.h>
+#include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -86,6 +87,13 @@ static int max_devices;
 static DECLARE_BITMAP(dev_use, 256);
 static DECLARE_BITMAP(name_use, 256);
 
+#ifdef CONFIG_DEBUG_FS
+struct cmd_statistics {
+	u32 count;
+	u32 total_blocks;
+};
+#endif
+
 /*
  * There is one mmc_blk_data per slot.
  */
@@ -119,6 +127,14 @@ struct mmc_blk_data {
 	struct device_attribute force_ro;
 	struct device_attribute power_ro_lock;
 	int	area_type;
+
+#ifdef CONFIG_DEBUG_FS
+	struct cmd_statistics cmd17;
+	struct cmd_statistics cmd18;
+	struct cmd_statistics cmd24;
+	struct cmd_statistics cmd25;
+	struct dentry *debugfs_entry;
+#endif
 };
 
 static DEFINE_MUTEX(open_lock);
@@ -1382,10 +1398,28 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 			brq->mrq.stop = &brq->stop;
 		readcmd = MMC_READ_MULTIPLE_BLOCK;
 		writecmd = MMC_WRITE_MULTIPLE_BLOCK;
+#ifdef CONFIG_DEBUG_FS
+		if (rq_data_dir(req) == READ) {
+			md->cmd18.count++;
+			md->cmd18.total_blocks += brq->data.blocks;
+		} else {
+			md->cmd25.count++;
+			md->cmd25.total_blocks += brq->data.blocks;
+		}
+#endif
 	} else {
 		brq->mrq.stop = NULL;
 		readcmd = MMC_READ_SINGLE_BLOCK;
 		writecmd = MMC_WRITE_BLOCK;
+#ifdef CONFIG_DEBUG_FS
+		if (rq_data_dir(req) == READ) {
+			md->cmd17.count++;
+			md->cmd17.total_blocks++;
+		} else {
+			md->cmd17.count++;
+			md->cmd17.total_blocks++;
+		}
+#endif
 	}
 	if (rq_data_dir(req) == READ) {
 		brq->cmd.opcode = readcmd;
@@ -2384,6 +2418,95 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
+#ifdef CONFIG_DEBUG_FS
+
+static int mmc_blk_stat_show(struct seq_file *s, void *data)
+{
+	struct mmc_blk_data *md = s->private;
+	u32 total;
+
+	seq_printf(s, "-- mmcblk read/write statistics ---\n");
+	seq_printf(s, "READ commands:\n");
+	seq_printf(s, " CMD17:\n");
+	seq_printf(s, "  command issue: %10d\n", md->cmd17.count);
+	seq_printf(s, "  total blocks:  %10d\n", md->cmd17.total_blocks);
+	seq_printf(s, " CMD18:\n");
+	seq_printf(s, "  command issue: %10d\n", md->cmd18.count);
+	seq_printf(s, "  total blocks:  %10d\n", md->cmd18.total_blocks);
+	seq_printf(s, " TOTAL:\n");
+
+	total = md->cmd17.count + md->cmd18.count;
+	seq_printf(s, "  command issue: %10d\n", total);
+	total = md->cmd17.total_blocks + md->cmd18.total_blocks;
+	seq_printf(s, "  total blocks:  %10d\n", total);
+
+	seq_printf(s, "WRITE commands:\n");
+	seq_printf(s, " CMD24:\n");
+	seq_printf(s, "  command issue: %10d\n", md->cmd24.count);
+	seq_printf(s, "  total blocks:  %10d\n", md->cmd24.total_blocks);
+	seq_printf(s, " CMD25:\n");
+	seq_printf(s, "  command issue: %10d\n", md->cmd25.count);
+	seq_printf(s, "  total blocks:  %10d\n", md->cmd25.total_blocks);
+	seq_printf(s, " TOTAL:\n");
+
+	total = md->cmd24.count + md->cmd25.count;
+	seq_printf(s, "  command issue: %10d\n", total);
+	total = md->cmd24.total_blocks + md->cmd25.total_blocks;
+	seq_printf(s, "  total blocks:  %10d\n", total);
+
+	return 0;
+}
+
+static int mmc_blk_stat_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mmc_blk_stat_show, inode->i_private);
+}
+
+static const struct file_operations mmc_blk_stat_fops = {
+	.open    = mmc_blk_stat_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+static void mmc_blk_create_debugfs(struct mmc_blk_data *md)
+{
+	struct mmc_card *card;
+	struct mmc_host *mmc;
+
+	card = md->queue.card;
+	mmc = card->host;
+
+	if (mmc->debugfs_root) {
+		md->debugfs_entry = debugfs_create_file("cmd_stat", S_IRUSR,
+							mmc->debugfs_root,
+							md, &mmc_blk_stat_fops);
+	}
+}
+
+static void mmc_blk_remove_debugfs(struct mmc_blk_data *md)
+{
+	if (md->debugfs_entry) {
+		debugfs_remove(md->debugfs_entry);
+		md->debugfs_entry = NULL;
+
+		memset(&md->cmd17, 0, sizeof(struct cmd_statistics));
+		memset(&md->cmd18, 0, sizeof(struct cmd_statistics));
+		memset(&md->cmd24, 0, sizeof(struct cmd_statistics));
+		memset(&md->cmd25, 0, sizeof(struct cmd_statistics));
+	}
+}
+
+#else
+static void mmc_blk_create_debugfs(struct mmc_blk_data *md)
+{
+}
+
+static void mmc_blk_remove_debugfs(struct mmc_blk_data *md)
+{
+}
+#endif
+
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -2419,6 +2542,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 			goto out;
 	}
 
+	mmc_blk_create_debugfs(md);
 	pm_runtime_set_autosuspend_delay(&card->dev, 3000);
 	pm_runtime_use_autosuspend(&card->dev);
 
@@ -2443,6 +2567,7 @@ static void mmc_blk_remove(struct mmc_card *card)
 {
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
+	mmc_blk_remove_debugfs(md);
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);
 	mmc_claim_host(card->host);
