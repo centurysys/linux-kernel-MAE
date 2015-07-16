@@ -1416,8 +1416,8 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 			md->cmd17.count++;
 			md->cmd17.total_blocks++;
 		} else {
-			md->cmd17.count++;
-			md->cmd17.total_blocks++;
+			md->cmd24.count++;
+			md->cmd24.total_blocks++;
 		}
 #endif
 	}
@@ -2489,12 +2489,12 @@ static void mmc_blk_remove_debugfs(struct mmc_blk_data *md)
 	if (md->debugfs_entry) {
 		debugfs_remove(md->debugfs_entry);
 		md->debugfs_entry = NULL;
-
-		memset(&md->cmd17, 0, sizeof(struct cmd_statistics));
-		memset(&md->cmd18, 0, sizeof(struct cmd_statistics));
-		memset(&md->cmd24, 0, sizeof(struct cmd_statistics));
-		memset(&md->cmd25, 0, sizeof(struct cmd_statistics));
 	}
+
+	memset(&md->cmd17, 0, sizeof(struct cmd_statistics));
+	memset(&md->cmd18, 0, sizeof(struct cmd_statistics));
+	memset(&md->cmd24, 0, sizeof(struct cmd_statistics));
+	memset(&md->cmd25, 0, sizeof(struct cmd_statistics));
 }
 
 #else
