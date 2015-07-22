@@ -1037,6 +1037,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&nandflash_pins_s0>;
+	ti,no-reset-on-init;
 	ranges = <0 0 0x08000000 0x01000000	/* CS0 : NAND */
 		  1 0 0x10000000 0x01000000	/* CS1 : DIPSW */
 		  2 0 0x11000000 0x01000000>;	/* CS2 : eXternal I/O */
