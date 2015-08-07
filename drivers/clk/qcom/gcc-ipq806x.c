@@ -2794,7 +2794,8 @@ static struct clk_dyn_rcg ubi32_core1_src_clk = {
 			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
 			.num_parents = 5,
 			.ops = &clk_dyn_rcg_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE |
+				 CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -2847,7 +2848,8 @@ static struct clk_dyn_rcg ubi32_core2_src_clk = {
 			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
 			.num_parents = 5,
 			.ops = &clk_dyn_rcg_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE |
+				 CLK_IGNORE_UNUSED,
 		},
 	},
 };
