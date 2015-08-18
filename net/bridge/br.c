@@ -266,6 +266,10 @@ static void __exit br_deinit(void)
 	br_fdb_fini();
 }
 
+/* Hook for bridge event notifications */
+br_notify_hook_t __rcu *br_notify_hook __read_mostly;
+EXPORT_SYMBOL_GPL(br_notify_hook);
+
 module_init(br_init)
 module_exit(br_deinit)
 MODULE_LICENSE("GPL");
