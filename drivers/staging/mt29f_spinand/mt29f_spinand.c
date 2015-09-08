@@ -39,6 +39,7 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_write_data,
 		gigadevice_erase_blk,
 		gigadevice_parse_id,
+		gigadevice_verify_ecc,
 	},
 	{
 		NAND_MFR_GIGA,
@@ -50,6 +51,7 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_write_data,
 		gigadevice_erase_blk,
 		gigadevice_parse_id,
+		gigadevice_verify_ecc,
 	},
 	{
 		NAND_MFR_ATO,
@@ -61,6 +63,7 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_write_data,
 		gigadevice_erase_blk,
 		gigadevice_parse_id,
+		dummy_verify_ecc,
 	},
 #endif
 	{ },
@@ -100,6 +103,18 @@ void mt29f_erase_block_erase(struct spinand_cmd *cmd, u32 page_id)
 	cmd->addr[2] = (u8)(page_id & 0x00ff);
 }
 
+int mt29f_verify_ecc(u8 status)
+{
+	int ecc_status = (status & STATUS_ECC_MASK);
+
+	if (ecc_status == STATUS_ECC_ERROR)
+		return SPINAND_ECC_ERROR;
+	else if (ecc_status == STATUS_ECC_1BIT_CORRECTED)
+		return SPINAND_ECC_CORRECTED;
+	else
+		return 0;
+}
+
 struct spinand_ops mt29f_spinand_ops = {
 		NAND_MFR_MICRON,
 		0x0,
@@ -110,6 +125,7 @@ struct spinand_ops mt29f_spinand_ops = {
 		mt29f_program_data_to_cache,
 		mt29f_erase_block_erase,
 		NULL,
+		mt29f_verify_ecc,
 };
 
 static inline struct spinand_ops *get_dev_ops(struct spi_device *spi_nand)
@@ -486,8 +502,11 @@ static int spinand_read_from_cache(struct spi_device *spi_nand, u16 page_id,
 static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
 			     u16 offset, u16 len, u8 *rbuf)
 {
-	int ret;
+	int ret, ecc_error, ecc_corrected;
 	u8 status = 0;
+	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
+	struct mtd_info *mtd = (struct mtd_info *)
+					dev_get_drvdata(&spi_nand->dev);
 
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
 	if (enable_read_hw_ecc) {
@@ -511,10 +530,15 @@ static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
 		}
 
 		if ((status & STATUS_OIP_MASK) == STATUS_READY) {
-			if ((status & STATUS_ECC_MASK) == STATUS_ECC_ERROR) {
+			ret = dev_ops->spinand_verify_ecc(status);
+			if (ret == SPINAND_ECC_ERROR) {
 				dev_err(&spi_nand->dev, "ecc error, page=%d\n",
-					page_id);
-				return 0;
+						page_id);
+				mtd->ecc_stats.failed++;
+				ecc_error = 1;
+			} else if (ret == SPINAND_ECC_CORRECTED) {
+				mtd->ecc_stats.corrected++;
+				ecc_corrected = 1;
 			}
 			break;
 		}
@@ -536,6 +560,11 @@ static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
 		enable_read_hw_ecc = 0;
 	}
 #endif
+	if (ecc_error)
+		ret = -EBADMSG;
+	else if (ecc_corrected)
+		ret = -EUCLEAN;
+
 	return ret;
 }
 
@@ -782,6 +811,7 @@ static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsize = chip->ecc.size;
 	int eccsteps = chip->ecc.steps;
 	struct spinand_info *info = (struct spinand_info *)chip->priv;
+	struct spinand_ops *dev_ops = info->dev_ops;
 
 	enable_read_hw_ecc = 1;
 
@@ -798,16 +828,20 @@ static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		}
 
 		if ((status & STATUS_OIP_MASK) == STATUS_READY) {
-			if ((status & STATUS_ECC_MASK) == STATUS_ECC_ERROR) {
+			retval = dev_ops->spinand_verify_ecc(status);
+			if (retval == SPINAND_ECC_ERROR) {
 				pr_info("spinand: ECC error\n");
 				mtd->ecc_stats.failed++;
-			} else if ((status & STATUS_ECC_MASK) ==
-					STATUS_ECC_1BIT_CORRECTED)
+				retval = -EBADMSG;
+			} else if (retval == SPINAND_ECC_CORRECTED) {
 				mtd->ecc_stats.corrected++;
+				retval = -EUCLEAN;
+			}
 			break;
 		}
 	}
-	return 0;
+	return retval;
+
 }
 #endif
 

@@ -69,6 +69,23 @@ void gigadevice_erase_blk(struct spinand_cmd *cmd, u32 page_id)
 	cmd->addr[2] = (u8)(page_id);
 }
 
+int gigadevice_verify_ecc(u8 status)
+{
+	int ecc_status = (status & STATUS_ECC_MASK_GIGA);
+
+	if (ecc_status == STATUS_ECC_ERROR_GIGA)
+		return SPINAND_ECC_ERROR;
+	else if (ecc_status)
+		return SPINAND_ECC_CORRECTED;
+	else
+		return 0;
+}
+
+int dummy_verify_ecc(u8 status)
+{
+	return 0;
+}
+
 int gigadevice_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
 {
 	if (nand_id[0] != NAND_MFR_GIGA && nand_id[0] != NAND_MFR_ATO)

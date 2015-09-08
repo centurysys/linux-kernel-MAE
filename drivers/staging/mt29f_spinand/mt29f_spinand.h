@@ -58,6 +58,11 @@
 #define STATUS_ECC_ERROR		BIT(5)
 #define STATUS_ECC_RESERVED		(BIT(5) | BIT(4))
 
+#define STATUS_ECC_MASK_GIGA		0x70
+#define STATUS_ECC_ERROR_GIGA		0x70
+#define SPINAND_ECC_ERROR		0x1
+#define SPINAND_ECC_CORRECTED		0x2
+
 /*ECC enable defines*/
 #define OTP_ECC_MASK			0x10
 #define OTP_ECC_OFF			0
@@ -101,6 +106,7 @@ struct spinand_ops {
 	void (*spinand_erase_blk)(struct spinand_cmd *cmd, u32 page_id);
 	int (*spinand_parse_id)(struct spi_device *spi_nand, u8 *nand_id,
 				u8 *id);
+	int (*spinand_verify_ecc)(u8 status);
 };
 
 struct spinand_info {
