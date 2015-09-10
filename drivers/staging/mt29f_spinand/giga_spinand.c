@@ -49,6 +49,12 @@ void gigadevice_read_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
 	cmd->addr[2] = (u8)(column);
 }
 
+void macronix_read_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+{
+	cmd->addr[0] = ((u8)(column >> 8) & MACRONIX_NORM_RW_MASK);
+	cmd->addr[1] = (u8)(column);
+}
+
 void gigadevice_write_cmd(struct spinand_cmd *cmd, u32 page_id)
 {
 	cmd->addr[0] = (u8)(page_id >> 16);
@@ -60,6 +66,12 @@ void gigadevice_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
 {
 	cmd->addr[1] = (u8)(column >> 8);
 	cmd->addr[2] = (u8)(column);
+}
+
+void macronix_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+{
+	cmd->addr[0] = ((u8)(column >> 8) & MACRONIX_NORM_RW_MASK);
+	cmd->addr[1] = (u8)(column);
 }
 
 void gigadevice_erase_blk(struct spinand_cmd *cmd, u32 page_id)
@@ -74,6 +86,19 @@ int gigadevice_verify_ecc(u8 status)
 	int ecc_status = (status & STATUS_ECC_MASK_GIGA);
 
 	if (ecc_status == STATUS_ECC_ERROR_GIGA)
+		return SPINAND_ECC_ERROR;
+	else if (ecc_status)
+		return SPINAND_ECC_CORRECTED;
+	else
+		return 0;
+}
+
+int macronix_verify_ecc(u8 status)
+{
+	int ecc_status = (status & STATUS_ECC_MASK_MACRONIX);
+
+	if ((ecc_status == STATUS_ECC_ERROR_MACRONIX) ||
+	    (ecc_status == STATUS_ECC_MASK_MACRONIX))
 		return SPINAND_ECC_ERROR;
 	else if (ecc_status)
 		return SPINAND_ECC_CORRECTED;
@@ -98,4 +123,13 @@ int gigadevice_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
 
 	return 0;
 }
-MODULE_DESCRIPTION("SPI NAND driver for Gigadevice");
+
+int macronix_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
+{
+	if (nand_id[1] != NAND_MFR_MACRONIX)
+		return -EINVAL;
+
+	return 0;
+}
+
+MODULE_DESCRIPTION("SPI NAND driver for Gigadevice and Macronix");

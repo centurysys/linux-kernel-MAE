@@ -34,8 +34,13 @@ struct nand_flash_dev nand_flash_ids[] = {
 
 	{"GD5F1GQ1UC 128MiB 3.3V",
 		{ .id = {0xc8, 0xB1} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
+
 	{"GD5F1GQ1RC 128MiB 1.8V",
 		{ .id = {0xc8, 0xA1} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
+
+	{"MX35LFxGE4AB 128MiB 3.3V",
+		{ .id = {0xc2, 0x12} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
+
 	{"TC58NVG0S3E 1G 3.3V 8-bit",
 		{ .id = {0x98, 0xd1, 0x90, 0x15, 0x76, 0x14, 0x01, 0x00} },
 		  SZ_2K, SZ_128, SZ_128K, 0, 8, 64, NAND_ECC_INFO(1, SZ_512),
