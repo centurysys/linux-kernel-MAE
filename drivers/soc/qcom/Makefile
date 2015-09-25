@@ -4,6 +4,7 @@ obj-$(CONFIG_QCOM_SMD) +=	smd.o
 obj-$(CONFIG_QCOM_SMD_RPM)	+= smd-rpm.o
 obj-$(CONFIG_QCOM_SMEM) +=	smem.o
 obj-$(CONFIG_QCOM_SMEM_STATE) += smem_state.o
+obj-$(CONFIG_QCOM_SMP2P)	+= smp2p.o
 obj-$(CONFIG_MSM_SMEM)	+=	msm_smem.o
 obj-$(CONFIG_MSM_GLINK)	+=	glink.o glink_debugfs.o
 obj-$(CONFIG_MSM_GLINK_LOOPBACK_SERVER)	+=	glink_loopback_server.o
