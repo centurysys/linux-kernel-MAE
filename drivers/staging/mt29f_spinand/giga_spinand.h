@@ -46,6 +46,12 @@ int macronix_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id);
 
 int macronix_verify_ecc(u8 status);
 
+void winbond_read_data(struct spinand_cmd *cmd, u16 column, u16 page_id);
+
+void winbond_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id);
+
+int winbond_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id);
+
 /* Macronix Specific defines */
 #define MACRONIX_NORM_RW_MASK	0x0F
 #endif /* __GIGA_SPI_NAND_H */

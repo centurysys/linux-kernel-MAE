@@ -55,6 +55,12 @@ void macronix_read_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
 	cmd->addr[1] = (u8)(column);
 }
 
+void winbond_read_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+{
+	cmd->addr[0] = (u8)(column >> 8);
+	cmd->addr[1] = (u8)(column);
+}
+
 void gigadevice_write_cmd(struct spinand_cmd *cmd, u32 page_id)
 {
 	cmd->addr[0] = (u8)(page_id >> 16);
@@ -71,6 +77,12 @@ void gigadevice_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
 void macronix_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
 {
 	cmd->addr[0] = ((u8)(column >> 8) & MACRONIX_NORM_RW_MASK);
+	cmd->addr[1] = (u8)(column);
+}
+
+void winbond_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+{
+	cmd->addr[0] = (u8)(column >> 8);
 	cmd->addr[1] = (u8)(column);
 }
 
@@ -127,6 +139,14 @@ int gigadevice_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
 int macronix_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
 {
 	if (nand_id[1] != NAND_MFR_MACRONIX)
+		return -EINVAL;
+
+	return 0;
+}
+
+int winbond_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
+{
+	if (nand_id[1] != NAND_MFR_WINBOND)
 		return -EINVAL;
 
 	return 0;

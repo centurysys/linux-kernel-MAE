@@ -3747,7 +3747,11 @@ static void nand_decode_bbm_options(struct mtd_info *mtd,
 			(mtd->writesize == 2048 &&
 			 maf_id == NAND_MFR_MICRON) ||
 			(mtd->writesize == 2048 &&
-			 maf_id == NAND_MFR_GIGA))
+			 maf_id == NAND_MFR_GIGA) ||
+			(mtd->writesize == 2048 &&
+			 maf_id == NAND_MFR_MACRONIX) ||
+			(mtd->writesize == 2048 &&
+			 maf_id == NAND_MFR_WINBOND))
 		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
 }
 
