@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.14.53 Kernel Configuration
+# Linux/arm 3.14.54 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -2435,6 +2435,7 @@ CONFIG_USB_SERIAL_CP210X=y
 # CONFIG_USB_SERIAL_CYPRESS_M8 is not set
 # CONFIG_USB_SERIAL_EMPEG is not set
 CONFIG_USB_SERIAL_FTDI_SIO=y
+CONFIG_FTDI_QUIRK_781250=y
 # CONFIG_USB_SERIAL_VISOR is not set
 # CONFIG_USB_SERIAL_IPAQ is not set
 # CONFIG_USB_SERIAL_IR is not set
