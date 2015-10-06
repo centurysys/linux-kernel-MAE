@@ -1341,6 +1341,11 @@ static __u32 get_ftdi_divisor(struct tty_struct *tty,
 				baud = 1200000;
 			}
 			div_value = ftdi_232bm_baud_to_divisor(baud);
+#ifdef CONFIG_FTDI_QUIRK_781250
+		} else if (baud == 3500000) {
+			baud = 781250;
+			div_value = 0x1c003;
+#endif
 		} else {
 			dev_dbg(dev, "%s - Baud rate too high!\n", __func__);
 			div_value = ftdi_232bm_baud_to_divisor(9600);
