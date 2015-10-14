@@ -3087,6 +3087,8 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 	ppp->stats64.tx_bytes += tx_bytes;
 	ppp->dev->stats.tx_errors += tx_errors;
 	ppp->dev->stats.tx_dropped += tx_dropped;
+	if (tx_packets)
+		ppp->last_xmit = jiffies;
 	ppp_xmit_unlock(ppp);
 
 	ppp_recv_lock(ppp);
@@ -3094,6 +3096,8 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 	ppp->stats64.rx_bytes += rx_bytes;
 	ppp->dev->stats.rx_errors += rx_errors;
 	ppp->dev->stats.rx_dropped += rx_dropped;
+	if (rx_packets)
+		ppp->last_recv = jiffies;
 	ppp_recv_unlock(ppp);
 }
 
