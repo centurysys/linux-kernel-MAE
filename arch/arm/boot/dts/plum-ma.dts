@@ -69,12 +69,7 @@
 		regulator-name = "xio-adc-supply";
 		regulator-min-microvolt = <15000000>;
 		regulator-max-microvolt = <15000000>;
-
-		gpio = <&gpiox_0x00 4 GPIO_ACTIVE_HIGH>;
-
 		status = "disabled";
-
-		enable-active-high;
 	};
 
 	xio_di_supply: fixedregulator_di@0 {
@@ -82,13 +77,26 @@
 		regulator-name = "xio-di-supply";
 		regulator-min-microvolt = <24000000>;
 		regulator-max-microvolt = <24000000>;
+		status = "disabled";
+	};
 
-		gpio = <&gpiox_0x00 5 GPIO_ACTIVE_HIGH>;
-
+	xio_supply_ctrl: xio_supply_ctrl {
+		compatible = "gpio-leds";
 		status = "disabled";
 
-		regulator-boot-on;
-		enable-active-high;
+		led@Supply0 {
+			label = "AI_Power";
+			gpios = <&gpiox_0x00 4 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
+
+		led@Supply1 {
+			label = "DI_Power";
+			gpios = <&gpiox_0x00 5 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
 	};
 
 	leds_onboard: leds_onboard {
@@ -575,7 +583,7 @@
 	/* XIO: (id: 0x0b) KYM11_AD */
 	xio_0b: xio@0x0b {
 		#size-cells = <0>;
-		devices = <&xio_di_supply &xio_adc_supply
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
 			   &uartx2_0x20
 			   &gpiox_0x00 &gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
@@ -588,7 +596,7 @@
 	/* XIO: (id: 0x0c) UM03_AD */
 	xio_0c: xio@0x0c {
 		#size-cells = <0>;
-		devices = <&xio_di_supply &xio_adc_supply
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
 			   &uartx2_0x20
 			   &gpiox_0x00 &gpiox_0x08
@@ -655,7 +663,7 @@
 	/* XIO: (id: 0x1d/0x1e) AMP_AD */
 	xio_1d_1e: xio@0x1d_1e {
 		#size-cells = <0>;
-		devices = <&xio_di_supply &xio_adc_supply
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
 			   &uartx2_0x20
 			   &gpiox_0x00 &gpiox_0x08
