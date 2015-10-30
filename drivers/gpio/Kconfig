@@ -423,6 +423,11 @@ config GPIO_XIOIRQ
 	depends on OF
 	select OF_GPIO
 
+config GPIO_XIOIRQ2
+	tristate "MA-E3xx eXternal I/O GPIO support 2"
+	depends on OF
+	select OF_GPIO
+
 config GPIO_PLUM_DI
 	tristate "MA-E3xx external DI GPIO support"
 	depends on OF
