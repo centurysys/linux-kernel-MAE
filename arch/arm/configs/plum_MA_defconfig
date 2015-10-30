@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.14.53 Kernel Configuration
+# Linux/arm 3.14.56 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1781,7 +1781,8 @@ CONFIG_GPIO_GENERIC_PLATFORM=y
 # CONFIG_GPIO_SCH311X is not set
 # CONFIG_GPIO_TS5500 is not set
 # CONFIG_GPIO_GRGPIO is not set
-CONFIG_GPIO_XIOIRQ=y
+# CONFIG_GPIO_XIOIRQ is not set
+CONFIG_GPIO_XIOIRQ2=y
 CONFIG_GPIO_PLUM_DI=y
 
 #
