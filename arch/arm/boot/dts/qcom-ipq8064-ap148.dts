@@ -317,6 +317,30 @@
 				full-duplex;
 			};
 		};
+
+		phy@100f8800 {
+			status = "ok";
+		};
+
+		phy@100f8830 {
+			status = "ok";
+		};
+
+		usb30@0 {
+			status = "ok";
+		};
+
+		phy@110f8800 {
+			status = "ok";
+		};
+
+		phy@110f8830 {
+			status = "ok";
+		};
+
+		usb30@1 {
+			status = "ok";
+		};
 	};
 };
 
