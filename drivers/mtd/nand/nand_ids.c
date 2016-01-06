@@ -42,7 +42,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 		{ .id = {0xc2, 0x12} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
 
 	{"W25N01GV 128MiB 3.3V",
-		{ .id = {0xef, 0xaa, 0x21} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
+		{ .id = {0xef, 0xaa} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
 
 	{"TC58NVG0S3E 1G 3.3V 8-bit",
 		{ .id = {0x98, 0xd1, 0x90, 0x15, 0x76, 0x14, 0x01, 0x00} },

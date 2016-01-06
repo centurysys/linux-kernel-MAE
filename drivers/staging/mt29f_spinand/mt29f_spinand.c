@@ -80,7 +80,7 @@ struct spinand_ops spinand_dev[] = {
 	},
 	{
 		NAND_MFR_WINBOND,
-		0xaa21,
+		0xaa,
 		gigadevice_set_defaults,
 		gigadevice_read_cmd,
 		winbond_read_data,
