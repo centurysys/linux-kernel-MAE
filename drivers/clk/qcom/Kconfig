@@ -45,6 +45,15 @@ config IPQ_LCC_806X
 	  Say Y if you want to use audio devices such as i2s, pcm,
 	  S/PDIF, etc.
 
+config IPQ_GCC_807x
+	tristate "IPQ807x Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for global clock controller on ipq807x devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc. Select this for the root clock
+	  of ipq807x.
+
 config MSM_GCC_8660
 	tristate "MSM8660 Global Clock Controller"
 	depends on COMMON_CLK_QCOM

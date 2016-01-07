@@ -23,4 +23,12 @@ config ARCH_MSM8974
 	bool "Enable support for MSM8974"
 	select HAVE_ARM_ARCH_TIMER
 
+config ARCH_IPQ807x
+	bool "Enable Support for IPQ807x"
+	select PINCTRL_IPQ807x
+	select COMMON_CLK_QCOM
+	select IPQ_GCC_807x
+	help
+	  This enables support for the IPQ807x chipset. If you dont
+	  know what do here, say N
 endif
