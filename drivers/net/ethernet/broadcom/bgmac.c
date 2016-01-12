@@ -1641,8 +1641,11 @@ static int bgmac_probe(struct bcma_device *core)
 			ns_core = bcma_find_core_unit(core->bus,
 						      BCMA_CORE_MAC_GBIT,
 						      ns_gmac);
-			if (ns_core && !bcma_core_is_enabled(ns_core))
-				bcma_core_enable(ns_core, 0);
+			if (!ns_core)
+				continue;
+
+			bcma_core_disable(ns_core, 0);
+			bcma_core_enable(ns_core, 0);
 		}
 	}
 
