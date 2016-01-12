@@ -1180,6 +1180,13 @@ config NETFILTER_XT_MATCH_IPCOMP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_ID
+	tristate '"id" match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	This option adds a `id' dummy-match, which allows you to put
+	numeric IDs into your iptables ruleset.
+
 config NETFILTER_XT_MATCH_IPRANGE
 	tristate '"iprange" address range match support'
 	depends on NETFILTER_ADVANCED
