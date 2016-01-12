@@ -5,7 +5,7 @@
 	compatible = "qcom,ipq8064-ap148", "qcom,ipq8064";
 
 	aliases {
-		serial0 = &gsbi4_serial;
+		serial0 = &uart4;
 	};
 
 	chosen {
