@@ -168,11 +168,8 @@ static int __init qcom_cpufreq_populate_opps(void)
 
 static int __init qcom_cpufreq_driver_init(void)
 {
-	struct cpufreq_dt_platform_data pdata = { .independent_clocks = true };
 	struct platform_device_info devinfo = {
-		.name = "cpufreq-dt",
-		.data = &pdata,
-		.size_data = sizeof(pdata),
+		.name = "cpufreq-krait",
 	};
 	struct device *cpu_dev;
 	struct device_node *np;
