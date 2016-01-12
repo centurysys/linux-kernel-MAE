@@ -128,5 +128,17 @@
 		usb30@1 {
 			status = "ok";
 		};
+
+		pcie0: pci@1b500000 {
+			status = "ok";
+		};
+
+		pcie1: pci@1b700000 {
+			status = "ok";
+		};
+
+		pcie2: pci@1b900000 {
+			status = "ok";
+		};
 	};
 };

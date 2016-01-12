@@ -91,5 +91,15 @@
 		sata@29000000 {
 			status = "ok";
 		};
+
+		pcie0: pci@1b500000 {
+			status = "ok";
+			phy-tx0-term-offset = <7>;
+		};
+
+		pcie1: pci@1b700000 {
+			status = "ok";
+			phy-tx0-term-offset = <7>;
+		};
 	};
 };
