@@ -412,7 +412,7 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	int i;
 
-	sch->limit = 10*1024;
+	sch->limit = 1024;
 	q->flows_cnt = 1024;
 	q->quantum = psched_mtu(qdisc_dev(sch));
 	q->perturbation = prandom_u32();
