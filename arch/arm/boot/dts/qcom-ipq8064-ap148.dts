@@ -6,6 +6,7 @@
 
 	aliases {
 		serial0 = &uart4;
+		dio-gpio0 = &mdio0;
 	};
 
 	chosen {
@@ -63,6 +64,15 @@
 					       "gpio43", "gpio44", "gpio45",
 					       "gpio46", "gpio47";
 					bias-bus-hold;
+				};
+			};
+
+			mdio0_pins: mdio0_pins {
+				mux {
+					pins = "gpio0", "gpio1";
+					function = "gpio";
+					drive-strength = <8>;
+					bias-disable;
 				};
 			};
 		};
@@ -134,6 +144,34 @@
 			nand-bus-width = <8>;
 
 			linux,part-probe = "qcom-smem";
+		};
+
+		mdio0: mdio {
+			compatible = "virtual,mdio-gpio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			gpios = <&qcom_pinmux 1 0 &qcom_pinmux 0 0>;
+			pinctrl-0 = <&mdio0_pins>;
+			pinctrl-names = "default";
+
+			phy0: ethernet-phy@0 {
+				device_type = "ethernet-phy";
+				reg = <0>;
+				qca,ar8327-initvals = <
+					0x00004 0x7600000   /* PAD0_MODE */
+					0x00008 0x1000000   /* PAD5_MODE */
+					0x0000c 0x80        /* PAD6_MODE */
+					0x000e4 0xaa545     /* MAC_POWER_SEL */
+					0x000e0 0xc74164de  /* SGMII_CTRL */
+					0x0007c 0x4e        /* PORT0_STATUS */
+					0x00094 0x4e        /* PORT6_STATUS */
+					>;
+			};
+
+			phy4: ethernet-phy@4 {
+				device_type = "ethernet-phy";
+				reg = <4>;
+			};
 		};
 	};
 };
