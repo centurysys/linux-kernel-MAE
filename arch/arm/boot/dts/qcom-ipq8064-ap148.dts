@@ -75,6 +75,16 @@
 					bias-disable;
 				};
 			};
+
+			rgmii2_pins: rgmii2_pins {
+				mux {
+					pins = "gpio27", "gpio28", "gpio29", "gpio30", "gpio31", "gpio32",
+					       "gpio51", "gpio52", "gpio59", "gpio60", "gpio61", "gpio62" ;
+					function = "rgmii2";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
 		};
 
 		gsbi@16300000 {
@@ -171,6 +181,31 @@
 			phy4: ethernet-phy@4 {
 				device_type = "ethernet-phy";
 				reg = <4>;
+			};
+		};
+
+		gmac1: ethernet@37200000 {
+			status = "ok";
+			phy-mode = "rgmii";
+			qcom,id = <1>;
+
+			pinctrl-0 = <&rgmii2_pins>;
+			pinctrl-names = "default";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+
+		gmac2: ethernet@37400000 {
+			status = "ok";
+			phy-mode = "sgmii";
+			qcom,id = <2>;
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
 			};
 		};
 	};
