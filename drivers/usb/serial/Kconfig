@@ -176,6 +176,10 @@ config USB_SERIAL_FTDI_SIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called ftdi_sio.
 
+config FTDI_QUIRK_781250
+	bool "USB FTDI 781250bps support"
+	depends on USB_SERIAL_FTDI_SIO
+
 config USB_SERIAL_VISOR
 	tristate "USB Handspring Visor / Palm m50x / Sony Clie Driver"
 	help
