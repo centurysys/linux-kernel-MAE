@@ -448,6 +448,7 @@ spi_qup_get_mode(struct spi_master *master, struct spi_transfer *xfer)
 {
 	struct spi_qup *qup = spi_master_get_devdata(master);
 	u32 mode;
+	size_t dma_align = dma_get_cache_alignment();
 
 	qup->w_size = 4;
 
@@ -457,6 +458,13 @@ spi_qup_get_mode(struct spi_master *master, struct spi_transfer *xfer)
 		qup->w_size = 2;
 
 	qup->n_words = xfer->len / qup->w_size;
+
+	if (IS_ALIGNED((size_t)xfer->tx_buf, dma_align) &&
+			IS_ALIGNED((size_t)xfer->rx_buf, dma_align) &&
+			!is_vmalloc_addr(xfer->tx_buf) &&
+			!is_vmalloc_addr(xfer->rx_buf) &&
+			(xfer->len > 3*qup->in_blk_sz))
+		qup->use_dma = 1;
 
 	if (qup->n_words <= (qup->in_fifo_sz / sizeof(u32)))
 		mode = QUP_IO_M_MODE_FIFO;
@@ -500,6 +508,7 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 		/* must be zero for FIFO */
 		writel_relaxed(0, controller->base + QUP_MX_INPUT_CNT);
 		writel_relaxed(0, controller->base + QUP_MX_OUTPUT_CNT);
+		controller->use_dma = 0;
 	} else if (!controller->use_dma) {
 		writel_relaxed(n_words, controller->base + QUP_MX_INPUT_CNT);
 		writel_relaxed(n_words, controller->base + QUP_MX_OUTPUT_CNT);
@@ -750,6 +759,24 @@ err_tx:
 	return ret;
 }
 
+static void spi_qup_set_cs(struct spi_device *spi, bool val)
+{
+	struct spi_qup *controller;
+	u32 spi_ioc;
+	u32 spi_ioc_orig;
+
+	controller = spi_master_get_devdata(spi->master);
+	spi_ioc = readl_relaxed(controller->base + SPI_IO_CONTROL);
+	spi_ioc_orig = spi_ioc;
+	if (!val)
+		spi_ioc |= SPI_IO_C_FORCE_CS;
+	else
+		spi_ioc &= ~SPI_IO_C_FORCE_CS;
+
+	if (spi_ioc != spi_ioc_orig)
+		writel_relaxed(spi_ioc, controller->base + SPI_IO_CONTROL);
+}
+
 static int spi_qup_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
@@ -845,6 +872,9 @@ static int spi_qup_probe(struct platform_device *pdev)
 	/* set v1 flag if device is version 1 */
 	if (of_device_is_compatible(dev->of_node, "qcom,spi-qup-v1.1.1"))
 		controller->qup_v1 = 1;
+
+	if (!controller->qup_v1)
+		master->set_cs = spi_qup_set_cs;
 
 	spin_lock_init(&controller->lock);
 	init_completion(&controller->done);
