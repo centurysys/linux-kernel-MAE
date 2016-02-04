@@ -22,6 +22,7 @@
 
 #define WDT_RST		0x38
 #define WDT_EN		0x40
+#define WDT_BARK_TIME	0x4C
 #define WDT_BITE_TIME	0x5C
 
 struct qcom_wdt {
@@ -44,6 +45,7 @@ static int qcom_wdt_start(struct watchdog_device *wdd)
 
 	writel(0, wdt->base + WDT_EN);
 	writel(1, wdt->base + WDT_RST);
+	writel((wdd->timeout - 1) * wdt->rate, wdt->base + WDT_BARK_TIME);
 	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BITE_TIME);
 	writel(1, wdt->base + WDT_EN);
 	return 0;
