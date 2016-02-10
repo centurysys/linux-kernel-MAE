@@ -24,6 +24,7 @@
 #include <linux/spi/spi.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 
 #define QUP_CONFIG			0x0000
 #define QUP_STATE			0x0004
