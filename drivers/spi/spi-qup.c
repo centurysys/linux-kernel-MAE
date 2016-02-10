@@ -152,6 +152,7 @@ struct spi_qup {
 	int			use_dma;
 	struct dma_slave_config	rx_conf;
 	struct dma_slave_config	tx_conf;
+	int mode;
 };
 
 
@@ -370,7 +371,8 @@ static int spi_qup_do_pio(struct spi_master *master, struct spi_transfer *xfer)
 		return ret;
 	}
 
-	spi_qup_fifo_write(qup, xfer);
+	if (qup->mode == QUP_IO_M_MODE_FIFO)
+		spi_qup_fifo_write(qup, xfer);
 
 	return 0;
 }
@@ -459,7 +461,8 @@ spi_qup_get_mode(struct spi_master *master, struct spi_transfer *xfer)
 
 	qup->n_words = xfer->len / qup->w_size;
 
-	if (IS_ALIGNED((size_t)xfer->tx_buf, dma_align) &&
+	if (!IS_ERR_OR_NULL(master->dma_rx) &&
+			IS_ALIGNED((size_t)xfer->tx_buf, dma_align) &&
 			IS_ALIGNED((size_t)xfer->rx_buf, dma_align) &&
 			!is_vmalloc_addr(xfer->tx_buf) &&
 			!is_vmalloc_addr(xfer->rx_buf) &&
@@ -499,7 +502,7 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 		return -EIO;
 	}
 
-	mode = spi_qup_get_mode(spi->master, xfer);
+	controller->mode = mode = spi_qup_get_mode(spi->master, xfer);
 	n_words = controller->n_words;
 
 	if (mode == QUP_IO_M_MODE_FIFO) {
@@ -777,6 +780,20 @@ static void spi_qup_set_cs(struct spi_device *spi, bool val)
 		writel_relaxed(spi_ioc, controller->base + SPI_IO_CONTROL);
 }
 
+static int spi_qup_setup(struct spi_device *spi)
+{
+	if (spi->cs_gpio >= 0) {
+		if (spi->mode & SPI_CS_HIGH)
+			gpio_set_value(spi->cs_gpio, 0);
+		else
+			gpio_set_value(spi->cs_gpio, 1);
+
+		udelay(10);
+	}
+
+	return 0;
+}
+
 static int spi_qup_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
@@ -875,6 +892,8 @@ static int spi_qup_probe(struct platform_device *pdev)
 
 	if (!controller->qup_v1)
 		master->set_cs = spi_qup_set_cs;
+	else
+		master->setup = spi_qup_setup;
 
 	spin_lock_init(&controller->lock);
 	init_completion(&controller->done);
