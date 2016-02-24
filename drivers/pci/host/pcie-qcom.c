@@ -697,8 +697,7 @@ qcom_pcie_rd_own_conf(struct pcie_port *pp, int where, int size, u32 *val)
 		return PCIBIOS_SUCCESSFUL;
 	}
 
-	return dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3),
-				size, val);
+	return dw_pcie_cfg_read(pp->dbi_base + where, size, val);
 }
 
 static struct pcie_host_ops qcom_pcie_ops = {
