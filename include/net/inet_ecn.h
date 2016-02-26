@@ -126,7 +126,8 @@ static inline int IP6_ECN_set_ce(struct sk_buff *skb, struct ipv6hdr *iph)
 
 	from = *(__be32 *)iph;
 	to = from | htonl(INET_ECN_CE << 20);
-	*(__be32 *)iph = to;
+	net_hdr_word(iph) |= htonl(INET_ECN_CE << 20);
+
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_add(csum_sub(skb->csum, from), to);
 	return 1;
@@ -134,7 +135,7 @@ static inline int IP6_ECN_set_ce(struct sk_buff *skb, struct ipv6hdr *iph)
 
 static inline void IP6_ECN_clear(struct ipv6hdr *iph)
 {
-	*(__be32*)iph &= ~htonl(INET_ECN_MASK << 20);
+	net_hdr_word(iph) &= ~htonl(INET_ECN_MASK << 20);
 }
 
 static inline void ipv6_copy_dscp(unsigned int dscp, struct ipv6hdr *inner)
