@@ -91,8 +91,16 @@ extern int ppp_hold_channels(struct net_device *dev,
 			     struct ppp_channel *channels[],
 			     unsigned int chan_sz);
 
+/* Hold PPP channels for the PPP device */
+extern int __ppp_hold_channels(struct net_device *dev,
+			       struct ppp_channel *channels[],
+			       unsigned int chan_sz);
+
 /* Test if the ppp device is a multi-link ppp device */
 extern int ppp_is_multilink(struct net_device *dev);
+
+/* Test if the ppp device is a multi-link ppp device */
+extern int __ppp_is_multilink(struct net_device *dev);
 
 /* Update statistics of the PPP net_device by incrementing related
  * statistics field value with corresponding parameter
