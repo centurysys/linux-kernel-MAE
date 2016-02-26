@@ -3068,7 +3068,9 @@ static void *unit_find(struct idr *p, int n)
 /* Updates the PPP interface statistics. */
 void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 		      unsigned long rx_bytes, unsigned long tx_packets,
-		      unsigned long tx_bytes)
+		      unsigned long tx_bytes, unsigned long rx_errors,
+		      unsigned long tx_errors, unsigned long rx_dropped,
+		      unsigned long tx_dropped)
 {
 	struct ppp *ppp;
 
@@ -3083,11 +3085,15 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 	ppp_xmit_lock(ppp);
 	ppp->stats64.tx_packets += tx_packets;
 	ppp->stats64.tx_bytes += tx_bytes;
+	ppp->dev->stats.tx_errors += tx_errors;
+	ppp->dev->stats.tx_dropped += tx_dropped;
 	ppp_xmit_unlock(ppp);
 
 	ppp_recv_lock(ppp);
 	ppp->stats64.rx_packets += rx_packets;
 	ppp->stats64.rx_bytes += rx_bytes;
+	ppp->dev->stats.rx_errors += rx_errors;
+	ppp->dev->stats.rx_dropped += rx_dropped;
 	ppp_recv_unlock(ppp);
 }
 
