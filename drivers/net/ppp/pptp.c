@@ -129,6 +129,31 @@ static int lookup_chan_dst(u16 call_id, __be32 d_addr)
 	return i < MAX_CALLID;
 }
 
+/* Search a pptp session based on peer call id and peer ip address */
+static int lookup_session_dst(struct pptp_opt *opt, u16 call_id, __be32 d_addr)
+{
+	struct pppox_sock *sock;
+	int i = 1;
+
+	rcu_read_lock();
+	for_each_set_bit_from(i, callid_bitmap, MAX_CALLID) {
+		sock = rcu_dereference(callid_sock[i]);
+		if (!sock)
+			continue;
+
+		if (sock->proto.pptp.dst_addr.call_id == call_id &&
+		    sock->proto.pptp.dst_addr.sin_addr.s_addr == d_addr) {
+			sock_hold(sk_pppox(sock));
+			memcpy(opt, &sock->proto.pptp, sizeof(struct pptp_opt));
+			sock_put(sk_pppox(sock));
+			rcu_read_unlock();
+			return 0;
+		}
+	}
+	rcu_read_unlock();
+	return -EINVAL;
+}
+
 static int add_chan(struct pppox_sock *sock,
 		    struct pptp_addr *sa)
 {
@@ -286,7 +311,12 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	ip_select_ident(net, skb, NULL);
 	ip_send_check(iph);
 
+	/* set incoming interface as the ppp interface */
+	if (skb->skb_iif)
+		skb->skb_iif = ppp_dev_index(chan);
+
 	ip_local_out(net, skb->sk, skb);
+
 	return 1;
 
 tx_error:
@@ -406,6 +436,7 @@ static int pptp_rcv(struct sk_buff *skb)
 	if (po) {
 		skb_dst_drop(skb);
 		nf_reset(skb);
+		skb->skb_iif = ppp_dev_index(&po->chan);
 		return sk_receive_skb(sk_pppox(po), skb, 0);
 	}
 drop:
@@ -644,6 +675,50 @@ static int pptp_ppp_ioctl(struct ppp_channel *chan, unsigned int cmd,
 
 	return err;
 }
+
+/* pptp_channel_addressing_get()
+ *	Return PPTP channel specific addressing information.
+ */
+void pptp_channel_addressing_get(struct pptp_opt *opt, struct ppp_channel *chan)
+{
+	struct sock *sk;
+	struct pppox_sock *po;
+
+	if (!opt)
+		return;
+
+	sk = (struct sock *)chan->private;
+	if (!sk)
+		return;
+
+	sock_hold(sk);
+
+	/* This is very unlikely, but check the socket is connected state */
+	if (unlikely(sock_flag(sk, SOCK_DEAD) ||
+		     !(sk->sk_state & PPPOX_CONNECTED))) {
+		sock_put(sk);
+		return;
+	}
+
+	po = pppox_sk(sk);
+	memcpy(opt, &po->proto.pptp, sizeof(struct pptp_opt));
+	sock_put(sk);
+}
+EXPORT_SYMBOL(pptp_channel_addressing_get);
+
+/* pptp_session_find()
+ *	Search and return a PPTP session info based on peer callid and IP
+ *	address. The function accepts the parameters in network byte order.
+ */
+int pptp_session_find(struct pptp_opt *opt, __be16 peer_call_id,
+		      __be32 peer_ip_addr)
+{
+	if (!opt)
+		return -EINVAL;
+
+	return lookup_session_dst(opt, ntohs(peer_call_id), peer_ip_addr);
+}
+EXPORT_SYMBOL(pptp_session_find);
 
 /* pptp_hold_chan() */
 static void pptp_hold_chan(struct ppp_channel *chan)
