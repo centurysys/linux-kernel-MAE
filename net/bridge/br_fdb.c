@@ -307,6 +307,7 @@ void br_fdb_cleanup(unsigned long _data)
 	unsigned long delay = hold_time(br);
 	unsigned long next_timer = jiffies + br->ageing_time;
 	int i;
+	u8 mac_addr[6];
 
 	spin_lock(&br->hash_lock);
 	for (i = 0; i < BR_HASH_SIZE; i++) {
@@ -321,10 +322,11 @@ void br_fdb_cleanup(unsigned long _data)
 				continue;
 			this_timer = f->updated + delay;
 			if (time_before_eq(this_timer, jiffies)) {
+				ether_addr_copy(mac_addr, f->addr.addr);
+				fdb_delete(br, f);
 				atomic_notifier_call_chain(
 					&br_fdb_update_notifier_list, 0,
-					(void *)f->addr.addr);
-				fdb_delete(br, f);
+					(void *)mac_addr);
 			} else if (time_before(this_timer, next_timer)) {
 				next_timer = this_timer;
 			}
@@ -608,7 +610,8 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb_modified = true;
 
 				atomic_notifier_call_chain(
-					&br_fdb_update_notifier_list, 0, addr);
+					&br_fdb_update_notifier_list,
+					0, (void *)addr);
 			}
 			fdb->updated = jiffies;
 			if (unlikely(added_by_user))
