@@ -621,7 +621,8 @@ void br_refresh_fdb_entry(struct net_device *dev, const char *addr)
 		return;
 
 	if (!is_valid_ether_addr(addr)) {
-		pr_info("bridge: Attempt to refresh with invalid ether address\n");
+		pr_info("bridge: Attempt to refresh with invalid ether address %pM\n",
+			addr);
 		return;
 	}
 
@@ -630,6 +631,24 @@ void br_refresh_fdb_entry(struct net_device *dev, const char *addr)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(br_refresh_fdb_entry);
+
+/* Look up the MAC address in the device's bridge fdb table */
+struct net_bridge_fdb_entry *br_fdb_has_entry(struct net_device *dev,
+					      const char *addr, __u16 vid)
+{
+	struct net_bridge_port *p = br_port_get_rcu(dev);
+	struct net_bridge_fdb_entry *fdb;
+
+	if (!p || p->state == BR_STATE_DISABLED)
+		return NULL;
+
+	rcu_read_lock();
+	fdb = fdb_find_rcu(&p->br->hash[br_mac_hash(addr, vid)], addr, vid);
+	rcu_read_unlock();
+
+	return fdb;
+}
+EXPORT_SYMBOL_GPL(br_fdb_has_entry);
 
 static int fdb_to_nud(const struct net_bridge *br,
 			const struct net_bridge_fdb_entry *fdb)
