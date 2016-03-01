@@ -13,5 +13,6 @@
 #define _ATH79_DEV_WMAC_H
 
 void ath79_register_wmac(u8 *cal_data, u8 *mac_addr);
+void ath79_register_wmac_simple(void);
 
 #endif /* _ATH79_DEV_WMAC_H */

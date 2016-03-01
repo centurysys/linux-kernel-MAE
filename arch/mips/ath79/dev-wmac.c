@@ -191,3 +191,9 @@ void __init ath79_register_wmac(u8 *cal_data, u8 *mac_addr)
 
 	platform_device_register(&ath79_wmac_device);
 }
+
+void __init ath79_register_wmac_simple(void)
+{
+	ath79_register_wmac(NULL, NULL);
+	ath79_wmac_data.eeprom_name = "soc_wmac.eeprom";
+}
