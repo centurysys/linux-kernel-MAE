@@ -156,4 +156,5 @@ void __init ath79_gpio_init(void)
 	}
 
 	platform_device_register(&ath79_gpio_device);
+	ath79_gpio_base = ioremap(AR71XX_GPIO_BASE, AR71XX_GPIO_SIZE);
 }
