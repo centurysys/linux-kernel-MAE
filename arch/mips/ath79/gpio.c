@@ -83,3 +83,19 @@ void __init ath79_gpio_output_select(unsigned gpio, u8 val)
 	/* flush write */
 	(void) __raw_readl(base + reg);
 }
+
+int ath79_gpio_direction_select(unsigned gpio, bool oe)
+{
+	void __iomem *base = ath79_gpio_base;
+	bool ieq_1 = (soc_is_ar934x() ||
+			soc_is_qca953x());
+
+	if ((ieq_1 && oe) || (!ieq_1 && !oe))
+		__raw_writel(__raw_readl(base + AR71XX_GPIO_REG_OE) & ~(1 << gpio),
+				base + AR71XX_GPIO_REG_OE);
+	else
+		__raw_writel(__raw_readl(base + AR71XX_GPIO_REG_OE) | (1 << gpio),
+				base + AR71XX_GPIO_REG_OE);
+
+	return 0;
+}
