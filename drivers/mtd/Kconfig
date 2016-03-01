@@ -203,6 +203,12 @@ config MTD_QCOM_SMEM_PARTS
 	  This provides partitions parser for QCOM devices using SMEM
 	  such as IPQ806x.
 
+config MTD_TPLINK_PARTS
+	tristate "TP-Link AR7XXX/AR9XXX partitioning support"
+	depends on ATH79
+	---help---
+	  TBD.
+
 comment "User Modules And Translation Layers"
 
 #
