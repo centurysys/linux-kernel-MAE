@@ -35,6 +35,7 @@ void __init fw_init_cmdline(void)
 	else
 		_fw_envp = (int *)fw_arg2;
 
+	arcs_cmdline[0] = '\0';
 	for (i = 1; i < fw_argc; i++) {
 		strlcat(arcs_cmdline, fw_argv(i), COMMAND_LINE_SIZE);
 		if (i < (fw_argc - 1))
