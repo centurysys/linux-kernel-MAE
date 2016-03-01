@@ -26,7 +26,6 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/regulator/rpm-smd-regulator.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/of_gpio.h>
@@ -41,6 +40,8 @@
 #include <linux/pm_wakeup.h>
 #include <linux/compiler.h>
 #include <linux/msm_pcie.h>
+
+#define DUMMY_RPM_REGULATOR_CORNER_NONE 0
 
 #ifdef CONFIG_ARCH_MDMCALIFORNIUM
 #define PCIE_VENDOR_ID_RCP		0x17cb
@@ -3025,7 +3026,7 @@ int msm_pcie_vreg_init(struct msm_pcie_dev_t *dev)
 						dev->rc_idx,
 						dev->vreg[i].name);
 					regulator_set_voltage(hdl,
-						RPM_REGULATOR_CORNER_NONE,
+						DUMMY_RPM_REGULATOR_CORNER_NONE,
 						INT_MAX);
 				}
 			}
@@ -3055,7 +3056,7 @@ static void msm_pcie_vreg_deinit(struct msm_pcie_dev_t *dev)
 					dev->rc_idx,
 					dev->vreg[i].name);
 				regulator_set_voltage(dev->vreg[i].hdl,
-					RPM_REGULATOR_CORNER_NONE,
+					DUMMY_RPM_REGULATOR_CORNER_NONE,
 					INT_MAX);
 			}
 		}
