@@ -1046,4 +1046,9 @@ config GPIO_NXP_74HC153
 	  Platform driver for NXP 74HC153 Dual 4-input Multiplexer. This
 	  provides a GPIO interface supporting input mode only.
 
+config GPIO_LATCH
+	tristate "GPIO latch driver"
+	help
+	  Say yes here to enable a GPIO latch driver.
+
 endif
