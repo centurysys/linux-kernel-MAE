@@ -95,7 +95,9 @@ void __init ath79_register_uart(void)
 	    soc_is_ar913x() ||
 	    soc_is_ar934x() ||
 	    soc_is_qca953x() ||
-	    soc_is_qca955x()) {
+	    soc_is_qca955x() ||
+	    soc_is_qca956x() ||
+	    soc_is_tp9343()) {
 		ath79_uart_data[0].uartclk = uart_clk_rate;
 		platform_device_register(&ath79_uart_device);
 	} else if (soc_is_ar933x()) {
@@ -163,6 +165,9 @@ void __init ath79_gpio_init(void)
 		ath79_gpio_pdata.oe_inverted = 1;
 	} else if (soc_is_qca955x()) {
 		ath79_gpio_pdata.ngpios = QCA955X_GPIO_COUNT;
+		ath79_gpio_pdata.oe_inverted = 1;
+	} else if (soc_is_qca956x() || soc_is_tp9343()) {
+		ath79_gpio_pdata.ngpios = QCA956X_GPIO_COUNT;
 		ath79_gpio_pdata.oe_inverted = 1;
 	} else {
 		BUG();

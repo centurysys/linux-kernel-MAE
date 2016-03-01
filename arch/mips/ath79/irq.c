@@ -106,7 +106,9 @@ static void __init ath79_misc_irq_init(void)
 		 soc_is_ar933x() ||
 		 soc_is_ar934x() ||
 		 soc_is_qca953x() ||
-		 soc_is_qca955x())
+		 soc_is_qca955x() ||
+		 soc_is_qca956x() ||
+		 soc_is_tp9343())
 		ath79_misc_irq_chip.irq_ack = ar724x_misc_irq_ack;
 	else
 		BUG();
@@ -263,6 +265,87 @@ static unsigned irq_wb_chan[8] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
 };
 
+static void qca956x_ip2_irq_dispatch(struct irq_desc *desc)
+{
+	u32 status;
+
+	status = ath79_reset_rr(QCA956X_RESET_REG_EXT_INT_STATUS);
+	status &= QCA956X_EXT_INT_PCIE_RC1_ALL | QCA956X_EXT_INT_WMAC_ALL;
+
+	if (status == 0) {
+		spurious_interrupt();
+		return;
+	}
+
+	if (status & QCA956X_EXT_INT_PCIE_RC1_ALL) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP2_IRQ(0));
+	}
+
+	if (status & QCA956X_EXT_INT_WMAC_ALL) {
+		/* TODO: flsuh DDR? */
+		generic_handle_irq(ATH79_IP2_IRQ(1));
+	}
+}
+
+static void qca956x_ip3_irq_dispatch(struct irq_desc *desc)
+{
+	u32 status;
+
+	status = ath79_reset_rr(QCA956X_RESET_REG_EXT_INT_STATUS);
+	status &= QCA956X_EXT_INT_PCIE_RC2_ALL |
+		  QCA956X_EXT_INT_USB1 | QCA956X_EXT_INT_USB2;
+
+	if (status == 0) {
+		spurious_interrupt();
+		return;
+	}
+
+	if (status & QCA956X_EXT_INT_USB1) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP3_IRQ(0));
+	}
+
+	if (status & QCA956X_EXT_INT_USB2) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP3_IRQ(1));
+	}
+
+	if (status & QCA956X_EXT_INT_PCIE_RC2_ALL) {
+		/* TODO: flush DDR? */
+		generic_handle_irq(ATH79_IP3_IRQ(2));
+	}
+}
+
+static void qca956x_enable_timer_cb(void) {
+	u32 misc;
+
+	misc = ath79_reset_rr(AR71XX_RESET_REG_MISC_INT_ENABLE);
+	misc |= MISC_INT_MIPS_SI_TIMERINT_MASK;
+	ath79_reset_wr(AR71XX_RESET_REG_MISC_INT_ENABLE, misc);
+}
+
+static void qca956x_irq_init(void)
+{
+	int i;
+
+	for (i = ATH79_IP2_IRQ_BASE;
+	     i < ATH79_IP2_IRQ_BASE + ATH79_IP2_IRQ_COUNT; i++)
+		irq_set_chip_and_handler(i, &dummy_irq_chip, handle_level_irq);
+
+	irq_set_chained_handler(ATH79_CPU_IRQ(2), qca956x_ip2_irq_dispatch);
+
+	for (i = ATH79_IP3_IRQ_BASE;
+	     i < ATH79_IP3_IRQ_BASE + ATH79_IP3_IRQ_COUNT; i++)
+		irq_set_chip_and_handler(i, &dummy_irq_chip, handle_level_irq);
+
+	irq_set_chained_handler(ATH79_CPU_IRQ(3), qca956x_ip3_irq_dispatch);
+
+	/* QCA956x timer init workaround has to be applied right before setting
+	 * up the clock. Else, there will be no jiffies */
+	late_time_init = &qca956x_enable_timer_cb;
+}
+
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned long pending;
@@ -404,4 +487,6 @@ void __init arch_init_irq(void)
 		qca953x_irq_init();
 	else if (soc_is_qca955x())
 		qca955x_irq_init();
+	else if (soc_is_qca956x() || soc_is_tp9343())
+		qca956x_irq_init();
 }

@@ -35,6 +35,8 @@ enum ath79_soc_type {
 	ATH79_SOC_QCA9533,
 	ATH79_SOC_QCA9556,
 	ATH79_SOC_QCA9558,
+	ATH79_SOC_TP9343,
+	ATH79_SOC_QCA956X,
 };
 
 extern enum ath79_soc_type ath79_soc;
@@ -124,6 +126,26 @@ static inline int soc_is_qca9558(void)
 static inline int soc_is_qca955x(void)
 {
 	return soc_is_qca9556() || soc_is_qca9558();
+}
+
+static inline int soc_is_tp9343(void)
+{
+	return ath79_soc == ATH79_SOC_TP9343;
+}
+
+static inline int soc_is_qca9561(void)
+{
+	return ath79_soc == ATH79_SOC_QCA956X;
+}
+
+static inline int soc_is_qca9563(void)
+{
+	return ath79_soc == ATH79_SOC_QCA956X;
+}
+
+static inline int soc_is_qca956x(void)
+{
+	return soc_is_qca9561() || soc_is_qca9563();
 }
 
 void ath79_ddr_set_pci_windows(void);

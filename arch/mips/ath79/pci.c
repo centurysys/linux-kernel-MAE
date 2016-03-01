@@ -68,6 +68,21 @@ static const struct ath79_pci_irq qca955x_pci_irq_map[] __initconst = {
 	},
 };
 
+static const struct ath79_pci_irq qca956x_pci_irq_map[] __initconst = {
+	{
+		.bus    = 0,
+		.slot   = 0,
+		.pin    = 1,
+		.irq    = ATH79_PCI_IRQ(0),
+	},
+	{
+		.bus    = 1,
+		.slot   = 0,
+		.pin    = 1,
+		.irq    = ATH79_PCI_IRQ(1),
+	},
+};
+
 int __init pcibios_map_irq(const struct pci_dev *dev, uint8_t slot, uint8_t pin)
 {
 	int irq = -1;
@@ -86,6 +101,9 @@ int __init pcibios_map_irq(const struct pci_dev *dev, uint8_t slot, uint8_t pin)
 		} else if (soc_is_qca955x()) {
 			ath79_pci_irq_map = qca955x_pci_irq_map;
 			ath79_pci_nr_irqs = ARRAY_SIZE(qca955x_pci_irq_map);
+		} else if (soc_is_qca956x()) {
+			ath79_pci_irq_map = qca956x_pci_irq_map;
+			ath79_pci_nr_irqs = ARRAY_SIZE(qca956x_pci_irq_map);
 		} else {
 			pr_crit("pci %s: invalid irq map\n",
 				pci_name((struct pci_dev *) dev));
@@ -301,6 +319,15 @@ int __init ath79_register_pci(void)
 						 QCA955X_PCI_CRP_BASE1,
 						 QCA955X_PCI_MEM_BASE1,
 						 QCA955X_PCI_MEM_SIZE,
+						 1,
+						 ATH79_IP3_IRQ(2));
+	} else if (soc_is_qca956x()) {
+		pdev = ath79_register_pci_ar724x(0,
+						 QCA956X_PCI_CFG_BASE1,
+						 QCA956X_PCI_CTRL_BASE1,
+						 QCA956X_PCI_CRP_BASE1,
+						 QCA956X_PCI_MEM_BASE1,
+						 QCA956X_PCI_MEM_SIZE,
 						 1,
 						 ATH79_IP3_IRQ(2));
 	} else {
