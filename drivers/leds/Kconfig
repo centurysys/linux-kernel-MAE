@@ -605,6 +605,13 @@ config LEDS_VERSATILE
 	  This option enabled support for the LEDs on the ARM Versatile
 	  and RealView boards. Say Y to enabled these.
 
+config LEDS_WNDR3700_USB
+	tristate "NETGEAR WNDR3700 USB LED driver"
+	depends on LEDS_CLASS && ATH79_MACH_WNDR3700
+	help
+	  This option enables support for the USB LED found on the
+	  NETGEAR WNDR3700 board.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
