@@ -95,6 +95,8 @@ choice
 		select SOC_AR913X
 endchoice
 
+source "arch/mips/ath79/Kconfig.openwrt"
+
 endmenu
 
 config SOC_AR71XX
