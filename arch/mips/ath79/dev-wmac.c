@@ -308,6 +308,11 @@ void __init ath79_wmac_disable_5ghz(void)
 	ath79_wmac_data.disable_5ghz = true;
 }
 
+void __init ath79_wmac_set_tx_gain_buffalo(void)
+{
+	ath79_wmac_data.tx_gain_buffalo = true;
+}
+
 void __init ath79_register_wmac(u8 *cal_data, u8 *mac_addr)
 {
 	if (soc_is_ar913x())
