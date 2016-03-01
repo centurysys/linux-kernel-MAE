@@ -105,6 +105,7 @@ static void __init ath79_misc_irq_init(void)
 	else if (soc_is_ar724x() ||
 		 soc_is_ar933x() ||
 		 soc_is_ar934x() ||
+		 soc_is_qca953x() ||
 		 soc_is_qca955x())
 		ath79_misc_irq_chip.irq_ack = ar724x_misc_irq_ack;
 	else
@@ -146,6 +147,34 @@ static void ar934x_ip2_irq_init(void)
 					 handle_level_irq);
 
 	irq_set_chained_handler(ATH79_CPU_IRQ(2), ar934x_ip2_irq_dispatch);
+}
+
+static void qca953x_ip2_irq_dispatch(struct irq_desc *desc)
+{
+	u32 status;
+
+	status = ath79_reset_rr(QCA953X_RESET_REG_PCIE_WMAC_INT_STATUS);
+
+	if (status & QCA953X_PCIE_WMAC_INT_PCIE_ALL) {
+		ath79_ddr_wb_flush(QCA953X_DDR_REG_FLUSH_PCIE);
+		generic_handle_irq(ATH79_IP2_IRQ(0));
+	} else if (status & QCA953X_PCIE_WMAC_INT_WMAC_ALL) {
+		ath79_ddr_wb_flush(QCA953X_DDR_REG_FLUSH_WMAC);
+		generic_handle_irq(ATH79_IP2_IRQ(1));
+	} else {
+		spurious_interrupt();
+	}
+}
+
+static void qca953x_irq_init(void)
+{
+	int i;
+
+	for (i = ATH79_IP2_IRQ_BASE;
+	     i < ATH79_IP2_IRQ_BASE + ATH79_IP2_IRQ_COUNT; i++)
+		irq_set_chip_and_handler(i, &dummy_irq_chip, handle_level_irq);
+
+	irq_set_chained_handler(ATH79_CPU_IRQ(2), qca953x_ip2_irq_dispatch);
 }
 
 static void qca955x_ip2_irq_dispatch(struct irq_desc *desc)
@@ -362,7 +391,7 @@ void __init arch_init_irq(void)
 	    soc_is_ar913x() || soc_is_ar933x()) {
 		irq_wb_chan[2] = 3;
 		irq_wb_chan[3] = 2;
-	} else if (soc_is_ar934x()) {
+	} else if (soc_is_ar934x() || soc_is_qca953x()) {
 		irq_wb_chan[3] = 2;
 	}
 
@@ -371,6 +400,8 @@ void __init arch_init_irq(void)
 
 	if (soc_is_ar934x())
 		ar934x_ip2_irq_init();
+	else if (soc_is_qca953x())
+		qca953x_irq_init();
 	else if (soc_is_qca955x())
 		qca955x_irq_init();
 }

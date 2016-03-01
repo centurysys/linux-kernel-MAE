@@ -31,7 +31,7 @@ static void __iomem *ath79_gpio_get_function_reg(void)
 	    soc_is_ar913x() ||
 	    soc_is_ar933x())
 		reg = AR71XX_GPIO_REG_FUNC;
-	else if (soc_is_ar934x())
+	else if (soc_is_ar934x() || soc_is_qca953x())
 		reg = AR934X_GPIO_REG_FUNC;
 	else
 		BUG();
@@ -64,7 +64,7 @@ void __init ath79_gpio_output_select(unsigned gpio, u8 val)
 	unsigned int reg;
 	u32 t, s;
 
-	BUG_ON(!soc_is_ar934x());
+	BUG_ON(!soc_is_ar934x() && !soc_is_qca953x());
 
 	if (gpio >= AR934X_GPIO_COUNT)
 		return;

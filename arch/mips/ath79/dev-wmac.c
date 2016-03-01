@@ -101,7 +101,7 @@ static int ar933x_wmac_reset(void)
 	return -ETIMEDOUT;
 }
 
-static int ar933x_r1_get_wmac_revision(void)
+static int ar93xx_get_soc_revision(void)
 {
 	return ath79_soc_rev;
 }
@@ -126,7 +126,7 @@ static void __init ar933x_wmac_setup(void)
 		ath79_wmac_data.is_clk_25mhz = true;
 
 	if (ath79_soc_rev == 1)
-		ath79_wmac_data.get_mac_revision = ar933x_r1_get_wmac_revision;
+		ath79_wmac_data.get_mac_revision = ar93xx_get_soc_revision;
 
 	ath79_wmac_data.external_reset = ar933x_wmac_reset;
 }
@@ -144,6 +144,26 @@ static void ar934x_wmac_setup(void)
 
 	t = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
 	if (t & AR934X_BOOTSTRAP_REF_CLK_40)
+		ath79_wmac_data.is_clk_25mhz = false;
+	else
+		ath79_wmac_data.is_clk_25mhz = true;
+
+	ath79_wmac_data.get_mac_revision = ar93xx_get_soc_revision;
+}
+
+static void qca953x_wmac_setup(void)
+{
+	u32 t;
+
+	ath79_wmac_device.name = "qca953x_wmac";
+
+	ath79_wmac_resources[0].start = QCA953X_WMAC_BASE;
+	ath79_wmac_resources[0].end = QCA953X_WMAC_BASE + QCA953X_WMAC_SIZE - 1;
+	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
+	ath79_wmac_resources[1].end = ATH79_IP2_IRQ(1);
+
+	t = ath79_reset_rr(QCA953X_RESET_REG_BOOTSTRAP);
+	if (t & QCA953X_BOOTSTRAP_REF_CLK_40)
 		ath79_wmac_data.is_clk_25mhz = false;
 	else
 		ath79_wmac_data.is_clk_25mhz = true;
@@ -368,6 +388,8 @@ void __init ath79_register_wmac(u8 *cal_data, u8 *mac_addr)
 		ar933x_wmac_setup();
 	else if (soc_is_ar934x())
 		ar934x_wmac_setup();
+	else if (soc_is_qca953x())
+		qca953x_wmac_setup();
 	else if (soc_is_qca955x())
 		qca955x_wmac_setup();
 	else

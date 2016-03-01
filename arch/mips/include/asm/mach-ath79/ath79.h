@@ -32,6 +32,7 @@ enum ath79_soc_type {
 	ATH79_SOC_AR9341,
 	ATH79_SOC_AR9342,
 	ATH79_SOC_AR9344,
+	ATH79_SOC_QCA9533,
 	ATH79_SOC_QCA9556,
 	ATH79_SOC_QCA9558,
 };
@@ -98,6 +99,16 @@ static inline int soc_is_ar9344(void)
 static inline int soc_is_ar934x(void)
 {
 	return soc_is_ar9341() || soc_is_ar9342() || soc_is_ar9344();
+}
+
+static inline int soc_is_qca9533(void)
+{
+	return ath79_soc == ATH79_SOC_QCA9533;
+}
+
+static inline int soc_is_qca953x(void)
+{
+	return soc_is_qca9533();
 }
 
 static inline int soc_is_qca9556(void)
