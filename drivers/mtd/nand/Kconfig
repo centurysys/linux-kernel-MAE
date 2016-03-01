@@ -557,4 +557,8 @@ config MTD_NAND_RB4XX
 	tristate "NAND flash driver for RouterBoard 4xx series"
 	depends on MTD_NAND && ATH79_MACH_RB4XX
 
+config MTD_NAND_RB750
+	tristate "NAND flash driver for the RouterBoard 750"
+	depends on MTD_NAND && ATH79_MACH_RB750
+
 endif # MTD_NAND
