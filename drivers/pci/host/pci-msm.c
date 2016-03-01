@@ -30,9 +30,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/of_gpio.h>
-#include <linux/clk/msm-clk.h>
-#include <linux/msm-bus.h>
-#include <linux/msm-bus-board.h>
+#include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -741,6 +739,11 @@ static const struct msm_pcie_irq_info_t msm_pcie_msi_info[MSM_PCIE_MAX_MSI] = {
 	{"msi_24", 0}, {"msi_25", 0}, {"msi_26", 0}, {"msi_27", 0},
 	{"msi_28", 0}, {"msi_29", 0}, {"msi_30", 0}, {"msi_31", 0}
 };
+
+static inline void dummy_clk_reset_deassert(struct clk *clk)
+{
+	pr_err("PCIe: using dummy_clk_reset_deassert.\n");
+}
 
 #ifdef CONFIG_ARM
 #define PCIE_BUS_PRIV_DATA(bus) \
@@ -3015,7 +3018,7 @@ int msm_pcie_vreg_init(struct msm_pcie_dev_t *dev)
 		}
 
 		if (info->opt_mode) {
-			rc = regulator_set_optimum_mode(vreg, info->opt_mode);
+			rc = regulator_set_load(vreg, info->opt_mode);
 			if (rc < 0) {
 				PCIE_ERR(dev,
 					"PCIe: RC%d can't set mode for %s: %d\n",
@@ -3131,7 +3134,7 @@ static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
 			continue;
 
 		if (i >=  MSM_PCIE_MAX_CLK - (dev->common_phy ? 4 : 1))
-			clk_reset(info->hdl, CLK_RESET_DEASSERT);
+			dummy_clk_reset_deassert(info->hdl);
 
 		if (info->freq) {
 			rc = clk_set_rate(info->hdl, info->freq);
@@ -3224,7 +3227,7 @@ static int msm_pcie_pipe_clk_init(struct msm_pcie_dev_t *dev)
 		if (!info->hdl)
 			continue;
 
-		clk_reset(info->hdl, CLK_RESET_DEASSERT);
+		dummy_clk_reset_deassert(info->hdl);
 
 		if (info->freq) {
 			rc = clk_set_rate(info->hdl, info->freq);
@@ -5236,7 +5239,7 @@ static int msm_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
 {
 	irq_set_chip_and_handler (irq, &pcie_msi_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
-	set_irq_flags(irq, IRQF_VALID);
+
 	return 0;
 }
 
