@@ -528,8 +528,6 @@ struct msm_pcie_dev_t {
 	struct pci_saved_state	     *saved_state;
 
 	struct wakeup_source	     ws;
-	struct msm_bus_scale_pdata   *bus_scale_table;
-	uint32_t			   bus_client;
 
 	bool				l0s_supported;
 	bool				l1_supported;
@@ -1742,8 +1740,6 @@ static void msm_pcie_show_status(struct msm_pcie_dev_t *dev)
 		dev->msi_gicm_addr);
 	PCIE_DBG_FS(dev, "msi_gicm_base: 0x%x\n",
 		dev->msi_gicm_base);
-	PCIE_DBG_FS(dev, "bus_client: %d\n",
-		dev->bus_client);
 	PCIE_DBG_FS(dev, "current short bdf: %d\n",
 		dev->current_short_bdf);
 	PCIE_DBG_FS(dev, "smmu does %s exist\n",
@@ -3091,20 +3087,6 @@ static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
 		}
 	}
 
-	PCIE_DBG(dev, "PCIe: requesting bus vote for RC%d\n", dev->rc_idx);
-	if (dev->bus_client) {
-		rc = msm_bus_scale_client_update_request(dev->bus_client, 1);
-		if (rc) {
-			PCIE_ERR(dev,
-				"PCIe: fail to set bus bandwidth for RC%d:%d.\n",
-				dev->rc_idx, rc);
-			return rc;
-		} else {
-			PCIE_DBG2(dev,
-				"PCIe: set bus bandwidth for RC%d.\n",
-				dev->rc_idx);
-		}
-	}
 
 	for (i = 0; i < MSM_PCIE_MAX_CLK; i++) {
 		info = &dev->clk[i];
@@ -3169,21 +3151,6 @@ static void msm_pcie_clk_deinit(struct msm_pcie_dev_t *dev)
 	for (i = 0; i < MSM_PCIE_MAX_CLK; i++)
 		if (dev->clk[i].hdl)
 			clk_disable_unprepare(dev->clk[i].hdl);
-
-	if (dev->bus_client) {
-		PCIE_DBG(dev, "PCIe: removing bus vote for RC%d\n",
-			dev->rc_idx);
-
-		rc = msm_bus_scale_client_update_request(dev->bus_client, 0);
-		if (rc)
-			PCIE_ERR(dev,
-				"PCIe: fail to relinquish bus bandwidth for RC%d:%d.\n",
-				dev->rc_idx, rc);
-		else
-			PCIE_DBG(dev,
-				"PCIe: relinquish bus bandwidth for RC%d.\n",
-				dev->rc_idx);
-	}
 
 	if (dev->gdsc_smmu)
 		regulator_disable(dev->gdsc_smmu);
@@ -3738,25 +3705,6 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 				PCIE_DBG(dev, "Freq of Clock %s is:%d\n",
 					clk_info->name, clk_info->freq);
 			}
-		}
-	}
-
-
-	dev->bus_scale_table = msm_bus_cl_get_pdata(pdev);
-	if (!dev->bus_scale_table) {
-		PCIE_DBG(dev, "PCIe: No bus scale table for RC%d (%s)\n",
-			dev->rc_idx, dev->pdev->name);
-		dev->bus_client = 0;
-	} else {
-		dev->bus_client =
-			msm_bus_scale_register_client(dev->bus_scale_table);
-		if (!dev->bus_client) {
-			PCIE_ERR(dev,
-				"PCIe: Failed to register bus client for RC%d (%s)\n",
-				dev->rc_idx, dev->pdev->name);
-			msm_bus_cl_clear_pdata(dev->bus_scale_table);
-			ret = -ENODEV;
-			goto out;
 		}
 	}
 
