@@ -612,6 +612,10 @@ config LEDS_WNDR3700_USB
 	  This option enables support for the USB LED found on the
 	  NETGEAR WNDR3700 board.
 
+config LEDS_RB750
+	tristate "LED driver for the Mikrotik RouterBOARD 750"
+	depends on LEDS_CLASS && ATH79_MACH_RB750
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
