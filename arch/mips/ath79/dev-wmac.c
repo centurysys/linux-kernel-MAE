@@ -298,6 +298,16 @@ bool __init ar93xx_wmac_read_mac_address(u8 *dest)
 	return ret;
 }
 
+void __init ath79_wmac_disable_2ghz(void)
+{
+	ath79_wmac_data.disable_2ghz = true;
+}
+
+void __init ath79_wmac_disable_5ghz(void)
+{
+	ath79_wmac_data.disable_5ghz = true;
+}
+
 void __init ath79_register_wmac(u8 *cal_data, u8 *mac_addr)
 {
 	if (soc_is_ar913x())
