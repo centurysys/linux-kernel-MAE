@@ -713,6 +713,13 @@ config SPI_TLE62X0
 	  sysfs interface, with each line presented as a kind of GPIO
 	  exposing both switch control and diagnostic feedback.
 
+config SPI_RB4XX_CPLD
+	tristate "MikroTik RB4XX CPLD driver"
+	depends on ATH79_MACH_RB4XX
+	help
+	  SPI driver for the Xilinx CPLD chip present on the
+	  MikroTik RB4xx boards.
+
 #
 # Add new SPI protocol masters in alphabetical order above this line
 #
