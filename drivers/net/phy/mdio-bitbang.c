@@ -17,6 +17,7 @@
  * kind, whether express or implied.
  */
 
+#include <linux/irqflags.h>
 #include <linux/module.h>
 #include <linux/mdio-bitbang.h>
 #include <linux/types.h>
@@ -156,7 +157,9 @@ static int mdiobb_read(struct mii_bus *bus, int phy, int reg)
 {
 	struct mdiobb_ctrl *ctrl = bus->priv;
 	int ret, i;
+	long flags;
 
+	local_irq_save(flags);
 	if (reg & MII_ADDR_C45) {
 		reg = mdiobb_cmd_addr(ctrl, phy, reg);
 		mdiobb_cmd(ctrl, MDIO_C45_READ, phy, reg);
@@ -169,13 +172,17 @@ static int mdiobb_read(struct mii_bus *bus, int phy, int reg)
 
 	ret = mdiobb_get_num(ctrl, 16);
 	mdiobb_get_bit(ctrl);
+	local_irq_restore(flags);
+
 	return ret;
 }
 
 static int mdiobb_write(struct mii_bus *bus, int phy, int reg, u16 val)
 {
 	struct mdiobb_ctrl *ctrl = bus->priv;
+	long flags;
 
+	local_irq_save(flags);
 	if (reg & MII_ADDR_C45) {
 		reg = mdiobb_cmd_addr(ctrl, phy, reg);
 		mdiobb_cmd(ctrl, MDIO_C45_WRITE, phy, reg);
@@ -190,6 +197,8 @@ static int mdiobb_write(struct mii_bus *bus, int phy, int reg, u16 val)
 
 	ctrl->ops->set_mdio_dir(ctrl, 0);
 	mdiobb_get_bit(ctrl);
+	local_irq_restore(flags);
+
 	return 0;
 }
 
