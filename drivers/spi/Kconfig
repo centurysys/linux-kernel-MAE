@@ -728,6 +728,11 @@ config SPI_RB4XX_CPLD
 	  SPI driver for the Xilinx CPLD chip present on the
 	  MikroTik RB4xx boards.
 
+config SPI_VSC7385
+	tristate "Vitesse VSC7385 ethernet switch driver"
+	help
+	  SPI driver for the Vitesse VSC7385 ethernet switch.
+
 #
 # Add new SPI protocol masters in alphabetical order above this line
 #
