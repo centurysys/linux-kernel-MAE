@@ -64,15 +64,21 @@ void ath79_gpio_function_disable(u32 mask)
 void __init ath79_gpio_output_select(unsigned gpio, u8 val)
 {
 	void __iomem *base = ath79_gpio_base;
-	unsigned int reg;
+	unsigned int reg, reg_base;
 	u32 t, s;
 
-	BUG_ON(!soc_is_ar934x() && !soc_is_qca953x() && !soc_is_qca956x());
+	if (soc_is_ar934x())
+		reg_base = AR934X_GPIO_REG_OUT_FUNC0;
+	else if (soc_is_qca953x())
+		reg_base = QCA953X_GPIO_REG_OUT_FUNC0;
+	else if (soc_is_qca955x())
+		reg_base = QCA955X_GPIO_REG_OUT_FUNC0;
+	else if (soc_is_qca956x())
+		reg_base = QCA956X_GPIO_REG_OUT_FUNC0;
+	else
+		BUG();
 
-	if (gpio >= AR934X_GPIO_COUNT)
-		return;
-
-	reg = AR934X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
+	reg = reg_base + 4 * (gpio / 4);
 	s = 8 * (gpio % 4);
 
 	t = __raw_readl(base + reg);
