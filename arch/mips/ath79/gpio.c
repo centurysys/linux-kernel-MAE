@@ -42,6 +42,31 @@ static void __iomem *ath79_gpio_get_function_reg(void)
 	return ath79_gpio_base + reg;
 }
 
+static void __iomem *ath79_gpio_get_function2_reg(void)
+{
+	u32 reg = 0;
+
+	if (soc_is_ar71xx() ||
+	    soc_is_ar724x() ||
+	    soc_is_ar913x() ||
+	    soc_is_ar933x())
+		reg = AR71XX_GPIO_REG_FUNC_2;
+	else
+		BUG();
+
+	return ath79_gpio_base + reg;
+}
+
+
+void ath79_gpio_function2_setup(u32 set, u32 clear)
+{
+	void __iomem *reg = ath79_gpio_get_function2_reg();
+
+	__raw_writel((__raw_readl(reg) & ~clear) | set, reg);
+	/* flush write */
+	__raw_readl(reg);
+}
+
 void ath79_gpio_function_setup(u32 set, u32 clear)
 {
 	void __iomem *reg = ath79_gpio_get_function_reg();

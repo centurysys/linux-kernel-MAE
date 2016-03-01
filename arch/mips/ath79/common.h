@@ -28,6 +28,7 @@ void ath79_ddr_wb_flush(unsigned int reg);
 void ath79_gpio_function_enable(u32 mask);
 void ath79_gpio_function_disable(u32 mask);
 void ath79_gpio_function_setup(u32 set, u32 clear);
+void ath79_gpio_function2_setup(u32 set, u32 clear);
 void ath79_gpio_output_select(unsigned gpio, u8 val);
 int ath79_gpio_direction_select(unsigned gpio, bool oe);
 void ath79_gpio_init(void);
