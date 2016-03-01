@@ -400,6 +400,11 @@ void __init ath79_wmac_set_ext_lna_gpio(unsigned chain, int gpio)
 		ar934x_set_ext_lna_gpio(chain, gpio);
 }
 
+void __init ath79_wmac_set_led_pin(int gpio)
+{
+	ath79_wmac_data.led_pin = gpio;
+}
+
 void __init ath79_register_wmac(u8 *cal_data, u8 *mac_addr)
 {
 	if (soc_is_ar913x())

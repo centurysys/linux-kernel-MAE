@@ -18,6 +18,7 @@ void ath79_wmac_disable_2ghz(void);
 void ath79_wmac_disable_5ghz(void);
 void ath79_wmac_set_tx_gain_buffalo(void);
 void ath79_wmac_set_ext_lna_gpio(unsigned chain, int gpio);
+void ath79_wmac_set_led_pin(int gpio);
 
 bool ar93xx_wmac_read_mac_address(u8 *dest);
 
