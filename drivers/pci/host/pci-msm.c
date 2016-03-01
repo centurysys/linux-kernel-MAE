@@ -40,7 +40,6 @@
 #include <linux/irqdomain.h>
 #include <linux/pm_wakeup.h>
 #include <linux/compiler.h>
-#include <soc/qcom/scm.h>
 #include <linux/msm_pcie.h>
 
 #ifdef CONFIG_ARCH_MDMCALIFORNIUM
@@ -577,7 +576,6 @@ struct msm_pcie_dev_t {
 	bool				 shadow_en;
 	bool				bridge_found;
 	struct msm_pcie_register_event *event_reg;
-	unsigned int			scm_dev_id;
 	bool				 power_on;
 	bool				use_19p2mhz_aux_clk;
 	bool				use_pinctrl;
@@ -1538,26 +1536,6 @@ static bool pcie_phy_is_ready(struct msm_pcie_dev_t *dev)
 }
 #endif
 #endif
-
-static int msm_pcie_restore_sec_config(struct msm_pcie_dev_t *dev)
-{
-	int ret, scm_ret;
-
-	if (!dev) {
-		pr_err("PCIe: the input pcie dev is NULL.\n");
-		return -ENODEV;
-	}
-
-	ret = scm_restore_sec_cfg(dev->scm_dev_id, 0, &scm_ret);
-	if (ret || scm_ret) {
-		PCIE_ERR(dev,
-			"PCIe: RC%d failed(%d) to restore sec config, scm_ret=%d\n",
-			dev->rc_idx, ret, scm_ret);
-		return ret ? ret : -EINVAL;
-	}
-
-	return 0;
-}
 
 static inline int msm_pcie_check_align(struct msm_pcie_dev_t *dev,
 						u32 offset)
@@ -3919,11 +3897,6 @@ int msm_pcie_enable(struct msm_pcie_dev_t *dev, u32 options)
 			goto clk_fail;
 	}
 
-	if (dev->scm_dev_id) {
-		PCIE_DBG(dev, "RC%d: restoring sec config\n", dev->rc_idx);
-		msm_pcie_restore_sec_config(dev);
-	}
-
 	/* enable PCIe clocks and resets */
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_PHY_CTRL, BIT(0), 0);
 
@@ -5581,11 +5554,6 @@ static int msm_pcie_probe(struct platform_device *pdev)
 					msm_pcie_dev[rc_idx].msi_gicm_base);
 		}
 	}
-
-	msm_pcie_dev[rc_idx].scm_dev_id = 0;
-	ret = of_property_read_u32((&pdev->dev)->of_node,
-				"qcom,scm-dev-id",
-				&msm_pcie_dev[rc_idx].scm_dev_id);
 
 	msm_pcie_dev[rc_idx].rc_idx = rc_idx;
 	msm_pcie_dev[rc_idx].pdev = pdev;
