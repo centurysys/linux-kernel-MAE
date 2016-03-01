@@ -705,6 +705,7 @@ struct spi_transfer {
 	u16		delay_usecs;
 	u32		speed_hz;
 	enum spi_transfer_type type;
+	bool dummy;
 
 	struct list_head transfer_list;
 };

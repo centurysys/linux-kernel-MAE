@@ -268,6 +268,10 @@ static int ath79_spi_do_read_flash_cmd(struct spi_device *spi,
 	sp->read_addr = 0;
 
 	len = t->len - 1;
+
+	if (t->dummy)
+		len -= 1;
+
 	p = t->tx_buf;
 
 	while (len--) {
