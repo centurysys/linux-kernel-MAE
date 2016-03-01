@@ -36,6 +36,7 @@ obj-$(CONFIG_MTD_NAND_TMIO)		+= tmio_nand.o
 obj-$(CONFIG_MTD_NAND_PLATFORM)		+= plat_nand.o
 obj-$(CONFIG_MTD_NAND_RB4XX)		+= rb4xx_nand.o
 obj-$(CONFIG_MTD_NAND_RB750)		+= rb750_nand.o
+obj-$(CONFIG_MTD_NAND_RB91X)		+= rb91x_nand.o
 obj-$(CONFIG_MTD_NAND_PASEMI)		+= pasemi_nand.o
 obj-$(CONFIG_MTD_NAND_ORION)		+= orion_nand.o
 obj-$(CONFIG_MTD_NAND_FSL_ELBC)		+= fsl_elbc_nand.o
