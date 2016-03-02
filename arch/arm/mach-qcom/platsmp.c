@@ -64,6 +64,91 @@ static void qcom_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
+static inline void a53ss_unclamp_cpu(void __iomem *reg)
+{
+	/* Deassert CPU in sleep state */
+	writel_relaxed(0x00000033, reg + APCS_CPU_PWR_CTL);
+	mb();
+
+	/* Program skew between en_few and en_rest to 16 XO clk cycles,
+	   close Core logic head switch*/
+	writel_relaxed(0x10000001, reg + APC_PWR_GATE_CTL);
+	mb();
+	udelay(2);
+
+	/* De-assert coremem clamp */
+	writel_relaxed(0x00000031, reg + APCS_CPU_PWR_CTL);
+	mb();
+
+	/* De-assert Core memory slp_nret_n */
+	writel_relaxed(0x00000039, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(2);
+
+	/* De-assert Core memory slp_ret_n */
+	writel_relaxed(0x00000239, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(2);
+
+	/* Assert WL_EN_CLK */
+	writel_relaxed(0x00004239, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(2);
+
+	/* De-assert WL_EN_CLK */
+	writel_relaxed(0x00000239, reg + APCS_CPU_PWR_CTL);
+	mb();
+
+	/* Deassert Clamp */
+	writel_relaxed(0x00000238, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(2);
+
+	/* Deassert Core-n reset */
+	writel_relaxed(0x00000208, reg + APCS_CPU_PWR_CTL);
+	mb();
+
+	/* Assert PWRDUP; */
+	writel_relaxed(0x00000288, reg + APCS_CPU_PWR_CTL);
+	mb();
+}
+
+static int a53ss_release_secondary(unsigned int cpu)
+{
+	int ret = 0;
+	struct device_node *cpu_node, *acc_node;
+	void __iomem *reg;
+
+	cpu_node = of_get_cpu_node(cpu, NULL);
+	if (!cpu_node)
+		return -ENODEV;
+
+	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
+	if (!acc_node) {
+		ret = -ENODEV;
+		goto out_acc;
+	}
+
+	reg = of_iomap(acc_node, 0);
+	if (!reg) {
+		ret = -ENOMEM;
+		goto out_acc_reg;
+	}
+
+	a53ss_unclamp_cpu(reg);
+
+	/* Secondary CPU-N is now alive */
+	iounmap(reg);
+
+out_acc_reg:
+	of_node_put(acc_node);
+out_acc:
+	of_node_put(cpu_node);
+
+	return ret;
+
+}
+
 static int scss_release_secondary(unsigned int cpu)
 {
 	struct device_node *node;
@@ -221,7 +306,7 @@ static int kpssv2_release_secondary(unsigned int cpu)
 	reg_val |= 0x3f << BHS_SEG_SHIFT;
 	writel_relaxed(reg_val, reg + APC_PWR_GATE_CTL);
 	mb();
-	 /* wait for the BHS to settle */
+	/* wait for the BHS to settle */
 	udelay(1);
 
 	/* Finally turn on the bypass so that BHS supplies power */
@@ -302,6 +387,11 @@ static int qcom_boot_secondary(unsigned int cpu, int (*func)(unsigned int))
 	return ret;
 }
 
+static int a53ss_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	return qcom_boot_secondary(cpu, a53ss_release_secondary);
+}
+
 static int msm8660_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	return qcom_boot_secondary(cpu, scss_release_secondary);
@@ -331,6 +421,16 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 		pr_warn("Failed to set CPU boot address, disabling SMP\n");
 	}
 }
+
+static struct smp_operations smp_a53ss_ops __initdata = {
+	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
+	.smp_secondary_init	= qcom_secondary_init,
+	.smp_boot_secondary	= a53ss_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= qcom_cpu_die,
+#endif
+};
+CPU_METHOD_OF_DECLARE(qcom_smp_a53ss, "qcom,arm-cortex-acc", &smp_a53ss_ops);
 
 static struct smp_operations smp_msm8660_ops __initdata = {
 	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
