@@ -65,5 +65,12 @@
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
 		};
+
+		qcom_rng: qrng@e1000 {
+			compatible = "qcom,prng";
+			reg = <0xe1000 0x1000>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "core";
+		};
 	};
 };
