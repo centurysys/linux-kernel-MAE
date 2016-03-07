@@ -1585,8 +1585,6 @@ static int msm_serial_probe(struct platform_device *pdev)
 		msm_port->pclk = devm_clk_get(&pdev->dev, "iface");
 		if (IS_ERR(msm_port->pclk))
 			return PTR_ERR(msm_port->pclk);
-
-		clk_set_rate(msm_port->clk, serial_clk);
 	}
 
 	port->uartclk = clk_get_rate(msm_port->clk);
