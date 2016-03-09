@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, The Linux foundation. All rights reserved.
+ * Copyright (c) 2008-2014, 2016 The Linux foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License rev 2 and
