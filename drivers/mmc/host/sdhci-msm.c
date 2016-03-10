@@ -36,7 +36,6 @@
 #include <linux/iopoll.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
-#include <trace/events/mmc.h>
 
 #include "sdhci-msm.h"
 #include "sdhci-msm-ice.h"
@@ -3556,8 +3555,6 @@ defer_disable_host_irq:
 			pr_err("%s: failed to suspend crypto engine %d\n",
 					mmc_hostname(host->mmc), ret);
 	}
-	trace_sdhci_msm_runtime_suspend(mmc_hostname(host->mmc), 0,
-			ktime_to_us(ktime_sub(ktime_get(), start)));
 	return 0;
 }
 
@@ -3590,8 +3587,6 @@ skip_ice_resume:
 defer_enable_host_irq:
 	enable_irq(msm_host->pwr_irq);
 
-	trace_sdhci_msm_runtime_resume(mmc_hostname(host->mmc), 0,
-			ktime_to_us(ktime_sub(ktime_get(), start)));
 	return 0;
 }
 
@@ -3622,8 +3617,6 @@ out:
 			sdhci_cfg_irq(host, false, true);
 	}
 
-	trace_sdhci_msm_suspend(mmc_hostname(host->mmc), ret,
-			ktime_to_us(ktime_sub(ktime_get(), start)));
 	return ret;
 }
 
@@ -3654,8 +3647,6 @@ out:
 			sdhci_cfg_irq(host, true, true);
 	}
 
-	trace_sdhci_msm_resume(mmc_hostname(host->mmc), ret,
-			ktime_to_us(ktime_sub(ktime_get(), start)));
 	return ret;
 }
 
