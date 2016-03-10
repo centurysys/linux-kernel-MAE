@@ -42,7 +42,7 @@
 #define MXT_OBJECT_START	0x07
 #define MXT_OBJECT_SIZE		6
 #define MXT_INFO_CHECKSUM_SIZE	3
-#define MXT_MAX_BLOCK_WRITE	256
+#define MXT_MAX_BLOCK_WRITE	255
 
 /* Object types */
 #define MXT_DEBUG_DIAGNOSTIC_T37	37
@@ -697,6 +697,27 @@ retry:
 	}
 
 	return ret;
+}
+
+static int mxt_read_blks(struct mxt_data *data, u16 start, u16 count, u8 *buf)
+{
+	u16 offset = 0;
+	int error;
+	u16 size;
+
+	while (offset < count) {
+		size = min(MXT_MAX_BLOCK_WRITE, count - offset);
+
+		error = __mxt_read_reg(data->client,
+				       start + offset,
+				       size, buf + offset);
+		if (error)
+			return error;
+
+		offset += size;
+	}
+
+	return 0;
 }
 
 static int __mxt_write_reg(struct i2c_client *client, u16 reg, u16 len,
@@ -1858,7 +1879,7 @@ static int mxt_read_info_block(struct mxt_data *data)
 	id_buf = buf;
 
 	/* Read rest of info block */
-	error = __mxt_read_reg(client, MXT_OBJECT_START,
+	error = mxt_read_blks(data, MXT_OBJECT_START,
 			       size - MXT_OBJECT_START,
 			       id_buf + MXT_OBJECT_START);
 	if (error)
@@ -2837,7 +2858,7 @@ static ssize_t mxt_object_show(struct device *dev,
 			u16 size = mxt_obj_size(object);
 			u16 addr = object->start_address + j * size;
 
-			error = __mxt_read_reg(data->client, addr, size, obuf);
+			error = mxt_read_blks(data, addr, size, obuf);
 			if (error)
 				goto done;
 
