@@ -38,7 +38,6 @@
 #include <linux/pm_runtime.h>
 
 #include "sdhci-msm.h"
-#include "sdhci-msm-ice.h"
 #include "cmdq_hci.h"
 
 #define QOS_REMOVE_DELAY_MS	10
@@ -2651,11 +2650,6 @@ void sdhci_msm_dump_vendor_regs(struct sdhci_host *host)
 		pr_info(" Test bus[%d to %d]: 0x%08x 0x%08x 0x%08x 0x%08x\n",
 				i, i + 3, debug_reg[i], debug_reg[i+1],
 				debug_reg[i+2], debug_reg[i+3]);
-	if (host->is_crypto_en) {
-		sdhci_msm_ice_get_status(host, &sts);
-		pr_info("%s: ICE status %x\n", mmc_hostname(host->mmc), sts);
-		sdhci_msm_ice_print_regs(host);
-	}
 }
 
 void sdhci_msm_reset(struct sdhci_host *host, u8 mask)
@@ -2663,9 +2657,6 @@ void sdhci_msm_reset(struct sdhci_host *host, u8 mask)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
 
-	/* Set ICE core to be reset in sync with SDHC core */
-	if (msm_host->ice.pdev)
-		writel_relaxed(1, host->ioaddr + CORE_VENDOR_SPEC_ICE_CTRL);
 
 	sdhci_reset(host, mask);
 }
@@ -2798,9 +2789,6 @@ static void sdhci_msm_init(struct sdhci_host *host)
 }
 
 static struct sdhci_ops sdhci_msm_ops = {
-	.crypto_engine_cfg = sdhci_msm_ice_cfg,
-	.crypto_cfg_reset = sdhci_msm_ice_cfg_reset,
-	.crypto_engine_reset = sdhci_msm_ice_reset,
 	.set_uhs_signaling = sdhci_msm_set_uhs_signaling,
 	.check_power_status = sdhci_msm_check_power_status,
 	.platform_execute_tuning = sdhci_msm_execute_tuning,
@@ -2997,30 +2985,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->mmc = host->mmc;
 	msm_host->pdev = pdev;
 
-	/* get the ice device vops if present */
-	ret = sdhci_msm_ice_get_dev(host);
-	if (ret == -EPROBE_DEFER) {
-		/*
-		 * SDHCI driver might be probed before ICE driver does.
-		 * In that case we would like to return EPROBE_DEFER code
-		 * in order to delay its probing.
-		 */
-		dev_err(&pdev->dev, "%s: required ICE device not probed yet err = %d\n",
-			__func__, ret);
-		goto pltfm_free;
-
-	} else if (ret == -ENODEV) {
-		/*
-		 * ICE device is not enabled in DTS file. No need for further
-		 * initialization of ICE driver.
-		 */
-		dev_warn(&pdev->dev, "%s: ICE device is not enabled",
-			__func__);
-	} else if (ret) {
-		dev_err(&pdev->dev, "%s: sdhci_msm_ice_get_dev failed %d\n",
-			__func__, ret);
-		goto pltfm_free;
-	}
 
 	/* Extract platform data */
 	if (pdev->dev.of_node) {
@@ -3309,20 +3273,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		msm_host->mmc->caps2 |= MMC_CAP2_NONHOTPLUG;
 
 
-	/* Initialize ICE if present */
-	if (msm_host->ice.pdev) {
-		ret = sdhci_msm_ice_init(host);
-		if (ret) {
-			dev_err(&pdev->dev, "%s: SDHCi ICE init failed (%d)\n",
-					mmc_hostname(host->mmc), ret);
-			ret = -EINVAL;
-			goto vreg_deinit;
-		}
-		host->is_crypto_en = true;
-		/* Packed commands cannot be encrypted/decrypted using ICE */
-		msm_host->mmc->caps2 &= ~(MMC_CAP2_PACKED_WR |
-				MMC_CAP2_PACKED_WR_CONTROL);
-	}
 
 	init_completion(&msm_host->pwr_irq_completion);
 
@@ -3548,13 +3498,6 @@ static int sdhci_msm_runtime_suspend(struct device *dev)
 defer_disable_host_irq:
 	disable_irq(msm_host->pwr_irq);
 
-
-	if (host->is_crypto_en) {
-		ret = sdhci_msm_ice_suspend(host);
-		if (ret < 0)
-			pr_err("%s: failed to suspend crypto engine %d\n",
-					mmc_hostname(host->mmc), ret);
-	}
 	return 0;
 }
 
@@ -3566,19 +3509,6 @@ static int sdhci_msm_runtime_resume(struct device *dev)
 	ktime_t start = ktime_get();
 	int ret;
 
-	if (host->is_crypto_en) {
-		ret = sdhci_msm_enable_controller_clock(host);
-		if (ret) {
-			pr_err("%s: Failed to enable reqd clocks\n",
-					mmc_hostname(host->mmc));
-			goto skip_ice_resume;
-		}
-		ret = sdhci_msm_ice_resume(host);
-		if (ret)
-			pr_err("%s: failed to resume crypto engine %d\n",
-					mmc_hostname(host->mmc), ret);
-	}
-skip_ice_resume:
 	if (host->mmc->card && mmc_card_sdio(host->mmc->card))
 		goto defer_enable_host_irq;
 
