@@ -1568,10 +1568,6 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	pdata->largeaddressbus =
 		of_property_read_bool(np, "qcom,large-address-bus");
 
-	if (of_property_read_bool(np, "qcom,wakeup-on-idle"))
-		msm_host->mmc->wakeup_on_idle = true;
-
-
 	if (of_get_property(np, "qcom,core_3_0v_support", NULL))
 		pdata->core_3_0v_support = true;
 
@@ -2781,7 +2777,6 @@ static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
 	 * on 8992 (minor 0x3e) as a workaround to reset for data stuck issue.
 	 */
 	if (major == 1 && (minor == 0x2e || minor == 0x3e)) {
-		host->quirks2 |= SDHCI_QUIRK2_USE_RESET_WORKAROUND;
 		val = readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
 		writel_relaxed((val | CORE_ONE_MID_EN),
 			host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
@@ -2941,7 +2936,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 		if (ret <= 2) {
 			sdhci_slot[ret-1] = msm_host;
-			host->slot_no = ret;
 		}
 
 		msm_host->pdata = sdhci_msm_populate_pdata(&pdev->dev,
@@ -3131,13 +3125,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	host->quirks |= SDHCI_QUIRK_SINGLE_POWER_WRITE;
 	host->quirks |= SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN;
 	host->quirks |= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC;
-	host->quirks2 |= SDHCI_QUIRK2_ALWAYS_USE_BASE_CLOCK;
-	host->quirks2 |= SDHCI_QUIRK2_IGNORE_DATATOUT_FOR_R1BCMD;
-	host->quirks2 |= SDHCI_QUIRK2_BROKEN_PRESET_VALUE;
-	host->quirks2 |= SDHCI_QUIRK2_USE_RESERVED_MAX_TIMEOUT;
-
-	if (host->quirks2 & SDHCI_QUIRK2_ALWAYS_USE_BASE_CLOCK)
-		host->quirks2 |= SDHCI_QUIRK2_DIVIDE_TOUT_BY_4;
 
 	host_version = readw_relaxed((host->ioaddr + SDHCI_HOST_VERSION));
 	dev_dbg(&pdev->dev, "Host Version: 0x%x Vendor Version 0x%x\n",
@@ -3145,20 +3132,8 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		  SDHCI_VENDOR_VER_SHIFT));
 	if (((host_version & SDHCI_VENDOR_VER_MASK) >>
 		SDHCI_VENDOR_VER_SHIFT) == SDHCI_VER_100) {
-		/*
-		 * Add 40us delay in interrupt handler when
-		 * operating at initialization frequency(400KHz).
-		 */
-		host->quirks2 |= SDHCI_QUIRK2_SLOW_INT_CLR;
-		/*
-		 * Set Software Reset for DAT line in Software
-		 * Reset Register (Bit 2).
-		 */
-		host->quirks2 |= SDHCI_QUIRK2_RDWR_TX_ACTIVE_EOT;
 	}
 
-	host->quirks2 |= SDHCI_QUIRK2_IGN_DATA_END_BIT_ERROR;
-	host->quirks2 |= SDHCI_QUIRK2_ADMA_SKIP_DATA_ALIGNMENT;
 
 	/* Setup PWRCTL irq */
 	msm_host->pwr_irq = platform_get_irq_byname(pdev, "pwr_irq");
@@ -3188,20 +3163,10 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->mmc->caps2 |= msm_host->pdata->caps2;
 	msm_host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC;
 	msm_host->mmc->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
-	msm_host->mmc->caps2 |= MMC_CAP2_HS400_POST_TUNING;
-	msm_host->mmc->caps2 |= MMC_CAP2_CLK_SCALE;
-	msm_host->mmc->caps2 |= MMC_CAP2_SANITIZE;
-	msm_host->mmc->caps2 |= MMC_CAP2_MAX_DISCARD_SIZE;
-	msm_host->mmc->caps2 |= MMC_CAP2_SLEEP_AWAKE;
 	msm_host->mmc->pm_caps |= MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
 
 	if (msm_host->pdata->nonremovable)
 		msm_host->mmc->caps |= MMC_CAP_NONREMOVABLE;
-
-	if (msm_host->pdata->nonhotplug)
-		msm_host->mmc->caps2 |= MMC_CAP2_NONHOTPLUG;
-
-
 
 	init_completion(&msm_host->pwr_irq_completion);
 
