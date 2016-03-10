@@ -1630,13 +1630,13 @@ static int sdhci_msm_vreg_set_optimum_mode(struct sdhci_msm_reg_data
 	 * do not support regulator_set_optimum_mode
 	 */
 	if (vreg->set_voltage_sup) {
-		ret = regulator_set_optimum_mode(vreg->reg, uA_load);
+		ret = regulator_set_load(vreg->reg, uA_load);
 		if (ret < 0)
-			pr_err("%s: regulator_set_optimum_mode(reg=%s,uA_load=%d) failed. ret=%d\n",
+			pr_err("%s: regulator_set_load(reg=%s,uA_load=%d) failed. ret=%d\n",
 			       __func__, vreg->name, uA_load, ret);
 		else
 			/*
-			 * regulator_set_optimum_mode() can return non zero
+			 * regulator_set_load() can return non zero
 			 * value even for success case.
 			 */
 			ret = 0;
