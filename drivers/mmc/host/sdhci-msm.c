@@ -2716,47 +2716,6 @@ int sdhci_msm_notify_load(struct sdhci_host *host, enum mmc_load state)
 	return 0;
 }
 
-void sdhci_msm_reset_workaround(struct sdhci_host *host, u32 enable)
-{
-	u32 vendor_func2;
-	unsigned long timeout;
-
-	vendor_func2 = readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
-
-	if (enable) {
-		writel_relaxed(vendor_func2 | HC_SW_RST_REQ, host->ioaddr +
-				CORE_VENDOR_SPEC_FUNC2);
-		timeout = 10000;
-		while (readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2) &
-				HC_SW_RST_REQ) {
-			if (timeout == 0) {
-				pr_info("%s: Applying wait idle disable workaround\n",
-					mmc_hostname(host->mmc));
-				/*
-				 * Apply the reset workaround to not wait for
-				 * pending data transfers on AXI before
-				 * resetting the controller. This could be
-				 * risky if the transfers were stuck on the
-				 * AXI bus.
-				 */
-				vendor_func2 = readl_relaxed(host->ioaddr +
-						CORE_VENDOR_SPEC_FUNC2);
-				writel_relaxed(vendor_func2 |
-					HC_SW_RST_WAIT_IDLE_DIS,
-					host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
-				host->reset_wa_t = ktime_get();
-				return;
-			}
-			timeout--;
-			udelay(10);
-		}
-		pr_info("%s: waiting for SW_RST_REQ is successful\n",
-				mmc_hostname(host->mmc));
-	} else {
-		writel_relaxed(vendor_func2 & ~HC_SW_RST_WAIT_IDLE_DIS,
-				host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
-	}
-}
 
 
 static inline void set_affine_irq(struct sdhci_msm_host *msm_host,
@@ -2773,23 +2732,12 @@ static void sdhci_msm_init(struct sdhci_host *host)
 
 static struct sdhci_ops sdhci_msm_ops = {
 	.set_uhs_signaling = sdhci_msm_set_uhs_signaling,
-	.check_power_status = sdhci_msm_check_power_status,
 	.platform_execute_tuning = sdhci_msm_execute_tuning,
-	.enhanced_strobe = sdhci_msm_enhanced_strobe,
-	.toggle_cdr = sdhci_msm_toggle_cdr,
-	.get_max_segments = sdhci_msm_max_segs,
 	.set_clock = sdhci_msm_set_clock,
 	.get_min_clock = sdhci_msm_get_min_clock,
 	.get_max_clock = sdhci_msm_get_max_clock,
-	.dump_vendor_regs = sdhci_msm_dump_vendor_regs,
-	.config_auto_tuning_cmd = sdhci_msm_config_auto_tuning_cmd,
-	.enable_controller_clock = sdhci_msm_enable_controller_clock,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_msm_reset,
-	.clear_set_dumpregs = sdhci_msm_clear_set_dumpregs,
-	.enhanced_strobe_mask = sdhci_msm_enhanced_strobe_mask,
-	.notify_load = sdhci_msm_notify_load,
-	.reset_workaround = sdhci_msm_reset_workaround,
 	.init = sdhci_msm_init,
 };
 
