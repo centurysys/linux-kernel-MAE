@@ -38,7 +38,9 @@
 #include <linux/pm_runtime.h>
 
 #include "sdhci-msm.h"
+#ifdef CONFIG_MMC_CQ_HCI
 #include "cmdq_hci.h"
+#endif
 
 #define QOS_REMOVE_DELAY_MS	10
 #define CORE_POWER		0x0
@@ -2570,6 +2572,8 @@ static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 }
 
 #define MAX_TEST_BUS 60
+
+#ifdef CONFIG_MMC_CQ_HCI
 #define DRV_NAME "cmdq-host"
 static void sdhci_msm_cmdq_dump_debug_ram(struct sdhci_host *host)
 {
@@ -2595,6 +2599,7 @@ static void sdhci_msm_cmdq_dump_debug_ram(struct sdhci_host *host)
 	}
 	pr_err("-------------------------\n");
 }
+#endif
 
 void sdhci_msm_dump_vendor_regs(struct sdhci_host *host)
 {
@@ -2607,9 +2612,10 @@ void sdhci_msm_dump_vendor_regs(struct sdhci_host *host)
 	u32 sts = 0;
 
 	pr_info("----------- VENDOR REGISTER DUMP -----------\n");
+#ifdef CONFIG_MMC_CQ_HCI
 	if (host->cq_host)
 		sdhci_msm_cmdq_dump_debug_ram(host);
-
+#endif
 	pr_info("Data cnt: 0x%08x | Fifo cnt: 0x%08x | Int sts: 0x%08x\n",
 		readl_relaxed(msm_host->core_mem + CORE_MCI_DATA_CNT),
 		readl_relaxed(msm_host->core_mem + CORE_MCI_FIFO_CNT),
