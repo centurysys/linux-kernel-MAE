@@ -25,6 +25,10 @@
 	interrupt-parent = <&intc>;
 	qcom,board-id = <0x10 0x0>;
 
+	aliases {
+		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
+	};
+
 	cpus {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
