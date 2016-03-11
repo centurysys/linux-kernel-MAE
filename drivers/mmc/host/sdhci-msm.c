@@ -2878,6 +2878,11 @@ static bool sdhci_msm_is_bootdevice(struct device *dev)
 	return true;
 }
 
+void sdhci_msm_gpio_free_cd(struct sdhci_msm_host *msm_host)
+{
+	gpio_free(msm_host->pdata->status_gpio);
+}
+
 static int sdhci_msm_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -3273,7 +3278,7 @@ remove_host:
 	sdhci_remove_host(host, dead);
 free_cd_gpio:
 	if (gpio_is_valid(msm_host->pdata->status_gpio))
-		mmc_gpio_free_cd(msm_host->mmc);
+		sdhci_msm_gpio_free_cd(msm_host);
 vreg_deinit:
 	sdhci_msm_vreg_init(&pdev->dev, msm_host->pdata, false);
 sleep_clk_disable:
@@ -3317,7 +3322,7 @@ static int sdhci_msm_remove(struct platform_device *pdev)
 	sdhci_pltfm_free(pdev);
 
 	if (gpio_is_valid(msm_host->pdata->status_gpio))
-		mmc_gpio_free_cd(msm_host->mmc);
+		sdhci_msm_gpio_free_cd(msm_host);
 
 	sdhci_msm_vreg_init(&pdev->dev, msm_host->pdata, false);
 
