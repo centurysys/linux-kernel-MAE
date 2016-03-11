@@ -167,4 +167,27 @@ struct sdhci_msm_host {
 
 extern char *saved_command_line;
 
+/* Stubs */
+#define mmc_card_strobe(c)  (false)
+#define REQ_BUS_OFF     (1 << 0)
+#define REQ_BUS_ON      (1 << 1)
+#define REQ_IO_LOW      (1 << 2)
+#define REQ_IO_HIGH     (1 << 3)
+
+static inline bool mmc_host_may_gate_card(struct mmc_card *card)
+{
+	return false;
+}
+
+/* states to represent load on the host */
+enum mmc_load {
+	MMC_LOAD_HIGH,
+	MMC_LOAD_LOW,
+};
+
+static inline void sdhci_cfg_irq(struct sdhci_host *host, bool enable,
+				 bool sync)
+{
+	return;
+}
 #endif /* __SDHCI_MSM_H__ */
