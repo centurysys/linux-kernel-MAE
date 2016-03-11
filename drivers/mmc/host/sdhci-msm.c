@@ -1092,7 +1092,7 @@ retry:
 		while (++drv_type <= MAX_DRV_TYPES_SUPPORTED_HS200) {
 			pr_debug("%s: trying different drive strength (%d)\n",
 				mmc_hostname(mmc), drv_type);
-			if (card->ext_csd.raw_drive_strength &
+			if (card->ext_csd.raw_driver_strength &
 					(1 << drv_type)) {
 				sdhci_msm_set_mmc_drv_type(host, opcode,
 						drv_type);
@@ -2734,7 +2734,7 @@ static struct sdhci_ops sdhci_msm_ops = {
 	.get_max_clock = sdhci_msm_get_max_clock,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_msm_reset,
-	.init = sdhci_msm_init,
+	.platform_init = sdhci_msm_init,
 };
 
 static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
