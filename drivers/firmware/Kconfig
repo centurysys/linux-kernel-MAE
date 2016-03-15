@@ -162,7 +162,7 @@ config RASPBERRYPI_FIRMWARE
 	  Raspberry Pi.
 
 config QCOM_SCM
-	bool
+	def_bool y
 	depends on ARM || ARM64
 
 config QCOM_SCM_32

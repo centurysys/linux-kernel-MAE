@@ -24,7 +24,7 @@
  */
 int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
 {
-	return -ENOTSUPP;
+	return 0;
 }
 
 /**
