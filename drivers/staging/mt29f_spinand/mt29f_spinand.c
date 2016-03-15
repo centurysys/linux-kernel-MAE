@@ -24,8 +24,8 @@
 #include "mt29f_spinand.h"
 #include "giga_spinand.h"
 
-#define BUFSIZE (10 * 64 * 2048)
-#define CACHE_BUF 2112
+#define BUFSIZE (10 * 64 * 4096)
+#define CACHE_BUF 4352
 
 struct spinand_ops spinand_dev[] = {
 #ifdef CONFIG_MTD_SPINAND_GIGADEVICE
@@ -33,6 +33,18 @@ struct spinand_ops spinand_dev[] = {
 		NAND_MFR_GIGA,
 		0xb1,
 		gigadevice_set_defaults,
+		gigadevice_read_cmd,
+		gigadevice_read_data,
+		gigadevice_write_cmd,
+		gigadevice_write_data,
+		gigadevice_erase_blk,
+		gigadevice_parse_id,
+		gigadevice_verify_ecc,
+	},
+	{
+		NAND_MFR_GIGA,
+		0xb4,
+		gigadevice_set_defaults_512mb,
 		gigadevice_read_cmd,
 		gigadevice_read_data,
 		gigadevice_write_cmd,
@@ -99,7 +111,7 @@ void mt29f_read_page_to_cache(struct spinand_cmd *cmd, u32 page_id)
 	cmd->addr[2] = (u8)(page_id & 0x00ff);
 }
 
-void mt29f_read_from_cache(struct spinand_cmd *cmd, u16 column, u16 page_id)
+void mt29f_read_from_cache(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[0] = (u8)((column & 0xff00) >> 8);
 	cmd->addr[0] |= (u8)(((page_id >> 6) & 0x1) << 4);
@@ -108,7 +120,7 @@ void mt29f_read_from_cache(struct spinand_cmd *cmd, u16 column, u16 page_id)
 }
 
 void mt29f_program_data_to_cache(struct spinand_cmd *cmd, u16 column,
-				 u16 page_id)
+				 u32 page_id)
 {
 	cmd->addr[0] = (u8)((column & 0xff00) >> 8);
 	cmd->addr[0] |= (u8)(((page_id >> 6) & 0x1) << 4);
@@ -174,10 +186,13 @@ void spinand_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
 
 	for (tmp = 0; tmp < ARRAY_SIZE(spinand_dev) - 1; tmp++) {
 		tmp_ops = &spinand_dev[tmp];
-		if (tmp_ops->spinand_parse_id(spi_nand, nand_id, id) == 0) {
-			info->dev_ops = &spinand_dev[tmp];
-			info->dev_ops->spinand_set_defaults(spi_nand);
-			return;
+		if (id[0] == (u8)tmp_ops->dev_id) {
+			if (tmp_ops->spinand_parse_id(spi_nand, nand_id, id)
+				== 0) {
+				info->dev_ops = &spinand_dev[tmp];
+				info->dev_ops->spinand_set_defaults(spi_nand);
+				return;
+			}
 		}
 	}
 	info->dev_ops = &mt29f_spinand_ops;
@@ -472,7 +487,7 @@ static int spinand_write_disable(struct spi_device *spi_nand)
 	return spinand_cmd(spi_nand, &cmd);
 }
 
-static int spinand_read_page_to_cache(struct spi_device *spi_nand, u16 page_id)
+static int spinand_read_page_to_cache(struct spi_device *spi_nand, u32 page_id)
 {
 	struct spinand_cmd cmd = {0};
 	u16 row;
@@ -523,8 +538,8 @@ static int spinand_read_from_cache(struct spi_device *spi_nand, u16 page_id,
  *   The read includes two commands to the Nand: 0x13 and 0x03 commands
  *   Poll to read status to wait for tRD time.
  */
-static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
-			     u16 offset, u16 len, u8 *rbuf)
+static int spinand_read_page(struct spi_device *spi_nand, u32 page_id,
+			     u32 offset, u32 len, u8 *rbuf)
 {
 	int ret, ecc_error = 0, ecc_corrected = 0;
 	u8 status = 0;
@@ -604,7 +619,7 @@ static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
  *   Since it is writing the data to cache, there is no tPROG time.
  */
 static int spinand_program_data_to_cache(struct spi_device *spi_nand,
-					 u16 page_id, u16 byte_id,
+					 u32 page_id, u16 byte_id,
 					 u16 len, u8 *wbuf)
 {
 	struct spinand_cmd cmd = {0};
@@ -630,10 +645,10 @@ static int spinand_program_data_to_cache(struct spi_device *spi_nand,
  *   the Nand array.
  *   Need to wait for tPROG time to finish the transaction.
  */
-static int spinand_program_execute(struct spi_device *spi_nand, u16 page_id)
+static int spinand_program_execute(struct spi_device *spi_nand, u32 page_id)
 {
 	struct spinand_cmd cmd = {0};
-	u16 row;
+	u32 row;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 
 	row = page_id;
@@ -658,7 +673,7 @@ static int spinand_program_execute(struct spi_device *spi_nand, u16 page_id)
  *   Poll to wait for the tPROG time to finish the transaction.
  */
 static int spinand_program_page(struct spi_device *spi_nand,
-				u16 page_id, u16 offset, u16 len, u8 *buf)
+				u32 page_id, u16 offset, u16 len, u8 *buf)
 {
 	int retval = 0;
 	u8 status = 0;
@@ -755,7 +770,7 @@ exit:
  *   one block--64 pages
  *   Need to wait for tERS.
  */
-static int spinand_erase_block_erase(struct spi_device *spi_nand, u16 block_id)
+static int spinand_erase_block_erase(struct spi_device *spi_nand, u32 block_id)
 {
 	struct spinand_cmd cmd = {0};
 	u16 row;
@@ -780,7 +795,7 @@ static int spinand_erase_block_erase(struct spi_device *spi_nand, u16 block_id)
  *   and then send the 0xd8 erase command
  *   Poll to wait for the tERS time to complete the tranaction.
  */
-static int spinand_erase_block(struct spi_device *spi_nand, u16 block_id)
+static int spinand_erase_block(struct spi_device *spi_nand, u32 block_id)
 {
 	int retval;
 	u8 status = 0;

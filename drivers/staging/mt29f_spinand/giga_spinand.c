@@ -36,6 +36,21 @@ void gigadevice_set_defaults(struct spi_device *spi_nand)
 	chip->ecc.layout = NULL;
 }
 
+void gigadevice_set_defaults_512mb(struct spi_device *spi_nand)
+{
+	struct mtd_info *mtd = (struct mtd_info *)dev_get_drvdata
+						(&spi_nand->dev);
+	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
+
+	chip->ecc.size	= 0x1000;
+	chip->ecc.bytes	= 0x0;
+	chip->ecc.steps	= 0x0;
+
+	chip->ecc.strength = 1;
+	chip->ecc.total	= 0;
+	chip->ecc.layout = NULL;
+}
+
 void gigadevice_read_cmd(struct spinand_cmd *cmd, u32 page_id)
 {
 	cmd->addr[0] = (u8)(page_id >> 16);
@@ -43,19 +58,19 @@ void gigadevice_read_cmd(struct spinand_cmd *cmd, u32 page_id)
 	cmd->addr[2] = (u8)(page_id);
 }
 
-void gigadevice_read_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+void gigadevice_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[1] = (u8)(column >> 8);
 	cmd->addr[2] = (u8)(column);
 }
 
-void macronix_read_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+void macronix_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[0] = ((u8)(column >> 8) & MACRONIX_NORM_RW_MASK);
 	cmd->addr[1] = (u8)(column);
 }
 
-void winbond_read_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+void winbond_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[0] = (u8)(column >> 8);
 	cmd->addr[1] = (u8)(column);
@@ -68,19 +83,19 @@ void gigadevice_write_cmd(struct spinand_cmd *cmd, u32 page_id)
 	cmd->addr[2] = (u8)(page_id);
 }
 
-void gigadevice_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+void gigadevice_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[1] = (u8)(column >> 8);
 	cmd->addr[2] = (u8)(column);
 }
 
-void macronix_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+void macronix_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[0] = ((u8)(column >> 8) & MACRONIX_NORM_RW_MASK);
 	cmd->addr[1] = (u8)(column);
 }
 
-void winbond_write_data(struct spinand_cmd *cmd, u16 column, u16 page_id)
+void winbond_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[0] = (u8)(column >> 8);
 	cmd->addr[1] = (u8)(column);
