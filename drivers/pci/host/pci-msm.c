@@ -752,7 +752,6 @@ static struct pci_sys_data msm_pcie_sys_data[MAX_RC_NUM];
 
 static inline void *msm_pcie_setup_sys_data(struct msm_pcie_dev_t *dev)
 {
-	msm_pcie_sys_data[dev->rc_idx].domain = dev->rc_idx;
 	msm_pcie_sys_data[dev->rc_idx].private_data = dev;
 
 	return &msm_pcie_sys_data[dev->rc_idx];
