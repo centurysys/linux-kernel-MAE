@@ -103,6 +103,7 @@ Optional Properties:
 	manager(scm) driver. scm driver uses this device id to restore PCIe
 	controller related security configuration after coming out of the controller
 	power collapse.
+  - qcom,force-gen1: If present then force this slot for pcie generation 1.
 
 Example:
 
@@ -243,4 +244,5 @@ Example:
 				<45 512 500 800>;
 
 		qcom,scm-dev-id = <11>;
+		qcom,force-gen1;
 	};
