@@ -246,6 +246,7 @@
 
 #define PCIE_CAP_PTR_OFFSET		0x34
 #define PCIE_EXT_CAP_OFFSET		0x100
+#define PCIE_LINK_CONTROL2_STATUS2_OFFSET	0xA0
 
 #define PCIE20_AER_UNCORR_ERR_STATUS_REG	0x104
 #define PCIE20_AER_CORR_ERR_STATUS_REG		0x110
@@ -578,6 +579,7 @@ struct msm_pcie_dev_t {
 	bool				 power_on;
 	bool				use_19p2mhz_aux_clk;
 	bool				use_pinctrl;
+	bool				force_gen1;
 	struct pinctrl			*pinctrl;
 	struct pinctrl_state		*pins_default;
 	struct pinctrl_state		*pins_sleep;
@@ -1776,6 +1778,8 @@ static void msm_pcie_show_status(struct msm_pcie_dev_t *dev)
 		dev->link_turned_on_counter);
 	PCIE_DBG_FS(dev, "link_turned_off_counter: %lu\n",
 		dev->link_turned_off_counter);
+	PCIE_DBG_FS(dev, "link_force_gen1 is %d\n",
+		dev->force_gen1);
 }
 
 static void msm_pcie_shadow_dump(struct msm_pcie_dev_t *dev, bool rc)
@@ -3958,6 +3962,15 @@ int msm_pcie_enable(struct msm_pcie_dev_t *dev, u32 options)
 	msm_pcie_write_reg_field(dev->dm_core, PCIE20_DEVICE_CONTROL_STATUS,
 				0x7000, dev->tlp_rd_size);
 
+	/*
+	* Force Gen1 in Gen1 marked PCIe SLOT
+	*/
+	if (dev->force_gen1) {
+		writel_relaxed((readl_relaxed(
+			dev->conf + PCIE_LINK_CONTROL2_STATUS2_OFFSET) | 1),
+			dev->conf + PCIE_LINK_CONTROL2_STATUS2_OFFSET);
+	}
+
 	/* enable link training */
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_LTSSM, 0, BIT(8));
 
@@ -5503,6 +5516,10 @@ static int msm_pcie_probe(struct platform_device *pdev)
 					msm_pcie_dev[rc_idx].msi_gicm_base);
 		}
 	}
+
+	msm_pcie_dev[rc_idx].force_gen1 = of_property_read_bool(
+						(&pdev->dev)->of_node,
+						"qcom,force-gen1");
 
 	msm_pcie_dev[rc_idx].rc_idx = rc_idx;
 	msm_pcie_dev[rc_idx].pdev = pdev;
