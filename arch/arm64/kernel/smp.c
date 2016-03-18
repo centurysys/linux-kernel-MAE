@@ -70,6 +70,7 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 	IPI_TIMER,
 	IPI_IRQ_WORK,
+	IPI_WAKEUP,
 };
 
 /*
@@ -627,6 +628,7 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
 	S(IPI_CPU_STOP, "CPU stop interrupts"),
 	S(IPI_TIMER, "Timer broadcast interrupts"),
 	S(IPI_IRQ_WORK, "IRQ work interrupts"),
+	S(IPI_WAKEUP, "CPU wakeup interrupts"),
 };
 
 static void smp_cross_call(const struct cpumask *target, unsigned int ipinr)
@@ -668,6 +670,11 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 void arch_send_call_function_single_ipi(int cpu)
 {
 	smp_cross_call(cpumask_of(cpu), IPI_CALL_FUNC);
+}
+
+void arch_send_wakeup_ipi_mask(const struct cpumask *mask)
+{
+	smp_cross_call(mask, IPI_WAKEUP);
 }
 
 #ifdef CONFIG_IRQ_WORK
