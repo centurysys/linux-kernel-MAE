@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,6 +13,256 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/qcom_scm.h>
+#include <linux/types.h>
+#include <linux/delay.h>
+#include <linux/slab.h>
+#include <linux/mutex.h>
+#include <linux/cpumask.h>
+#include <asm/cacheflush.h>
+#include <asm/compiler.h>
+#include <asm/smp_plat.h>
+#include <soc/qcom/scm-boot.h>
+
+#include "qcom_scm.h"
+
+#define QCOM_SCM_SIP_FNID(s, c) (((((s) & 0xFF) << 8) | \
+			((c) & 0xFF)) | 0x02000000)
+
+#define QCOM_SCM_ARGS_IMPL(num, a, b, c, d, e, f, g, h, i, j, ...) (\
+			(((a) & 0xff) << 4) | \
+			(((b) & 0xff) << 6) | \
+			(((c) & 0xff) << 8) | \
+			(((d) & 0xff) << 10) | \
+			(((e) & 0xff) << 12) | \
+			(((f) & 0xff) << 14) | \
+			(((g) & 0xff) << 16) | \
+			(((h) & 0xff) << 18) | \
+			(((i) & 0xff) << 20) | \
+			(((j) & 0xff) << 22) | \
+			(num & 0xffff))
+
+#define QCOM_SCM_ARGS(...) QCOM_SCM_ARGS_IMPL(__VA_ARGS__, \
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+#define MAX_QCOM_SCM_RETS		3
+#define MAX_QCOM_SCM_ARGS		10
+#define QCOM_SCM_EBUSY_WAIT_MS		30
+#define QCOM_SCM_EBUSY_MAX_RETRY	20
+#define N_EXT_QCOM_SCM_ARGS		7
+#define QCOM_SCM_INTERRUPTED		1
+#define QCOM_SCM_EBUSY			-55
+#define QCOM_SCM_V2_EBUSY		-12
+#define SMC64_MASK			0x40000000
+#define FIRST_EXT_ARG_IDX		3
+#define N_REGISTER_ARGS (MAX_QCOM_SCM_ARGS - N_EXT_QCOM_SCM_ARGS + 1)
+
+#define R0_STR "x0"
+#define R1_STR "x1"
+#define R2_STR "x2"
+#define R3_STR "x3"
+#define R4_STR "x4"
+#define R5_STR "x5"
+
+#define outer_flush_range(x, y)
+#define __cpuc_flush_dcache_area __flush_dcache_area
+
+static DEFINE_MUTEX(qcom_scm_lock);
+
+static int qcom_scm_remap_error(int err)
+{
+	switch (err) {
+	case QCOM_SCM_ERROR:
+		return -EIO;
+	case QCOM_SCM_EINVAL_ADDR:
+	case QCOM_SCM_EINVAL_ARG:
+		return -EINVAL;
+	case QCOM_SCM_EOPNOTSUPP:
+		return -EOPNOTSUPP;
+	case QCOM_SCM_ENOMEM:
+		return -ENOMEM;
+	case QCOM_SCM_EBUSY:
+		return QCOM_SCM_EBUSY;
+	case QCOM_SCM_V2_EBUSY:
+		return QCOM_SCM_V2_EBUSY;
+	}
+	return -EINVAL;
+}
+
+/**
+ * struct qcom_scm_desc
+ *  <at> arginfo: Metadata describi`ng the arguments in args[]
+ *  <at> args: The array of arguments for the secure syscall
+ *  <at> ret: The values returned by the secure syscall
+ *  <at> extra_arg_buf: The buffer containing extra arguments
+			(that don't fit in available registers)
+ *  <at> x5: The 4rd argument to the secure syscall or physical address of
+		extra_arg_buf
+ */
+struct qcom_scm_desc {
+	u32 arginfo;
+	u64 args[MAX_QCOM_SCM_ARGS];
+	u64 ret[MAX_QCOM_SCM_RETS];
+
+	/* private */
+	void *extra_arg_buf;
+	u64 x5;
+};
+
+struct qcom_scm_extra_arg {
+		u64 args64[N_EXT_QCOM_SCM_ARGS];
+};
+
+int __qcom_scm_call_armv8_64(u64 x0, u64 x1, u64 x2, u64 x3, u64 x4, u64 x5,
+				u64 *ret1, u64 *ret2, u64 *ret3)
+{
+	register u64 r0 asm("r0") = x0;
+	register u64 r1 asm("r1") = x1;
+	register u64 r2 asm("r2") = x2;
+	register u64 r3 asm("r3") = x3;
+	register u64 r4 asm("r4") = x4;
+	register u64 r5 asm("r5") = x5;
+
+	do {
+		asm volatile(
+			__asmeq("%0", R0_STR)
+			__asmeq("%1", R1_STR)
+			__asmeq("%2", R2_STR)
+			__asmeq("%3", R3_STR)
+			__asmeq("%4", R0_STR)
+			__asmeq("%5", R1_STR)
+			__asmeq("%6", R2_STR)
+			__asmeq("%7", R3_STR)
+			__asmeq("%8", R4_STR)
+			__asmeq("%9", R5_STR)
+#ifdef REQUIRES_SEC
+			".arch_extension sec\n"
+#endif
+			"smc    #0\n"
+			: "=r" (r0), "=r" (r1), "=r" (r2), "=r" (r3)
+			: "r" (r0), "r" (r1), "r" (r2), "r" (r3), "r" (r4),
+				"r" (r5)
+			: "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13",
+				"x14", "x15", "x16", "x17");
+	} while (r0 == QCOM_SCM_INTERRUPTED);
+
+	if (ret1)
+		*ret1 = r1;
+	if (ret2)
+		*ret2 = r2;
+	if (ret3)
+		*ret3 = r3;
+
+	return r0;
+}
+
+/*
+ * If there are more than N_REGISTER_ARGS, allocate a buffer and place
+ * the additional arguments in it. The extra argument buffer will be
+ * pointed to by X5.
+ */
+static int allocate_extra_arg_buffer(struct qcom_scm_desc *desc, gfp_t flags)
+{
+	int i, j;
+	struct qcom_scm_extra_arg *argbuf;
+	int arglen = desc->arginfo & 0xf;
+	size_t argbuflen = PAGE_ALIGN(sizeof(struct qcom_scm_extra_arg));
+
+	desc->x5 = desc->args[FIRST_EXT_ARG_IDX];
+
+	if (likely(arglen <= N_REGISTER_ARGS)) {
+		desc->extra_arg_buf = NULL;
+		return 0;
+	}
+
+	argbuf = kzalloc(argbuflen, flags);
+	if (!argbuf)
+		return -ENOMEM;
+
+	desc->extra_arg_buf = argbuf;
+
+	j = FIRST_EXT_ARG_IDX;
+	for (i = 0; i < N_EXT_QCOM_SCM_ARGS; i++)
+		argbuf->args64[i] = desc->args[j++];
+
+	desc->x5 = virt_to_phys(argbuf);
+	__cpuc_flush_dcache_area(argbuf, argbuflen);
+	outer_flush_range(virt_to_phys(argbuf),
+				virt_to_phys(argbuf) + argbuflen);
+
+	return 0;
+
+}
+
+/**
+ * qcom_scm_call() - Invoke a syscall in the secure world
+ *  <at> svc_id: service identifier
+ *  <at> cmd_id: command identifier
+ *  <at> fn_id: The function ID for this syscall
+ *  <at> desc: Descriptor structure containing arguments and return values
+ *
+ * Sends a command to the SCM and waits for the command to finish processing.
+ * This should *only* be called in pre-emptible context.
+ *
+ * A note on cache maintenance:
+ * Note that any buffers that are expected to be accessed by the secure world
+ * must be flushed before invoking qcom_scm_call and invalidated in the cache
+ * immediately after qcom_scm_call returns. An important point that must be
+ * noted is that on ARMV8 architectures, invalidation actually also causes a
+ * dirrty cache line to be cleaned (flushed + unset-dirty-bit). Therefore it is
+ * of paramount importance that the buffer be flushed before invoking
+ * qcom_scm_call, even if you don't care about the contents of that buffer.
+ *
+ * Note that cache maintenance on the argument buffer (desc->args) is taken care
+ * of by qcom_scm_call; however, callers are responsible for any other cached
+ * buffers passed over to the secure world.
+*/
+
+
+static int qcom_scm_call(u32 svc_id, u32 cmd_id, struct qcom_scm_desc *desc)
+{
+	int arglen = desc->arginfo & 0xf;
+	int ret, retry_count = 0;
+	u32 fn_id = QCOM_SCM_SIP_FNID(svc_id, cmd_id);
+	u64 x0;
+
+	ret = allocate_extra_arg_buffer(desc, GFP_KERNEL);
+	if (ret)
+		return ret;
+	x0 = fn_id | SMC64_MASK;
+	do {
+		mutex_lock(&qcom_scm_lock);
+
+		desc->ret[0] = desc->ret[1] = desc->ret[2] = 0;
+
+		pr_debug("qcom_scm_call: func id %#llx, args: %#x, %#llx, %#llx
+			, %#llx, %#llx\n", x0, desc->arginfo, desc->args[0],
+			desc->args[1], desc->args[2], desc->x5);
+
+		ret = __qcom_scm_call_armv8_64(x0, desc->arginfo,
+						desc->args[0], desc->args[1],
+						desc->args[2], desc->x5,
+						&desc->ret[0], &desc->ret[1],
+						&desc->ret[2]);
+
+		mutex_unlock(&qcom_scm_lock);
+
+		if (ret == QCOM_SCM_V2_EBUSY)
+			msleep(QCOM_SCM_EBUSY_WAIT_MS);
+	}  while (ret == QCOM_SCM_V2_EBUSY && (retry_count++ <
+					QCOM_SCM_EBUSY_MAX_RETRY));
+	if (ret < 0)
+		pr_err("qcom_scm_call failed: func id %#llx, arginfo: %#x,
+			args: %#llx, %#llx, %#llx, %#llx, ret:i%d, syscall
+			returns: %#llx, %#llx, %#llx\n", x0, desc->arginfo,
+			desc->args[0], desc->args[1], desc->args[2], desc->x5,
+			ret, desc->ret[0], desc->ret[1], desc->ret[2]);
+
+	if (arglen > N_REGISTER_ARGS)
+		kfree(desc->extra_arg_buf);
+	if (ret < 0)
+		return qcom_scm_remap_error(ret);
+	return 0;
+}
 
 /**
  * qcom_scm_set_cold_boot_addr() - Set the cold boot address for cpus
@@ -24,7 +274,20 @@
  */
 int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
 {
-	return 0;
+	unsigned int cpu = cpumask_first(cpus);
+	int mpidr_el1 = cpu_logical_map(cpu);
+	struct qcom_scm_desc desc;
+	u32 flags = SCM_FLAG_COLDBOOT_MC | SCM_FLAG_HLOS;
+
+	desc.args[0] = virt_to_phys(entry);
+	desc.args[1] = 0xF;
+	desc.args[2] |= BIT(MPIDR_AFFINITY_LEVEL(mpidr_el1, 1));
+	desc.args[3] |= BIT(MPIDR_AFFINITY_LEVEL(mpidr_el1, 2));
+	desc.args[4] = ~0ULL;
+	desc.args[5] = flags;
+	desc.arginfo = QCOM_SCM_ARGS(6);
+
+	return qcom_scm_call(QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_ADDR_MC, &desc);
 }
 
 /**
