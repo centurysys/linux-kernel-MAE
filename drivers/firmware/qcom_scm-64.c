@@ -21,7 +21,6 @@
 #include <asm/cacheflush.h>
 #include <asm/compiler.h>
 #include <asm/smp_plat.h>
-#include <soc/qcom/scm-boot.h>
 
 #include "qcom_scm.h"
 
@@ -234,8 +233,8 @@ static int qcom_scm_call(u32 svc_id, u32 cmd_id, struct qcom_scm_desc *desc)
 
 		desc->ret[0] = desc->ret[1] = desc->ret[2] = 0;
 
-		pr_debug("qcom_scm_call: func id %#llx, args: %#x, %#llx, %#llx
-			, %#llx, %#llx\n", x0, desc->arginfo, desc->args[0],
+		pr_debug("qcom_scm_call: func id %#llx, args: %#x, %#llx, %#llx"
+			", %#llx, %#llx\n", x0, desc->arginfo, desc->args[0],
 			desc->args[1], desc->args[2], desc->x5);
 
 		ret = __qcom_scm_call_armv8_64(x0, desc->arginfo,
@@ -251,9 +250,9 @@ static int qcom_scm_call(u32 svc_id, u32 cmd_id, struct qcom_scm_desc *desc)
 	}  while (ret == QCOM_SCM_V2_EBUSY && (retry_count++ <
 					QCOM_SCM_EBUSY_MAX_RETRY));
 	if (ret < 0)
-		pr_err("qcom_scm_call failed: func id %#llx, arginfo: %#x,
-			args: %#llx, %#llx, %#llx, %#llx, ret:i%d, syscall
-			returns: %#llx, %#llx, %#llx\n", x0, desc->arginfo,
+		pr_err("qcom_scm_call failed: func id %#llx, arginfo: %#x,"
+			"args: %#llx, %#llx, %#llx, %#llx, ret:i%d, syscall"
+			"returns: %#llx, %#llx, %#llx\n", x0, desc->arginfo,
 			desc->args[0], desc->args[1], desc->args[2], desc->x5,
 			ret, desc->ret[0], desc->ret[1], desc->ret[2]);
 
@@ -277,7 +276,7 @@ int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
 	unsigned int cpu = cpumask_first(cpus);
 	int mpidr_el1 = cpu_logical_map(cpu);
 	struct qcom_scm_desc desc;
-	u32 flags = SCM_FLAG_COLDBOOT_MC | SCM_FLAG_HLOS;
+	u32 flags = QCOM_SCM_FLAG_COLDBOOT_MC | QCOM_SCM_FLAG_HLOS;
 
 	desc.args[0] = virt_to_phys(entry);
 	desc.args[1] = 0xF;
