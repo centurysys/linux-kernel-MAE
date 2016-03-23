@@ -83,7 +83,7 @@
 	clocks {
 		sleep_clk: sleep_clk {
 			compatible = "fixed-clock";
-			clock-frequency = <32768>;
+			clock-frequency = <32000>;
 			#clock-cells = <0>;
 		};
 		xo: xo {
@@ -195,6 +195,16 @@
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
 				<&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+		};
+
+		watchdog@b017000 {
+			compatible = "qcom,kpss-wdt-ipq40xx";
+			reg = <0xb017000 0x40>;
+			interrupt-names = "bark_irq";
+			interrupts = <0 3 0>;
+			clocks = <&sleep_clk>;
+			timeout-sec = <10>;
+			status = "ok";
 		};
 	};
 };
