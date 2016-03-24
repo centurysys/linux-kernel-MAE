@@ -184,5 +184,11 @@
 			qcom,nonremovable;
 			status = "ok";
 		};
+
+		watchdog@b017000 {
+			compatible = "qcom,kpss-timer";
+			reg = <0xb017000 0x1000>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+		};
 	};
 };
