@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2016 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -288,8 +288,8 @@
 #define UBI32_CORE2_CLK_SRC			278
 #define UBI32_CORE1_CLK				279
 #define UBI32_CORE2_CLK				280
-#define EBI2_AON_CLK				281
-#define NSSTCM_CLK_SRC				282
-#define NSSTCM_CLK				283
+#define NSSTCM_CLK_SRC				281
+#define NSSTCM_CLK				282
+#define NSS_CORE_CLK				283 /* Virtual */
 
 #endif
