@@ -287,6 +287,20 @@ out:
 	spin_unlock_bh(&br->hash_lock);
 }
 
+ATOMIC_NOTIFIER_HEAD(br_fdb_update_notifier_list);
+
+void br_fdb_update_register_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_register(&br_fdb_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(br_fdb_update_register_notify);
+
+void br_fdb_update_unregister_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&br_fdb_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(br_fdb_update_unregister_notify);
+
 void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
@@ -306,10 +320,14 @@ void br_fdb_cleanup(unsigned long _data)
 			if (f->added_by_external_learn)
 				continue;
 			this_timer = f->updated + delay;
-			if (time_before_eq(this_timer, jiffies))
+			if (time_before_eq(this_timer, jiffies)) {
+				atomic_notifier_call_chain(
+					&br_fdb_update_notifier_list, 0,
+					(void *)f->addr.addr);
 				fdb_delete(br, f);
-			else if (time_before(this_timer, next_timer))
+			} else if (time_before(this_timer, next_timer)) {
 				next_timer = this_timer;
+			}
 		}
 	}
 	spin_unlock(&br->hash_lock);
@@ -588,6 +606,9 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 			if (unlikely(source != fdb->dst)) {
 				fdb->dst = source;
 				fdb_modified = true;
+
+				atomic_notifier_call_chain(
+					&br_fdb_update_notifier_list, 0, addr);
 			}
 			fdb->updated = jiffies;
 			if (unlikely(added_by_user))
