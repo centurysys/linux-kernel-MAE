@@ -186,14 +186,12 @@ void spinand_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
 
 	for (tmp = 0; tmp < ARRAY_SIZE(spinand_dev) - 1; tmp++) {
 		tmp_ops = &spinand_dev[tmp];
-		if (id[0] == (u8)tmp_ops->dev_id) {
-			if (tmp_ops->spinand_parse_id(spi_nand, nand_id, id)
-				== 0) {
+			if (tmp_ops->spinand_parse_id(spi_nand, tmp_ops,
+						      nand_id, id) == 0) {
 				info->dev_ops = &spinand_dev[tmp];
 				info->dev_ops->spinand_set_defaults(spi_nand);
 				return;
 			}
-		}
 	}
 	info->dev_ops = &mt29f_spinand_ops;
 }

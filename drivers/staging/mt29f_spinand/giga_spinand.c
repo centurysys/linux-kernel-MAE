@@ -138,20 +138,23 @@ int dummy_verify_ecc(u8 status)
 	return 0;
 }
 
-int gigadevice_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
+int gigadevice_parse_id(struct spi_device *spi_nand,
+			struct spinand_ops *ops, u8 *nand_id, u8 *id)
 {
 	if (nand_id[0] != NAND_MFR_GIGA && nand_id[0] != NAND_MFR_ATO)
 		return -EINVAL;
 
-	if (nand_id[0] == NAND_MFR_GIGA) {
-		id[0] = nand_id[0];
-		id[1] = nand_id[1];
-	}
+	if (!(nand_id[0] == NAND_MFR_GIGA && nand_id[1] == ops->dev_id))
+		return -EINVAL;
+
+	id[0] = nand_id[0];
+	id[1] = nand_id[1];
 
 	return 0;
 }
 
-int macronix_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
+int macronix_parse_id(struct spi_device *spi_nand,
+		      struct spinand_ops *ops, u8 *nand_id, u8 *id)
 {
 	if (nand_id[1] != NAND_MFR_MACRONIX)
 		return -EINVAL;
@@ -159,7 +162,8 @@ int macronix_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
 	return 0;
 }
 
-int winbond_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
+int winbond_parse_id(struct spi_device *spi_nand,
+		     struct spinand_ops *ops, u8 *nand_id, u8 *id)
 {
 	if (nand_id[1] != NAND_MFR_WINBOND)
 		return -EINVAL;

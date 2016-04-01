@@ -107,8 +107,8 @@ struct spinand_ops {
 	void (*spinand_write_data)(struct spinand_cmd *cmd, u16 column,
 				   u32 page_id);
 	void (*spinand_erase_blk)(struct spinand_cmd *cmd, u32 page_id);
-	int (*spinand_parse_id)(struct spi_device *spi_nand, u8 *nand_id,
-				u8 *id);
+	int (*spinand_parse_id)(struct spi_device *spi_nand,
+				struct spinand_ops *ops, u8 *nand_id, u8 *id);
 	int (*spinand_verify_ecc)(u8 status);
 };
 

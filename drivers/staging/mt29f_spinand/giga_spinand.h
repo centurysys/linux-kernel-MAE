@@ -33,7 +33,8 @@ void gigadevice_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id);
 
 void gigadevice_erase_blk(struct spinand_cmd *cmd, u32 page_id);
 
-int gigadevice_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id);
+int gigadevice_parse_id(struct spi_device *spi_nand, struct spinand_ops *ops,
+			u8 *nand_id, u8 *id);
 
 int gigadevice_verify_ecc(u8 status);
 
@@ -43,7 +44,8 @@ void macronix_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id);
 
 void macronix_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id);
 
-int macronix_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id);
+int macronix_parse_id(struct spi_device *spi_nand, struct spinand_ops *ops,
+		      u8 *nand_id, u8 *id);
 
 int macronix_verify_ecc(u8 status);
 
@@ -51,7 +53,8 @@ void winbond_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id);
 
 void winbond_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id);
 
-int winbond_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id);
+int winbond_parse_id(struct spi_device *spi_nand, struct spinand_ops *ops,
+		     u8 *nand_id, u8 *id);
 
 /* Macronix Specific defines */
 #define MACRONIX_NORM_RW_MASK	0x0F
