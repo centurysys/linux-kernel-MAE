@@ -29,6 +29,11 @@ extern bool qcom_scm_hdcp_available(void);
 extern int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt,
 		u32 *resp);
 
+#define SCM_SVC_UTIL		0x3
+#define SCM_CMD_SET_REGSAVE	0x2
+
+extern int qcom_scm_regsave(u32 svc_id, u32 cmd_id);
+
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
 
