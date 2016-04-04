@@ -210,6 +210,9 @@ void ip_rt_multicast_event(struct in_device *);
 int ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
 
+int ip_rt_register_notifier(struct notifier_block *nb);
+int ip_rt_unregister_notifier(struct notifier_block *nb);
+
 struct in_ifaddr;
 void fib_add_ifaddr(struct in_ifaddr *);
 void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
