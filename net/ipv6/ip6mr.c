@@ -403,9 +403,9 @@ static void ip6mr_sync_entry_update(struct mr6_table *mrt,
  * Call the registered offload callback to inform of a multicast route entry
  * delete event
  */
-static void ip6mr_sync_entry_delete(struct mfc6_cache *c)
+static void ip6mr_sync_entry_delete(struct in6_addr *mc_origin,
+				    struct in6_addr *mc_group)
 {
-	struct in6_addr mc_origin, mc_group;
 	ip6mr_mfc_event_offload_callback_t offload_update_cb_f;
 
 	rcu_read_lock();
@@ -416,12 +416,7 @@ static void ip6mr_sync_entry_delete(struct mfc6_cache *c)
 		return;
 	}
 
-	read_lock(&mrt_lock);
-	memcpy(&mc_origin, &c->mf6c_origin, sizeof(struct in6_addr));
-	memcpy(&mc_group, &c->mf6c_mcastgrp, sizeof(struct in6_addr));
-	read_unlock(&mrt_lock);
-
-	offload_update_cb_f(&mc_group, &mc_origin, 0, NULL,
+	offload_update_cb_f(mc_group, mc_origin, 0, NULL,
 			    IP6MR_MFC_EVENT_DELETE);
 	rcu_read_unlock();
 }
@@ -1529,6 +1524,7 @@ static int ip6mr_mfc_delete(struct mr6_table *mrt, struct mf6cctl *mfc,
 {
 	int line;
 	struct mfc6_cache *c, *next;
+	struct in6_addr mc_origin, mc_group;
 
 	line = MFC6_HASH(&mfc->mf6cc_mcastgrp.sin6_addr, &mfc->mf6cc_origin.sin6_addr);
 
@@ -1537,8 +1533,10 @@ static int ip6mr_mfc_delete(struct mr6_table *mrt, struct mf6cctl *mfc,
 		    ipv6_addr_equal(&c->mf6c_mcastgrp,
 				    &mfc->mf6cc_mcastgrp.sin6_addr) &&
 		    (parent == -1 || parent == c->mf6c_parent)) {
-			/* Inform offload modules of the delete event */
-			ip6mr_sync_entry_delete(c);
+			memcpy(&mc_origin, &c->mf6c_origin,
+			       sizeof(struct in6_addr));
+			memcpy(&mc_group, &c->mf6c_mcastgrp,
+			       sizeof(struct in6_addr));
 
 			write_lock_bh(&mrt_lock);
 			list_del(&c->list);
@@ -1546,6 +1544,9 @@ static int ip6mr_mfc_delete(struct mr6_table *mrt, struct mf6cctl *mfc,
 
 			mr6_netlink_event(mrt, c, RTM_DELROUTE);
 			ip6mr_cache_free(c);
+
+			/* Inform offload modules of the delete event */
+			ip6mr_sync_entry_delete(&mc_origin, &mc_group);
 			return 0;
 		}
 	}
