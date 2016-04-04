@@ -1,3 +1,19 @@
+/*
+ **************************************************************************
+ * Copyright (c) 2016, The Linux Foundation.  All rights reserved.
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all copies.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+ * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ **************************************************************************
+ */
+
 #ifndef _PPP_CHANNEL_H_
 #define _PPP_CHANNEL_H_
 /*
@@ -32,6 +48,14 @@ struct ppp_channel_ops {
 	int	(*start_xmit)(struct ppp_channel *, struct sk_buff *);
 	/* Handle an ioctl call that has come in via /dev/ppp. */
 	int	(*ioctl)(struct ppp_channel *, unsigned int, unsigned long);
+	/* Get channel protocol type, one of PX_PROTO_XYZ or specific to
+	 * the channel subtype
+	 */
+	int (*get_channel_protocol)(struct ppp_channel *);
+	/* Hold the channel from being destroyed */
+	void (*hold)(struct ppp_channel *);
+	/* Release hold on the channel */
+	void (*release)(struct ppp_channel *);
 };
 
 struct ppp_channel {
@@ -46,6 +70,36 @@ struct ppp_channel {
 };
 
 #ifdef __KERNEL__
+/* Call this to obtain the underlying protocol of the PPP channel,
+ * e.g. PX_PROTO_OE
+ */
+extern int ppp_channel_get_protocol(struct ppp_channel *);
+
+/* Call this to hold a channel */
+extern bool ppp_channel_hold(struct ppp_channel *);
+
+/* Call this to release a hold you have upon a channel */
+extern void ppp_channel_release(struct ppp_channel *);
+
+/* Release hold on PPP channels */
+extern void ppp_release_channels(struct ppp_channel *channels[],
+				 unsigned int chan_sz);
+
+/* Hold PPP channels for the PPP device */
+extern int ppp_hold_channels(struct net_device *dev,
+			     struct ppp_channel *channels[],
+			     unsigned int chan_sz);
+
+/* Test if the ppp device is a multi-link ppp device */
+extern int ppp_is_multilink(struct net_device *dev);
+
+/* Update statistics of the PPP net_device by incrementing related
+ * statistics field value with corresponding parameter
+ */
+extern void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
+			     unsigned long rx_bytes, unsigned long tx_packets,
+			     unsigned long tx_bytes);
+
 /* Called by the channel when it can send some more data. */
 extern void ppp_output_wakeup(struct ppp_channel *);
 

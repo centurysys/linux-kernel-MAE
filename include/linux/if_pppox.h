@@ -1,6 +1,22 @@
+/*
+ **************************************************************************
+ * Copyright (c) 2016, The Linux Foundation.  All rights reserved.
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all copies.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+ * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ **************************************************************************
+ */
+
 /***************************************************************************
  * Linux PPP over X - Generic PPP transport layer sockets
- * Linux PPP over Ethernet (PPPoE) Socket Implementation (RFC 2516) 
+ * Linux PPP over Ethernet (PPPoE) Socket Implementation (RFC 2516)
  *
  * This file supplies definitions required by the PPP over Ethernet driver
  * (pppox.c).  All version information wrt this file is located in pppox.c
@@ -12,6 +28,7 @@
  *		2 of the License, or (at your option) any later version.
  *
  */
+
 #ifndef __LINUX_IF_PPPOX_H
 #define __LINUX_IF_PPPOX_H
 
@@ -94,5 +111,18 @@ enum {
     PPPOX_ZOMBIE	= 8,  /* dead, but still bound to ppp device */
     PPPOX_DEAD		= 16  /* dead, useless, please clean me up!*/
 };
+
+/*
+ * PPPoE Channel specific operations
+ */
+struct pppoe_channel_ops {
+	/* Must be first - general to all PPP channels */
+	struct ppp_channel_ops ops;
+	void (*get_addressing)(struct ppp_channel *, struct pppoe_opt *);
+};
+
+/* Return PPPoE channel specific addressing information */
+extern void pppoe_channel_addressing_get(struct ppp_channel *chan,
+					 struct pppoe_opt *addressing);
 
 #endif /* !(__LINUX_IF_PPPOX_H) */
