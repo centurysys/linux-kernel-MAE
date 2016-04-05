@@ -39,6 +39,7 @@
 #include <linux/skbuff.h>
 #include <linux/poll.h>
 #include <net/net_namespace.h>
+#include <linux/ppp_defs.h>
 
 struct ppp_channel;
 
@@ -122,6 +123,9 @@ extern void ppp_unregister_channel(struct ppp_channel *);
 
 /* Get the channel number for a channel */
 extern int ppp_channel_index(struct ppp_channel *);
+
+/* Get the device index  associated with a channel, or 0, if none */
+extern int ppp_dev_index(struct ppp_channel *);
 
 /* Get the unit number associated with a channel, or -1 if none */
 extern int ppp_unit_number(struct ppp_channel *);
