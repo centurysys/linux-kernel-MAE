@@ -600,31 +600,23 @@ struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr)
 {
 	struct net_bridge_fdb_entry *fdbe;
 	struct net_bridge *br;
-	struct net_device *pdev;
+	struct net_device *netdev = NULL;
 
 	/* Is this a bridge? */
 	if (!(dev->priv_flags & IFF_EBRIDGE))
 		return NULL;
 
-	/* Lookup the fdb entry */
 	br = netdev_priv(dev);
+
+	/* Lookup the fdb entry and get reference to the port dev */
 	rcu_read_lock();
 	fdbe = __br_fdb_get(br, addr, 0);
-	if (!fdbe) {
-		rcu_read_unlock();
-		return NULL;
+	if (fdbe && fdbe->dst) {
+		netdev = fdbe->dst->dev; /* port device */
+		dev_hold(netdev);
 	}
-
-	/* Get reference to the port dev */
-	if (!fdbe->dst) {
-		rcu_read_unlock();
-		return NULL;
-	}
-	pdev = fdbe->dst->dev;
-	dev_hold(pdev);
 	rcu_read_unlock();
-
-	return pdev;
+	return netdev;
 }
 EXPORT_SYMBOL_GPL(br_port_dev_get);
 
