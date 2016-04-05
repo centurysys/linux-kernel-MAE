@@ -99,7 +99,9 @@ extern int ppp_is_multilink(struct net_device *dev);
  */
 extern void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 			     unsigned long rx_bytes, unsigned long tx_packets,
-			     unsigned long tx_bytes);
+			     unsigned long tx_bytes, unsigned long rx_errors,
+			     unsigned long tx_errors, unsigned long rx_dropped,
+			     unsigned long tx_dropped);
 
 /* Called by the channel when it can send some more data. */
 extern void ppp_output_wakeup(struct ppp_channel *);
