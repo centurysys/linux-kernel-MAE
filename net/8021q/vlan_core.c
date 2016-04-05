@@ -142,6 +142,12 @@ struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 }
 EXPORT_SYMBOL(vlan_dev_real_dev);
 
+struct net_device *vlan_dev_next_dev(const struct net_device *dev)
+{
+	return vlan_dev_priv(dev)->real_dev;
+}
+EXPORT_SYMBOL(vlan_dev_next_dev);
+
 u16 vlan_dev_vlan_id(const struct net_device *dev)
 {
 	return vlan_dev_priv(dev)->vlan_id;
