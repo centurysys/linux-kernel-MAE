@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2016, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -32,6 +32,7 @@
 #include "clk-branch.h"
 #include "clk-hfpll.h"
 #include "reset.h"
+#include "nss-volt-ipq806x.h"
 
 static struct clk_pll pll0 = {
 	.l_reg = 0x30c4,
@@ -2302,6 +2303,7 @@ static struct clk_branch usb_fs1_h_clk = {
 	},
 };
 
+#if 0
 static struct clk_branch ebi2_clk = {
 	.hwcg_reg = 0x3b00,
 	.hwcg_bit = 6,
@@ -2331,6 +2333,7 @@ static struct clk_branch ebi2_aon_clk = {
 		},
 	},
 };
+#endif
 
 static const struct freq_tbl clk_tbl_gmac[] = {
 	{ 133000000, P_PLL0, 1,  50, 301 },
@@ -2798,6 +2801,148 @@ static struct clk_dyn_rcg ubi32_core2_src_clk = {
 	},
 };
 
+static int nss_core_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+				 unsigned long parent_rate)
+{
+	int ret;
+
+	/*
+	 * When ramping up voltage, it needs to be done first. This ensures that
+	 * the volt required will be available when you step up the frequency.
+	 */
+	ret = nss_ramp_voltage(rate, true);
+	if (ret)
+		return ret;
+
+	ret = clk_dyn_rcg_ops.set_rate(&ubi32_core1_src_clk.clkr.hw, rate,
+				    parent_rate);
+	if (ret)
+		return ret;
+
+	ret = clk_dyn_rcg_ops.set_rate(&ubi32_core2_src_clk.clkr.hw, rate,
+				    parent_rate);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * When ramping down voltage, it needs to be set first. This ensures
+	 * that the volt required will be available until you step down the
+	 * frequency.
+	 */
+	ret = nss_ramp_voltage(rate, false);
+
+	return ret;
+}
+
+static int
+nss_core_clk_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
+				 unsigned long parent_rate, u8 index)
+{
+	int ret;
+
+	/*
+	 * When ramping up voltage needs to be done first. This ensures that
+	 * the voltage required will be available when you step up the
+	 * frequency.
+	 */
+	ret = nss_ramp_voltage(rate, true);
+	if (ret)
+		return ret;
+
+	ret = clk_dyn_rcg_ops.set_rate_and_parent(
+			&ubi32_core1_src_clk.clkr.hw, rate, parent_rate, index);
+	if (ret)
+		return ret;
+
+	ret = clk_dyn_rcg_ops.set_rate_and_parent(
+			&ubi32_core2_src_clk.clkr.hw, rate, parent_rate, index);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * When ramping down voltage needs to be done last. This ensures that
+	 * the voltage required will be available when you step down the
+	 * frequency.
+	 */
+	ret = nss_ramp_voltage(rate, false);
+
+	return ret;
+}
+
+static long nss_core_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
+				 unsigned long *p_rate, struct clk **p)
+{
+	return 0;
+#if 0
+	return clk_dyn_rcg_ops.determine_rate(&ubi32_core1_src_clk.clkr.hw,
+						 rate, p_rate, p);
+#endif
+}
+
+static unsigned long
+nss_core_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+{
+	return 0;
+#if 0
+	return clk_dyn_rcg_ops.recalc_rate(&ubi32_core1_src_clk.clkr.hw,
+						 parent_rate);
+#endif
+}
+
+static u8 nss_core_clk_get_parent(struct clk_hw *hw)
+{
+	return 0;
+#if 0
+	return clk_dyn_rcg_ops.get_parent(&ubi32_core1_src_clk.clkr.hw);
+#endif
+}
+
+static int nss_core_clk_set_parent(struct clk_hw *hw, u8 i)
+{
+	return 0;
+#if 0
+	int ret;
+
+	ret = clk_dyn_rcg_ops.set_parent(&ubi32_core1_src_clk.clkr.hw, i);
+	if (ret)
+		return ret;
+
+	return clk_dyn_rcg_ops.set_parent(&ubi32_core2_src_clk.clkr.hw, i);
+#endif
+}
+
+static struct clk *nss_core_clk_get_safe_parent(struct clk_hw *hw)
+{
+	return NULL;
+#if 0
+
+	return clk_get_parent_by_index(hw->clk, P_PLL8);
+#endif
+}
+
+static const struct clk_ops clk_ops_nss_core = {
+	.set_rate = nss_core_clk_set_rate,
+	.set_rate_and_parent = nss_core_clk_set_rate_and_parent,
+	.determine_rate = nss_core_clk_determine_rate,
+	.recalc_rate = nss_core_clk_recalc_rate,
+	.get_parent = nss_core_clk_get_parent,
+	.set_parent = nss_core_clk_set_parent,
+	.get_safe_parent = nss_core_clk_get_safe_parent,
+};
+
+/* Virtual clock for nss core clocks */
+static struct clk_regmap nss_core_clk = {
+	.hw.init = &(struct clk_init_data){
+		.name = "nss_core_clk",
+		.ops = &clk_ops_nss_core,
+		.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
+		.num_parents = 5,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[PLL0] = &pll0.clkr,
 	[PLL0_VOTE] = &pll0_vote,
@@ -2902,8 +3047,10 @@ static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[USB_FS1_XCVR_SRC] = &usb_fs1_xcvr_clk_src.clkr,
 	[USB_FS1_XCVR_CLK] = &usb_fs1_xcvr_clk.clkr,
 	[USB_FS1_SYSTEM_CLK] = &usb_fs1_sys_clk.clkr,
+#if 0
 	[EBI2_CLK] = &ebi2_clk.clkr,
 	[EBI2_AON_CLK] = &ebi2_aon_clk.clkr,
+#endif
 	[GMAC_CORE1_CLK_SRC] = &gmac_core1_src.clkr,
 	[GMAC_CORE1_CLK] = &gmac_core1_clk.clkr,
 	[GMAC_CORE2_CLK_SRC] = &gmac_core2_src.clkr,
@@ -2916,6 +3063,7 @@ static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[UBI32_CORE2_CLK_SRC] = &ubi32_core2_src_clk.clkr,
 	[NSSTCM_CLK_SRC] = &nss_tcm_src.clkr,
 	[NSSTCM_CLK] = &nss_tcm_clk.clkr,
+	[NSS_CORE_CLK] = &nss_core_clk,
 	[PLL9] = &hfpll0.clkr,
 	[PLL10] = &hfpll1.clkr,
 	[PLL12] = &hfpll_l2.clkr,
