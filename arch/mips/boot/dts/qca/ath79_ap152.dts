@@ -33,6 +33,30 @@
 			pll-controller@18050000 {
 				clocks = <&extosc>;
 			};
+
+			ehci0: usb@1b000000 {
+				compatible = "generic-ehci", "ehci-platform";
+				reg = <0x1b000000 0x200>;
+				interrupt-parent = <&ip3_int>;
+				interrupts = <0>;
+				has-transaction-translator;
+				qca_force_host_mode;
+				qca_force_16bit_ptw;
+				caps-offset = <0x100>;
+				status = "okay";
+			};
+
+			ehci1: usb@1b400000 {
+				compatible = "generic-ehci","ehci-platform";
+				reg = <0x1b400000 0x200>;
+				interrupt-parent = <&ip3_int>;
+				interrupts = <1>;
+				has-transaction-translator;
+				qca_force_host_mode;
+				qca_force_16bit_ptw;
+				caps-offset = <0x100>;
+				status = "okay";
+			};
 		};
 
 		spi_0: spi@1f000000 {

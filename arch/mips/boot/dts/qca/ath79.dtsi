@@ -116,6 +116,14 @@
 				#interrupt-cells = <1>;
 			};
 
+			ip3_int: interrupt-controller@ip3_int {
+				compatible = "qca,ath79-ip3-intc";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&cpuintc>;
+				interrupts = <3>;
+			};
+
 			rst: reset-controller@1806001c {
 				compatible = "qca,ar9132-reset",
 						"qca,ar7100-reset";
