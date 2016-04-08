@@ -49,3 +49,12 @@ config QCOM_SMD_RPM
 
 	  Say M here if you want to include support for the Qualcomm RPM as a
 	  module. This will build a module called "qcom-smd-rpm".
+
+config MSM_SMEM
+	depends on ARCH_QCOM
+	depends on REMOTE_SPINLOCK_MSM
+	bool "MSM Shared Memory (SMEM)"
+	help
+	 Support for the shared memory interface between the various
+	 processors in the System on a Chip (SoC) which allows basic
+	 inter-processor communication.
