@@ -46,6 +46,7 @@
 #define UARTDM_TX_AIGN(x)	((x) & ~0x3) /* valid for > 1p3 */
 #define UARTDM_TX_MAX		256   /* in bytes, valid for <= 1p3 */
 #define UARTDM_RX_SIZE		(UART_XMIT_SIZE / 4)
+#define SERIAL_CLK_DEFAULT	1843200
 
 enum {
 	UARTDM_1P1 = 1,
@@ -1547,10 +1548,17 @@ static int msm_serial_probe(struct platform_device *pdev)
 	struct uart_port *port;
 	const struct of_device_id *id;
 	int irq, line;
+	u32 serial_clk;
 
-	if (pdev->dev.of_node)
+	serial_clk = SERIAL_CLK_DEFAULT;
+
+	if (pdev->dev.of_node) {
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
-	else
+		if (of_property_read_u32(pdev->dev.of_node, "serial_clk",
+			&serial_clk)) {
+			serial_clk = SERIAL_CLK_DEFAULT;
+		}
+	} else
 		line = pdev->id;
 
 	if (line < 0)
@@ -1580,7 +1588,7 @@ static int msm_serial_probe(struct platform_device *pdev)
 		if (IS_ERR(msm_port->pclk))
 			return PTR_ERR(msm_port->pclk);
 
-		clk_set_rate(msm_port->clk, 1843200);
+		clk_set_rate(msm_port->clk, serial_clk);
 	}
 
 	port->uartclk = clk_get_rate(msm_port->clk);
