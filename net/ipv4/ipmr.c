@@ -136,6 +136,9 @@ static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 				 int cmd);
 static void mroute_clean_tables(struct mr_table *mrt, bool all);
 static void ipmr_expire_process(unsigned long arg);
+static struct mfc_cache *ipmr_cache_find(struct mr_table *mrt, __be32 origin,
+					 __be32 mcastgrp);
+static ipmr_mfc_event_offload_callback_t __rcu ipmr_mfc_event_offload_callback;
 
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
 #define ipmr_for_each_table(mrt, net) \
@@ -226,6 +229,78 @@ static int ipmr_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	return 0;
 }
 
+/* ipmr_sync_entry_update()
+ * Call the registered offload callback to report an update to a multicast
+ * route entry. The callback receives the list of destination interfaces and
+ * the interface count
+ */
+static void ipmr_sync_entry_update(struct mr_table *mrt,
+				   struct mfc_cache *cache)
+{
+	int vifi, dest_if_count = 0;
+	u32 dest_dev[MAXVIFS];
+	__be32  origin;
+	__be32  group;
+	ipmr_mfc_event_offload_callback_t offload_update_cb_f;
+
+	memset(dest_dev, 0, sizeof(dest_dev));
+
+	origin = cache->mfc_origin;
+	group = cache->mfc_mcastgrp;
+
+	read_lock(&mrt_lock);
+	for (vifi = 0; vifi < cache->mfc_un.res.maxvif; vifi++) {
+		if (!((cache->mfc_un.res.ttls[vifi] > 0) &&
+		      (cache->mfc_un.res.ttls[vifi] < 255))) {
+			continue;
+		}
+		if (dest_if_count == MAXVIFS) {
+			read_unlock(&mrt_lock);
+			return;
+		}
+
+		if (!VIF_EXISTS(mrt, vifi)) {
+			read_unlock(&mrt_lock);
+			return;
+		}
+		dest_dev[dest_if_count] = mrt->vif_table[vifi].dev->ifindex;
+		dest_if_count++;
+	}
+	read_unlock(&mrt_lock);
+
+	rcu_read_lock();
+	offload_update_cb_f = rcu_dereference(ipmr_mfc_event_offload_callback);
+
+	if (!offload_update_cb_f) {
+		rcu_read_unlock();
+		return;
+	}
+
+	offload_update_cb_f(group, origin, dest_if_count, dest_dev,
+			    IPMR_MFC_EVENT_UPDATE);
+	rcu_read_unlock();
+}
+
+/* ipmr_sync_entry_delete()
+ * Call the registered offload callback to inform of a multicast route entry
+ * delete event
+ */
+static void ipmr_sync_entry_delete(u32 origin, u32 group)
+{
+	ipmr_mfc_event_offload_callback_t offload_update_cb_f;
+
+	rcu_read_lock();
+	offload_update_cb_f = rcu_dereference(ipmr_mfc_event_offload_callback);
+
+	if (!offload_update_cb_f) {
+		rcu_read_unlock();
+		return;
+	}
+
+	offload_update_cb_f(group, origin, 0, NULL, IPMR_MFC_EVENT_DELETE);
+	rcu_read_unlock();
+}
+
 static const struct fib_rules_ops __net_initconst ipmr_rules_ops_template = {
 	.family		= RTNL_FAMILY_IPMR,
 	.rule_size	= sizeof(struct ipmr_rule),
@@ -239,6 +314,150 @@ static const struct fib_rules_ops __net_initconst ipmr_rules_ops_template = {
 	.policy		= ipmr_rule_policy,
 	.owner		= THIS_MODULE,
 };
+
+/* ipmr_register_mfc_event_offload_callback()
+ * Register the IPv4 Multicast update offload callback with IPMR
+ */
+bool ipmr_register_mfc_event_offload_callback(
+		ipmr_mfc_event_offload_callback_t mfc_offload_cb)
+{
+	ipmr_mfc_event_offload_callback_t offload_update_cb_f;
+
+	rcu_read_lock();
+	offload_update_cb_f = rcu_dereference(ipmr_mfc_event_offload_callback);
+
+	if (offload_update_cb_f) {
+		rcu_read_unlock();
+		return false;
+	}
+
+	rcu_assign_pointer(ipmr_mfc_event_offload_callback, mfc_offload_cb);
+	rcu_read_unlock();
+	return true;
+}
+EXPORT_SYMBOL(ipmr_register_mfc_event_offload_callback);
+
+/* ipmr_unregister_mfc_event_offload_callback()
+ * De-register the IPv4 Multicast update offload callback with IPMR
+ */
+void ipmr_unregister_mfc_event_offload_callback(void)
+{
+	rcu_read_lock();
+	rcu_assign_pointer(ipmr_mfc_event_offload_callback, NULL);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(ipmr_unregister_mfc_event_offload_callback);
+
+/* ipmr_find_mfc_entry()
+ * Returns destination interface list for a particular multicast flow, and
+ * the number of interfaces in the list
+ */
+int ipmr_find_mfc_entry(struct net *net, __be32 origin, __be32 group,
+			u32 max_dest_cnt, u32 dest_dev[])
+{
+	int vifi, dest_if_count = 0;
+	struct mr_table *mrt;
+	struct mfc_cache *cache;
+
+	mrt = ipmr_get_table(net, RT_TABLE_DEFAULT);
+	if (!mrt)
+		return -ENOENT;
+
+	rcu_read_lock();
+	cache = ipmr_cache_find(mrt, origin, group);
+	if (!cache) {
+		rcu_read_unlock();
+		return -ENOENT;
+	}
+
+	read_lock(&mrt_lock);
+	for (vifi = 0; vifi < cache->mfc_un.res.maxvif; vifi++) {
+		if (!((cache->mfc_un.res.ttls[vifi] > 0) &&
+		      (cache->mfc_un.res.ttls[vifi] < 255))) {
+			continue;
+		}
+
+		/* We have another valid destination interface entry. Check if
+		 * the number of the destination interfaces for the route is
+		 * exceeding the size of the array given to us
+		 */
+		if (dest_if_count == max_dest_cnt) {
+			read_unlock(&mrt_lock);
+			rcu_read_unlock();
+			return -EINVAL;
+		}
+
+		if (!VIF_EXISTS(mrt, vifi)) {
+			read_unlock(&mrt_lock);
+			rcu_read_unlock();
+			return -EINVAL;
+		}
+
+		dest_dev[dest_if_count] = mrt->vif_table[vifi].dev->ifindex;
+		dest_if_count++;
+	}
+	read_unlock(&mrt_lock);
+	rcu_read_unlock();
+
+	return dest_if_count;
+}
+EXPORT_SYMBOL(ipmr_find_mfc_entry);
+
+/* ipmr_mfc_stats_update()
+ * Update the MFC/VIF statistics for offloaded flows
+ */
+int ipmr_mfc_stats_update(struct net *net, __be32 origin, __be32 group,
+			  u64 pkts_in, u64 bytes_in,
+			  u64 pkts_out, u64 bytes_out)
+{
+	int vif, vifi;
+	struct mr_table *mrt;
+	struct mfc_cache *cache;
+
+	mrt = ipmr_get_table(net, RT_TABLE_DEFAULT);
+	if (!mrt)
+		return -ENOENT;
+
+	rcu_read_lock();
+	cache = ipmr_cache_find(mrt, origin, group);
+	if (!cache) {
+		rcu_read_unlock();
+		return -ENOENT;
+	}
+
+	vif = cache->mfc_parent;
+
+	read_lock(&mrt_lock);
+	if (!VIF_EXISTS(mrt, vif)) {
+		read_unlock(&mrt_lock);
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+
+	mrt->vif_table[vif].pkt_in += pkts_in;
+	mrt->vif_table[vif].bytes_in += bytes_in;
+	cache->mfc_un.res.pkt  += pkts_out;
+	cache->mfc_un.res.bytes += bytes_out;
+
+	for (vifi = cache->mfc_un.res.minvif;
+			vifi < cache->mfc_un.res.maxvif; vifi++) {
+		if ((cache->mfc_un.res.ttls[vifi] > 0) &&
+		    (cache->mfc_un.res.ttls[vifi] < 255)) {
+			if (!VIF_EXISTS(mrt, vifi)) {
+				read_unlock(&mrt_lock);
+				rcu_read_unlock();
+				return -EINVAL;
+			}
+			mrt->vif_table[vifi].pkt_out += pkts_out;
+			mrt->vif_table[vifi].bytes_out += bytes_out;
+		}
+	}
+	read_unlock(&mrt_lock);
+	rcu_read_unlock();
+
+	return 0;
+}
+EXPORT_SYMBOL(ipmr_mfc_stats_update);
 
 static int __net_init ipmr_rules_init(struct net *net)
 {
@@ -1112,6 +1331,8 @@ static int ipmr_mfc_delete(struct mr_table *mrt, struct mfcctl *mfc, int parent)
 		if (c->mfc_origin == mfc->mfcc_origin.s_addr &&
 		    c->mfc_mcastgrp == mfc->mfcc_mcastgrp.s_addr &&
 		    (parent == -1 || parent == c->mfc_parent)) {
+			/* Inform offload modules of the delete event */
+			ipmr_sync_entry_delete(c->mfc_origin, c->mfc_mcastgrp);
 			list_del_rcu(&c->list);
 			mroute_netlink_event(mrt, c, RTM_DELROUTE);
 			ipmr_cache_free(c);
@@ -1150,6 +1371,9 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 			c->mfc_flags |= MFC_STATIC;
 		write_unlock_bh(&mrt_lock);
 		mroute_netlink_event(mrt, c, RTM_NEWROUTE);
+
+		/* Inform offload modules of the update event */
+		ipmr_sync_entry_update(mrt, c);
 		return 0;
 	}
 
