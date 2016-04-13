@@ -232,7 +232,7 @@ ath79_register_pci_ar724x(int id,
 	res[3].end = mem_base + mem_size - 1;
 
 	res[4].name = "io_base";
-	res[4].flags = IORESOURCE_IO;
+	res[4].flags = IORESOURCE_MEM;
 	res[4].start = io_base;
 	res[4].end = io_base;
 

@@ -57,6 +57,20 @@
 				caps-offset = <0x100>;
 				status = "okay";
 			};
+
+			pci: pci@0x16000000 {
+				compatible = "qca,ar724x-pci";
+				reg = <0x16000000 0x1000>,
+				      <0x18280000 0x100>,
+				      <0x18250000 0x1000>,
+				      <0x12000000 0x02000000>,
+					<1 1>;
+				reg-names = "cfg_base","ctrl_base","crp_base",
+						"mem_base","io_base";
+				interrupt-parent = <&ip2_int>;
+				interrupts = <0>;
+				status = "okay";
+			};
 		};
 
 		spi_0: spi@1f000000 {

@@ -116,6 +116,14 @@
 				#interrupt-cells = <1>;
 			};
 
+			ip2_int: interrupt-controller@ip2_int {
+				compatible = "qca,ath79-ip2-intc";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&cpuintc>;
+				interrupts = <2>;
+			};
+
 			ip3_int: interrupt-controller@ip3_int {
 				compatible = "qca,ath79-ip3-intc";
 				interrupt-controller;
