@@ -186,6 +186,17 @@
 			status = "ok";
 		};
 
+		tcsr_mutex_block: syscon@193d000 {
+			compatible = "syscon";
+			reg = <0x1905000 0x8000>;
+		};
+
+		tcsr_mutex: hwlock@193d000 {
+			compatible = "qcom,tcsr-mutex";
+			syscon = <&tcsr_mutex_block 0 0x80>;
+			#hwlock-cells = <1>;
+		};
+
 		watchdog@b017000 {
 			compatible = "qcom,kpss-timer";
 			reg = <0xb017000 0x1000>;
