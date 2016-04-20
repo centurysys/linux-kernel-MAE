@@ -533,6 +533,8 @@
 
 		xio_1d = &xio_1d_1e;
 		xio_1e = &xio_1d_1e;
+
+		xio_21 = &xio_21;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -672,6 +674,16 @@
 			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_lisa
 			   &leds_foma &leds_amp_wlan_ctrl &leds_do>;
+	};
+
+	/* XIO: (id: 0x21) SIM7100/OKI920MHz */
+	xio_21: xio@0x21 {
+		#size-cells = <0>;
+		devices = <&uartx2_0x20
+			   &gpiox_0x10 &gpiox_0x12_SIM7100 &gpiox_0x14
+			   &gpiox_0x18
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_foma_ctrl>;
 	};
 };
 
@@ -1398,6 +1410,40 @@
 		stat@2 {
 			label = "ModuleAvailable";
 			reg = <2>;
+		};
+	};
+
+	/* SIM7100 Mobile Status */
+	gpiox_0x12_SIM7100: gpio@2,0x12 {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
+
+		stat@2 {
+			label = "ModuleAvailable";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "WAKE_N";
+			reg = <3>;
 		};
 	};
 
