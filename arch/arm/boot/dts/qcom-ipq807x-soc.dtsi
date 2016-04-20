@@ -186,23 +186,10 @@
 			status = "ok";
 		};
 
-		sleep_clk: sleep_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <32768>;
-			#clock-cells = <0>;
-		};
-
 		watchdog@b017000 {
 			compatible = "qcom,kpss-timer";
 			reg = <0xb017000 0x1000>;
-			interrupt-names = "bark_irq";
-			interrupts = <0 3 0>;
-			clocks = <&sleep_clk>;
-			timeout-sec = <10>;
-			wdt_res = <0x4>;
-			wdt_en = <0x8>;
-			wdt_bark_time = <0x10>;
-			wdt_bite_time = <0x14>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
 		};
 	};
 };
