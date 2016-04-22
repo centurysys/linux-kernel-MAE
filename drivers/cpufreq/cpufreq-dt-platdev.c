@@ -11,7 +11,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-static const struct of_device_id machines[] = {
+static const struct of_device_id machines[] __initconst = {
 };
 
 static int __init cpufreq_dt_platdev_init(void)
