@@ -323,3 +323,8 @@ int __qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt, u32 *resp)
 {
 	return -ENOTSUPP;
 }
+
+int __qcom_scm_regsave(u32 svc_id, u32 cmd_id)
+{
+	return -ENOTSUPP;
+}
