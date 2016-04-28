@@ -613,7 +613,8 @@ void br_port_flags_change(struct net_bridge_port *p, unsigned long mask)
  * associated port.
  */
 struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr,
-				   struct sk_buff *skb)
+				   struct sk_buff *skb,
+				   unsigned int cookie)
 {
 	struct net_bridge_fdb_entry *fdbe;
 	struct net_bridge *br;
@@ -632,8 +633,8 @@ struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr,
 		port_dev_get_hook = rcu_dereference(br_port_dev_get_hook);
 		if (port_dev_get_hook) {
 			struct net_bridge_port *pdst =
-				__br_get(port_dev_get_hook, NULL, dev,
-					skb, addr);
+				__br_get(port_dev_get_hook, NULL, dev, skb,
+					 addr, cookie);
 			if (pdst) {
 				dev_hold(pdst->dev);
 				netdev = pdst->dev;
