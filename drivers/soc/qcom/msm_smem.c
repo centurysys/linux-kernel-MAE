@@ -71,11 +71,10 @@ static void *smem_ipc_log_ctx;
 static void *smem_ram_base;
 static resource_size_t smem_ram_size;
 static phys_addr_t smem_ram_phys;
-static remote_spinlock_t remote_spinlock;
+static struct hwspinlock *hwlock;
 static uint32_t num_smem_areas;
 static struct smem_area *smem_areas;
 static struct ramdump_segment *smem_ramdump_segments;
-static int spinlocks_initialized;
 static void *smem_ramdump_dev;
 static DEFINE_MUTEX(spinlock_init_lock);
 static DEFINE_SPINLOCK(smem_init_check_lock);
@@ -169,8 +168,6 @@ static struct restart_notifier_block restart_notifiers[] = {
 	{SMEM_Q6, "adsp", .nb.notifier_call = restart_notifier_cb},
 	{SMEM_DSPS, "slpi", .nb.notifier_call = restart_notifier_cb},
 };
-
-static int init_smem_remote_spinlock(void);
 
 /**
  * is_probe_done() - Did the probe function successfully complete
@@ -303,7 +300,6 @@ static void *__smem_get_entry_nonsecure(unsigned id, unsigned *size,
 {
 	struct smem_shared *shared = smem_ram_base;
 	struct smem_heap_entry *toc = shared->heap_toc;
-	int use_spinlocks = spinlocks_initialized && use_rspinlock;
 	void *ret = 0;
 	unsigned long flags = 0;
 	int rc;
@@ -314,10 +310,9 @@ static void *__smem_get_entry_nonsecure(unsigned id, unsigned *size,
 	if (id >= SMEM_NUM_ITEMS)
 		return ret;
 
-	if (use_spinlocks) {
+	if (use_rspinlock) {
 		do {
-			rc = remote_spin_trylock_irqsave(&remote_spinlock,
-				flags);
+			rc = hwspin_trylock_irqsave(hwlock, &flags);
 		} while (!rc);
 	}
 	/* toc is in device memory and cannot be speculatively accessed */
@@ -334,8 +329,8 @@ static void *__smem_get_entry_nonsecure(unsigned id, unsigned *size,
 	} else {
 		*size = 0;
 	}
-	if (use_spinlocks)
-		remote_spin_unlock_irqrestore(&remote_spinlock, flags);
+	if (use_rspinlock)
+		hwspin_unlock_irqrestore(hwlock, &flags);
 
 	return ret;
 }
@@ -390,19 +385,10 @@ static void *__smem_get_entry_secure(unsigned id,
 
 	partition_num = partitions[to_proc].partition_num;
 	hdr = smem_areas[0].virt_addr + partitions[to_proc].offset;
-	if (unlikely(!spinlocks_initialized)) {
-		rc = init_smem_remote_spinlock();
-		if (unlikely(rc)) {
-			SMEM_INFO(
-				"%s: id:%u remote spinlock init failed %d\n",
-						__func__, id, rc);
-			return NULL;
-		}
-	}
+
 	if (use_rspinlock) {
 		do {
-			rc = remote_spin_trylock_irqsave(&remote_spinlock,
-				lflags);
+			rc = hwspin_trylock_irqsave(hwlock, &lflags);
 		} while (!rc);
 	}
 	if (hdr->identifier != SMEM_PART_HDR_IDENTIFIER) {
@@ -471,7 +457,7 @@ static void *__smem_get_entry_secure(unsigned id,
 		}
 	}
 	if (use_rspinlock)
-		remote_spin_unlock_irqrestore(&remote_spinlock, lflags);
+		hwspin_unlock_irqrestore(hwlock, &lflags);
 
 	return item;
 }
@@ -728,18 +714,9 @@ void *smem_alloc(unsigned id, unsigned size_in, unsigned to_proc,
 		return NULL;
 	}
 
-	if (unlikely(!spinlocks_initialized)) {
-		rc = init_smem_remote_spinlock();
-		if (unlikely(rc)) {
-			SMEM_INFO("%s: id:%u remote spinlock init failed %d\n",
-							__func__, id, rc);
-			return NULL;
-		}
-	}
-
 	a_size_in = ALIGN(size_in, 8);
 	do {
-		rc = remote_spin_trylock_irqsave(&remote_spinlock, lflags);
+		rc = hwspin_trylock_irqsave(hwlock, &lflags);
 	} while (!rc);
 
 	ret = __smem_get_entry_secure(id, &size_out, to_proc, flags, true,
@@ -747,10 +724,10 @@ void *smem_alloc(unsigned id, unsigned size_in, unsigned to_proc,
 	if (ret) {
 		SMEM_INFO("%s: %u already allocated\n", __func__, id);
 		if (a_size_in == size_out) {
-			remote_spin_unlock_irqrestore(&remote_spinlock, lflags);
+			hwspin_unlock_irqrestore(hwlock, &lflags);
 			return ret;
 		} else {
-			remote_spin_unlock_irqrestore(&remote_spinlock, lflags);
+			hwspin_unlock_irqrestore(hwlock, &lflags);
 			SMEM_INFO("%s: id %u wrong size %u (expected %u)\n",
 				__func__, id, size_out, a_size_in);
 			return NULL;
@@ -770,7 +747,7 @@ void *smem_alloc(unsigned id, unsigned size_in, unsigned to_proc,
 								__func__, id);
 	}
 
-	remote_spin_unlock_irqrestore(&remote_spinlock, lflags);
+	hwspin_unlock_irqrestore(hwlock, &lflags);
 	return ret;
 }
 EXPORT_SYMBOL(smem_alloc);
@@ -834,11 +811,9 @@ EXPORT_SYMBOL(smem_get_entry_no_rlock);
  *
  * @returns: pointer to SMEM remote spinlock
  */
-remote_spinlock_t *smem_get_remote_spinlock(void)
+struct hwspinlock *smem_get_remote_spinlock(void)
 {
-	if (unlikely(!spinlocks_initialized))
-		init_smem_remote_spinlock();
-	return &remote_spinlock;
+	return hwlock;
 }
 EXPORT_SYMBOL(smem_get_remote_spinlock);
 
@@ -906,35 +881,6 @@ unsigned smem_get_version(unsigned idx)
 	return version_array[idx];
 }
 EXPORT_SYMBOL(smem_get_version);
-
-/**
- * init_smem_remote_spinlock - Reentrant remote spinlock initialization
- *
- * @returns: success or error code for failure
- */
-static int init_smem_remote_spinlock(void)
-{
-	int rc = 0;
-
-	/*
-	 * Optimistic locking.  Init only needs to be done once by the first
-	 * caller.  After that, serializing inits between different callers
-	 * is unnecessary.  The second check after the lock ensures init
-	 * wasn't previously completed by someone else before the lock could
-	 * be grabbed.
-	 */
-	if (!spinlocks_initialized) {
-		mutex_lock(&spinlock_init_lock);
-		if (!spinlocks_initialized) {
-			rc = remote_spin_lock_init(&remote_spinlock,
-						SMEM_SPINLOCK_SMEM_ALLOC);
-			if (!rc)
-				spinlocks_initialized = 1;
-		}
-		mutex_unlock(&spinlock_init_lock);
-	}
-	return rc;
-}
 
 /**
  * smem_initialized_check - Reentrant check that smem has been initialized
@@ -1268,6 +1214,7 @@ static int msm_smem_probe(struct platform_device *pdev)
 	struct smem_area *smem_areas_tmp = NULL;
 	int smem_idx = 0;
 	bool security_enabled;
+	int hwlock_id;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"smem_targ_info_imem");
@@ -1320,20 +1267,29 @@ smem_targ_info_done:
 		return -ENODEV;
 	}
 
-	if (!smem_initialized_check())
-		return -ENODEV;
-
 	/*
 	 * The software implementation requires smem_find(), which needs
 	 * smem_ram_base to be intitialized.  The remote spinlock item is
 	 * guarenteed to be allocated by the bootloader, so this is the
 	 * safest and earliest place to init the spinlock.
 	 */
-	ret = init_smem_remote_spinlock();
-	if (ret) {
-		LOG_ERR("%s: remote spinlock init failed %d\n", __func__, ret);
-		return ret;
+
+	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_node, 0);
+	if (hwlock_id < 0) {
+		LOG_ERR("%s: hwlock_id: remote spinlock init failed %d\n",
+								__func__, ret);
+		return hwlock_id;
 	}
+
+	hwlock = hwspin_lock_request_specific(hwlock_id);
+	if (!hwlock) {
+		LOG_ERR("%s: hwlock: remote spinlock init failed %d\n",
+								__func__, ret);
+		return -ENXIO;
+	}
+
+	if (!smem_initialized_check())
+		return -ENODEV;
 
 	key = "irq-reg-base";
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);

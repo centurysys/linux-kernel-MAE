@@ -13,8 +13,9 @@
 #ifndef _ARCH_ARM_MACH_MSM_SMEM_PRIVATE_H_
 #define _ARCH_ARM_MACH_MSM_SMEM_PRIVATE_H_
 
-#include <linux/remote_spinlock.h>
-#include <soc/qcom/ramdump.h>
+#include <linux/hwspinlock.h>
+#include <linux/io.h>
+#include <linux/types.h>
 
 
 #define SMD_HEAP_SIZE 512
@@ -55,7 +56,7 @@ struct smem_area {
 };
 
 /* used for unit testing spinlocks */
-remote_spinlock_t *smem_get_remote_spinlock(void);
+struct hwspinlock *smem_get_remote_spinlock(void);
 
 bool smem_initialized_check(void);
 
