@@ -795,6 +795,15 @@
 
 			status = "disabled";
 		};
+
+		watchdog@208a000 {
+			compatible = "qcom,kpss-wdt-ipq8064";
+			reg = <0x0208a000 0x100>;
+			interrupt-names = "bark_irq";
+			interrupts = <0 3 0>;
+			timeout-sec = <10>;
+			clocks = <&sleep_clk>;
+		};
 	};
 
 	sfpb_mutex: sfpb-mutex {
