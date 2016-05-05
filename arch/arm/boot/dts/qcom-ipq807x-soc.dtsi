@@ -197,6 +197,17 @@
 			#hwlock-cells = <1>;
 		};
 
+		qcom,smem@86300000 {
+			compatible = "qcom,smem";
+			reg = <0x86300000 0x100000>,
+				<0x0b111008 0x4>,
+				<0x60000 0x8000>,
+				<0x193d000 0x8>;
+			reg-names = "smem", "irq-reg-base",
+				"aux-mem1", "smem_targ_info_reg";
+			hwlocks = <&tcsr_mutex 0>;
+		};
+
 		watchdog@b017000 {
 			compatible = "qcom,kpss-timer";
 			reg = <0xb017000 0x1000>;
