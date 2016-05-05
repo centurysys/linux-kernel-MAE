@@ -23,9 +23,6 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
-#include <soc/qcom/subsystem_notif.h>
-#include <soc/qcom/subsystem_restart.h>
-#include <soc/qcom/ramdump.h>
 
 #include <soc/qcom/smem.h>
 
@@ -74,8 +71,6 @@ static phys_addr_t smem_ram_phys;
 static struct hwspinlock *hwlock;
 static uint32_t num_smem_areas;
 static struct smem_area *smem_areas;
-static struct ramdump_segment *smem_ramdump_segments;
-static void *smem_ramdump_dev;
 static DEFINE_MUTEX(spinlock_init_lock);
 static DEFINE_SPINLOCK(smem_init_check_lock);
 static int smem_module_inited;
@@ -147,26 +142,6 @@ struct smem_targ_info_type {
 	uint32_t identifier;
 	uint32_t size;
 	phys_addr_t phys_base_addr;
-};
-
-struct restart_notifier_block {
-	unsigned processor;
-	char *name;
-	struct notifier_block nb;
-};
-
-static int restart_notifier_cb(struct notifier_block *this,
-				unsigned long code,
-				void *data);
-
-static struct restart_notifier_block restart_notifiers[] = {
-	{SMEM_MODEM, "modem", .nb.notifier_call = restart_notifier_cb},
-	{SMEM_Q6, "lpass", .nb.notifier_call = restart_notifier_cb},
-	{SMEM_WCNSS, "wcnss", .nb.notifier_call = restart_notifier_cb},
-	{SMEM_DSPS, "dsps", .nb.notifier_call = restart_notifier_cb},
-	{SMEM_MODEM, "gss", .nb.notifier_call = restart_notifier_cb},
-	{SMEM_Q6, "adsp", .nb.notifier_call = restart_notifier_cb},
-	{SMEM_DSPS, "slpi", .nb.notifier_call = restart_notifier_cb},
 };
 
 /**
@@ -942,75 +917,6 @@ failed:
 }
 EXPORT_SYMBOL(smem_initialized_check);
 
-static int restart_notifier_cb(struct notifier_block *this,
-				unsigned long code,
-				void *data)
-{
-	struct restart_notifier_block *notifier;
-	struct notif_data *notifdata = data;
-	int ret;
-
-	switch (code) {
-
-	case SUBSYS_AFTER_SHUTDOWN:
-		notifier = container_of(this,
-					struct restart_notifier_block, nb);
-		SMEM_INFO("%s: ssrestart for processor %d ('%s')\n",
-				__func__, notifier->processor,
-				notifier->name);
-		remote_spin_release(&remote_spinlock, notifier->processor);
-		remote_spin_release_all(notifier->processor);
-		break;
-	case SUBSYS_SOC_RESET:
-		if (!(smem_ramdump_dev && notifdata->enable_mini_ramdumps))
-			break;
-	case SUBSYS_RAMDUMP_NOTIFICATION:
-		if (!(smem_ramdump_dev && (notifdata->enable_mini_ramdumps
-						|| notifdata->enable_ramdump)))
-			break;
-		SMEM_DBG("%s: saving ramdump\n", __func__);
-		/*
-		 * XPU protection does not currently allow the
-		 * auxiliary memory regions to be dumped.  If this
-		 * changes, then num_smem_areas + 1 should be passed
-		 * into do_elf_ramdump() to dump all regions.
-		 */
-		ret = do_elf_ramdump(smem_ramdump_dev,
-				smem_ramdump_segments, 1);
-		if (ret < 0)
-			LOG_ERR("%s: unable to dump smem %d\n", __func__, ret);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_DONE;
-}
-
-static __init int modem_restart_late_init(void)
-{
-	int i;
-	void *handle;
-	struct restart_notifier_block *nb;
-
-	smem_ramdump_dev = create_ramdump_device("smem", NULL);
-	if (IS_ERR_OR_NULL(smem_ramdump_dev)) {
-		LOG_ERR("%s: Unable to create smem ramdump device.\n",
-			__func__);
-		smem_ramdump_dev = NULL;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(restart_notifiers); i++) {
-		nb = &restart_notifiers[i];
-		handle = subsys_notif_register_notifier(nb->name, &nb->nb);
-		SMEM_DBG("%s: registering notif for '%s', handle=%p\n",
-				__func__, nb->name, handle);
-	}
-
-	return 0;
-}
-late_initcall(modem_restart_late_init);
-
 int smem_module_init_notifier_register(struct notifier_block *nb)
 {
 	int ret;
@@ -1210,7 +1116,6 @@ static int msm_smem_probe(struct platform_device *pdev)
 	int temp_string_size = 11; /* max 3 digit count */
 	char temp_string[temp_string_size];
 	int ret;
-	struct ramdump_segment *ramdump_segments_tmp = NULL;
 	struct smem_area *smem_areas_tmp = NULL;
 	int smem_idx = 0;
 	bool security_enabled;
@@ -1314,7 +1219,7 @@ smem_targ_info_done:
 			break;
 		}
 	}
-	/* Initialize main SMEM region and SSR ramdump region */
+	/* Initialize main SMEM region */
 	smem_areas_tmp = kmalloc_array(num_smem_areas, sizeof(struct smem_area),
 				GFP_KERNEL);
 	if (!smem_areas_tmp) {
@@ -1323,19 +1228,9 @@ smem_targ_info_done:
 		goto free_smem_areas;
 	}
 
-	ramdump_segments_tmp = kcalloc(num_smem_areas,
-			sizeof(struct ramdump_segment), GFP_KERNEL);
-	if (!ramdump_segments_tmp) {
-		LOG_ERR("%s: ramdump segment kmalloc failed\n", __func__);
-		ret = -ENOMEM;
-		goto free_smem_areas;
-	}
 	smem_areas_tmp[smem_idx].phys_addr =  smem_ram_phys;
 	smem_areas_tmp[smem_idx].size = smem_ram_size;
 	smem_areas_tmp[smem_idx].virt_addr = smem_ram_base;
-
-	ramdump_segments_tmp[smem_idx].address = smem_ram_phys;
-	ramdump_segments_tmp[smem_idx].size = smem_ram_size;
 	++smem_idx;
 
 	/* Configure auxiliary SMEM regions */
@@ -1348,9 +1243,6 @@ smem_targ_info_done:
 			break;
 		aux_mem_base = r->start;
 		aux_mem_size = resource_size(r);
-
-		ramdump_segments_tmp[smem_idx].address = aux_mem_base;
-		ramdump_segments_tmp[smem_idx].size = aux_mem_size;
 
 		smem_areas_tmp[smem_idx].phys_addr = aux_mem_base;
 		smem_areas_tmp[smem_idx].size = aux_mem_size;
@@ -1392,7 +1284,6 @@ smem_targ_info_done:
 	}
 
 	smem_areas = smem_areas_tmp;
-	smem_ramdump_segments = ramdump_segments_tmp;
 
 	key = "qcom,mpu-enabled";
 	security_enabled = of_property_read_bool(pdev->dev.of_node, key);
@@ -1414,7 +1305,6 @@ free_smem_areas:
 		iounmap(smem_areas_tmp[smem_idx].virt_addr);
 
 	num_smem_areas = 0;
-	kfree(ramdump_segments_tmp);
 	kfree(smem_areas_tmp);
 	return ret;
 }
