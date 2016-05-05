@@ -217,6 +217,11 @@
 			label = "mpss";
 		};
 
+		qcom,ipc_router {
+			compatible = "qcom,ipc_router";
+			qcom,node-id = <1>;
+		};
+
 		watchdog@b017000 {
 			compatible = "qcom,kpss-timer";
 			reg = <0xb017000 0x1000>;
