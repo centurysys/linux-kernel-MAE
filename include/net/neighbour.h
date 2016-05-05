@@ -232,6 +232,11 @@ static inline int neigh_parms_family(struct neigh_parms *p)
 	return p->tbl->family;
 }
 
+struct neigh_mac_update {
+	unsigned char old_mac[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
+	unsigned char update_mac[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
+};
+
 #define NEIGH_PRIV_ALIGN	sizeof(long long)
 #define NEIGH_ENTRY_SIZE(size)	ALIGN((size), NEIGH_PRIV_ALIGN)
 
@@ -362,6 +367,9 @@ void __neigh_for_each_release(struct neigh_table *tbl,
 int neigh_xmit(int fam, struct net_device *, const void *, struct sk_buff *);
 void pneigh_for_each(struct neigh_table *tbl,
 		     void (*cb)(struct pneigh_entry *));
+
+extern void neigh_mac_update_register_notify(struct notifier_block *nb);
+extern void neigh_mac_update_unregister_notify(struct notifier_block *nb);
 
 struct neigh_seq_state {
 	struct seq_net_private p;

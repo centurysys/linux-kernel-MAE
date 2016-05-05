@@ -1049,7 +1049,19 @@ static void neigh_update_hhs(struct neighbour *neigh)
 	}
 }
 
+ATOMIC_NOTIFIER_HEAD(neigh_mac_update_notifier_list);
 
+void neigh_mac_update_register_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_register(&neigh_mac_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(neigh_mac_update_register_notify);
+
+void neigh_mac_update_unregister_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&neigh_mac_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(neigh_mac_update_unregister_notify);
 
 /* Generic update routine.
    -- lladdr is new lladdr or NULL, if it is not supplied.
@@ -1080,12 +1092,15 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 	int notify = 0;
 	struct net_device *dev;
 	int update_isrouter = 0;
+	struct neigh_mac_update nmu;
 
 	write_lock_bh(&neigh->lock);
 
 	dev    = neigh->dev;
 	old    = neigh->nud_state;
 	err    = -EPERM;
+
+	memset(&nmu, 0, sizeof(struct neigh_mac_update));
 
 	if (!(flags & NEIGH_UPDATE_F_ADMIN) &&
 	    (old & (NUD_NOARP | NUD_PERMANENT)))
@@ -1117,7 +1132,11 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 		   and a new address is proposed:
 		   - compare new & old
 		   - if they are different, check override flag
+		   - copy old and new addresses for neigh update notification
 		 */
+		memcpy(nmu.old_mac, neigh->ha, dev->addr_len);
+		memcpy(nmu.update_mac, lladdr, dev->addr_len);
+
 		if ((old & NUD_VALID) &&
 		    !memcmp(lladdr, neigh->ha, dev->addr_len))
 			lladdr = neigh->ha;
@@ -1231,8 +1250,11 @@ out:
 	}
 	write_unlock_bh(&neigh->lock);
 
-	if (notify)
+	if (notify) {
 		neigh_update_notify(neigh);
+		atomic_notifier_call_chain(&neigh_mac_update_notifier_list, 0,
+					   (struct neigh_mac_update *)&nmu);
+	}
 
 	return err;
 }
