@@ -222,6 +222,16 @@
 			qcom,node-id = <1>;
 		};
 
+		qcom,ipc_router_modem_xprt {
+			compatible = "qcom,ipc_router_glink_xprt";
+			qcom,ch-name = "IPCRTR";
+			qcom,xprt-remote = "mpss";
+			qcom,glink-xprt = "smem";
+			qcom,xprt-linkid = <1>;
+			qcom,xprt-version = <1>;
+			qcom,fragmented-data;
+		};
+
 		watchdog@b017000 {
 			compatible = "qcom,kpss-timer";
 			reg = <0xb017000 0x1000>;
