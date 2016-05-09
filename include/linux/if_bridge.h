@@ -114,4 +114,12 @@ struct br_fdb_event {
 };
 extern void br_fdb_register_notify(struct notifier_block *nb);
 extern void br_fdb_unregister_notify(struct notifier_block *nb);
+
+typedef struct net_bridge_port *br_get_dst_hook_t(
+		const struct net_bridge_port *src,
+		struct sk_buff **skb);
+extern br_get_dst_hook_t __rcu *br_get_dst_hook;
+
+typedef void (br_notify_hook_t)(int group, int event, const void *ptr);
+extern br_notify_hook_t __rcu *br_notify_hook;
 #endif
