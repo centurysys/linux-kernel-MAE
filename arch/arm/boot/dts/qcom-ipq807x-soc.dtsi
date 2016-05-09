@@ -208,6 +208,15 @@
 			hwlocks = <&tcsr_mutex 0>;
 		};
 
+		qcom,glink-smem-native-xprt-modem@86300000 {
+			compatible = "qcom,glink-smem-native-xprt";
+			reg = <0x86300000 0x100000>, <0x0b111008 0x4>;
+			reg-names = "smem", "irq-reg-base";
+			qcom,irq-mask = <0x1000>;
+			interrupts = <0 317 1>;
+			label = "mpss";
+		};
+
 		watchdog@b017000 {
 			compatible = "qcom,kpss-timer";
 			reg = <0xb017000 0x1000>;
