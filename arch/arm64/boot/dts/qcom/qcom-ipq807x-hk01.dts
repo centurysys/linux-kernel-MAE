@@ -96,16 +96,15 @@
 	};
 
 	chosen {
-		linux,initrd-end = <0x82400000>;
-		linux,initrd-start = <0x82000000>;
+		linux,initrd-end = <0x42400000>;
+		linux,initrd-start = <0x42000000>;
 		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw \
 			    init=/init";
 	};
 
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x0 0x40000000 0x0 0xc0000000 \
-		      0x0 0x40000000>;
+		reg = <0x0 0x40000000 0x0 0x10000000>;
 	};
 
 };
