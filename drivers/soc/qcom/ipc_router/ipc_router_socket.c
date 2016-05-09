@@ -22,7 +22,6 @@
 #include <linux/msm_ipc.h>
 #include <linux/sched.h>
 #include <linux/thread_info.h>
-#include <linux/qmi_encdec.h>
 #include <linux/slab.h>
 #include <linux/kmemleak.h>
 #include <linux/ipc_logging.h>
@@ -253,10 +252,6 @@ int msm_ipc_router_bind(struct socket *sock, struct sockaddr *uaddr,
 	port_ptr = msm_ipc_sk_port(sk);
 	if (!port_ptr)
 		return -ENODEV;
-
-	if (!msm_ipc_sk(sk)->default_node_vote_info)
-		msm_ipc_sk(sk)->default_node_vote_info =
-			msm_ipc_load_default_node();
 	lock_sock(sk);
 
 	ret = msm_ipc_router_register_server(port_ptr, &addr->address);
@@ -438,10 +433,6 @@ static int msm_ipc_router_ioctl(struct socket *sock,
 		break;
 
 	case IPC_ROUTER_IOCTL_LOOKUP_SERVER:
-		if (!msm_ipc_sk(sk)->default_node_vote_info)
-			msm_ipc_sk(sk)->default_node_vote_info =
-				msm_ipc_load_default_node();
-
 		ret = copy_from_user(&server_arg, (void *)arg,
 				     sizeof(server_arg));
 		if (ret) {
@@ -547,7 +538,6 @@ static int msm_ipc_router_close(struct socket *sock)
 
 	lock_sock(sk);
 	ret = msm_ipc_router_close_port(port_ptr);
-	msm_ipc_unload_default_node(msm_ipc_sk(sk)->default_node_vote_info);
 	release_sock(sk);
 	sock_put(sk);
 	sock->sk = NULL;

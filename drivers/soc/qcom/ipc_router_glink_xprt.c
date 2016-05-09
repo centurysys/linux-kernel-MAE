@@ -400,29 +400,6 @@ static void glink_xprt_qrx_intent_worker(struct work_struct *work)
 	kfree(qrx_intent_work);
 }
 
-static void msm_ipc_unload_subsystem(struct ipc_router_glink_xprt *glink_xprtp)
-{
-	if (glink_xprtp->pil) {
-		//subsystem_put(glink_xprtp->pil);
-		glink_xprtp->pil = NULL;
-	}
-}
-
-static void *msm_ipc_load_subsystem(struct ipc_router_glink_xprt *glink_xprtp)
-{
-	void *pil = NULL;
-
-	if (!glink_xprtp->disable_pil_loading) {
-		//pil = subsystem_get(glink_xprtp->pil_edge);
-		if (IS_ERR(pil)) {
-			pr_err("%s: Failed to load %s err = [0x%ld]\n",
-				__func__, glink_xprtp->pil_edge, PTR_ERR(pil));
-			pil = NULL;
-		}
-	}
-	return pil;
-}
-
 static void glink_xprt_notify_rxv(void *handle, const void *priv,
 	const void *pkt_priv, void *ptr, size_t size,
 	void * (*vbuf_provider)(void *iovec, size_t offset, size_t *size),
@@ -551,13 +528,11 @@ static void glink_xprt_ch_open(struct ipc_router_glink_xprt *glink_xprtp)
 	open_cfg.notify_rx_intent_req = glink_xprt_notify_rx_intent_req;
 	open_cfg.priv = glink_xprtp;
 
-	glink_xprtp->pil = msm_ipc_load_subsystem(glink_xprtp);
 	glink_xprtp->ch_hndl =  glink_open(&open_cfg);
 	if (IS_ERR_OR_NULL(glink_xprtp->ch_hndl)) {
 		IPC_RTR_ERR("%s:%s:%s %s: unable to open channel\n",
 			    open_cfg.transport, open_cfg.edge,
 			    open_cfg.name, __func__);
-			msm_ipc_unload_subsystem(glink_xprtp);
 	}
 }
 
@@ -597,7 +572,6 @@ static void glink_xprt_link_state_worker(struct work_struct *work)
 				continue;
 			glink_close(glink_xprtp->ch_hndl);
 			glink_xprtp->ch_hndl = NULL;
-			msm_ipc_unload_subsystem(glink_xprtp);
 		}
 		mutex_unlock(&glink_xprt_list_lock_lha1);
 
