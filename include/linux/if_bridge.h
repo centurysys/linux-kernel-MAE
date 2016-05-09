@@ -96,7 +96,8 @@ static inline bool br_multicast_has_querier_adjacent(struct net_device *dev,
 #endif
 
 typedef struct net_bridge_port *br_port_dev_get_hook_t(struct net_device *dev,
-		struct sk_buff *skb);
+						       struct sk_buff *skb,
+						       unsigned char *addr);
 extern br_port_dev_get_hook_t __rcu *br_port_dev_get_hook;
 
 typedef void (br_notify_hook_t)(int group, int event, const void *ptr);
