@@ -64,7 +64,6 @@
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
-			serial_clk = <7372800>;
 		};
 
 		sleep_clk: sleep_clk {

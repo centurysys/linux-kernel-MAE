@@ -25,6 +25,12 @@
 	interrupt-parent = <&intc>;
 	qcom,board-id = <0x10 0x0>;
 
+	soc: soc {
+		serial@78af000 {
+			serial_clk = <7372800>;
+		};
+	};
+
 	cpus {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;

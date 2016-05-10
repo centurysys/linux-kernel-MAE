@@ -29,6 +29,12 @@
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 	};
 
+	soc: soc {
+		serial@78af000 {
+			serial_clk = <7372800>;
+		};
+	};
+
 	cpus {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
