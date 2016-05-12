@@ -392,6 +392,8 @@ config LWTUNNEL
 	  weight tunnel endpoint. Tunnel encapsulation parameters are stored
 	  with light weight tunnel state associated with fib routes.
 
+source "drivers/soc/qcom/ipc_router/Kconfig"
+
 endif   # if NET
 
 # Used by archs to tell that they support BPF_JIT
