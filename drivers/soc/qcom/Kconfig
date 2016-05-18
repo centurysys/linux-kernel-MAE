@@ -105,3 +105,13 @@ config MSM_SMEM
 	 Support for the shared memory interface between the various
 	 processors in the System on a Chip (SoC) which allows basic
 	 inter-processor communication.
+
+config MSM_QMI_INTERFACE
+	 depends on IPC_ROUTER
+	 depends on QMI_ENCDEC
+	 bool "MSM QMI Interface Library"
+	 help
+	  Library to send and receive QMI messages over IPC Router.
+	  This library provides interface functions to the kernel drivers
+	  to perform QMI message marshaling and transport them over IPC
+	  Router.
