@@ -2,12 +2,21 @@ menu "Remoteproc drivers"
 
 # REMOTEPROC gets selected by whoever wants it
 config REMOTEPROC
-	tristate
+	tristate "Remoteproc"
 	depends on HAS_DMA
 	select CRC32
 	select FW_LOADER
 	select VIRTIO
 	select VIRTUALIZATION
+
+config IPQ807X_REMOTEPROC
+	tristate "IPQ807x Q6-WCSS rproc support"
+	depends on REMOTEPROC
+	help
+	  Say y here to support IPQ807x q6v5 wcss remote processors
+	  via the remote processor framework. Q6v5 WCSS are DSP remote
+	  processors. They need reset and loading of firmware for them
+	  to run. This config enables drivers to do that.
 
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
