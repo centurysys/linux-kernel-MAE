@@ -93,6 +93,14 @@
 					bias-pull-down; /* pull down */
 				};
 			};
+
+			spi_0_pins: spi_0_pinmux {
+				mux {
+					pins = "gpio0", "gpio1", "gpio2", "gpio3";
+					function = "blsp_spi1";
+					bias-disable;
+				};
+			};
 		};
 
 		intc: interrupt-controller@b000000 {
@@ -128,6 +136,27 @@
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
 			serial_clk = <7372800>;
+		};
+
+		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
+			compatible = "qcom,spi-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg-names = "spi_physical", "spi_bam_physical";
+			reg = <0x78b5000 0x600>,
+				<0x7884000 0x23000>;
+			interrupt-names = "spi_irq", "spi_bam_irq";
+			interrupts = <0 34 0>, <0 238 0>;
+			spi-max-frequency = <24000000>;
+			clocks = <&gcc 0>, /*GCC_BLSP1_QUP1_SPI_APPS_CLK>,*/
+				<&gcc 0>;/*GCC_BLSP1_AHB_CLK>;*/
+			clock-names = "core", "iface";
+			qcom,infinite-mode = <0>;
+			qcom,use-bam;
+			qcom,bam-consumer-pipe-index = <4>;
+			qcom,bam-producer-pipe-index = <5>;
+			qcom,master-id = <0>;
+			status = "disabled";
 		};
 
 		qcom_rng: qrng@e1000 {
