@@ -280,6 +280,34 @@
 		};
 	};
 
+	dp1 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <1>;
+		local-mac-address = [000000000000];
+	};
+
+	dp2 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <2>;
+		local-mac-address = [000000000000];
+	};
+
+	dp3 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <3>;
+		local-mac-address = [000000000000];
+	};
+
+	dp4 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <4>;
+		local-mac-address = [000000000000];
+	};
+
 	nss-common {
 		compatible = "qcom,nss-common";
 		reg = <0x01d00000 0x1000>;
