@@ -279,6 +279,47 @@
 			use-default-sizes;
 		};
 	};
+
+	nss-common {
+		compatible = "qcom,nss-common";
+		reg = <0x01d00000 0x1000>;
+		reg-names = "nss_fpb_base";
+		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>;
+		clock-names = "nss-core-clk", "nss-tcm-clk";
+	};
+
+	nss0: nss@40000000 {
+		compatible = "qcom,nss";
+		interrupts = <0 377 0x1>, <0 378 0x1>, <0 379 0x1>, <0 380 0x1>,
+			     <0 381 0x1>;
+		reg = <0x39000000 0x1000>, <0x38000000 0x30000>,
+		      <0x0b111000 0x1000>;
+		reg-names = "nphys", "vphys", "qgic-phys";
+		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
+			 <&gcc GCC_DUMMY_CLK>;
+		clock-names = "nss-core-clk", "nss-tcm-src",
+			      "nss-tcm-clk";
+		resets = <&gcc GCC_DUMMY_CLK>,
+			 <&gcc GCC_DUMMY_CLK>,
+			 <&gcc GCC_DUMMY_CLK>,
+			 <&gcc GCC_DUMMY_CLK>;
+		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
+		qcom,id = <0>;
+		qcom,num-queue = <2>;
+		qcom,num-irq = <5>;
+		qcom,load-addr = <0x40000000>;
+		qcom,ipv4-enabled;
+		qcom,ipv6-enabled;
+		qcom,wlanredirect-enabled;
+		qcom,tun6rd-enabled;
+		qcom,l2tpv2-enabled;
+		qcom,portid-enabled;
+		qcom,pppoe-enabled;
+		qcom,pptp-enabled;
+		qcom,tunipip6-enabled;
+		qcom,shaping-enabled;
+		qcom,wlan-dataplane-offload-enabled;
+	};
 };
 
 &sdhc_1{
