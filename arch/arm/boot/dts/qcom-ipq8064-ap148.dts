@@ -152,8 +152,6 @@
 
 			nand-ecc-strength = <4>;
 			nand-bus-width = <8>;
-
-			linux,part-probe = "qcom-smem";
 		};
 
 		mdio0: mdio {
