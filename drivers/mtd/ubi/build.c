@@ -801,7 +801,8 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
 	 * volume table, and 'ubi_resize_volume()' will propagate this change
 	 * to the flash.
 	 */
-	ubi->vtbl[vol_id].flags &= ~UBI_VTBL_AUTORESIZE_FLG;
+	ubi->vtbl[vol_id].flags &= ~(UBI_VTBL_AUTORESIZE_FLG |
+				     UBI_VTBL_AUTORESIZE_FLG_LINUX);
 
 	if (ubi->avail_pebs == 0) {
 		struct ubi_vtbl_record vtbl_rec;
