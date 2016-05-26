@@ -60,6 +60,9 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu0_opp_table>;
 			enable-method = "qcom,arm-cortex-acc";
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
@@ -75,6 +78,9 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x1>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu0_opp_table>;
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
 		};
@@ -84,6 +90,9 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x2>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu0_opp_table>;
 			qcom,acc = <&acc2>;
 			next-level-cache = <&L2_0>;
 		};
@@ -93,10 +102,49 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x3>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu0_opp_table>;
 			qcom,acc = <&acc3>;
 			next-level-cache = <&L2_0>;
 		};
 
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <1036800000>;
+			opp-microvolt = <670000>;
+			clock-latency-ns = <200000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <1689600000>;
+			opp-microvolt = <735000>;
+			clock-latency-ns = <200000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <1843200000>;
+			opp-microvolt = <800000>;
+			clock-latency-ns = <200000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <1958400000>;
+			opp-microvolt = <850000>;
+			clock-latency-ns = <200000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <905000>;
+			clock-latency-ns = <200000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <2208000000>;
+			opp-microvolt = <990000>;
+			clock-latency-ns = <200000>;
+		};
 	};
 
 	chosen {

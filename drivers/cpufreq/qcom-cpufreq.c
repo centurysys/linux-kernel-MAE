@@ -171,6 +171,9 @@ static int __init qcom_cpufreq_driver_init(void)
 	struct platform_device_info devinfo = {
 		.name = "cpufreq-krait",
 	};
+	struct platform_device_info dt = {
+		.name = "cpufreq-dt",
+	};
 	struct device *cpu_dev;
 	struct device_node *np;
 	int ret;
@@ -183,17 +186,18 @@ static int __init qcom_cpufreq_driver_init(void)
 	if (!np)
 		return -ENOENT;
 
-	if (!of_device_is_compatible(np, "qcom,krait")) {
+	if (of_device_is_compatible(np, "qcom,krait")) {
 		of_node_put(np);
-		return -ENODEV;
+		ret = qcom_cpufreq_populate_opps();
+		if (ret)
+			return ret;
+		ret = PTR_ERR_OR_ZERO(platform_device_register_full(&devinfo));
+	} else {
+		of_node_put(np);
+		ret = PTR_ERR_OR_ZERO(platform_device_register_full(&dt));
 	}
-	of_node_put(np);
 
-	ret = qcom_cpufreq_populate_opps();
-	if (ret)
-		return ret;
-
-	return PTR_ERR_OR_ZERO(platform_device_register_full(&devinfo));
+	return ret;
 }
 module_init(qcom_cpufreq_driver_init);
 
