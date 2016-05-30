@@ -66,5 +66,21 @@
 			clock-names = "core", "iface";
 			serial_clk = <7372800>;
 		};
+
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			#clock-cells = <0>;
+		};
+
+		watchdog@b017000 {
+			compatible = "qcom,kpss-wdt-ipq807x";
+			reg = <0xb017000 0x1000>;
+			interrupt-names = "bark_irq";
+			interrupts = <0 3 0>;
+			clocks = <&sleep_clk>;
+			timeout-sec = <10>;
+		};
+
 	};
 };
