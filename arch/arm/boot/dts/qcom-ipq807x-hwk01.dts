@@ -296,6 +296,8 @@
 		device_type = "network";
 		compatible = "qcom,nss-dp";
 		qcom,id = <1>;
+		reg = <0x3a001000 0x200>;
+		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 	};
 
@@ -303,6 +305,8 @@
 		device_type = "network";
 		compatible = "qcom,nss-dp";
 		qcom,id = <2>;
+		reg = <0x3a001200 0x200>;
+		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 	};
 
@@ -310,6 +314,8 @@
 		device_type = "network";
 		compatible = "qcom,nss-dp";
 		qcom,id = <3>;
+		reg = <0x3a001400 0x200>;
+		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 	};
 
@@ -317,6 +323,8 @@
 		device_type = "network";
 		compatible = "qcom,nss-dp";
 		qcom,id = <4>;
+		reg = <0x3a001600 0x200>;
+		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 	};
 

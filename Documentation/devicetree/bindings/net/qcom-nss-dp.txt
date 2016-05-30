@@ -7,6 +7,8 @@ Required properties:
 - compatible: = should be "qcom,nss-dp";
 - qcom,id: Unique Identifier for the GMAC block. This field is unique identifier
 		for each physical port.
+- reg: Base address and size for the Qcom/Synopsys Mac Register space
+- qcom,mactype: = 0 for Qcom GMAC, 1 for Synopsys GMAC.
 - local-mac-address: MAC Address to be used at the time of interface
 			initialization
 
@@ -16,5 +18,7 @@ dp1 {
 	device_type = "network";
 	compatible = "qcom,nss-dp";
 	qcom,id = <1>;
+	reg = <0x3a001000 0x200>;
+	qcom,mactype = <0>;
 	local-mac-address = [000000000000];
 };
