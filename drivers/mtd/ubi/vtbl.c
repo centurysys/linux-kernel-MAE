@@ -557,7 +557,8 @@ static int init_volumes(struct ubi_device *ubi,
 		vol->name[vol->name_len] = '\0';
 		vol->vol_id = i;
 
-		if (vtbl[i].flags & UBI_VTBL_AUTORESIZE_FLG) {
+		if (vtbl[i].flags & (UBI_VTBL_AUTORESIZE_FLG |
+				     UBI_VTBL_AUTORESIZE_FLG_LINUX)) {
 			/* Auto re-size flag may be set only for one volume */
 			if (ubi->autoresize_vol_id != -1) {
 				ubi_err(ubi, "more than one auto-resize volume (%d and %d)",

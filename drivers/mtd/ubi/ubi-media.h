@@ -92,6 +92,7 @@ enum {
  */
 enum {
 	UBI_VTBL_AUTORESIZE_FLG = 0x01,
+	UBI_VTBL_AUTORESIZE_FLG_LINUX = 0x02,
 };
 
 /*
