@@ -59,6 +59,7 @@ struct pptp_opt {
 	u32 ack_sent, ack_recv;
 	u32 seq_sent, seq_recv;
 	int ppp_flags;
+	bool pptp_offload_mode;
 };
 #include <net/sock.h>
 
@@ -121,6 +122,10 @@ struct pppoe_channel_ops {
 	void (*get_addressing)(struct ppp_channel *, struct pppoe_opt *);
 };
 
+/* PPTP client callback */
+typedef int (*pptp_gre_seq_offload_callback_t)(struct sk_buff *skb,
+					       struct net_device *pptp_dev);
+
 /* Return PPPoE channel specific addressing information */
 extern void pppoe_channel_addressing_get(struct ppp_channel *chan,
 					 struct pppoe_opt *addressing);
@@ -132,5 +137,21 @@ extern int pptp_session_find(struct pptp_opt *opt, __be16 peer_call_id,
 /* Return PPTP session information given the channel */
 extern void pptp_channel_addressing_get(struct pptp_opt *opt,
 					struct ppp_channel *chan);
+
+/* Enable the PPTP session offload flag */
+extern int pptp_session_enable_offload_mode(__be16 peer_call_id,
+					    __be32 peer_ip_addr);
+
+/* Disable the PPTP session offload flag */
+extern int pptp_session_disable_offload_mode(__be16 peer_call_id,
+					     __be32 peer_ip_addr);
+
+/* Register the PPTP GRE packets sequence number offload callback */
+extern int
+pptp_register_gre_seq_offload_callback(pptp_gre_seq_offload_callback_t
+				       pptp_client_cb);
+
+/* Unregister the PPTP GRE packets sequence number offload callback */
+extern void pptp_unregister_gre_seq_offload_callback(void);
 
 #endif /* !(__LINUX_IF_PPPOX_H) */
