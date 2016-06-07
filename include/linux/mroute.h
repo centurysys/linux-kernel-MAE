@@ -98,10 +98,48 @@ struct mfc_cache {
 #define MFC_HASH(a,b)	(((((__force u32)(__be32)a)>>24)^(((__force u32)(__be32)b)>>26))&(MFC_LINES-1))
 #else
 #define MFC_HASH(a,b)	((((__force u32)(__be32)a)^(((__force u32)(__be32)b)>>2))&(MFC_LINES-1))
-#endif		
+#endif
 
 struct rtmsg;
 extern int ipmr_get_route(struct net *net, struct sk_buff *skb,
 			  __be32 saddr, __be32 daddr,
 			  struct rtmsg *rtm, int nowait);
+
+#define IPMR_MFC_EVENT_UPDATE   1
+#define IPMR_MFC_EVENT_DELETE   2
+
+/*
+ * Callback to registered modules in the event of updates to a multicast group
+ */
+typedef void (*ipmr_mfc_event_offload_callback_t)(__be32 origin, __be32 group,
+						  u32 max_dest_dev,
+						  u32 dest_dev_idx[],
+						  u8 op);
+
+/*
+ * Register the callback used to inform offload modules when updates occur to
+ * MFC. The callback is registered by offload modules
+ */
+extern bool ipmr_register_mfc_event_offload_callback(
+			ipmr_mfc_event_offload_callback_t mfc_offload_cb);
+
+/*
+ * De-Register the callback used to inform offload modules when updates occur
+ * to MFC
+ */
+extern void ipmr_unregister_mfc_event_offload_callback(void);
+
+/*
+ * Find the destination interface list, given a multicast group and source
+ */
+extern int ipmr_find_mfc_entry(struct net *net, __be32 origin, __be32 group,
+				 u32 max_dst_cnt, u32 dest_dev[]);
+
+/*
+ * Out-of-band multicast statistics update for flows that are offloaded from
+ * Linux
+ */
+extern int ipmr_mfc_stats_update(struct net *net, __be32 origin, __be32 group,
+				 u64 pkts_in, u64 bytes_in,
+				 u64 pkts_out, u64 bytes_out);
 #endif
