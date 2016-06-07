@@ -1,7 +1,10 @@
 * Qualcomm NAND controller
 
 Required properties:
-- compatible:		should be "qcom,ebi2-nand" for IPQ806x
+- compatible:		should be "qcom,ebi2-nand" for IPQ806x. You'll also need
+			a compatible string for u-boots which populate the
+			devicetree with flash partitions, such as
+			"qcom,qcom_nand".
 - reg:			MMIO address range
 - clocks:		must contain core clock and always on clock
 - clock-names:		must contain "core" for the core clock and "aon" for the
@@ -31,7 +34,7 @@ address space. See partition.txt for more detail.
 Example:
 
 nand@1ac00000 {
-	compatible = "qcom,ebi2-nandc";
+	compatible = "qcom,ebi2-nandc","qcom.qcom_nand";
 	reg = <0x1ac00000 0x800>;
 
 	clocks = <&gcc EBI2_CLK>,

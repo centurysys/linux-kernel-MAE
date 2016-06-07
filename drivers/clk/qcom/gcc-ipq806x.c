@@ -2303,7 +2303,6 @@ static struct clk_branch usb_fs1_h_clk = {
 	},
 };
 
-#if 0
 static struct clk_branch ebi2_clk = {
 	.hwcg_reg = 0x3b00,
 	.hwcg_bit = 6,
@@ -2333,7 +2332,6 @@ static struct clk_branch ebi2_aon_clk = {
 		},
 	},
 };
-#endif
 
 static const struct freq_tbl clk_tbl_gmac[] = {
 	{ 133000000, P_PLL0, 1,  50, 301 },
@@ -3047,10 +3045,8 @@ static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[USB_FS1_XCVR_SRC] = &usb_fs1_xcvr_clk_src.clkr,
 	[USB_FS1_XCVR_CLK] = &usb_fs1_xcvr_clk.clkr,
 	[USB_FS1_SYSTEM_CLK] = &usb_fs1_sys_clk.clkr,
-#if 0
 	[EBI2_CLK] = &ebi2_clk.clkr,
 	[EBI2_AON_CLK] = &ebi2_aon_clk.clkr,
-#endif
 	[GMAC_CORE1_CLK_SRC] = &gmac_core1_src.clkr,
 	[GMAC_CORE1_CLK] = &gmac_core1_clk.clkr,
 	[GMAC_CORE2_CLK_SRC] = &gmac_core2_src.clkr,
