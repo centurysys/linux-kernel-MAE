@@ -57,6 +57,19 @@
 #define ATH8031_PHY_ID				0x004dd074
 #define ATH8035_PHY_ID				0x004dd072
 
+#ifdef CONFIG_KUMQUAT
+#define AT803X_SPEC_STATUS			0x11
+#define   AT803X_FIBER_STATUS_SPEED_MASK	0xc000
+#define   AT803X_FIBER_STATUS_SPEED_1000	0x8000
+#define   AT803X_FIBER_STATUS_SPEED_100		0x4000
+#define   AT803X_FIBER_STATUS_DUPLEX		BIT(13)
+#define   AT803X_FIBER_STATUS_RESOLVED		BIT(11)
+#define   AT803X_FIBER_STATUS_LINK		BIT(10)
+
+#define AT803X_CHIP_CONFIG			0x1F
+#define   AT803X_BT_BX_REG_SELL			BIT(15)
+#endif
+
 MODULE_DESCRIPTION("Atheros 803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
@@ -75,6 +88,106 @@ struct at803x_context {
 	u16 smart_speed;
 	u16 led_control;
 };
+
+#ifdef CONFIG_KUMQUAT
+static int at803x_config_aneg(struct phy_device *phydev)
+{
+	int mode;
+
+	mode = phy_read(phydev, AT803X_CHIP_CONFIG);
+	if (mode < 0)
+		return mode;	/* error */
+
+	if (mode & AT803X_BT_BX_REG_SELL)
+		return genphy_config_aneg(phydev);
+	else /* fiber mode */
+		return genphy_restart_aneg(phydev);
+}
+
+static int at803x_read_status(struct phy_device *phydev)
+{
+	int mode;
+	int status = 0;
+
+	mode = phy_read(phydev, AT803X_CHIP_CONFIG);
+	if (mode < 0)
+		return mode;	/* error */
+
+	if (mode & AT803X_BT_BX_REG_SELL)
+		return genphy_read_status(phydev);
+
+	/*
+	 *  fiber mode
+	 */
+	status = phy_read(phydev, AT803X_SPEC_STATUS);
+	if (status < 0)
+		return status;	/* error */
+
+	if (status & AT803X_FIBER_STATUS_LINK)
+		phydev->link = 1;
+	else
+		phydev->link = 0;
+
+	if (status & AT803X_FIBER_STATUS_DUPLEX)
+		phydev->duplex = DUPLEX_FULL;
+	else
+		phydev->duplex = DUPLEX_HALF;
+
+	status = status & AT803X_FIBER_STATUS_SPEED_MASK;
+	phydev->pause = phydev->asym_pause = 0;
+
+	switch (status) {
+	case AT803X_FIBER_STATUS_SPEED_1000:
+		phydev->speed = SPEED_1000;
+		break;
+	case AT803X_FIBER_STATUS_SPEED_100:
+		phydev->speed = SPEED_100;
+		break;
+	default:
+		phydev->speed = SPEED_10;
+	}
+
+	return 0;
+}
+
+static int at803x_update_link(struct phy_device *phydev)
+{
+	int mode;
+	int status = 0;
+
+	mode = phy_read(phydev, AT803X_CHIP_CONFIG);
+	if (mode < 0)
+		return mode;	/* error */
+
+	if (mode & AT803X_BT_BX_REG_SELL) {
+		/* Do a fake read */
+		status = phy_read(phydev, MII_BMSR);
+		if (status < 0)
+			return status;
+
+		/* Read link and autonegotiation status */
+		status = phy_read(phydev, MII_BMSR);
+		if (status < 0)
+			return status;
+
+		if ((status & BMSR_LSTATUS) == 0)
+			phydev->link = 0;
+		else
+			phydev->link = 1;
+	} else { /* fiber mode */
+		status = phy_read(phydev, AT803X_SPEC_STATUS);
+		if (status < 0)
+			return status;	/* error */
+
+		if (status & AT803X_FIBER_STATUS_LINK)
+			phydev->link = 1;
+		else
+			phydev->link = 0;
+	}
+
+	return 0;
+}
+#endif
 
 static u16
 at803x_dbg_reg_rmw(struct phy_device *phydev, u16 reg, u16 clear, u16 set)
@@ -475,6 +588,11 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
+#ifdef CONFIG_KUMQUAT
+	.config_aneg		= at803x_config_aneg,
+	.read_status		= at803x_read_status,
+	.update_link		= at803x_update_link,
+#endif
 	.driver			= {
 		.owner = THIS_MODULE,
 	},
