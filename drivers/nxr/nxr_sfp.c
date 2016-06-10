@@ -22,6 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_gpio.h>
 #include <linux/nxr/nxr_misc.h>
 #include <linux/nxr/nxr_debug.h>
 
@@ -184,134 +185,67 @@ static struct i2c_driver sfp_driver = {
 	.id_table	= sfp_id,
 };
 
-#ifdef CONFIG_NXR1300
-#include "../arch/powerpc/sysdev/nxr1300/nxr1300.h"
-
-#define SFP_PLUS1_MOD_OUT_IRQ	(0x80000000 >> 12)
-#define SFP_PLUS1_MOD_IN_IRQ	(0x80000000 >> 13)
-#define SFP_PLUS0_MOD_OUT_IRQ	(0x80000000 >> 14)
-#define SFP_PLUS0_MOD_IN_IRQ	(0x80000000 >> 15)
-#define SFP_PLUSx_MOD_MASK	(SFP_PLUS1_MOD_OUT_IRQ | SFP_PLUS1_MOD_IN_IRQ | SFP_PLUS0_MOD_OUT_IRQ | SFP_PLUS0_MOD_IN_IRQ)
-
-#define SFP1_MOD_OUT_IRQ	(0x80000000 >> 20)
-#define SFP1_MOD_IN_IRQ		(0x80000000 >> 21)
-#define SFP0_MOD_OUT_IRQ	(0x80000000 >> 22)
-#define SFP0_MOD_IN_IRQ		(0x80000000 >> 23)
-#define SFPx_MOD_MASK		(SFP1_MOD_OUT_IRQ | SFP1_MOD_IN_IRQ | SFP0_MOD_OUT_IRQ | SFP0_MOD_IN_IRQ)
-
 struct sfp_event {
-	int sfp_1g_irq;
-	int sfp_10g_irq;
+	int sfp_moddef_irq;
+	int sfp_moddef_gpio;
+	int sfp_tx_disable;
 	spinlock_t lock;
+};
+
+enum {
+	SFP_MOD_PRESENT = 0,
+	SFP_MOD_NOT_PRESENT,
 };
 
 struct sfp_event * g_event = NULL;
 
-static u32
-sfp_get_status(struct sfp_event * event)
+int
+nxr_sfp_tx_disable(void)
 {
-	u32 status = 0;
-	unsigned long flag;
+	if (!gpio_is_valid(g_event->sfp_tx_disable))
+		return -EIO;
 
-	spin_lock_irqsave(&event->lock, flag);
-	nxr1300_cpld_int_ctrl_stat1_get(&status);
-	spin_unlock_irqrestore(&event->lock, flag);
-#if 0
-	printk("INTCTLSTA1: %08x\n", status);
-#endif
+	gpio_direction_output(g_event->sfp_tx_disable, 1);
 
-	return status;
+	return 0;	
 }
+EXPORT_SYMBOL(nxr_sfp_tx_disable);
 
-static void
-sfp_10g_disable_irq(void)
+int
+nxr_sfp_tx_enable(void)
 {
-	nxr1300_cpld_int_input_mask1_clr(SFP_PLUSx_MOD_MASK);
-}
+	if (!gpio_is_valid(g_event->sfp_tx_disable))
+		return -EIO;
 
-static void
-sfp_10g_enable_irq(void)
-{
-	nxr1300_cpld_int_input_mask1_set(SFP_PLUSx_MOD_MASK);
-}
+	gpio_direction_output(g_event->sfp_tx_disable, 0);
 
-static void
-sfp_10g_clr_irq(void)
-{
-	nxr1300_cpld_int_ctrl_stat1_set(SFP_PLUSx_MOD_MASK);
+	return 0;
 }
+EXPORT_SYMBOL(nxr_sfp_tx_enable);
 
 static irqreturn_t
-sfp_10g_interrupt(int irq, void * data)
+sfp_moddef_interrupt(int irq, void * data)
 {
 	struct sfp_event * event = data;
-	u32 status;
+	int status;
 
-	status = sfp_get_status(event);
-	if (!(status & SFP_PLUSx_MOD_MASK))
-		return IRQ_NONE;
-
-	if (status & SFP_PLUS1_MOD_OUT_IRQ)
-		nxr_sfp_klogd(" Detaching SFP_PLUS1\n");
-	if (status & SFP_PLUS1_MOD_IN_IRQ)
-		nxr_sfp_klogd(" Attaching SFP_PLUS1\n");
-	if (status & SFP_PLUS0_MOD_OUT_IRQ)
-		nxr_sfp_klogd(" Detaching SFP_PLUS0\n");
-	if (status & SFP_PLUS0_MOD_IN_IRQ)
-		nxr_sfp_klogd(" Attaching SFP_PLUS0\n");
-
-	sfp_10g_clr_irq();
-
-	return IRQ_HANDLED;
-}
-
-static void
-sfp_1g_disable_irq(void)
-{
-	nxr1300_cpld_int_input_mask1_clr(SFPx_MOD_MASK);
-}
-
-static void
-sfp_1g_enable_irq(void)
-{
-	nxr1300_cpld_int_input_mask1_set(SFPx_MOD_MASK);
-}
-
-static void
-sfp_1g_clr_irq(void)
-{
-	nxr1300_cpld_int_ctrl_stat1_set(SFPx_MOD_MASK);
-}
-
-static irqreturn_t
-sfp_1g_interrupt(int irq, void * data)
-{
-	struct sfp_event * event = data;
-	u32 status;
-
-	status = sfp_get_status(event);
-	if (!(status & SFPx_MOD_MASK))
-		return IRQ_NONE;
-
-	if (status & SFP1_MOD_OUT_IRQ)
-		nxr_sfp_klogd(" Detaching SFP1\n");
-	if (status & SFP1_MOD_IN_IRQ)
-		nxr_sfp_klogd(" Attaching SFP1\n");
-	if (status & SFP0_MOD_OUT_IRQ)
-		nxr_sfp_klogd(" Detaching SFP0\n");
-	if (status & SFP0_MOD_IN_IRQ)
+	status = gpio_get_value_cansleep(event->sfp_moddef_gpio);
+	if (status == SFP_MOD_PRESENT) {
 		nxr_sfp_klogd(" Attaching SFP0\n");
+	} else {
+		nxr_sfp_klogd(" Detaching SFP0\n");
+	}
 	
-	sfp_1g_clr_irq();
-
 	return IRQ_HANDLED;
 }
 
 static int
-get_irq(const char * node)
+event_of_init(const char * node, struct sfp_event * event)
 {
 	struct device_node * np = NULL;
-	int ret;
+	int gpio, irq;
+	enum of_gpio_flags flags;
+	int ret = 0;
 
 	np = of_find_compatible_node(NULL, NULL, node);
 	if (!np) {
@@ -319,13 +253,48 @@ get_irq(const char * node)
 		return -ENODEV;
 	}
 
-	ret = of_irq_to_resource(np, 0, NULL);
-	if (ret == NO_IRQ) {
-		info("Can't get %s property '%s'\n", np->full_name, "interrupts");
-		return -EINVAL;
+	gpio = of_get_named_gpio_flags(np, "sfp-tx-disable", 0, &flags);
+	if (gpio_is_valid(gpio) == 0) {
+		info("Can't get %s property '%s'\n", np->full_name, "sfp-tx-disable");
+		goto fail1;
 	}
 
-	return ret;
+	ret = gpio_request(gpio, "sfp_tx_disable");
+	if (ret < 0) {
+		info("Failed to request GPIO %d, error %d\n", gpio, ret);
+		goto fail1;
+	}
+	event->sfp_tx_disable = gpio;
+
+	gpio = of_get_named_gpio_flags(np, "sfp-moddef", 0, &flags);
+	if (gpio_is_valid(gpio) == 0) {
+		info("Can't get %s property '%s'\n", np->full_name, "sfp-moddef");
+		gpio_free(event->sfp_tx_disable);
+		goto fail2;
+	}
+
+	ret = gpio_request(gpio, "sfp_moddef");
+	if (ret < 0) {
+		info("Failed to request GPIO %d, error %d\n", gpio, ret);
+		goto fail2;
+	}
+	event->sfp_moddef_gpio = gpio;
+
+	irq = gpio_to_irq(gpio);
+	if (irq < 0) {
+		info("Can't get irq property\n");
+		goto fail3;
+	}
+	event->sfp_moddef_irq = irq;
+
+	return 0;
+fail3:
+	gpio_free(event->sfp_moddef_gpio);
+fail2:
+	gpio_free(event->sfp_tx_disable);
+fail1:
+
+	return -EINVAL;
 }
 
 static int
@@ -340,42 +309,17 @@ event_init(void)
 
 	spin_lock_init(&event->lock);
 
-	/* 10G */
-	ret = get_irq("nxr,sfp0");
+	ret = event_of_init("nxr,sfp0", event);
 	if (ret < 0)
 		return ret;
 
-	event->sfp_10g_irq = ret;
-
-	ret = request_irq(event->sfp_10g_irq, sfp_10g_interrupt, IRQF_SHARED, "sfp-10g", event);
-	if (ret) {
-		err("failed to install irq (%d)\n", event->sfp_10g_irq);
-		return ret;
-	}
-
-	/* 1G */
-	ret = get_irq("nxr,sfp2");
+	ret = request_any_context_irq(event->sfp_moddef_irq, sfp_moddef_interrupt,
+			IRQF_SHARED | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			"sfp0-moddef", event);
 	if (ret < 0) {
-		free_irq(event->sfp_10g_irq, NULL);
+		err("failed to install irq (%d)\n", event->sfp_moddef_irq);
 		return ret;
 	}
-
-	event->sfp_1g_irq = ret;
-
-	ret = request_irq(event->sfp_1g_irq, sfp_1g_interrupt, IRQF_SHARED, "sfp-1g", event);
-	if (ret) {
-		err("failed to install irq (%d)\n", event->sfp_1g_irq);
-		free_irq(event->sfp_10g_irq, NULL);
-		return ret;
-	}
-
-	nxr1300_cpld_int_input_mask1_clr(SFP_PLUSx_MOD_MASK | SFPx_MOD_MASK);
-	nxr1300_cpld_int_output_mask1_set(SFP_PLUSx_MOD_MASK | SFPx_MOD_MASK);
-
-	g_event = event;
-
-	sfp_10g_enable_irq();
-	sfp_1g_enable_irq();
 
 	return 0;
 }
@@ -384,13 +328,17 @@ static void
 event_exit(void)
 {
 	if (g_event) {
-		free_irq(g_event->sfp_10g_irq, NULL);
-		free_irq(g_event->sfp_1g_irq, NULL);
+		if (gpio_is_valid(g_event->sfp_tx_disable))
+			gpio_free(g_event->sfp_tx_disable);
+
+		if (gpio_is_valid(g_event->sfp_moddef_gpio)) {
+			free_irq(g_event->sfp_moddef_irq, NULL);
+			gpio_free(g_event->sfp_moddef_gpio);
+		}
+
 		kfree(g_event);
 	}
 }
-
-#endif
 
 static int __init
 sfp_init(void)
@@ -403,11 +351,9 @@ sfp_init(void)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_NXR1300
 	ret = event_init();
 	if (ret)
 		return ret;
-#endif
 
 	return 0;
 }
@@ -416,9 +362,7 @@ static void __exit
 sfp_exit(void)
 {
 	i2c_del_driver(&sfp_driver);
-#ifdef CONFIG_NXR1300
 	event_exit();
-#endif
 }
 
 module_init(sfp_init);
