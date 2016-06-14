@@ -57,7 +57,7 @@
 #define ATH8031_PHY_ID				0x004dd074
 #define ATH8035_PHY_ID				0x004dd072
 
-#ifdef CONFIG_KUMQUAT
+#ifdef CONFIG_NXR_SFP
 #define AT803X_SPEC_STATUS			0x11
 #define   AT803X_FIBER_STATUS_SPEED_MASK	0xc000
 #define   AT803X_FIBER_STATUS_SPEED_1000	0x8000
@@ -89,31 +89,36 @@ struct at803x_context {
 	u16 led_control;
 };
 
-#ifdef CONFIG_KUMQUAT
+#ifdef CONFIG_NXR_SFP
+static int at803x_start(struct phy_device *phydev)
+{
+        if (phydev->phy_media == PHY_MEDIA_FIBER)
+		nxr_sfp_tx_enable();
+
+	return 0;
+}
+
+static int at803x_stop(struct phy_device *phydev)
+{
+        if (phydev->phy_media == PHY_MEDIA_FIBER)
+		nxr_sfp_tx_disable();
+
+	return 0;
+}
+
 static int at803x_config_aneg(struct phy_device *phydev)
 {
-	int mode;
-
-	mode = phy_read(phydev, AT803X_CHIP_CONFIG);
-	if (mode < 0)
-		return mode;	/* error */
-
-	if (mode & AT803X_BT_BX_REG_SELL)
-		return genphy_config_aneg(phydev);
-	else /* fiber mode */
+        if (phydev->phy_media == PHY_MEDIA_FIBER)
 		return genphy_restart_aneg(phydev);
+	else
+		return genphy_config_aneg(phydev);
 }
 
 static int at803x_read_status(struct phy_device *phydev)
 {
-	int mode;
 	int status = 0;
 
-	mode = phy_read(phydev, AT803X_CHIP_CONFIG);
-	if (mode < 0)
-		return mode;	/* error */
-
-	if (mode & AT803X_BT_BX_REG_SELL)
+        if (phydev->phy_media != PHY_MEDIA_FIBER)
 		return genphy_read_status(phydev);
 
 	/*
@@ -152,14 +157,18 @@ static int at803x_read_status(struct phy_device *phydev)
 
 static int at803x_update_link(struct phy_device *phydev)
 {
-	int mode;
 	int status = 0;
 
-	mode = phy_read(phydev, AT803X_CHIP_CONFIG);
-	if (mode < 0)
-		return mode;	/* error */
+        if (phydev->phy_media == PHY_MEDIA_FIBER) {
+		status = phy_read(phydev, AT803X_SPEC_STATUS);
+		if (status < 0)
+			return status;	/* error */
 
-	if (mode & AT803X_BT_BX_REG_SELL) {
+		if (status & AT803X_FIBER_STATUS_LINK)
+			phydev->link = 1;
+		else
+			phydev->link = 0;
+	} else {
 		/* Do a fake read */
 		status = phy_read(phydev, MII_BMSR);
 		if (status < 0)
@@ -174,15 +183,6 @@ static int at803x_update_link(struct phy_device *phydev)
 			phydev->link = 0;
 		else
 			phydev->link = 1;
-	} else { /* fiber mode */
-		status = phy_read(phydev, AT803X_SPEC_STATUS);
-		if (status < 0)
-			return status;	/* error */
-
-		if (status & AT803X_FIBER_STATUS_LINK)
-			phydev->link = 1;
-		else
-			phydev->link = 0;
 	}
 
 	return 0;
@@ -224,7 +224,6 @@ at803x_dbg_reg_clr(struct phy_device *phydev, u16 reg, u16 clear)
 {
 	at803x_dbg_reg_rmw(phydev, reg, clear, 0);
 }
-
 
 /* save relevant PHY registers to private copy */
 static void at803x_context_save(struct phy_device *phydev,
@@ -442,6 +441,17 @@ static int at803x_config_init(struct phy_device *phydev)
 				AT803X_DEBUG_RGMII_TX_CLK_DLY);
 	}
 
+#ifdef CONFIG_NXR_SFP
+	val = phy_read(phydev, AT803X_CHIP_CONFIG);
+	if (val < 0)
+		return val;	/* error */
+
+	if ((val & AT803X_BT_BX_REG_SELL) == 0)
+		phydev->phy_media = PHY_MEDIA_FIBER;
+	else
+		phydev->phy_media = PHY_MEDIA_CAT5;
+#endif
+
 	return 0;
 }
 
@@ -588,10 +598,12 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
-#ifdef CONFIG_KUMQUAT
-	.config_aneg		= at803x_config_aneg,
-	.read_status		= at803x_read_status,
-	.update_link		= at803x_update_link,
+#ifdef CONFIG_NXR_SFP
+	.config_aneg	= at803x_config_aneg,
+	.read_status	= at803x_read_status,
+	.update_link	= at803x_update_link,
+	.phy_start	= at803x_start,
+	.phy_stop	= at803x_stop,
 #endif
 	.driver			= {
 		.owner = THIS_MODULE,

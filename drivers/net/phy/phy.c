@@ -795,6 +795,10 @@ void phy_stop(struct phy_device *phydev)
 
 	phydev->state = PHY_HALTED;
 
+#ifdef CONFIG_NXR_G200
+	if (phydev->drv->phy_stop)
+		phydev->drv->phy_stop(phydev);
+#endif
 out_unlock:
 	mutex_unlock(&phydev->lock);
 
@@ -841,6 +845,11 @@ void phy_start(struct phy_device *phydev)
 	default:
 		break;
 	}
+
+#ifdef CONFIG_NXR_G200
+	if (phydev->drv->phy_start)
+		phydev->drv->phy_start(phydev);
+#endif
 	mutex_unlock(&phydev->lock);
 
 	/* if phy was suspended, bring the physical link up again */

@@ -214,6 +214,9 @@ EXPORT_SYMBOL(nxr_sfp_tx_disable);
 int
 nxr_sfp_tx_enable(void)
 {
+	if (!g_event)
+		return -EIO;
+
 	if (!gpio_is_valid(g_event->sfp_tx_disable))
 		return -EIO;
 
@@ -306,22 +309,26 @@ event_init(void)
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
 		return -ENOMEM;
-
 	spin_lock_init(&event->lock);
+
+	g_event = event;
 
 	ret = event_of_init("nxr,sfp0", event);
 	if (ret < 0)
-		return ret;
+		goto fail;
 
 	ret = request_any_context_irq(event->sfp_moddef_irq, sfp_moddef_interrupt,
 			IRQF_SHARED | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"sfp0-moddef", event);
 	if (ret < 0) {
 		err("failed to install irq (%d)\n", event->sfp_moddef_irq);
-		return ret;
+		goto fail;
 	}
-
 	return 0;
+fail:
+	kfree(g_event);
+
+	return ret;
 }
 
 static void

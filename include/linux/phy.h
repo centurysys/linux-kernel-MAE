@@ -434,7 +434,20 @@ struct phy_device {
 	u8 mdix;
 
 	void (*adjust_link)(struct net_device *dev);
+
+#endif
+#ifdef CONFIG_NXR_SFP
+	int phy_media;
+#endif
 };
+
+#ifdef CONFIG_NXR_SFP
+enum {
+	PHY_NON_MEDIA = 0,
+	PHY_MEDIA_FIBER,
+	PHY_MEDIA_CAT5,
+};
+#endif
 #define to_phy_device(d) container_of(d, struct phy_device, dev)
 
 /* struct phy_driver: Driver structure for a particular PHY type
@@ -600,6 +613,11 @@ struct phy_driver {
 	/* Get the eeprom information from the plug-in module */
 	int (*module_eeprom)(struct phy_device *dev,
 			     struct ethtool_eeprom *ee, u8 *data);
+
+#ifdef CONFIG_NXR_SFP
+	int (*phy_start)(struct phy_device *dev);
+	int (*phy_stop)(struct phy_device *dev);
+#endif
 
 	struct device_driver driver;
 };
