@@ -168,7 +168,7 @@
 
 		sdhc_1: sdhci@7824900 {
 			compatible = "qcom,sdhci-msm";
-			reg = <0x7824900 0x11c>, <0x7824000 0x800>;
+			reg = <0x7824900 0x500>, <0x7824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 
 			interrupts = <0 123 0>, <0 138 0>;
@@ -199,20 +199,16 @@
 				<78 512 261438 800000>, /* 200 MB/s */
 				<78 512 261438 800000>, /* 400 MB/s */
 				<78 512 1338562 4096000>; /* Max. bandwidth */
-			qcom,bus-bw-vectors-bps = <0 400000 20000000 25000000 50000000
-				100000000 200000000 400000000 4294967295>;
+			qcom,bus-bw-vectors-bps = <0 400000 20000000 25000000 \
+						50000000 100000000 200000000 \
+						400000000 4294967295>;
 
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "iface_clk", "core_clk";
 			qcom,large-address-bus;
 
-			qcom,clk-rates = <400000 25000000 50000000 100000000 192000000 384000000>;
-			qcom,bus-speed-mode = "HS400_1p8v", "HS200_1p8v", "DDR_1p8v";
-			pinctrl-names = "active", "sleep";
-			pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on &sdc1_rclk_on>;
-			pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off &sdc1_rclk_off>;
-
-			qcom,nonremovable;
-			status = "ok";
+			status = "disabled";
 		};
 
 		tcsr_mutex_block: syscon@193d000 {

@@ -195,6 +195,11 @@
 #define MAX_DRV_TYPES_SUPPORTED_HS200	4
 #define MSM_AUTOSUSPEND_DELAY_MS 100
 
+#define SDHCI_ASYNC_INT_SUPPORT	BIT(29)
+#define SDHCI_MAX_BLK_LENGTH		BIT(16)
+#define SDHCI_BASE_SDCLK_FREQ		0xc800
+#define SDHCI_TIMEOUT_CLK_FREQ		0xb2
+
 static const u32 tuning_block_64[] = {
 	0x00FF0FFF, 0xCCC3CCFF, 0xFFCC3CC3, 0xEFFEFFFE,
 	0xDDFFDFFF, 0xFBFFFBFF, 0xFF7FFFBF, 0xEFBDF777,
@@ -3091,6 +3096,15 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 			FF_CLK_SW_RST_DIS, msm_host->core_mem + CORE_HC_MODE);
 
 	sdhci_set_default_hw_caps(msm_host, host);
+
+	/* Enable SDCC supported capabilities */
+	host->caps = SDHCI_CAN_VDD_300 | SDHCI_CAN_VDD_180 |
+			SDHCI_ASYNC_INT_SUPPORT |
+			SDHCI_CAN_64BIT | SDHCI_CAN_DO_HISPD |
+			SDHCI_CAN_DO_ADMA2 | SDHCI_CAN_DO_8BIT |
+			SDHCI_MAX_BLK_LENGTH | SDHCI_TIMEOUT_CLK_UNIT |
+			SDHCI_BASE_SDCLK_FREQ | SDHCI_TIMEOUT_CLK_FREQ;
+	host->quirks  |= SDHCI_QUIRK_MISSING_CAPS;
 
 	/*
 	 * Set the PAD_PWR_SWTICH_EN bit so that the PAD_PWR_SWITCH bit can
