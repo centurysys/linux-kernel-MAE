@@ -1,7 +1,7 @@
 #include "qcom-ipq8064-ap148.dts"
 
 / {
-	model = "Qualcomm IPQ8064/AP148 - NAND boot";
+	model = "Qualcomm IPQ8064/AP148";
 
 	chosen {
 		bootargs-append = " root=/dev/ubiblock0_1 rootfstype=squashfs rootwait";
