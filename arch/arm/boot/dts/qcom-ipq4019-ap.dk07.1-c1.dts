@@ -19,4 +19,13 @@
 / {
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK07.1-C1";
 
+	soc {
+		wifi0: wifi@a000000 {
+			btcoex_support = <1>;
+		};
+
+		wifi1: wifi@a800000 {
+			btcoex_support = <0>;
+		};
+	};
 };
