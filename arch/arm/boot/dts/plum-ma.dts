@@ -503,6 +503,41 @@
 		};
 	};
 
+	leds_aux: leds_aux {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "AUX_LED_G3";
+			gpios = <&gpiox_0x22 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "AUX_LED_G2";
+			gpios = <&gpiox_0x22 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "AUX_LED_G1";
+			gpios = <&gpiox_0x22 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "AUX_LED_R3";
+			gpios = <&gpiox_0x22 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "AUX_LED_R2";
+			gpios = <&gpiox_0x22 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "AUX_LED_R1";
+			gpios = <&gpiox_0x22 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	aliases {
 		xio_02 = &xio_02;
 		xio_03 = &xio_03;
@@ -535,6 +570,8 @@
 		xio_1e = &xio_1d_1e;
 
 		xio_21 = &xio_21;
+		xio_22 = &xio_22_23;
+		xio_23 = &xio_22_23;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -684,6 +721,14 @@
 			   &gpiox_0x18
 			   &gpiox_0x04_lisa
 			   &leds_foma &leds_foma_ctrl>;
+	};
+
+	/* XIO: (id: 0x22/0x23) FXS_AMP */
+	xio_22_23: xio@0x22_23 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04_lisa
+			   &gpiox_0x10 &gpiox_0x12_FXS &gpiox_0x14 &gpiox_0x22
+			   &leds_amp_wlan_ctrl &leds_foma &leds_aux>;
 	};
 };
 
@@ -1501,6 +1546,35 @@
 		};
 	};
 
+	/* Mobile Status */
+	gpiox_0x12_FXS: gpio@2,0x12_FXS {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@1 {
+			label = "ModuleMainPowerGood";
+			reg = <1>;
+		};
+
+		stat@3 {
+			label = "RI";
+			reg = <3>;
+		};
+	};
+
 	/* FOMA LED */
 	gpiox_0x14: gpio@2,0x14 {
 		reg = <2 0x00000014 0x00000001>;
@@ -1526,6 +1600,17 @@
 	/* UART@0x30 TxEnable/RxEnable */
 	gpiox_0x1a: gpio@2,0x1a {
 		reg = <2 0x0000001a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* AUX LED Control */
+	gpiox_0x22: gpio@2,0x22 {
+		reg = <2 0x00000022 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
