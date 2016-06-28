@@ -538,6 +538,48 @@
 		};
 	};
 
+	leds_fxs1: leds_fxs1 {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "FXS1_PowerEnable";
+			gpios = <&gpiox_0x30 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "FXS1_PowerControlMode";
+			gpios = <&gpiox_0x30 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "FXS1_VDCPowerEnable";
+			gpios = <&gpiox_0x30 2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	leds_fxs2: leds_fxs2 {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "FXS2_PowerEnable";
+			gpios = <&gpiox_0x34 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "FXS2_PowerControlMode";
+			gpios = <&gpiox_0x34 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "FXS2_VDCPowerEnable";
+			gpios = <&gpiox_0x34 2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
 	aliases {
 		xio_02 = &xio_02;
 		xio_03 = &xio_03;
@@ -728,7 +770,9 @@
 		#size-cells = <0>;
 		devices = <&gpiox_0x04_lisa
 			   &gpiox_0x10 &gpiox_0x12_FXS &gpiox_0x14 &gpiox_0x22
-			   &leds_amp_wlan_ctrl &leds_foma &leds_aux>;
+			   &gpiox_0x30 &gpiox_0x34
+			   &leds_amp_wlan_ctrl &leds_foma &leds_aux
+			   &leds_fxs1 &leds_fxs2>;
 	};
 };
 
@@ -1611,6 +1655,28 @@
 	/* AUX LED Control */
 	gpiox_0x22: gpio@2,0x22 {
 		reg = <2 0x00000022 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* FXS1 Control */
+	gpiox_0x30: gpio@2,0x30 {
+		reg = <2 0x00000030 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* FXS2 Control */
+	gpiox_0x34: gpio@2,0x34 {
+		reg = <2 0x00000034 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
