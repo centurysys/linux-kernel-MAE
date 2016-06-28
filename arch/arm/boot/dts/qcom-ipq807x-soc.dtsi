@@ -130,7 +130,10 @@
 		serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
-			interrupts = <0x0 0x1c 0x0>;
+			interrupts = <0x0 0x1c 0x0>,
+					<0x0 377 0x1>,
+					<0x0 378 0x1>,
+					<0x0 379 0x1>;
 			status = "ok";
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				 <&gcc GCC_DUMMY_CLK>;
@@ -156,6 +159,12 @@
 			qcom,bam-producer-pipe-index = <5>;
 			qcom,master-id = <0>;
 			status = "disabled";
+		};
+
+		q6v5_wcss@C900000 {
+			compatible = "qcom,q6v5-wcss-rproc";
+			firmware = "q6-wcss-boot";
+			reg = <0xC900000 0x4040>;
 		};
 
 		qcom_rng: qrng@e1000 {
