@@ -165,7 +165,7 @@ int macronix_parse_id(struct spi_device *spi_nand,
 int winbond_parse_id(struct spi_device *spi_nand,
 		     struct spinand_ops *ops, u8 *nand_id, u8 *id)
 {
-	if (nand_id[1] != NAND_MFR_WINBOND)
+	if (!(nand_id[1] == NAND_MFR_WINBOND && nand_id[2] == ops->dev_id))
 		return -EINVAL;
 
 	return 0;
