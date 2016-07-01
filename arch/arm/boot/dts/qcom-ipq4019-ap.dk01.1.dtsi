@@ -106,5 +106,13 @@
 			};
 		};
 
+		wifi0: wifi@a000000 {
+			wifi-led-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
+		};
+
+		wifi1: wifi@a800000 {
+			wifi-led-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
+		};
+
 	};
 };

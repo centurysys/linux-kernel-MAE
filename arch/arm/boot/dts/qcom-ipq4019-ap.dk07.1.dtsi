@@ -228,5 +228,15 @@
 				linux,input-type = <1>;
 			};
 		};
+
+		wifi0: wifi@a000000 {
+			wifi-led-gpios = <&tlmm 32 GPIO_ACTIVE_LOW>;    /* wifi0 led */
+			wifi-rssi-gpios = <&tlmm 36 GPIO_ACTIVE_LOW>;   /* wifi0 signal strength led */
+		};
+
+		wifi1: wifi@a800000 {
+			wifi-led-gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;    /* wifi1 led */
+			wifi-rssi-gpios = <&tlmm 39 GPIO_ACTIVE_LOW>;   /* wifi1 signal strength led */
+		};
 	};
 };

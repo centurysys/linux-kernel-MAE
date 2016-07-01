@@ -289,5 +289,15 @@
 				linux,input-type = <1>;
 			};
 		};
+
+		wifi0: wifi@a000000 {
+			wifi_led_num = <2>;         /* Wifi 2G */
+			wifi_led_source = <0>;      /* source id 0 */
+		};
+
+		wifi1: wifi@a800000 {
+			wifi_led_num = <1>;         /* Wifi 5G */
+			wifi_led_source = <2>;      /* source id 2 */
+		};
 	};
 };
