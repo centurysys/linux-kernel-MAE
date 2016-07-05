@@ -26,5 +26,21 @@
 			compatible = "qcom,gobi-9x35";
 			status = "ok";
 		};
+
+		gpio_keys {
+			compatible = "gpio-keys";
+			button@1 {
+				label = "wps";
+				linux,code = <KEY_WPS_BUTTON>;
+				gpios = <&tlmm 52 GPIO_ACTIVE_LOW>;
+				linux,input-type = <1>;
+			};
+			button@2 {
+				label = "reset";
+				linux,code = <KEY_RESTART>;
+				gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
+				linux,input-type = <1>;
+			};
+		};
 	};
 };
