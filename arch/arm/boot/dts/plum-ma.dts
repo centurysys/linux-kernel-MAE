@@ -550,6 +550,7 @@
 		led@x2 {
 			label = "FXS1_PowerControlMode";
 			gpios = <&gpiox_0x30 1 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 
 		led@x3 {
@@ -571,6 +572,7 @@
 		led@x2 {
 			label = "FXS2_PowerControlMode";
 			gpios = <&gpiox_0x34 1 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 
 		led@x3 {
