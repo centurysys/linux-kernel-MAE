@@ -20,8 +20,36 @@
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK07.1-C1";
 
 	soc {
+		pinctrl@0x01000000 {
+			wifi_0_pins: wifi1_pinmux {
+				mux_1 {
+					pins = "gpio37";
+					output-high;
+					function="wcss0_dbg16";
+					bias-pull-up;
+					drive-strength = <6>;
+				};
+				mux_2 {
+					pins = "gpio43";
+					function="wifi_wci1";
+					bias-pull-up;
+					drive-strength = <6>;
+				};
+				mux_3 {
+					pins = "gpio52";
+					output-high;
+					function="gpio";
+					bias-pull-up;
+					drive-strength = <6>;
+				};
+			};
+		};
+
 		wifi0: wifi@a000000 {
+			pinctrl-0 = <&wifi_0_pins>;
+			pinctrl-names = "default";
 			btcoex_support = <1>;
+			wlan_prio_gpio = <52>;
 		};
 
 		wifi1: wifi@a800000 {
