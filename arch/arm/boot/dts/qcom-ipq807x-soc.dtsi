@@ -162,10 +162,10 @@
 			status = "disabled";
 		};
 
-		q6v5_wcss@C900000 {
+		q6v5_wcss@CD00000 {
 			compatible = "qcom,q6v5-wcss-rproc";
 			firmware = "q6-wcss-boot";
-			reg = <0xC900000 0x4040>;
+			reg = <0xCD00000 0x4040>;
 		};
 
 		qcom_rng: qrng@e1000 {
