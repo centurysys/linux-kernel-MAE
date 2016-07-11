@@ -638,6 +638,37 @@ static int prep_dma_desc_command(struct qcom_nand_controller *nandc, bool read,
 	return 0;
 }
 
+/*
+ * Prepares the data descriptor for BAM DMA which will be used for NAND
+ * data read and write.
+ */
+static int prep_dma_desc_data_bam(struct qcom_nand_controller *nandc, bool read,
+					int reg_off, const void *vaddr,
+					int size, unsigned int flags)
+{
+	struct bam_transaction *bam_txn = nandc->bam_txn;
+
+	if (read) {
+		sg_set_buf(&bam_txn->rx_sgl[bam_txn->rx_sgl_cnt].sgl,
+				vaddr, size);
+		bam_txn->rx_sgl[bam_txn->rx_sgl_cnt].dma_flags = 0;
+		bam_txn->rx_sgl_cnt++;
+	} else {
+		sg_set_buf(&bam_txn->tx_sgl[bam_txn->tx_sgl_cnt].sgl,
+				vaddr, size);
+		if (flags & DMA_DESC_FLAG_NO_EOT)
+			bam_txn->tx_sgl[bam_txn->tx_sgl_cnt].dma_flags = 0;
+		else
+			bam_txn->tx_sgl[bam_txn->tx_sgl_cnt].dma_flags =
+				DESC_FLAG_EOT;
+
+		bam_txn->tx_sgl_cnt++;
+	}
+
+	return 0;
+}
+
+/* Prepares the dma desciptor for adm dma engine */
 static int prep_dma_desc(struct qcom_nand_controller *nandc, bool read,
 			 int reg_off, const void *vaddr, int size,
 			 bool flow_control)
