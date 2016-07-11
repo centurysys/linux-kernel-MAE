@@ -250,6 +250,7 @@ struct desc_info {
 	enum dma_data_direction dir;
 	struct scatterlist sgl;
 	struct dma_async_tx_descriptor *dma_desc;
+	struct qcom_bam_custom_data bam_desc_data;
 };
 
 /*
@@ -1124,17 +1125,95 @@ static int reset(struct qcom_nand_host *host)
 	return 0;
 }
 
+static int prepare_bam_async_desc(struct qcom_nand_controller *nandc,
+				struct dma_chan *chan,
+				struct qcom_bam_sgl *bam_sgl,
+				int sgl_cnt,
+				enum dma_transfer_direction direction)
+{
+	struct desc_info *desc;
+	struct dma_async_tx_descriptor *dma_desc;
+
+	if (!qcom_bam_map_sg(nandc->dev, bam_sgl, sgl_cnt, direction)) {
+		dev_err(nandc->dev, "failure in mapping sgl\n");
+		return -ENOMEM;
+	}
+
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc) {
+		qcom_bam_unmap_sg(nandc->dev, bam_sgl, sgl_cnt, direction);
+		return -ENOMEM;
+	}
+
+
+	desc->bam_desc_data.dir = direction;
+	desc->bam_desc_data.sgl_cnt = sgl_cnt;
+	desc->bam_desc_data.bam_sgl = bam_sgl;
+
+	dma_desc = dmaengine_prep_dma_custom_mapping(chan,
+			&desc->bam_desc_data,
+			0);
+
+	if (!dma_desc) {
+		dev_err(nandc->dev, "failure in cmd prep desc\n");
+		qcom_bam_unmap_sg(nandc->dev, bam_sgl, sgl_cnt, direction);
+		kfree(desc);
+		return -EINVAL;
+	}
+
+	desc->dma_desc = dma_desc;
+
+	list_add_tail(&desc->node, &nandc->desc_list);
+
+	return 0;
+
+}
+
 /* helpers to submit/free our list of dma descriptors */
 static int submit_descs(struct qcom_nand_controller *nandc)
 {
 	struct desc_info *desc;
 	dma_cookie_t cookie = 0;
+	struct bam_transaction *bam_txn = nandc->bam_txn;
+	int r;
+
+	if (nandc->dma_bam_enabled) {
+		if (bam_txn->rx_sgl_cnt) {
+			r = prepare_bam_async_desc(nandc, nandc->rx_chan,
+				bam_txn->rx_sgl, bam_txn->rx_sgl_cnt,
+				DMA_DEV_TO_MEM);
+			if (r)
+				return r;
+		}
+
+		if (bam_txn->tx_sgl_cnt) {
+			r = prepare_bam_async_desc(nandc, nandc->tx_chan,
+				bam_txn->tx_sgl, bam_txn->tx_sgl_cnt,
+				DMA_MEM_TO_DEV);
+			if (r)
+				return r;
+		}
+
+		r = prepare_bam_async_desc(nandc, nandc->cmd_chan,
+			bam_txn->cmd_sgl, bam_txn->cmd_sgl_cnt,
+			DMA_MEM_TO_DEV);
+		if (r)
+			return r;
+	}
 
 	list_for_each_entry(desc, &nandc->desc_list, node)
 		cookie = dmaengine_submit(desc->dma_desc);
 
-	if (dma_sync_wait(nandc->chan, cookie) != DMA_COMPLETE)
-		return -ETIMEDOUT;
+	if (nandc->dma_bam_enabled) {
+		dma_async_issue_pending(nandc->tx_chan);
+		dma_async_issue_pending(nandc->rx_chan);
+
+		if (dma_sync_wait(nandc->cmd_chan, cookie) != DMA_COMPLETE)
+			return -ETIMEDOUT;
+	} else {
+		if (dma_sync_wait(nandc->chan, cookie) != DMA_COMPLETE)
+			return -ETIMEDOUT;
+	}
 
 	return 0;
 }
@@ -1145,7 +1224,16 @@ static void free_descs(struct qcom_nand_controller *nandc)
 
 	list_for_each_entry_safe(desc, n, &nandc->desc_list, node) {
 		list_del(&desc->node);
-		dma_unmap_sg(nandc->dev, &desc->sgl, 1, desc->dir);
+
+		if (nandc->dma_bam_enabled)
+			qcom_bam_unmap_sg(nandc->dev,
+				desc->bam_desc_data.bam_sgl,
+				desc->bam_desc_data.sgl_cnt,
+				desc->bam_desc_data.dir);
+		else
+			dma_unmap_sg(nandc->dev, &desc->sgl, 1,
+				desc->dir);
+
 		kfree(desc);
 	}
 }
