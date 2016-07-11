@@ -55,6 +55,8 @@
 #define	NAND_VERSION			0xf08
 #define	NAND_READ_LOCATION_0		0xf20
 #define	NAND_READ_LOCATION_1		0xf24
+#define	NAND_READ_LOCATION_2		0xf28
+#define	NAND_READ_LOCATION_3		0xf2c
 
 /* dummy register offsets, used by write_reg_dma */
 #define	NAND_DEV_CMD1_RESTORE		0xdead
@@ -133,6 +135,11 @@
 #define	ERASED_PAGE			(PAGE_ALL_ERASED | PAGE_ERASED)
 #define	ERASED_CW			(CODEWORD_ALL_ERASED | CODEWORD_ERASED)
 
+/* NAND_READ_LOCATION_n bits */
+#define READ_LOCATION_OFFSET		0
+#define READ_LOCATION_SIZE		16
+#define READ_LOCATION_LAST		31
+
 /* Version Mask */
 #define	NAND_VERSION_MAJOR_MASK		0xf0000000
 #define	NAND_VERSION_MAJOR_SHIFT	28
@@ -178,6 +185,11 @@
 #define DMA_DESC_FLAG_BAM_NWD		(0x0002)
 /* Close current sgl and start writing in another sgl */
 #define DMA_DESC_FLAG_BAM_NEXT_SGL	(0x0004)
+/*
+ * Erased codeword status is being used two times in single transfer so this
+ * flag will determine the current value of erased codeword status register
+ */
+#define DMA_DESC_ERASED_CW_SET		(0x0008)
 
 /* Returns the dma address for reg read buffer */
 #define REG_BUF_DMA_ADDR(chip, vaddr) \
@@ -263,6 +275,13 @@ struct nandc_regs {
 	__le32 orig_vld;
 
 	__le32 ecc_buf_cfg;
+	__le32 read_location0;
+	__le32 read_location1;
+	__le32 read_location2;
+	__le32 read_location3;
+
+	__le32 erased_cw_detect_cfg_clr;
+	__le32 erased_cw_detect_cfg_set;
 };
 
 /*
@@ -500,6 +519,16 @@ static __le32 *offset_to_nandc_reg(struct nandc_regs *regs, int offset)
 		return &regs->orig_vld;
 	case NAND_EBI2_ECC_BUF_CFG:
 		return &regs->ecc_buf_cfg;
+	case NAND_BUFFER_STATUS:
+		return &regs->clrreadstatus;
+	case NAND_READ_LOCATION_0:
+		return &regs->read_location0;
+	case NAND_READ_LOCATION_1:
+		return &regs->read_location1;
+	case NAND_READ_LOCATION_2:
+		return &regs->read_location2;
+	case NAND_READ_LOCATION_3:
+		return &regs->read_location3;
 	default:
 		return NULL;
 	}
@@ -541,7 +570,7 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read)
 {
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
-	u32 cmd, cfg0, cfg1, ecc_bch_cfg;
+	u32 cmd, cfg0, cfg1, ecc_bch_cfg, read_location0;
 
 	if (read) {
 		if (host->use_ecc)
@@ -558,12 +587,20 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read)
 
 		cfg1 = host->cfg1;
 		ecc_bch_cfg = host->ecc_bch_cfg;
+		if (read)
+			read_location0 = (0 << READ_LOCATION_OFFSET) |
+				(host->cw_data << READ_LOCATION_SIZE) |
+				(1 << READ_LOCATION_LAST);
 	} else {
 		cfg0 = (host->cfg0_raw & ~(7U << CW_PER_PAGE)) |
 				(num_cw - 1) << CW_PER_PAGE;
 
 		cfg1 = host->cfg1_raw;
 		ecc_bch_cfg = 1 << ECC_CFG_ECC_DISABLE;
+		if (read)
+			read_location0 = (0 << READ_LOCATION_OFFSET) |
+				(host->cw_size << READ_LOCATION_SIZE) |
+				(1 << READ_LOCATION_LAST);
 	}
 
 	nandc_set_reg(nandc, NAND_FLASH_CMD, cmd);
@@ -574,6 +611,9 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read)
 	nandc_set_reg(nandc, NAND_FLASH_STATUS, host->clrflashstatus);
 	nandc_set_reg(nandc, NAND_READ_STATUS, host->clrreadstatus);
 	nandc_set_reg(nandc, NAND_EXEC_CMD, 1);
+
+	if (read)
+		nandc_set_reg(nandc, NAND_READ_LOCATION_0, read_location0);
 }
 
 /*
@@ -783,6 +823,13 @@ static int write_reg_dma(struct qcom_nand_controller *nandc, int first,
 	if (first == NAND_FLASH_CMD)
 		flow_control = true;
 
+	if (first == NAND_ERASED_CW_DETECT_CFG) {
+		if (flags & DMA_DESC_ERASED_CW_SET)
+			vaddr = &regs->erased_cw_detect_cfg_set;
+		else
+			vaddr = &regs->erased_cw_detect_cfg_clr;
+	}
+
 	if (first == NAND_EXEC_CMD)
 		flags |= DMA_DESC_FLAG_BAM_NWD;
 
@@ -834,6 +881,14 @@ static void config_cw_read(struct qcom_nand_controller *nandc)
 	write_reg_dma(nandc, NAND_FLASH_CMD, 3, 0);
 	write_reg_dma(nandc, NAND_DEV0_CFG0, 3, 0);
 	write_reg_dma(nandc, NAND_EBI2_ECC_BUF_CFG, 1, 0);
+
+	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1, 0);
+	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1,
+				DMA_DESC_ERASED_CW_SET);
+	if (nandc->dma_bam_enabled)
+		write_reg_dma(nandc, NAND_READ_LOCATION_0, 1,
+				DMA_DESC_FLAG_BAM_NEXT_SGL);
+
 
 	write_reg_dma(nandc, NAND_EXEC_CMD, 1, DMA_DESC_FLAG_BAM_NWD |
 				DMA_DESC_FLAG_BAM_NEXT_SGL);
@@ -909,6 +964,10 @@ static int nandc_param(struct qcom_nand_host *host)
 
 	nandc_set_reg(nandc, NAND_DEV_CMD1_RESTORE, nandc->cmd1);
 	nandc_set_reg(nandc, NAND_DEV_CMD_VLD_RESTORE, nandc->vld);
+	nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+				(0 << READ_LOCATION_OFFSET) |
+				(512 << READ_LOCATION_SIZE) |
+				(1 << READ_LOCATION_LAST));
 
 	write_reg_dma(nandc, NAND_DEV_CMD_VLD, 1, 0);
 	write_reg_dma(nandc, NAND_DEV_CMD1, 1, DMA_DESC_FLAG_BAM_NEXT_SGL);
@@ -1402,6 +1461,10 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 
 	set_address(host, host->cw_size * (ecc->steps - 1), page);
 	update_rw_regs(host, 1, true);
+	nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+			(0 << READ_LOCATION_OFFSET) |
+			(size << READ_LOCATION_SIZE) |
+			(1 << READ_LOCATION_LAST));
 
 	config_cw_read(nandc);
 
@@ -2147,6 +2210,8 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 
 	host->clrflashstatus = FS_READY_BSY_N;
 	host->clrreadstatus = 0xc0;
+	nandc->regs->erased_cw_detect_cfg_clr = CLR_ERASED_PAGE_DET;
+	nandc->regs->erased_cw_detect_cfg_set = SET_ERASED_PAGE_DET;
 
 	dev_dbg(nandc->dev,
 		"cfg0 %x cfg1 %x ecc_buf_cfg %x ecc_bch cfg %x cw_size %d cw_data %d strength %d parity_bytes %d steps %d\n",
