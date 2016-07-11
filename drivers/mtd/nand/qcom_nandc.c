@@ -179,6 +179,15 @@
 /* Close current sgl and start writing in another sgl */
 #define DMA_DESC_FLAG_BAM_NEXT_SGL	(0x0004)
 
+/* Returns the dma address for reg read buffer */
+#define REG_BUF_DMA_ADDR(chip, vaddr) \
+	((chip)->reg_read_buf_phys + \
+	((uint8_t *)(vaddr) - (uint8_t *)(chip)->reg_read_buf))
+
+/* Returns the nand register physical address */
+#define NAND_REG_PHYS_ADDRESS(chip, addr) \
+	((chip)->base_dma + (addr))
+
 /* command element array size in bam transaction */
 #define BAM_CMD_ELEMENT_SIZE	(256)
 /* command sgl size in bam transaction */
@@ -565,6 +574,68 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read)
 	nandc_set_reg(nandc, NAND_FLASH_STATUS, host->clrflashstatus);
 	nandc_set_reg(nandc, NAND_READ_STATUS, host->clrreadstatus);
 	nandc_set_reg(nandc, NAND_EXEC_CMD, 1);
+}
+
+/*
+ * Prepares the command descriptor for BAM DMA which will be used for NAND
+ * register read and write. The command descriptor requires the command
+ * to be formed in command element type so this function uses the command
+ * element from bam transaction ce array and fills the same with required
+ * data. A single SGL can contain multiple command elements so
+ * DMA_DESC_FLAG_BAM_NEXT_SGL will be used for starting the separate SGL
+ * after the current command element.
+ */
+static int prep_dma_desc_command(struct qcom_nand_controller *nandc, bool read,
+					int reg_off, const void *vaddr,
+					int size, unsigned int flags)
+{
+	int bam_ce_size;
+	int i;
+	struct bam_cmd_element *bam_ce_buffer;
+	struct bam_transaction *bam_txn = nandc->bam_txn;
+
+	bam_ce_buffer = &bam_txn->bam_ce[bam_txn->bam_ce_index];
+
+	/* fill the command desc */
+	for (i = 0; i < size; i++) {
+		if (read) {
+			qcom_prep_bam_ce(&bam_ce_buffer[i],
+				NAND_REG_PHYS_ADDRESS(nandc, reg_off + 4 * i),
+				BAM_READ_COMMAND,
+				REG_BUF_DMA_ADDR(nandc,
+					(unsigned int *)vaddr + i));
+		} else {
+			qcom_prep_bam_ce(&bam_ce_buffer[i],
+				NAND_REG_PHYS_ADDRESS(nandc, reg_off + 4 * i),
+				BAM_WRITE_COMMAND,
+				*((unsigned int *)vaddr + i));
+		}
+	}
+
+	/* use the separate sgl after this command */
+	if (flags & DMA_DESC_FLAG_BAM_NEXT_SGL) {
+		bam_ce_buffer = &bam_txn->bam_ce[bam_txn->pre_bam_ce_index];
+		bam_txn->bam_ce_index += size;
+		bam_ce_size = (bam_txn->bam_ce_index -
+				bam_txn->pre_bam_ce_index) *
+				sizeof(struct bam_cmd_element);
+		sg_set_buf(&bam_txn->cmd_sgl[bam_txn->cmd_sgl_cnt].sgl,
+				bam_ce_buffer,
+				bam_ce_size);
+		if (flags & DMA_DESC_FLAG_BAM_NWD)
+			bam_txn->cmd_sgl[bam_txn->cmd_sgl_cnt].dma_flags =
+				DESC_FLAG_NWD | DESC_FLAG_CMD;
+		else
+			bam_txn->cmd_sgl[bam_txn->cmd_sgl_cnt].dma_flags =
+				DESC_FLAG_CMD;
+
+		bam_txn->cmd_sgl_cnt++;
+		bam_txn->pre_bam_ce_index = bam_txn->bam_ce_index;
+	} else {
+		bam_txn->bam_ce_index += size;
+	}
+
+	return 0;
 }
 
 static int prep_dma_desc(struct qcom_nand_controller *nandc, bool read,
