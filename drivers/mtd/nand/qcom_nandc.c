@@ -899,6 +899,38 @@ static void config_cw_read(struct qcom_nand_controller *nandc)
 }
 
 /*
+ * Helpers to prepare DMA descriptors for configuring registers
+ * before reading a NAND page with BAM.
+ */
+static void config_bam_page_read(struct qcom_nand_controller *nandc)
+{
+	write_reg_dma(nandc, NAND_FLASH_CMD, 3, 0);
+	write_reg_dma(nandc, NAND_DEV0_CFG0, 3, 0);
+	write_reg_dma(nandc, NAND_EBI2_ECC_BUF_CFG, 1, 0);
+	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1, 0);
+	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1,
+				DMA_DESC_ERASED_CW_SET |
+				DMA_DESC_FLAG_BAM_NEXT_SGL);
+}
+
+/*
+ * Helpers to prepare DMA descriptors for configuring registers
+ * before reading each codeword in NAND page with BAM.
+ */
+static void config_bam_cw_read(struct qcom_nand_controller *nandc)
+{
+	if (nandc->dma_bam_enabled)
+		write_reg_dma(nandc, NAND_READ_LOCATION_0, 2, 0);
+
+	write_reg_dma(nandc, NAND_FLASH_CMD, 1, DMA_DESC_FLAG_BAM_NEXT_SGL);
+	write_reg_dma(nandc, NAND_EXEC_CMD, 1, DMA_DESC_FLAG_BAM_NEXT_SGL);
+
+	read_reg_dma(nandc, NAND_FLASH_STATUS, 2, 0);
+	read_reg_dma(nandc, NAND_ERASED_CW_DETECT_STATUS, 1,
+				DMA_DESC_FLAG_BAM_NEXT_SGL);
+}
+
+/*
  * helpers to prepare dma descriptors used to configure registers needed for
  * writing a codeword/step in a page
  */
