@@ -501,6 +501,7 @@ dtb-$(CONFIG_ARCH_PRIMA2) += \
 	prima2-evb.dtb
 dtb-$(CONFIG_ARCH_QCOM) += \
 	qca-ipq4019-ap.dk01.1-c1.dtb \
+	qca-ipq4019-ap.dk04.1-c1.dtb \
 	qcom-apq8064-cm-qs600.dtb \
 	qcom-apq8064-ifc6410.dtb \
 	qcom-apq8074-dragonboard.dtb \
