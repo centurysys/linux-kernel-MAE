@@ -2005,6 +2005,7 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 	struct nand_chip *chip = &host->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct device *dev = nandc->dev;
+	struct mtd_part_parser_data ppdata = { .of_node = dn };
 	int ret;
 
 	ret = of_property_read_u32(dn, "reg", &host->cs);
@@ -2017,6 +2018,8 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "qcom_nand.%d", host->cs);
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = dev;
+	mtd->priv = chip;
+	chip->priv = nandc;
 
 	chip->cmdfunc		= qcom_nandc_command;
 	chip->select_chip	= qcom_nandc_select_chip;
@@ -2054,7 +2057,7 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 	if (ret)
 		return ret;
 
-	return mtd_device_register(mtd, NULL, 0);
+	return mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
 }
 
 /* parse custom DT properties here */
