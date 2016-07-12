@@ -183,48 +183,44 @@
 		};
 
 		nss0: nss@40000000 {
-			compatible = "qcom,nss0";
-				interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH
+			compatible = "qcom,nss";
+			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36000000 0x1000 0x39000000 0x10000>;
 			reg-names = "nphys", "vphys";
 			clocks = <&gcc NSS_CORE_CLK>, <&gcc NSSTCM_CLK_SRC>,
 				 <&gcc NSSTCM_CLK>, <&nss_fabric0_clk>,
 				 <&nss_fabric1_clk>;
-			clock-names = "nss_core_clk", "nss_tcm_src",
-				      "nss_tcm_clk", "nss-fab0-clk",
+			clock-names = "nss-core-clk", "nss-tcm-src",
+				      "nss-tcm-clk", "nss-fab0-clk",
 				      "nss-fab1-clk";
 			resets = <&gcc UBI32_CORE1_CLKRST_CLAMP_RESET>,
 				 <&gcc UBI32_CORE1_CLAMP_RESET>,
 				 <&gcc UBI32_CORE1_AHB_RESET>,
 				 <&gcc UBI32_CORE1_AXI_RESET>;
-			reset-names = "clkrst_clamp", "clamp", "ahb", "axi";
+			reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
 			qcom,id = <0>;
-			qcom,num_irq = <2>;
-			qcom,rst_addr = <0x40000000>;
-			qcom,load_addr = <0x40000000>;
-			qcom,turbo_frequency = <1>;
-			qcom,ipv4_enabled = <1>;
-			qcom,ipv6_enabled = <1>;
-			qcom,l2switch_enabled = <1>;
-			qcom,crypto_enabled = <0>;
-			qcom,ipsec_enabled = <0>;
-			qcom,wlanredirect_enabled = <1>;
-			qcom,tun6rd_enabled = <1>;
-			qcom,l2tpv2_enabled = <1>;
-			qcom,portid_enabled = <1>;
-			qcom,pptp_enabled = <1>;
-			qcom,tunipip6_enabled = <1>;
-			qcom,shaping_enabled = <1>;
-			qcom,gmac0_enabled = <0>;
-			qcom,gmac1_enabled = <1>;
-			qcom,gmac2_enabled = <1>;
-			qcom,gmac3_enabled = <0>;
-			qcom,wlan_dataplane_offload_enabled = <1>;
+			qcom,num-irq = <2>;
+			qcom,num-queue = <2>;
+			qcom,load-addr = <0x40000000>;
+			qcom,turbo-frequency = <1>;
+
+			qcom,ipv4-enabled;
+			qcom,ipv4-reasm-enabled;
+			qcom,ipv6-enabled;
+			qcom,ipv6-reasm-enabled;
+			qcom,wlanredirect-enabled;
+			qcom,tun6rd-enabled;
+			qcom,l2tpv2-enabled;
+			qcom,tunipip6-enabled;
+			qcom,pppoe-enabled;
+			qcom,pptp-enabled;
+			qcom,shaping-enabled;
+			qcom,wlan-dataplane-offload-enabled;
 		};
 
 		nss1: nss@40800000 {
-			compatible = "qcom,nss1";
+			compatible = "qcom,nss";
 			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36400000 0x1000 0x39010000 0x10000>;
@@ -233,29 +229,15 @@
 				 <&gcc UBI32_CORE2_CLAMP_RESET>,
 				 <&gcc UBI32_CORE2_AHB_RESET>,
 				 <&gcc UBI32_CORE2_AXI_RESET>;
-			reset-names = "clkrst_clamp", "clamp", "ahb", "axi";
+			reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
 			qcom,id = <1>;
-			qcom,num_irq = <2>;
-			qcom,rst_addr = <0x40800000>;
-			qcom,load_addr = <0x40800000>;
-			qcom,turbo_frequency = <1>;
-			qcom,ipv4_enabled = <0>;
-			qcom,ipv6_enabled = <0>;
-			qcom,l2switch_enabled = <0>;
-			qcom,crypto_enabled = <1>;
-			qcom,ipsec_enabled = <1>;
-			qcom,wlanredirect_enabled = <0>;
-			qcom,tun6rd_enabled = <0>;
-			qcom,l2tpv2_enabled = <0>;
-			qcom,pptp_enabled = <0>;
-			qcom,portid_enabled = <0>;
-			qcom,tunipip6_enabled = <0>;
-			qcom,shaping_enabled = <0>;
-			qcom,gmac0_enabled = <0>;
-			qcom,gmac1_enabled = <0>;
-			qcom,gmac2_enabled = <0>;
-			qcom,gmac3_enabled = <0>;
-			qcom,wlan_dataplane_offload_enabled = <0>;
+			qcom,num-irq = <2>;
+			qcom,num-queue = <2>;
+			qcom,load-addr = <0x40800000>;
+			qcom,turbo-frequency = <1>;
+
+			qcom,crypto-enabled;
+			qcom,ipsec-enabled;
 		};
 
 		nss-gmac-common@03000000 {
