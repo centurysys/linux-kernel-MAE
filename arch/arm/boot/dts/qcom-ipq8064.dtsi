@@ -771,7 +771,7 @@
 
 
 		nand@1ac00000 {
-			compatible = "qcom,qcom_nand","qcom,ebi2-nandc";
+			compatible = "qcom,qcom_nand","qcom,ipq806x-nand";
 			reg = <0x1ac00000 0x800>;
 
 			clocks = <&gcc EBI2_CLK>,
@@ -782,8 +782,20 @@
 			dma-names = "rxtx";
 			qcom,cmd-crci = <15>;
 			qcom,data-crci = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
+			nandcs@0 {
+				compatible = "qcom,nandcs";
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
+				nand-bus-width = <8>;
+			};
 		};
 
 		adm_dma: dma@18300000 {
