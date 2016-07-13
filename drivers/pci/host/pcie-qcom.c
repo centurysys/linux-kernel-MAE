@@ -556,9 +556,9 @@ static void qcom_pcie_prog_viewport_cfg0(struct qcom_pcie *pcie, u32 busdev)
 
 	writel(PCIE20_PLR_IATU_TYPE_CFG0, pcie->dbi + PCIE20_PLR_IATU_CTRL1);
 	writel(PCIE20_PLR_IATU_ENABLE, pcie->dbi + PCIE20_PLR_IATU_CTRL2);
-	writel(pp->cfg0_base, pcie->dbi + PCIE20_PLR_IATU_LBAR);
-	writel((pp->cfg0_base >> 32), pcie->dbi + PCIE20_PLR_IATU_UBAR);
-	writel((pp->cfg0_base + pp->cfg0_size - 1),
+	writel(pp->cfg0_mod_base, pcie->dbi + PCIE20_PLR_IATU_LBAR);
+	writel((pp->cfg0_mod_base >> 32), pcie->dbi + PCIE20_PLR_IATU_UBAR);
+	writel((pp->cfg0_mod_base + pp->cfg0_size - 1),
 	       pcie->dbi + PCIE20_PLR_IATU_LAR);
 	writel(busdev, pcie->dbi + PCIE20_PLR_IATU_LTAR);
 	writel(0, pcie->dbi + PCIE20_PLR_IATU_UTAR);
@@ -579,9 +579,9 @@ static void qcom_pcie_prog_viewport_mem2_outbound(struct qcom_pcie *pcie)
 
 	writel(PCIE20_PLR_IATU_TYPE_MEM, pcie->dbi + PCIE20_PLR_IATU_CTRL1);
 	writel(PCIE20_PLR_IATU_ENABLE, pcie->dbi + PCIE20_PLR_IATU_CTRL2);
-	writel(pp->mem_base, pcie->dbi + PCIE20_PLR_IATU_LBAR);
-	writel((pp->mem_base >> 32), pcie->dbi + PCIE20_PLR_IATU_UBAR);
-	writel(pp->mem_base + pp->mem_size - 1,
+	writel(pp->mem_mod_base, pcie->dbi + PCIE20_PLR_IATU_LBAR);
+	writel((pp->mem_mod_base >> 32), pcie->dbi + PCIE20_PLR_IATU_UBAR);
+	writel(pp->mem_mod_base + pp->mem_size - 1,
 	       pcie->dbi + PCIE20_PLR_IATU_LAR);
 	writel(pp->mem_bus_addr, pcie->dbi + PCIE20_PLR_IATU_LTAR);
 	writel(upper_32_bits(pp->mem_bus_addr),
@@ -697,7 +697,7 @@ qcom_pcie_rd_own_conf(struct pcie_port *pp, int where, int size, u32 *val)
 		return PCIBIOS_SUCCESSFUL;
 	}
 
-	return dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3),
+	return dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3), where,
 				size, val);
 }
 
@@ -732,8 +732,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	pcie->version = (unsigned int)match->data;
 
-	pcie->reset = devm_gpiod_get_optional(dev, "perst",
-						GPIOD_OUT_LOW);
+	pcie->reset = devm_gpiod_get_optional(dev, "perst");
 	if (IS_ERR(pcie->reset) && PTR_ERR(pcie->reset) == -EPROBE_DEFER)
 		return PTR_ERR(pcie->reset);
 

@@ -45,7 +45,7 @@ static void __clk_hfpll_init_once(struct clk_hw *hw)
 		u32 regval = hd->user_val;
 		unsigned long rate;
 
-		rate = clk_hw_get_rate(hw->clk);
+		rate = __clk_get_rate(hw->clk);
 
 		/* Pick the right VCO. */
 		if (hd->user_vco_mask && rate > hd->low_vco_max_rate)
@@ -222,7 +222,7 @@ static void clk_hfpll_init(struct clk_hw *hw)
 		regmap_read(regmap, hd->status_reg, &status);
 		if (!(status & BIT(hd->lock_bit))) {
 			WARN(1, "HFPLL %s is ON, but not locked!\n",
-					clk_hw_get_name(hw->clk));
+					__clk_get_name(hw->clk));
 			clk_hfpll_disable(hw);
 			__clk_hfpll_init_once(hw);
 		}
