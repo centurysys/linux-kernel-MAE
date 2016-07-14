@@ -59,15 +59,15 @@ static const u8 SMEM_PTABLE_MAGIC[] = {
 
 static int qcom_smem_get_flash_blksz(u64 **smem_blksz)
 {
-	int ret;
 	size_t size;
+	void *p;
 
-	ret = qcom_smem_get(SMEM_HOST_APPS, SMEM_BOOT_FLASH_BLOCK_SIZE,
-			    (void **) smem_blksz, &size);
+	p = qcom_smem_get(SMEM_HOST_APPS, SMEM_BOOT_FLASH_BLOCK_SIZE,
+			    &size);
 
-	if (ret < 0) {
+	if (PTR_ERR(p) == -EPROBE_DEFER) {
 		pr_err("Unable to read flash blksz from SMEM\n");
-		return -ENOENT;
+		return PTR_ERR(p);
 	}
 
 	if (size != sizeof(**smem_blksz)) {
@@ -80,15 +80,15 @@ static int qcom_smem_get_flash_blksz(u64 **smem_blksz)
 
 static int qcom_smem_get_flash_type(u64 **smem_flash_type)
 {
-	int ret;
 	size_t size;
+	void *p;
 
-	ret = qcom_smem_get(SMEM_HOST_APPS, SMEM_BOOT_FLASH_TYPE,
-			    (void **) smem_flash_type, &size);
+	p = qcom_smem_get(SMEM_HOST_APPS, SMEM_BOOT_FLASH_TYPE,
+			  &size);
 
-	if (ret < 0) {
+	if (PTR_ERR(p) == -EPROBE_DEFER) {
 		pr_err("Unable to read flash type from SMEM\n");
-		return -ENOENT;
+		return PTR_ERR(p);
 	}
 
 	if (size != sizeof(**smem_flash_type)) {
@@ -101,15 +101,15 @@ static int qcom_smem_get_flash_type(u64 **smem_flash_type)
 
 static int qcom_smem_get_flash_partitions(struct smem_partition_table **pparts)
 {
-	int ret;
 	size_t size;
+	void *p;
 
-	ret = qcom_smem_get(SMEM_HOST_APPS, SMEM_AARM_PARTITION_TABLE,
-			    (void **) pparts, &size);
+	p = qcom_smem_get(SMEM_HOST_APPS, SMEM_AARM_PARTITION_TABLE,
+			  &size);
 
-	if (ret < 0) {
+	if (PTR_ERR(p) == -EPROBE_DEFER) {
 		pr_err("Unable to read partition table from SMEM\n");
-		return -ENOENT;
+		return PTR_ERR(p);
 	}
 
 	return 0;
