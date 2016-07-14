@@ -283,5 +283,13 @@
 		usb2: usb2@6000000 {
 			status = "ok";
 		};
+
+		qpic_bam: dma@7984000{
+			status = "ok";
+		};
+
+		nand: qpic-nand@79b0000 {
+			status = "ok";
+		};
 	};
 };
