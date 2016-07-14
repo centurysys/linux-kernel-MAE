@@ -1457,6 +1457,7 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	u32 *ice_clk_table = NULL;
 	enum of_gpio_flags flags = OF_GPIO_ACTIVE_LOW;
 	const char *lower_bus_speed = NULL;
+	int sd_ldo, ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -1467,6 +1468,25 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	pdata->status_gpio = of_get_named_gpio_flags(np, "cd-gpios", 0, &flags);
 	if (gpio_is_valid(pdata->status_gpio) & !(flags & OF_GPIO_ACTIVE_LOW))
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+
+	sd_ldo = of_get_named_gpio(np, "sd-ldo-gpios", 0);
+	if (gpio_is_valid(sd_ldo)) {
+		ret = devm_gpio_request(dev, sd_ldo, "sd-ldo-gpios");
+		if (ret) {
+			dev_err(dev,
+				"failed to request sd-ldo-gpios %d\n",
+				sd_ldo);
+			return ret;
+		}
+		dev_info(dev, "Got SD LDO GPIO #%d\n", sd_ldo);
+
+		/* Toggle SD LDO GPIO on Init */
+		gpio_direction_output(sd_ldo, 1);
+		gpio_set_value(sd_ldo, 0);
+		mdelay(100);
+		gpio_set_value(sd_ldo, 1);
+	}
+
 
 	of_property_read_u32(np, "qcom,bus-width", &bus_width);
 	if (bus_width == 8)
