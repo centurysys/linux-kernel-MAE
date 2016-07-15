@@ -286,7 +286,7 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 				status = gpio_request(gpio, port->bgc.names[i]);
 
 				if (status == 0) {
-					status = gpio_export(gpio, true);
+					status = gpio_export(gpio, false);
 					if (status < 0)
 						gpio_free(gpio);
 				}
