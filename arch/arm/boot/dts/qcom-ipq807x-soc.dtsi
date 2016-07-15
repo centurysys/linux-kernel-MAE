@@ -260,8 +260,8 @@
 			compatible = "qcom,glink-smem-native-xprt";
 			reg = <0x4AB00000 0x100000>, <0x0b111008 0x4>;
 			reg-names = "smem", "irq-reg-base";
-			qcom,irq-mask = <0x1000>;
-			interrupts = <0 317 1>;
+			qcom,irq-mask = <0x100>;
+			interrupts = <0 321 1>;
 			label = "mpss";
 		};
 
