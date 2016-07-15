@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <dt-bindings/reset/qcom,gcc-ipq807x.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
 	soc: soc {
@@ -278,6 +279,27 @@
 			qcom,xprt-linkid = <1>;
 			qcom,xprt-version = <1>;
 			qcom,fragmented-data;
+		};
+
+		cryptobam: dma@8e04000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x00704000 0x20000>;
+			interrupts = <GIC_SPI 207 0>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <1>;
+		};
+
+		crypto@8e3a000 {
+			compatible = "qcom,crypto-v5.1";
+			reg = <0x0073a000 0x6000>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				<&gcc GCC_DUMMY_CLK>,
+				<&gcc GCC_DUMMY_CLK>;
+			clock-names = "iface", "bus", "core";
+			dmas = <&cryptobam 2>, <&cryptobam 3>;
+			dma-names = "rx", "tx";
 		};
 	};
 };
