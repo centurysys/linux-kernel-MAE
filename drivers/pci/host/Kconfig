@@ -190,11 +190,12 @@ config PCI_HISI
 
 config PCIE_QCOM
 	bool "Qualcomm PCIe controller"
-	depends on ARCH_QCOM && OF || (ARM && COMPILE_TEST)
+	depends on ARCH_QCOM && OF
 	select PCIE_DW
 	select PCIEPORTBUS
 	help
 	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
-	  PCIe controller use Designware core plus Qualcomm specific hardware
-	  wrappers.
+	  PCIe controller uses the Designware core plus Qualcomm-specific
+	  hardware wrappers.
+
 endmenu
