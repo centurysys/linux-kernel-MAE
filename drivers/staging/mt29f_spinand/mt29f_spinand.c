@@ -581,41 +581,18 @@ static int spinand_disable_ecc(struct spi_device *spi_nand)
 }
 
 /**
- * spinand_write_enable- send command 0x06 to enable write or erase the
+ * spinand_write_config- send command 0x06 to enable write or erase the
+ * Nand cells or send command 0x04 to disable write or erase the
  * Nand cells
+ *
  * Description:
  *   Before write and erase the Nand cells, the write enable has to be set.
  *   After the write or erase, the write enable bit is automatically
  *   cleared (status register bit 2)
  *   Set the bit 2 of the status register has the same effect
- */
-static int spinand_write_enable(struct spi_device *spi_nand)
-{
-	int ret = 0;
-	int i;
-	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
-	struct spinand_cmd cmd = {0};
-
-	for (i = 0; i < dev_ops->no_of_dies; i++) {
-		ret = select_die(spi_nand, dev_ops, i);
-		if (ret < 0)
-			return ret;
-		cmd.cmd = CMD_WR_ENABLE;
-		ret = spinand_cmd(spi_nand, &cmd);
-		if (ret < 0)
-			return ret;
-	}
-
-	return ret;
-}
-
-/**
- * spinand_write_disable- send command 0x04 to disable write or erase the
- * Nand cells
- * Description:
  *   After write and erase the Nand cells, the write enable has to be disabled.
  */
-static int spinand_write_disable(struct spi_device *spi_nand)
+static int spinand_write_config(struct spi_device *spi_nand, u8 opcode)
 {
 	int ret = 0;
 	int i;
@@ -626,7 +603,7 @@ static int spinand_write_disable(struct spi_device *spi_nand)
 		ret = select_die(spi_nand, dev_ops, i);
 		if (ret < 0)
 			return ret;
-		cmd.cmd = CMD_WR_DISABLE;
+		cmd.cmd = opcode;
 		ret = spinand_cmd(spi_nand, &cmd);
 		if (ret < 0)
 			return ret;
@@ -851,7 +828,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 #else
 	wbuf = buf;
 #endif
-	retval = spinand_write_enable(spi_nand);
+	retval = spinand_write_config(spi_nand, CMD_WR_ENABLE);
 	if (retval < 0) {
 		dev_err(&spi_nand->dev, "write enable failed!!\n");
 		goto exit;
@@ -896,7 +873,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 		enable_hw_ecc = 0;
 	}
 #endif
-	retval = spinand_write_disable(spi_nand);
+	retval = spinand_write_config(spi_nand, CMD_WR_DISABLE);
 	if (retval < 0) {
 		dev_err(&spi_nand->dev, "write disable failed!!\n");
 		goto exit;
@@ -950,7 +927,7 @@ static int spinand_erase_block(struct spi_device *spi_nand, u32 block_id)
 	int retval;
 	u8 status = 0;
 
-	retval = spinand_write_enable(spi_nand);
+	retval = spinand_write_config(spi_nand, CMD_WR_ENABLE);
 	if (retval < 0) {
 		dev_err(&spi_nand->dev, "write enable failed!!\n");
 		return retval;
@@ -976,7 +953,7 @@ static int spinand_erase_block(struct spi_device *spi_nand, u32 block_id)
 			break;
 		}
 	}
-	retval = spinand_write_disable(spi_nand);
+	retval = spinand_write_config(spi_nand, CMD_WR_DISABLE);
 	if (retval < 0) {
 		dev_err(&spi_nand->dev, "write disable failed!!\n");
 		return retval;
