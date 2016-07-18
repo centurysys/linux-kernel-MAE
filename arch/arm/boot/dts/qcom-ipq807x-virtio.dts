@@ -193,7 +193,7 @@
 			reg = <0x0 0x4ac00000 0x0 0x00400000>;
 		};
 
-		wcnss@4ab00000 {
+		wcnss@4b000000 {
 			no-map;
 			reg = <0x0 0x4b000000 0x0 0x04ffffff>;
 		};
