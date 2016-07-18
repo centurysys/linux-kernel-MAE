@@ -21,12 +21,12 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/usb/phy.h>
+#include <linux/phy/phy.h>
 #include <linux/reset.h>
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
-#include <soc/qcom/scm.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #define USB_CALIBRATION_CMD	0x10
 #define USB3PHY_SPARE_1		0x7FC
@@ -65,7 +65,7 @@
 #define MDIO_ACCESS_45_READ_ADDR	(0x0)
 
 struct qca_uni_ss_phy {
-	struct usb_phy phy;
+	struct phy phy;
 	struct device *dev;
 
 	void __iomem *base;
@@ -73,7 +73,6 @@ struct qca_uni_ss_phy {
 	struct reset_control *por_rst;
 
 	unsigned int host;
-	unsigned int emulation;
 };
 
 struct qf_read {
@@ -247,7 +246,7 @@ int mdio_mmd_write(void __iomem *base, unsigned short regAddr,
 	return 0;
 }
 
-static void qca_uni_ss_phy_shutdown(struct usb_phy *x)
+static void qca_uni_ss_phy_shutdown(struct phy *x)
 {
 	struct qca_uni_ss_phy *phy = phy_to_dw_phy(x);
 
@@ -255,123 +254,18 @@ static void qca_uni_ss_phy_shutdown(struct usb_phy *x)
 	reset_control_assert(phy->por_rst);
 }
 
-/* Function to read the value from OTP through scm call */
-int qca_uni_ss_read_otp(uint32_t *otp_read_data)
+static int qca_uni_ss_phy_init(struct phy *x)
 {
 	int ret;
-	uint32_t *otp_value = kzalloc(sizeof(uint32_t), GFP_KERNEL);
-	struct qf_read rdip;
-
-	if (!otp_value)
-		return -ENOMEM;
-
-	rdip.value = dma_map_single(NULL, otp_value,
-			sizeof(uint32_t), DMA_FROM_DEVICE);
-
-	ret = dma_mapping_error(NULL, rdip.value);
-	if (ret != 0) {
-		pr_err("DMA Mapping Error\n");
-		goto err_write;
-	}
-
-	ret = scm_call(SCM_SVC_FUSE, USB_CALIBRATION_CMD,
-		&rdip, sizeof(struct qf_read), NULL, 0);
-
-	dma_unmap_single(NULL, rdip.value,
-		sizeof(uint32_t), DMA_FROM_DEVICE);
-
-	if (ret != 0) {
-		pr_err("Error in reading value: %d\n", ret);
-		goto err_write;
-	}
-
-	*otp_read_data = *otp_value;
-err_write:
-	kfree(otp_value);
-	return ret;
-}
-
-int qca_uni_ss_phy_usb_los_calibration(void __iomem *base)
-{
-	uint32_t data, otp_val = 0;
-
-	/* Get OTP value */
-	if ((qca_uni_ss_read_otp(&otp_val) < 0) || (!(otp_val & OTP_MASK))) {
-		pr_err("USB Calibration Falied with error %d\n", otp_val);
-		return 0;
-	}
-
-	/*
-	 * Read the USB3PHY_SPARE_1 register and
-	 * set bit 14 to 0
-	 */
-	data = qca_uni_ss_read(base, USB3PHY_SPARE_1);
-	data = data & (~SPARE_1_BIT14_MASK);
-	qca_uni_ss_write(base, USB3PHY_SPARE_1, data);
-
-	/*
-	 * Get bit 11:5 value, add with 0x14 and set to the
-	 * register USB3PHY_RX_LOS_1 bit MMD1_REG_REG
-	 */
-	data = qca_uni_ss_read(base, RX_LOS_1);
-	otp_val = ((otp_val & OTP_MASK) >> 5) + 0x14;
-	otp_val = otp_val << 8;
-	data = data & (~MMD1_REG_REG_MASK);
-	data = data | otp_val;
-	qca_uni_ss_write(base, RX_LOS_1, data);
-
-	/*
-	 * Set bit MMD1_REG_AUTOLOAD_SEL_RX_LOS_THRES in
-	 * USB3PHY_RX_LOS_1 to 1
-	 */
-	data = qca_uni_ss_read(base, RX_LOS_1);
-	data = data | MMD1_REG_AUTOLOAD_MASK;
-	qca_uni_ss_write(base, RX_LOS_1, data);
-
-	qca_uni_ss_write(base, PCS_INTERNAL_CONTROL14, 0x4000);
-	qca_uni_ss_write(base, MISC_SOURCE_REG, 0xaa0a);
-	qca_uni_ss_write(base, CDR_CONTROL_REG_1, 0x0202);
-
-	return 0;
-}
-
-static int qca_uni_ss_phy_init(struct usb_phy *x)
-{
-	int ret;
-	struct qca_uni_ss_phy *phy = phy_to_dw_phy(x);
+	struct qca_uni_ss_phy *phy = phy_get_drvdata(x);
 
 	/* assert SS PHY POR reset */
 	reset_control_assert(phy->por_rst);
 
 	msleep(100);
 
-	if (phy->emulation) {
-		mdio_mii_write(phy->base, 0x1, 0x8017);
-		mdio_mii_write(phy->base, 0xb, 0x300d);
-		mdio_mmd_write(phy->base, 0x2d, 0x681a);
-		mdio_mmd_write(phy->base, 0x7d, 0x8);
-		mdio_mmd_write(phy->base, 0x7f, 0x5ed5);
-		mdio_mmd_write(phy->base, 0x87, 0xaa0a);
-		mdio_mmd_write(phy->base, 0x4, 0x0802);
-		mdio_mmd_write(phy->base, 0x8, 0x0280);
-		mdio_mmd_write(phy->base, 0x9, 0x8854);
-		mdio_mmd_write(phy->base, 0xa, 0x2815);
-		mdio_mmd_write(phy->base, 0xb, 0x2120);
-		mdio_mmd_write(phy->base, 0xb, 0x0120);
-		mdio_mmd_write(phy->base, 0xc, 0x0480);
-		mdio_mmd_write(phy->base, 0x13, 0x8000);
-		mdio_mmd_write(phy->base, 0x7c, 0x82);
-	} else {
-		/* Add ASIC PHY register write here */
-	}
-
-	msleep(10);
-
 	/* deassert SS PHY POR reset */
 	reset_control_deassert(phy->por_rst);
-
-	/* USB LOS Calibration */
-	ret = qca_uni_ss_phy_usb_los_calibration(phy->base);
 
 	return ret;
 }
@@ -392,9 +286,7 @@ static int qca_uni_ss_get_resources(struct platform_device *pdev,
 		return PTR_ERR(phy->por_rst);
 
 	np = of_node_get(pdev->dev.of_node);
-	if (of_property_read_u32(np, "qca,host", &phy->host)
-			|| of_property_read_u32(np, "qca,emulation",
-			&phy->emulation)) {
+	if (of_property_read_u32(np, "qca,host", &phy->host)) {
 		pr_err("%s: error reading critical device node properties\n",
 				np->name);
 		return -EFAULT;
@@ -403,36 +295,32 @@ static int qca_uni_ss_get_resources(struct platform_device *pdev,
 	return 0;
 }
 
-static int qca_dummy_ss_phy_init(struct usb_phy *x)
-{
-	return 0;
-}
-
-static void qca_dummy_ss_phy_shutdown(struct usb_phy *x)
-{
-}
-
 static int qca_uni_ss_remove(struct platform_device *pdev)
 {
 	struct qca_uni_ss_phy *phy = platform_get_drvdata(pdev);
 
-	usb_remove_phy(&phy->phy);
 	return 0;
 }
 
 static const struct of_device_id qca_uni_ss_id_table[] = {
 	{ .compatible = "qca,uni-ssphy" },
-	{ .compatible = "qca,dummy-ssphy"},
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, qca_uni_ss_id_table);
 
+static const struct phy_ops ops = {
+	.init           = qca_uni_ss_phy_init,
+	.exit           = qca_uni_ss_phy_shutdown,
+	.owner          = THIS_MODULE,
+};
 static int qca_uni_ss_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *np = pdev->dev.of_node;
 	struct qca_uni_ss_phy  *phy;
 	int ret;
+	struct phy *generic_phy;
+	struct phy_provider *phy_provider;
 
 	match = of_match_device(qca_uni_ss_id_table, &pdev->dev);
 	if (!match)
@@ -445,31 +333,23 @@ static int qca_uni_ss_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 	phy->dev = &pdev->dev;
 
-	if (of_device_is_compatible(np, "qca,dummy-ssphy")) {
-		phy->phy.dev        = phy->dev;
-		phy->phy.label      = "qca-dummy-ssphy";
-		phy->phy.init       = qca_dummy_ss_phy_init;
-		phy->phy.shutdown   = qca_dummy_ss_phy_shutdown;
-		phy->phy.type       = USB_PHY_TYPE_USB3;
-
-		ret = usb_add_phy_dev(&phy->phy);
-		return ret;
-	}
-
 	ret = qca_uni_ss_get_resources(pdev, phy);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request resources: %d\n", ret);
 		return ret;
 	}
 
-	phy->phy.dev        = phy->dev;
-	phy->phy.label      = "qca-uni-ssphy";
-	phy->phy.init       = qca_uni_ss_phy_init;
-	phy->phy.shutdown   = qca_uni_ss_phy_shutdown;
-	phy->phy.type       = USB_PHY_TYPE_USB3;
+	generic_phy = devm_phy_create(phy->dev, NULL, &ops);
+	if (IS_ERR(generic_phy))
+		return PTR_ERR(generic_phy);
 
-	ret = usb_add_phy_dev(&phy->phy);
-	return ret;
+	phy_set_drvdata(generic_phy, phy);
+	phy_provider = devm_of_phy_provider_register(phy->dev,
+			of_phy_simple_xlate);
+	if (IS_ERR(phy_provider))
+		return PTR_ERR(phy_provider);
+
+	return 0;
 }
 
 static struct platform_driver qca_uni_ss_driver = {
