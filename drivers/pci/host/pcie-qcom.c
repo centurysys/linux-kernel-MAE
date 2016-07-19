@@ -56,6 +56,7 @@ struct qcom_pcie_resources_v0 {
 	struct reset_control *ahb_reset;
 	struct reset_control *por_reset;
 	struct reset_control *phy_reset;
+	struct reset_control *ext_reset;
 	struct regulator *vdda;
 	struct regulator *vdda_phy;
 	struct regulator *vdda_refclk;
@@ -188,6 +189,10 @@ static int qcom_pcie_get_resources_v0(struct qcom_pcie *pcie)
 	if (IS_ERR(res->phy_reset))
 		return PTR_ERR(res->phy_reset);
 
+	res->ext_reset = devm_reset_control_get(dev, "ext");
+	if (IS_ERR(res->ext_reset))
+		return PTR_ERR(res->ext_reset);
+
 	return 0;
 }
 
@@ -232,6 +237,7 @@ static void qcom_pcie_deinit_v0(struct qcom_pcie *pcie)
 	reset_control_assert(res->ahb_reset);
 	reset_control_assert(res->por_reset);
 	reset_control_assert(res->pci_reset);
+	reset_control_assert(res->ext_reset);
 	clk_disable_unprepare(res->iface_clk);
 	clk_disable_unprepare(res->core_clk);
 	clk_disable_unprepare(res->phy_clk);
@@ -248,6 +254,12 @@ static int qcom_pcie_init_v0(struct qcom_pcie *pcie)
 	struct device *dev = pcie->dev;
 	u32 val;
 	int ret;
+
+	ret = reset_control_assert(res->ahb_reset);
+	if (ret) {
+		dev_err(dev, "cannot assert ahb reset\n");
+		return ret;
+	}
 
 	ret = regulator_enable(res->vdda);
 	if (ret) {
@@ -267,16 +279,16 @@ static int qcom_pcie_init_v0(struct qcom_pcie *pcie)
 		goto err_vdda_phy;
 	}
 
-	ret = reset_control_assert(res->ahb_reset);
+	ret = reset_control_deassert(res->ext_reset);
 	if (ret) {
-		dev_err(dev, "cannot assert ahb reset\n");
-		goto err_assert_ahb;
+		dev_err(dev, "cannot assert ext reset\n");
+		goto err_reset_ext;
 	}
 
 	ret = clk_prepare_enable(res->iface_clk);
 	if (ret) {
 		dev_err(dev, "cannot prepare/enable iface clock\n");
-		goto err_assert_ahb;
+		goto err_iface;
 	}
 
 	ret = clk_prepare_enable(res->core_clk);
@@ -358,7 +370,9 @@ err_clk_phy:
 	clk_disable_unprepare(res->core_clk);
 err_clk_core:
 	clk_disable_unprepare(res->iface_clk);
-err_assert_ahb:
+err_iface:
+	reset_control_assert(res->ext_reset);
+err_reset_ext:
 	regulator_disable(res->vdda_phy);
 err_vdda_phy:
 	regulator_disable(res->vdda_refclk);
