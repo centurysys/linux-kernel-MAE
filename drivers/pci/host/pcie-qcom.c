@@ -33,7 +33,13 @@
 #include "pcie-designware.h"
 
 #define PCIE20_PARF_PHY_CTRL			0x40
+#define PHY_CTRL_PHY_TX0_TERM_OFFSET_MASK	(0x1f << 16)
+#define PHY_CTRL_PHY_TX0_TERM_OFFSET(x)		(x << 16)
+
 #define PCIE20_PARF_PHY_REFCLK			0x4C
+#define REF_SSP_EN				BIT(16)
+#define REF_USE_PAD				BIT(12)
+
 #define PCIE20_PARF_DBI_BASE_ADDR		0x168
 #define PCIE20_PARF_SLV_ADDR_SPACE_SIZE		0x16c
 #define PCIE20_PARF_AXI_MSTR_WR_ADDR_HALT	0x178
@@ -44,6 +50,18 @@
 #define PCIE20_CAP				0x70
 
 #define PERST_DELAY_US				1000
+/* PARF registers */
+#define PCIE20_PARF_PCS_DEEMPH			0x34
+#define PCS_DEEMPH_TX_DEEMPH_GEN1(x)		(x << 16)
+#define PCS_DEEMPH_TX_DEEMPH_GEN2_3_5DB(x)	(x << 8)
+#define PCS_DEEMPH_TX_DEEMPH_GEN2_6DB(x)	(x << 0)
+
+#define PCIE20_PARF_PCS_SWING			0x38
+#define PCS_SWING_TX_SWING_FULL(x)		(x << 8)
+#define PCS_SWING_TX_SWING_LOW(x)		(x << 0)
+
+#define PCIE20_PARF_CONFIG_BITS			0x50
+#define PHY_RX0_EQ(x)				(x << 24)
 
 struct qcom_pcie_resources_v0 {
 	struct clk *iface_clk;
@@ -60,6 +78,7 @@ struct qcom_pcie_resources_v0 {
 	struct regulator *vdda;
 	struct regulator *vdda_phy;
 	struct regulator *vdda_refclk;
+	uint8_t phy_tx0_term_offset;
 };
 
 struct qcom_pcie_resources_v1 {
@@ -97,6 +116,16 @@ struct qcom_pcie {
 };
 
 #define to_qcom_pcie(x)		container_of(x, struct qcom_pcie, pp)
+
+static inline void
+writel_masked(void __iomem *addr, u32 clear_mask, u32 set_mask)
+{
+	u32 val = readl(addr);
+
+	val &= ~clear_mask;
+	val |= set_mask;
+	writel(val, addr);
+}
 
 static void qcom_ep_reset_assert(struct qcom_pcie *pcie)
 {
@@ -193,6 +222,10 @@ static int qcom_pcie_get_resources_v0(struct qcom_pcie *pcie)
 	if (IS_ERR(res->ext_reset))
 		return PTR_ERR(res->ext_reset);
 
+	if (of_property_read_u8(dev->of_node, "phy-tx0-term-offset",
+				&res->phy_tx0_term_offset))
+		res->phy_tx0_term_offset = 0;
+
 	return 0;
 }
 
@@ -252,7 +285,6 @@ static int qcom_pcie_init_v0(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v0 *res = &pcie->res.v0;
 	struct device *dev = pcie->dev;
-	u32 val;
 	int ret;
 
 	ret = reset_control_assert(res->ahb_reset);
@@ -321,15 +353,27 @@ static int qcom_pcie_init_v0(struct qcom_pcie *pcie)
 		goto err_deassert_ahb;
 	}
 
-	/* enable PCIe clocks and resets */
-	val = readl(pcie->parf + PCIE20_PARF_PHY_CTRL);
-	val &= ~BIT(0);
-	writel(val, pcie->parf + PCIE20_PARF_PHY_CTRL);
+	writel_masked(pcie->parf + PCIE20_PARF_PHY_CTRL, BIT(0), 0);
 
-	/* enable external reference clock */
-	val = readl(pcie->parf + PCIE20_PARF_PHY_REFCLK);
-	val |= BIT(16);
-	writel(val, pcie->parf + PCIE20_PARF_PHY_REFCLK);
+	/* Set Tx termination offset */
+	writel_masked(pcie->parf + PCIE20_PARF_PHY_CTRL,
+		      PHY_CTRL_PHY_TX0_TERM_OFFSET_MASK,
+		      PHY_CTRL_PHY_TX0_TERM_OFFSET(res->phy_tx0_term_offset));
+
+	/* PARF programming */
+	writel(PCS_DEEMPH_TX_DEEMPH_GEN1(0x18) |
+	       PCS_DEEMPH_TX_DEEMPH_GEN2_3_5DB(0x18) |
+	       PCS_DEEMPH_TX_DEEMPH_GEN2_6DB(0x22),
+	       pcie->parf + PCIE20_PARF_PCS_DEEMPH);
+	writel(PCS_SWING_TX_SWING_FULL(0x78) |
+	       PCS_SWING_TX_SWING_LOW(0x78),
+	       pcie->parf + PCIE20_PARF_PCS_SWING);
+	writel(PHY_RX0_EQ(0x4), pcie->parf + PCIE20_PARF_CONFIG_BITS);
+
+	/* Enable reference clock */
+	writel_masked(pcie->parf + PCIE20_PARF_PHY_REFCLK,
+		      REF_USE_PAD, REF_SSP_EN);
+
 
 	ret = reset_control_deassert(res->phy_reset);
 	if (ret) {
