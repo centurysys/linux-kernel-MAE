@@ -4,8 +4,9 @@
 	Usage: required
 	Value type: <stringlist>
 	Definition: Value shall include
-		    - "qcom,pcie-v0" for apq/ipq8064
-		    - "qcom,pcie-v1" for apq8084
+		    - "qcom,pcie-ipq8064" for ipq8064
+		    - "qcom,pcie-apq8064" for apq8064
+		    - "qcom,pcie-apq8084" for apq8084
 
 - reg:
 	Usage: required
@@ -156,7 +157,7 @@
 
 * Example for v0
 	pcie0: pci@1b500000 {
-		compatible = "qcom,pcie-v0";
+		compatible = "qcom,pcie-ipq8064";
 		reg = <0x1b500000 0x1000
 		       0x1b502000 0x80
 		       0x1b600000 0x100
@@ -192,7 +193,7 @@
 
 * Example for v1
 	pcie0@fc520000 {
-		compatible = "qcom,pcie-v1";
+		compatible = "qcom,pcie-apq8084";
 		reg = <0xfc520000 0x2000>,
 		      <0xff000000 0x1000>,
 		      <0xff001000 0x1000>,
