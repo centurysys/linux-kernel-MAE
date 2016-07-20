@@ -90,9 +90,16 @@ struct qcom_pcie_resources_v1 {
 	struct regulator *vdda;
 };
 
+struct qcom_pcie_resources_v2 {
+	struct regulator *vdda;
+	struct regulator *vdda_phy;
+	struct regulator *vdda_refclk;
+};
+
 union qcom_pcie_resources {
 	struct qcom_pcie_resources_v0 v0;
 	struct qcom_pcie_resources_v1 v1;
+	struct qcom_pcie_resources_v2 v2;
 };
 
 struct qcom_pcie;
@@ -257,6 +264,26 @@ static int qcom_pcie_get_resources_v1(struct qcom_pcie *pcie)
 	res->core = devm_reset_control_get(dev, "core");
 	if (IS_ERR(res->core))
 		return PTR_ERR(res->core);
+
+	return 0;
+}
+
+static int qcom_pcie_get_resources_v2(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_resources_v2 *res = &pcie->res.v2;
+	struct device *dev = pcie->dev;
+
+	res->vdda = devm_regulator_get(dev, "vdda");
+	if (IS_ERR(res->vdda))
+		return PTR_ERR(res->vdda);
+
+	res->vdda_phy = devm_regulator_get(dev, "vdda_phy");
+	if (IS_ERR(res->vdda_phy))
+		return PTR_ERR(res->vdda_phy);
+
+	res->vdda_refclk = devm_regulator_get(dev, "vdda_refclk");
+	if (IS_ERR(res->vdda_refclk))
+		return PTR_ERR(res->vdda_refclk);
 
 	return 0;
 }
@@ -505,6 +532,56 @@ err_res:
 	return ret;
 }
 
+static void qcom_pcie_deinit_v2(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_resources_v2 *res = &pcie->res.v2;
+
+	regulator_disable(res->vdda);
+	regulator_disable(res->vdda_phy);
+	regulator_disable(res->vdda_refclk);
+}
+
+static int qcom_pcie_enable_resources_v2(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_resources_v2 *res = &pcie->res.v2;
+	struct device *dev = pcie->dev;
+	int ret;
+
+	ret = regulator_enable(res->vdda);
+	if (ret) {
+		dev_err(dev, "cannot enable vdda regulator\n");
+		return ret;
+	}
+
+	ret = regulator_enable(res->vdda_refclk);
+	if (ret) {
+		dev_err(dev, "cannot enable vdda_refclk regulator\n");
+		goto err_refclk;
+	}
+
+	ret = regulator_enable(res->vdda_phy);
+	if (ret) {
+		dev_err(dev, "cannot enable vdda_phy regulator\n");
+		goto err_vdda_phy;
+	}
+
+	return 0;
+
+err_vdda_phy:
+	regulator_disable(res->vdda_refclk);
+err_refclk:
+	regulator_disable(res->vdda);
+	return ret;
+}
+
+static int qcom_pcie_init_v2(struct qcom_pcie *pcie)
+{
+
+	qcom_ep_reset_assert(pcie);
+
+	return qcom_pcie_enable_resources_v2(pcie);
+}
+
 static int qcom_pcie_link_up(struct pcie_port *pp)
 {
 	struct qcom_pcie *pcie = to_qcom_pcie(pp);
@@ -578,6 +655,12 @@ static const struct qcom_pcie_ops ops_v1 = {
 	.get_resources = qcom_pcie_get_resources_v1,
 	.init = qcom_pcie_init_v1,
 	.deinit = qcom_pcie_deinit_v1,
+};
+
+static const struct qcom_pcie_ops ops_v2 = {
+	.get_resources = qcom_pcie_get_resources_v2,
+	.init = qcom_pcie_init_v2,
+	.deinit = qcom_pcie_deinit_v2,
 };
 
 static int qcom_pcie_probe(struct platform_device *pdev)
@@ -673,6 +756,7 @@ static const struct of_device_id qcom_pcie_match[] = {
 	{ .compatible = "qcom,pcie-ipq8064", .data = &ops_v0 },
 	{ .compatible = "qcom,pcie-apq8064", .data = &ops_v0 },
 	{ .compatible = "qcom,pcie-apq8084", .data = &ops_v1 },
+	{ .compatible = "qcom,pcie-ipq4019", .data = &ops_v2 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_pcie_match);
