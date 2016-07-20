@@ -122,6 +122,9 @@
 
 /* NAND_CTRL bits */
 #define	BAM_MODE_EN			BIT(0)
+
+/* Value for NAND_DEV_CMD_VLD */
+#define NAND_DEV_CMD_VLD_VAL		(0x1D)
 /*
  * the NAND controller performs reads/writes with ECC in 516 byte chunks.
  * the driver calls the chunks 'step' or 'codeword' interchangeably
@@ -2648,6 +2651,7 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 
 	/* kill onenand */
 	nandc_write(nandc, SFLASHC_BURST_CFG, 0);
+	nandc_write(nandc, NAND_DEV_CMD_VLD, NAND_DEV_CMD_VLD_VAL);
 
 	/* enable ADM or BAM DMA */
 	if (!nandc->dma_bam_enabled) {
