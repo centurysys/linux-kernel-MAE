@@ -32,6 +32,21 @@
 
 #include "pcie-designware.h"
 
+#define PCIE20_PARF_SYS_CTRL			0x00
+#define MST_WAKEUP_EN				BIT(13)
+#define SLV_WAKEUP_EN				BIT(12)
+#define MSTR_ACLK_CGC_DIS			BIT(10)
+#define SLV_ACLK_CGC_DIS			BIT(9)
+#define CORE_CLK_CGC_DIS			BIT(6)
+#define AUX_PWR_DET				BIT(4)
+#define L23_CLK_RMV_DIS				BIT(2)
+#define L1_CLK_RMV_DIS				BIT(1)
+
+#define PCIE20_PARF_Q2A_FLUSH			0x1AC
+
+#define PCIE20_PARF_LTSSM			0x1B0
+#define LTSSM_EN				(1 << 8)
+
 #define PCIE20_PARF_PHY_CTRL			0x40
 #define PHY_CTRL_PHY_TX0_TERM_OFFSET_MASK	(0x1f << 16)
 #define PHY_CTRL_PHY_TX0_TERM_OFFSET(x)		(x << 16)
@@ -48,6 +63,18 @@
 #define PCIE20_ELBI_SYS_CTRL_LT_ENABLE		BIT(0)
 
 #define PCIE20_CAP				0x70
+#define PCIE20_CAP_LINK_CAPABILITIES		(PCIE20_CAP + 0xC)
+#define PCIE20_CAP_LINK_1			(PCIE20_CAP + 0x14)
+#define PCIE_CAP_LINK1_VAL			0x2fd7f
+
+
+#define PCIE20_COMMAND_STATUS			0x04
+#define CMD_BME_VAL				0x4
+#define PCIE20_DEVICE_CONTROL2_STATUS2		0x98
+#define PCIE_CAP_CPL_TIMEOUT_DISABLE		0x10
+
+#define PCIE20_MISC_CONTROL_1_REG		0x8BC
+#define DBI_RO_WR_EN				1
 
 #define PERST_DELAY_US				1000
 /* PARF registers */
@@ -730,11 +757,35 @@ static void qcom_pcie_v2_reset(struct qcom_pcie *pcie)
 
 static int qcom_pcie_init_v2(struct qcom_pcie *pcie)
 {
+	int ret;
 
 	qcom_pcie_v2_reset(pcie);
 	qcom_ep_reset_assert(pcie);
 
-	return qcom_pcie_enable_resources_v2(pcie);
+	ret = qcom_pcie_enable_resources_v2(pcie);
+	if (ret)
+		return ret;
+
+	writel_masked(pcie->parf + PCIE20_PARF_PHY_CTRL, BIT(0), 0);
+
+	writel(0, pcie->parf + PCIE20_PARF_DBI_BASE_ADDR);
+
+	writel(MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS
+		| SLV_ACLK_CGC_DIS | CORE_CLK_CGC_DIS |
+		AUX_PWR_DET | L23_CLK_RMV_DIS | L1_CLK_RMV_DIS,
+		pcie->parf + PCIE20_PARF_SYS_CTRL);
+	writel(0, pcie->parf + PCIE20_PARF_Q2A_FLUSH);
+	writel(CMD_BME_VAL, pcie->dbi + PCIE20_COMMAND_STATUS);
+	writel(DBI_RO_WR_EN, pcie->dbi + PCIE20_MISC_CONTROL_1_REG);
+	writel(PCIE_CAP_LINK1_VAL, pcie->dbi + PCIE20_CAP_LINK_1);
+
+	writel_masked(pcie->dbi + PCIE20_CAP_LINK_CAPABILITIES,
+		BIT(10) | BIT(11), 0);
+	writel(PCIE_CAP_CPL_TIMEOUT_DISABLE, pcie->dbi +
+		PCIE20_DEVICE_CONTROL2_STATUS2);
+	writel(LTSSM_EN, pcie->parf + PCIE20_PARF_LTSSM);
+
+	return 0;
 }
 
 static int qcom_pcie_link_up(struct pcie_port *pp)
