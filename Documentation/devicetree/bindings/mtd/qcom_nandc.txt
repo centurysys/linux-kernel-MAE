@@ -6,8 +6,10 @@ Required properties:
 			u-boots which populate the devicetree with flash
 			partitions, such as "qcom,qcom_nand".
 
-			"qcom,ebi2-nand-bam" - nand drivers using BAM DMA
+			"qcom,ebi2-nandc-bam" - nand drivers using BAM DMA
 			like IPQ4019.
+			"qcom,ebi2-nandc-bam-v1.5.0" - nand drivers using BAM
+			DMA and NAND controller v1.5.0 like IPQ807x.
 - reg:			MMIO address range
 - clocks:		must contain core clock and always on clock
 - clock-names:		must contain "core" for the core clock and "aon" for the
@@ -95,6 +97,48 @@ nand@1ac00000 {
 
 nand@79B0000 {
 	compatible = "qcom,ebi2-nandc-bam";
+	reg = <0x79B0000 0x1000>;
+
+	clocks = <&gcc EBI2_CLK>,
+		 <&gcc EBI2_AON_CLK>;
+	clock-names = "core", "aon";
+
+	dmas = <&qpicbam 0>,
+		<&qpicbam 1>,
+		<&qpicbam 2>;
+	dma-names = "tx", "rx", "cmd";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nandcs@0 {
+		compatible = "qcom,nandcs";
+		reg = <0>;
+
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		nand-bus-width = <8>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "boot-nand";
+				reg = <0 0x58a0000>;
+			};
+
+			partition@58a0000 {
+				label = "fs-nand";
+				reg = <0x58a0000 0x4000000>;
+			};
+		};
+	};
+};
+
+nand@79B0000 {
+	compatible = "qcom,ebi2-nandc-bam-v1.5.0";
 	reg = <0x79B0000 0x1000>;
 
 	clocks = <&gcc EBI2_CLK>,
