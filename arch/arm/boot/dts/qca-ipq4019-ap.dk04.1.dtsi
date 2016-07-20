@@ -99,5 +99,10 @@
 				use-default-sizes;
 			};
 		};
+
+		pcie0: pci@40000000 {
+			status = "ok";
+			perst-gpio = <&tlmm 38 0x1>;
+		};
 	};
 };
