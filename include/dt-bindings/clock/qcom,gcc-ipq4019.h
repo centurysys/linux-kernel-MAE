@@ -1,4 +1,5 @@
-/* Copyright (c) 2015 The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -154,5 +155,6 @@
 #define GCC_QDSS_BCR					69
 #define GCC_MPM_BCR					70
 #define GCC_SPDM_BCR					71
+#define AUDIO_BLK_ARES					GCC_AUDIO_BCR
 
 #endif
