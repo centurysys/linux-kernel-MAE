@@ -1,0 +1,190 @@
+/* Copyright (c) 2015 - 2016, The Linux Foundation. All rights reserved.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ */
+
+#include "qca-ipq4019-ap.dk04.1.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK04.1-C2";
+
+	soc {
+		pinctrl@0x01000000 {
+			audio_pins: audio_pinmux {
+				mux_1 {
+					pins = "gpio25", "gpio53", "gpio60";
+					function = "i2s_tx_bclk";
+					bias-pull,up;
+				};
+
+				mux_2 {
+					pins = "gpio27", "gpio54", "gpio63";
+					function = "i2s_txd1";
+					bias-pull,up;
+				};
+
+				mux_3 {
+					pins = "gpio28", "gpio55";
+					function = "i2s_txd2";
+					bias-pull,up;
+				};
+
+				mux_4 {
+					pins = "gpio29", "gpio56";
+					function = "i2s_txd3";
+					bias-pull,up;
+				};
+
+				mux_5 {
+					pins = "gpio24", "gpio52";
+					function = "i2s_tx_mclk";
+					bias-pull,up;
+				};
+
+				mux_6 {
+					pins = "gpio26", "gpio57", "gpio61";
+					function = "i2s_tx_fsync";
+					bias-pull,up;
+				};
+
+				mux_7 {
+					pins = "gpio2", "gpio23", "gpio63";
+					function = "i2s_rxd";
+					bias-pull,up;
+				};
+
+				mux_8 {
+					pins = "gpio20", "gpio58";
+					function = "i2s_rx_mclk";
+					bias-pull,up;
+				};
+
+				mux_9 {
+					pins = "gpio0", "gpio21", "gpio60";
+					function = "i2s_rx_bclk";
+					bias-pull,up;
+				};
+
+				mux_10 {
+					pins = "gpio1", "gpio22", "gpio61";
+					function = "i2s_rx_fsync";
+					bias-pull,up;
+				};
+
+				mux_11 {
+					pins = "gpio34", "gpio59", "gpio63";
+					function = "i2s_spdif_in";
+					bias-pull,up;
+				};
+
+				mux_12 {
+					pins = "gpio35", "gpio62", "gpio63";
+					function = "i2s_spdif_out";
+					bias-pull,up;
+				};
+			};
+		};
+
+		adcc: clock-controller@7700038 {
+			status = "ok";
+		};
+
+		audio: audio@7700000 {
+			status = "ok";
+		};
+
+		mbox0: mbox@7708000 {
+			status = "ok";
+		};
+
+		mbox1: mbox@770a000 {
+			status = "ok";
+		};
+
+		mbox2: mbox@770c000 {
+			status = "ok";
+		};
+
+		mbox3: mbox@770e000 {
+			status = "ok";
+		};
+
+		mbox4: mbox@7706000 {
+			status = "ok";
+		};
+
+		stereo0: stereo@7709000 {
+			status = "ok";
+		};
+
+		stereo1: stereo@770b000 {
+			status = "ok";
+		};
+
+		stereo2: stereo@770d000 {
+			status = "ok";
+		};
+
+		stereo3: stereo@770f000 {
+			status = "ok";
+		};
+
+		/* Enable Audio Interfaces */
+		i2s: ipq4019-pcm-i2s@0 {
+			status = "ok";
+		};
+
+		i2splatform: qca-pcm-i2s@7709000 {
+			status = "ok";
+		};
+
+		i2s1platform: qca-pcm-i2s1@770b000 {
+			status = "ok";
+		};
+
+		i2s1: ipq4019-pcm-i2s1@0 {
+			status = "ok";
+		};
+
+		i2s2platform: qca-pcm-i2s2@770d000 {
+			status = "ok";
+		};
+
+		i2s2: ipq4019-pcm-i2s2@0 {
+			status = "ok";
+		};
+
+		tdmplatform: qca-pcm-tdm@7709000 {
+			status = "ok";
+		};
+
+		tdm: tdm@0 {
+			status = "ok";
+		};
+
+		spdifplatform: qca-pcm-spdif@7707000 {
+			status = "ok";
+		};
+
+		spdif: spdif@0 {
+			status = "ok";
+		};
+
+		sound: sound@0 {
+			pinctrl-0 = <&audio_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+		};
+	};
+};
