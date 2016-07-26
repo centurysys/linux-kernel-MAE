@@ -1744,6 +1744,17 @@ static const struct qcom_reset_map gcc_ipq4019_resets[] = {
 	[GCC_TCSR_BCR] = {0x22000, 0},
 	[GCC_MPM_BCR] = {0x24000, 0},
 	[GCC_SPDM_BCR] = {0x25000, 0},
+	[ESS_MAC1_ARES] = {0x1200C, 0},
+	[ESS_MAC2_ARES] = {0x1200C, 1},
+	[ESS_MAC3_ARES] = {0x1200C, 2},
+	[ESS_MAC4_ARES] = {0x1200C, 3},
+	[ESS_MAC5_ARES] = {0x1200C, 4},
+	[ESS_PSGMII_ARES] = {0x1200C, 5},
+	[ESS_MAC1_CLK_DIS] = {0x1200C, 8},
+	[ESS_MAC2_CLK_DIS] = {0x1200C, 9},
+	[ESS_MAC3_CLK_DIS] = {0x1200C, 10},
+	[ESS_MAC4_CLK_DIS] = {0x1200C, 11},
+	[ESS_MAC5_CLK_DIS] = {0x1200C, 12},
 };
 
 static const struct regmap_config gcc_ipq4019_regmap_config = {

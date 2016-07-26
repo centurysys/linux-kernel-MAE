@@ -90,5 +90,16 @@
 #define GCC_MPM_BCR					70
 #define GCC_SPDM_BCR					71
 #define AUDIO_BLK_ARES					GCC_AUDIO_BCR
+#define ESS_MAC1_ARES					72
+#define ESS_MAC2_ARES					73
+#define ESS_MAC3_ARES					74
+#define ESS_MAC4_ARES					75
+#define ESS_MAC5_ARES					76
+#define ESS_PSGMII_ARES					77
+#define ESS_MAC1_CLK_DIS				78
+#define ESS_MAC2_CLK_DIS				79
+#define ESS_MAC3_CLK_DIS				80
+#define ESS_MAC4_CLK_DIS				81
+#define ESS_MAC5_CLK_DIS				82
 
 #endif
