@@ -24,6 +24,7 @@
 #include <linux/clk.h>
 
 #include <dt-bindings/clock/qcom,gcc-ipq4019.h>
+#include <dt-bindings/reset/qcom,gcc-ipq4019.h>
 
 #include "common.h"
 #include "clk-regmap.h"

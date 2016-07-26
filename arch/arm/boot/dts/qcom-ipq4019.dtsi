@@ -18,6 +18,7 @@
 
 #include "skeleton.dtsi"
 #include <dt-bindings/clock/qcom,gcc-ipq4019.h>
+#include <dt-bindings/reset/qcom,gcc-ipq4019.h>
 #include <dt-bindings/clock/qca,adcc-ipq4019.h>
 #include <dt-bindings/sound/ipq4019-audio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
