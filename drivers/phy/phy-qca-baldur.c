@@ -179,13 +179,20 @@ static int qca_baldur_hs_phy_init(struct usb_phy *x)
 		qca_baldur_hs_write(phy->base, PHY_IPG_ADDR, PHY_IPG_VAL);
 	} else {
 		/* perform PHY register writes */
-		qca_baldur_hs_write(phy->base, PHY_CTRL0_EMU_ADDR, PHY_CTRL0_EMU_VAL);
-		qca_baldur_hs_write(phy->base, PHY_CTRL1_EMU_ADDR, PHY_CTRL1_EMU_VAL);
-		qca_baldur_hs_write(phy->base, PHY_CTRL2_EMU_ADDR, PHY_CTRL2_EMU_VAL);
-		qca_baldur_hs_write(phy->base, PHY_CTRL3_EMU_ADDR, PHY_CTRL3_EMU_VAL);
-		qca_baldur_hs_write(phy->base, PHY_CTRL4_EMU_ADDR, PHY_CTRL4_EMU_VAL);
-		qca_baldur_hs_write(phy->base, PHY_MISC_EMU_ADDR, PHY_MISC_EMU_VAL);
-		qca_baldur_hs_write(phy->base, PHY_IPG_EMU_ADDR, PHY_IPG_EMU_VAL);
+		qca_baldur_hs_write(phy->base, PHY_CTRL0_EMU_ADDR,
+						PHY_CTRL0_EMU_VAL);
+		qca_baldur_hs_write(phy->base, PHY_CTRL1_EMU_ADDR,
+						PHY_CTRL1_EMU_VAL);
+		qca_baldur_hs_write(phy->base, PHY_CTRL2_EMU_ADDR,
+						PHY_CTRL2_EMU_VAL);
+		qca_baldur_hs_write(phy->base, PHY_CTRL3_EMU_ADDR,
+						PHY_CTRL3_EMU_VAL);
+		qca_baldur_hs_write(phy->base, PHY_CTRL4_EMU_ADDR,
+						PHY_CTRL4_EMU_VAL);
+		qca_baldur_hs_write(phy->base, PHY_MISC_EMU_ADDR,
+						PHY_MISC_EMU_VAL);
+		qca_baldur_hs_write(phy->base, PHY_IPG_EMU_ADDR,
+						PHY_IPG_EMU_VAL);
 	}
 
 	msleep(10);
@@ -217,8 +224,10 @@ static int qca_baldur_hs_get_resources(struct qca_baldur_hs_phy *phy)
 
 	np = of_node_get(pdev->dev.of_node);
 	if (of_property_read_u32(np, "qca,host", &phy->host)
-			|| of_property_read_u32(np, "qca,emulation", &phy->emulation)) {
-		pr_err("%s: error reading critical device node properties\n", np->name);
+			|| of_property_read_u32(np, "qca,emulation",
+			&phy->emulation)) {
+		pr_err("%s: error reading critical device node properties\n",
+				np->name);
 		return -EFAULT;
 	}
 
