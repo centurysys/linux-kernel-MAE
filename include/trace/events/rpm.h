@@ -10,6 +10,47 @@
 
 struct device;
 
+TRACE_EVENT(rpm_smd_ack_recvd,
+
+	TP_PROTO(unsigned int irq, unsigned int msg_id, int errno),
+
+	TP_ARGS(irq, msg_id, errno),
+
+	TP_STRUCT__entry(
+		__field(int, irq)
+		__field(int, msg_id)
+		__field(int, errno)
+	),
+
+	TP_fast_assign(
+		__entry->irq = irq;
+		__entry->msg_id = msg_id;
+		__entry->errno = errno;
+	),
+
+	TP_printk("ctx:%s msg_id:%d errno:%08x",
+		__entry->irq ? "noslp" : "sleep",
+		__entry->msg_id,
+		__entry->errno)
+);
+
+TRACE_EVENT(rpm_smd_interrupt_notify,
+
+	TP_PROTO(char *dummy),
+
+	TP_ARGS(dummy),
+
+	TP_STRUCT__entry(
+		__field(char *, dummy)
+	),
+
+	TP_fast_assign(
+		__entry->dummy = dummy;
+	),
+
+	TP_printk("%s", __entry->dummy)
+);
+
 /*
  * The rpm_internal events are used for tracing some important
  * runtime pm internal functions.
@@ -72,6 +113,23 @@ DEFINE_EVENT(rpm_internal, rpm_idle,
 	TP_PROTO(struct device *dev, int flags),
 
 	TP_ARGS(dev, flags)
+);
+DEFINE_EVENT(rpm_send_msg, rpm_smd_sleep_set,
+	TP_PROTO(unsigned int msg_id, unsigned int rsc_type,
+		unsigned int rsc_id),
+	TP_ARGS(msg_id, rsc_type, rsc_id)
+);
+
+DEFINE_EVENT(rpm_send_msg, rpm_smd_send_sleep_set,
+	TP_PROTO(unsigned int msg_id, unsigned int rsc_type,
+		unsigned int rsc_id),
+	TP_ARGS(msg_id, rsc_type, rsc_id)
+);
+
+DEFINE_EVENT(rpm_send_msg, rpm_smd_send_active_set,
+	TP_PROTO(unsigned int msg_id, unsigned int rsc_type,
+		unsigned int rsc_id),
+	TP_ARGS(msg_id, rsc_type, rsc_id)
 );
 
 TRACE_EVENT(rpm_return_int,
