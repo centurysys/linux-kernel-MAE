@@ -63,6 +63,29 @@
 #define PCIE20_ELBI_SYS_CTRL_LT_ENABLE		BIT(0)
 
 #define PCIE20_CAP				0x70
+#define PCIE20_CAP_LINKCTRLSTATUS		(PCIE20_CAP + 0x10)
+
+#define PCIE20_AXI_MSTR_RESP_COMP_CTRL0		0x818
+#define PCIE20_AXI_MSTR_RESP_COMP_CTRL1		0x81c
+
+#define PCIE20_PLR_IATU_VIEWPORT		0x900
+#define PCIE20_PLR_IATU_REGION_OUTBOUND		(0x0 << 31)
+#define PCIE20_PLR_IATU_REGION_INDEX(x)		(x << 0)
+
+#define PCIE20_PLR_IATU_CTRL1			0x904
+#define PCIE20_PLR_IATU_TYPE_CFG0		(0x4 << 0)
+#define PCIE20_PLR_IATU_TYPE_MEM		(0x0 << 0)
+
+#define PCIE20_PLR_IATU_CTRL2			0x908
+#define PCIE20_PLR_IATU_ENABLE			BIT(31)
+
+#define PCIE20_PLR_IATU_LBAR			0x90C
+#define PCIE20_PLR_IATU_UBAR			0x910
+#define PCIE20_PLR_IATU_LAR			0x914
+#define PCIE20_PLR_IATU_LTAR			0x918
+#define PCIE20_PLR_IATU_UTAR			0x91c
+
+#define MSM_PCIE_DEV_CFG_ADDR		0x01000000
 #define PCIE20_CAP_LINK_CAPABILITIES		(PCIE20_CAP + 0xC)
 #define PCIE20_CAP_LINK_1			(PCIE20_CAP + 0x14)
 #define PCIE_CAP_LINK1_VAL			0x2fd7f
@@ -208,6 +231,57 @@ static int qcom_pcie_establish_link(struct qcom_pcie *pcie)
 	writel(val, pcie->elbi + PCIE20_ELBI_SYS_CTRL);
 
 	return dw_pcie_wait_for_link(&pcie->pp);
+}
+
+static void qcom_pcie_prog_viewport_cfg0(struct qcom_pcie *pcie, u32 busdev)
+{
+	struct pcie_port *pp = &pcie->pp;
+
+	/*
+	 * program and enable address translation region 0 (device config
+	 * address space); region type config;
+	 * axi config address range to device config address range
+	 */
+	writel(PCIE20_PLR_IATU_REGION_OUTBOUND |
+	       PCIE20_PLR_IATU_REGION_INDEX(0),
+	       pcie->dbi + PCIE20_PLR_IATU_VIEWPORT);
+
+	writel(PCIE20_PLR_IATU_TYPE_CFG0, pcie->dbi + PCIE20_PLR_IATU_CTRL1);
+	writel(PCIE20_PLR_IATU_ENABLE, pcie->dbi + PCIE20_PLR_IATU_CTRL2);
+	writel(pp->cfg0_base, pcie->dbi + PCIE20_PLR_IATU_LBAR);
+	writel((pp->cfg0_base >> 32), pcie->dbi + PCIE20_PLR_IATU_UBAR);
+	writel((pp->cfg0_base + pp->cfg0_size - 1),
+	       pcie->dbi + PCIE20_PLR_IATU_LAR);
+	writel(busdev, pcie->dbi + PCIE20_PLR_IATU_LTAR);
+	writel(0, pcie->dbi + PCIE20_PLR_IATU_UTAR);
+}
+
+static void qcom_pcie_prog_viewport_mem2_outbound(struct qcom_pcie *pcie)
+{
+	struct pcie_port *pp = &pcie->pp;
+
+	/*
+	 * program and enable address translation region 2 (device resource
+	 * address space); region type memory;
+	 * axi device bar address range to device bar address range
+	 */
+	writel(PCIE20_PLR_IATU_REGION_OUTBOUND |
+	       PCIE20_PLR_IATU_REGION_INDEX(2),
+	       pcie->dbi + PCIE20_PLR_IATU_VIEWPORT);
+
+	writel(PCIE20_PLR_IATU_TYPE_MEM, pcie->dbi + PCIE20_PLR_IATU_CTRL1);
+	writel(PCIE20_PLR_IATU_ENABLE, pcie->dbi + PCIE20_PLR_IATU_CTRL2);
+	writel(pp->mem_base, pcie->dbi + PCIE20_PLR_IATU_LBAR);
+	writel((pp->mem_base >> 32), pcie->dbi + PCIE20_PLR_IATU_UBAR);
+	writel(pp->mem_base + pp->mem_size - 1,
+	       pcie->dbi + PCIE20_PLR_IATU_LAR);
+	writel(pp->mem_bus_addr, pcie->dbi + PCIE20_PLR_IATU_LTAR);
+	writel(upper_32_bits(pp->mem_bus_addr),
+	       pcie->dbi + PCIE20_PLR_IATU_UTAR);
+
+	/* 256B PCIE buffer setting */
+	writel(0x1, pcie->dbi + PCIE20_AXI_MSTR_RESP_COMP_CTRL0);
+	writel(0x1, pcie->dbi + PCIE20_AXI_MSTR_RESP_COMP_CTRL1);
 }
 
 static int qcom_pcie_get_resources_v0(struct qcom_pcie *pcie)
@@ -530,6 +604,9 @@ static int qcom_pcie_init_v0(struct qcom_pcie *pcie)
 
 	/* wait for clock acquisition */
 	usleep_range(1000, 1500);
+
+	qcom_pcie_prog_viewport_cfg0(pcie, MSM_PCIE_DEV_CFG_ADDR);
+	qcom_pcie_prog_viewport_mem2_outbound(pcie);
 
 	return 0;
 
