@@ -103,6 +103,7 @@
 #include <linux/slab.h>
 #include "check.h"
 #include "efi.h"
+#include <linux/root_dev.h>
 
 /* This allows a kernel command line option 'gpt' to override
  * the test for invalid PMBR.  Not __initdata because reloading
@@ -727,6 +728,14 @@ int efi_partition(struct parsed_partitions *state)
 				c = '!';
 			info->volname[label_count] = c;
 			label_count++;
+		}
+
+		if (ROOT_DEV == 0 && !strcmp(info->volname, "rootfs") &&
+		    config_enabled(CONFIG_MTD_ROOTFS_ROOT_DEV)) {
+			ROOT_DEV = MKDEV(MAJOR(state->bdev->bd_dev), i + 1);
+			pr_notice("GPT: device [%d:%d] (%s) set to be root filesystem\n",
+				MAJOR(ROOT_DEV), MINOR(ROOT_DEV),
+				info->volname);
 		}
 		state->parts[i + 1].has_info = true;
 	}

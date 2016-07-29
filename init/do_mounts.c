@@ -607,12 +607,31 @@ void __init prepare_namespace(void)
 		goto out;
 
 	/* wait for any asynchronous scanning to complete */
-	if ((ROOT_DEV == 0) && root_wait) {
+	if ((ROOT_DEV == 0) && root_wait && saved_root_name[0]) {
 		printk(KERN_INFO "Waiting for root device %s...\n",
 			saved_root_name);
 		while (driver_probe_done() != 0 ||
 			(ROOT_DEV = name_to_dev_t(saved_root_name)) == 0)
 			msleep(100);
+
+		async_synchronize_full();
+	} else if (config_enabled(CONFIG_MTD_ROOTFS_ROOT_DEV) &&
+			(ROOT_DEV == 0) && root_wait) {
+		pr_info(KERN_INFO "Waiting for root device ...\n");
+		/*
+		 * Though MMC devices get detected before kernel
+		 * reaches here, GPT partition table parsing happens
+		 * later. Since we assume the GPT partition "rootfs",
+		 * as the device to mount the Root FS from, the
+		 * "root=xxx" command line option might not be
+		 * present resulting in 'saved_root_name' being NULL.
+		 * Hence, don't try to do 'name_to_dev_t' on it.
+		 * Eventually, ROOT_DEV will get updated by the GPT
+		 * parsing code and we will break out of this loop.
+		 */
+		while (driver_probe_done() != 0 || ROOT_DEV == 0)
+			msleep(100);
+
 		async_synchronize_full();
 	}
 
