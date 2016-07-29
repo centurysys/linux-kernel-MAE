@@ -101,7 +101,7 @@
 
 		q6v5_wcss@CD00000 {
 			compatible = "qcom,q6v5-wcss-rproc";
-			firmware = "q6-wcss-boot";
+			firmware = "IPQ8074/M8074QCAHKAWPLQ00010_WLANFW.elf";
 			reg = <0xCD00000 0x4040>;
 		};
 
