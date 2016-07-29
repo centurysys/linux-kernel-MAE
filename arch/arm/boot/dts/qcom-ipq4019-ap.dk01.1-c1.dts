@@ -14,7 +14,7 @@
  *
  */
 
-#include "qca-ipq4019-ap.dk01.1.dtsi"
+#include "qcom-ipq4019-ap.dk01.1.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK01.1-C1";
