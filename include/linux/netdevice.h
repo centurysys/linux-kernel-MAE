@@ -1305,6 +1305,7 @@ enum netdev_priv_flags {
 	IFF_OPENVSWITCH			= 1<<22,
 	IFF_L3MDEV_SLAVE		= 1<<23,
 	IFF_NO_IP_ALIGN			= 1<<24,
+	IFF_TUN_TAP			= 1<<25,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -1332,6 +1333,7 @@ enum netdev_priv_flags {
 #define IFF_OPENVSWITCH			IFF_OPENVSWITCH
 #define IFF_L3MDEV_SLAVE		IFF_L3MDEV_SLAVE
 #define IFF_NO_IP_ALIGN			IFF_NO_IP_ALIGN
+#define IFF_TUN_TAP			IFF_TUN_TAP
 
 /**
  *	struct net_device - The DEVICE structure.
