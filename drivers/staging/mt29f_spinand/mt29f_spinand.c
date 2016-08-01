@@ -646,15 +646,13 @@ static int spinand_write_disable(struct spi_device *spi_nand)
 static int spinand_read_page_to_cache(struct spi_device *spi_nand, u32 page_id)
 {
 	struct spinand_cmd cmd = {0};
-	u16 row;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 
 	do_die_select(spi_nand, dev_ops, page_id);
 
-	row = page_id;
 	cmd.cmd = CMD_READ;
 	cmd.n_addr = 3;
-	dev_ops->spinand_read_cmd(&cmd, row);
+	dev_ops->spinand_read_cmd(&cmd, page_id);
 
 	return spinand_cmd(spi_nand, &cmd);
 }
@@ -667,7 +665,7 @@ static int spinand_read_page_to_cache(struct spi_device *spi_nand, u32 page_id)
  *   locations.
  *   No tRd delay.
  */
-static int spinand_read_from_cache(struct spi_device *spi_nand, u16 page_id,
+static int spinand_read_from_cache(struct spi_device *spi_nand, u32 page_id,
 				   u16 byte_id, u16 len, u8 *rbuf)
 {
 	struct spinand_cmd cmd = {0};
@@ -808,15 +806,13 @@ static int spinand_program_data_to_cache(struct spi_device *spi_nand,
 static int spinand_program_execute(struct spi_device *spi_nand, u32 page_id)
 {
 	struct spinand_cmd cmd = {0};
-	u32 row;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 
 	do_die_select(spi_nand, dev_ops, page_id);
 
-	row = page_id;
 	cmd.cmd = CMD_PROG_PAGE_EXC;
 	cmd.n_addr = 3;
-	dev_ops->spinand_write_cmd(&cmd, row);
+	dev_ops->spinand_write_cmd(&cmd, page_id);
 
 	return spinand_cmd(spi_nand, &cmd);
 }
@@ -935,15 +931,13 @@ exit:
 static int spinand_erase_block_erase(struct spi_device *spi_nand, u32 block_id)
 {
 	struct spinand_cmd cmd = {0};
-	u16 row;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 
 	do_die_select(spi_nand, dev_ops, block_id);
 
-	row = block_id;
 	cmd.cmd = CMD_ERASE_BLK;
 	cmd.n_addr = 3;
-	dev_ops->spinand_erase_blk(&cmd, row);
+	dev_ops->spinand_erase_blk(&cmd, block_id);
 
 	return spinand_cmd(spi_nand, &cmd);
 }
