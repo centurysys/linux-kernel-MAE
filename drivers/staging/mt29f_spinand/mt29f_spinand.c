@@ -758,7 +758,7 @@ static int spinand_program_data_to_cache(struct spi_device *spi_nand,
 	cmd.n_addr = 2;
 	dev_ops->spinand_write_data(&cmd, column, page_id);
 	cmd.n_tx = len;
-	cmd.tx_buf = wbuf;
+	cmd.tx_buf = wbuf + column;
 
 	return spinand_cmd(spi_nand, &cmd);
 }
@@ -815,7 +815,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 
 	spinand_read_page(spi_nand, page_id, 0, CACHE_BUF, wbuf);
 
-	for (i = offset, j = 0; i < len; i++, j++)
+	for (i = offset, j = 0; i < (offset + len); i++, j++)
 		wbuf[i] &= buf[j];
 
 	if (enable_hw_ecc) {

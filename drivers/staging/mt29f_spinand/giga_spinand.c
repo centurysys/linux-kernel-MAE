@@ -60,6 +60,7 @@ void gigadevice_read_cmd(struct spinand_cmd *cmd, u32 page_id)
 
 void gigadevice_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
+	cmd->addr[0] = 0xff; /*dummy byte*/
 	cmd->addr[1] = (u8)(column >> 8);
 	cmd->addr[2] = (u8)(column);
 }
@@ -85,8 +86,8 @@ void gigadevice_write_cmd(struct spinand_cmd *cmd, u32 page_id)
 
 void gigadevice_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
-	cmd->addr[1] = (u8)(column >> 8);
-	cmd->addr[2] = (u8)(column);
+	cmd->addr[0] = (u8)(column >> 8);
+	cmd->addr[1] = (u8)(column);
 }
 
 void macronix_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
