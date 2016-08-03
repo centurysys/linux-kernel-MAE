@@ -60,8 +60,8 @@
 
 #define MDIO_ACCESS_22_WRITE		(0x1)
 #define MDIO_ACCESS_22_READ			(0x0)
-#define MDIO_ACCESS_45_WRITE    	(0x2)
-#define MDIO_ACCESS_45_READ     	(0x1)
+#define MDIO_ACCESS_45_WRITE	(0x2)
+#define MDIO_ACCESS_45_READ	(0x1)
 #define MDIO_ACCESS_45_READ_ADDR	(0x0)
 
 struct qca_uni_ss_phy {
@@ -91,6 +91,7 @@ struct qf_read {
 static u32 qca_uni_ss_read(void __iomem *base, u32 offset)
 {
 	u32 value;
+
 	value = readl_relaxed(base + offset);
 	return value;
 }
@@ -122,17 +123,19 @@ int mdio_wait(void __iomem *base)
 	return 0;
 }
 
-int mdio_mii_read(void __iomem *base, unsigned char regAddr, unsigned short *data)
+int mdio_mii_read(void __iomem *base, unsigned char regAddr,
+					unsigned short *data)
 {
-	unsigned short mdio_ctl_0 = (MDIO_USB_PHY_ID | MDC_MODE | MDIO_CLAUSE_22
-								| MDIO_USB_CLK_DIV);
+	unsigned short mdio_ctl_0 = (MDIO_USB_PHY_ID | MDC_MODE
+					| MDIO_CLAUSE_22 | MDIO_USB_CLK_DIV);
 	unsigned int regVal;
 
 	qca_uni_ss_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, regAddr);
 
 	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_READ);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_READ| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG,
+				MDIO_ACCESS_22_READ | MDIO_ACCESS_START);
 
 	/* wait for access busy to be cleared */
 	if (mdio_wait(base)) {
@@ -145,16 +148,18 @@ int mdio_mii_read(void __iomem *base, unsigned char regAddr, unsigned short *dat
 	return 0;
 }
 
-int mdio_mii_write(void __iomem *base, unsigned char regAddr, unsigned short data)
+int mdio_mii_write(void __iomem *base, unsigned char regAddr,
+					unsigned short data)
 {
-	unsigned short mdio_ctl_0 = (MDIO_USB_PHY_ID | MDC_MODE | MDIO_CLAUSE_22
-								| MDIO_USB_CLK_DIV);
+	unsigned short mdio_ctl_0 = (MDIO_USB_PHY_ID | MDC_MODE
+					| MDIO_CLAUSE_22 | MDIO_USB_CLK_DIV);
 
 	qca_uni_ss_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, regAddr);
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, data);
 	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_WRITE);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_WRITE| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG,
+				MDIO_ACCESS_22_WRITE | MDIO_ACCESS_START);
 
 	/* wait for access busy to be cleared */
 	if (mdio_wait(base)) {
@@ -165,17 +170,19 @@ int mdio_mii_write(void __iomem *base, unsigned char regAddr, unsigned short dat
 	return 0;
 }
 
-int mdio_mmd_read(void __iomem *base, unsigned short regAddr, unsigned short *data)
+int mdio_mmd_read(void __iomem *base, unsigned short regAddr,
+					unsigned short *data)
 {
-	unsigned short mdio_ctl_0 = (MDIO_USB_PHY_ID | MDC_MODE | MDIO_CLAUSE_45
-								| MDIO_USB_CLK_DIV);
+	unsigned short mdio_ctl_0 = (MDIO_USB_PHY_ID | MDC_MODE
+					| MDIO_CLAUSE_45 | MDIO_USB_CLK_DIV);
 	unsigned int regVal;
 
 	qca_uni_ss_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, regAddr);
 	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG,
+				MDIO_ACCESS_45_READ_ADDR | MDIO_ACCESS_START);
 
 	/* wait for access busy to be cleared */
 	if (mdio_wait(base)) {
@@ -186,7 +193,8 @@ int mdio_mmd_read(void __iomem *base, unsigned short regAddr, unsigned short *da
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, regAddr);
 	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG,
+				MDIO_ACCESS_45_WRITE | MDIO_ACCESS_START);
 
 	/* wait for access busy to be cleared */
 	if (mdio_wait(base)) {
@@ -200,17 +208,19 @@ int mdio_mmd_read(void __iomem *base, unsigned short regAddr, unsigned short *da
 	return 0;
 }
 
-int mdio_mmd_write(void __iomem *base, unsigned short regAddr, unsigned short data)
+int mdio_mmd_write(void __iomem *base, unsigned short regAddr,
+					unsigned short data)
 {
 
-	unsigned short mdio_ctl_0 = (MDIO_USB_PHY_ID | MDC_MODE | MDIO_CLAUSE_45
-								| MDIO_USB_CLK_DIV);
+	unsigned short mdio_ctl_0 = (MDIO_USB_PHY_ID | MDC_MODE
+					| MDIO_CLAUSE_45 | MDIO_USB_CLK_DIV);
 
 	qca_uni_ss_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, regAddr);
 	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG,
+				MDIO_ACCESS_45_READ_ADDR | MDIO_ACCESS_START);
 
 	/* wait for access busy to be cleared */
 	if (mdio_wait(base)) {
@@ -220,11 +230,13 @@ int mdio_mmd_write(void __iomem *base, unsigned short regAddr, unsigned short da
 
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, data);
 	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG,
+				MDIO_ACCESS_45_READ | MDIO_ACCESS_START);
 
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, regAddr);
 	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG,
+				MDIO_ACCESS_45_WRITE | MDIO_ACCESS_START);
 
 	/* wait for access busy to be cleared */
 	if (mdio_wait(base)) {
@@ -381,8 +393,10 @@ static int qca_uni_ss_get_resources(struct platform_device *pdev,
 
 	np = of_node_get(pdev->dev.of_node);
 	if (of_property_read_u32(np, "qca,host", &phy->host)
-			|| of_property_read_u32(np, "qca,emulation", &phy->emulation)) {
-		pr_err("%s: error reading critical device node properties\n", np->name);
+			|| of_property_read_u32(np, "qca,emulation",
+			&phy->emulation)) {
+		pr_err("%s: error reading critical device node properties\n",
+				np->name);
 		return -EFAULT;
 	}
 
