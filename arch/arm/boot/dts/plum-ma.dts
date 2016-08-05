@@ -278,7 +278,8 @@
 		status = "disabled";
 
 		led@MobilePower {
-			label = "Mobile_Power";
+			label = "KYM1x_Power";
+			/*label = "Mobile_Power";*/
 			gpios = <&gpiox_0x0e_wlan 0 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			retain-suspend;
@@ -582,6 +583,18 @@
 		};
 	};
 
+	leds_kym1x_pwr: leds_kym1x_pwr {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "KYM1x_Power";
+			gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
+	};
+
 	aliases {
 		xio_02 = &xio_02;
 		xio_03 = &xio_03;
@@ -651,6 +664,7 @@
 		#size-cells = <0>;
 		devices = <&gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
 			   &gpiox_0x04_kym11
+			   &leds_kym1x_pwr
 			   &leds_au &leds_au_ctrl>;
 	};
 
@@ -673,6 +687,7 @@
 			   &gpiox_0x18
 			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_kym11
+			   &leds_kym1x_pwr
 			   &leds_au &leds_au_ctrl &leds_do>;
 	};
 
@@ -978,6 +993,12 @@
 			0x20 (PIN_INPUT | MUX_MODE7)	/* gpmc_ad8.gpio0_22 */
 		>;
 	};
+
+	usb1_pins: pinmux_usb1_pins {
+		pinctrl-single,pins = <
+			0x234 (PIN_OUTPUT | MUX_MODE7)  /* usb1_drvvbus.gpio3_13 */
+		>;
+	};
 };
 
 &uart0 {
@@ -1082,6 +1103,9 @@
 };
 
 &usb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb1_pins>;
+
 	status = "okay";
 
 	control@44e10620 {
