@@ -29,12 +29,6 @@
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 	};
 
-	psci {
-		compatible = "arm,psci-1.0";
-		method = "smc";
-		status = "disabled";
-	};
-
 	cpus {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
@@ -69,7 +63,7 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
-			enable-method = "psci";
+			enable-method = "qcom,arm-cortex-acc";
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 
@@ -82,7 +76,7 @@
 		CPU1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
-			enable-method = "psci";
+			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x1>;
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
@@ -94,7 +88,7 @@
 		CPU2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
-			enable-method = "psci";
+			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x2>;
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
@@ -106,7 +100,7 @@
 		CPU3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
-			enable-method = "psci";
+			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x3>;
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
