@@ -1,0 +1,20 @@
+* Qualcomm Technologies Inc. NSS Data Plane Platform Driver.
+
+Master data plane driver for the QCA networking subsystem (NSS)
+
+Required properties:
+- device_type: = "network";
+- compatible: = should be "qcom,nss-dp";
+- qcom,id: Unique Identifier for the GMAC block. This field is unique identifier
+		for each physical port.
+- local-mac-address: MAC Address to be used at the time of interface
+			initialization
+
+Example:
+
+dp1 {
+	device_type = "network";
+	compatible = "qcom,nss-dp";
+	qcom,id = <1>;
+	local-mac-address = [000000000000];
+};
