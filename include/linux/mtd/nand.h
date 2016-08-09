@@ -540,6 +540,7 @@ struct nand_buffers {
 
 /**
  * struct nand_chip - NAND Private Flash Chip Data
+ * @mtd:		MTD device registered to the MTD framework
  * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the
  *			flash device
  * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the
@@ -640,6 +641,7 @@ struct nand_buffers {
  */
 
 struct nand_chip {
+	struct mtd_info mtd;
 	void __iomem *IO_ADDR_R;
 	void __iomem *IO_ADDR_W;
 
@@ -718,6 +720,27 @@ struct nand_chip {
 
 	void *priv;
 };
+
+static inline void nand_set_flash_node(struct nand_chip *chip,
+				       struct device_node *np)
+{
+	chip->flash_node = np;
+}
+
+static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
+{
+	return chip->flash_node;
+}
+
+static inline struct nand_chip *mtd_to_nand(struct mtd_info *mtd)
+{
+	return container_of(mtd, struct nand_chip, mtd);
+}
+
+static inline struct mtd_info *nand_to_mtd(struct nand_chip *chip)
+{
+	return &chip->mtd;
+}
 
 /*
  * NAND Flash Manufacturer ID Codes
