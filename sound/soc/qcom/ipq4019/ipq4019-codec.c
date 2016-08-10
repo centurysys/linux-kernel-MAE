@@ -27,6 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/regmap.h>
 #include <sound/initval.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -36,6 +37,7 @@
 #include "ipq4019-codec.h"
 
 struct audio_hw_params audio_params;
+static struct regmap *akd4613_regmap;
 
 static const u8 akd4613_reg[AK4613_MAX_REG] = {
 	0x0F, 0x07, 0x3F, 0x20, 0x20, 0x55, 0x05, 0x07,
@@ -245,7 +247,6 @@ static int ipq4019_codec_audio_hw_params(struct snd_pcm_substream *substream,
 		cks = FS_512;
 		tdm_mode = STEREO;
 		dif = DIF_I2S_MODE;
-
 	} else if (intf == TDM) {
 		/* Codec settings for 8 channels */
 		dfs = DOUBLE_SPEED;
@@ -386,19 +387,28 @@ static const struct snd_kcontrol_new vol_ctrl  = {
 	.info = ipq4019_info,
 };
 
-unsigned int ipq4019_codec_i2c_read(struct snd_soc_codec *codec,
-					unsigned int reg)
+static const struct regmap_config akd4613_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = AK4613_MAX_REG,
+	.cache_type = REGCACHE_RBTREE,
+};
+
+static int ipq4019_codec_probe(struct snd_soc_codec *codec)
 {
-	int ret;
+	snd_soc_codec_init_regmap(codec, akd4613_regmap);
+	return 0;
+}
 
-	ret = i2c_smbus_read_byte_data(codec->control_data, (u8)(reg & 0xFF));
-	if (ret < 0)
-		pr_err("\ti2c read error %s(%d)\n", __func__, ret);
-
-	return ret;
+static int ipq4019_codec_remove(struct snd_soc_codec *codec)
+{
+	snd_soc_codec_exit_regmap(codec);
+	return 0;
 }
 
 static const struct snd_soc_codec_driver ipq4019_codec = {
+	.probe = ipq4019_codec_probe,
+	.remove = ipq4019_codec_remove,
 	.num_controls = 0,
 	.reg_cache_size = ARRAY_SIZE(akd4613_reg),
 	.reg_word_size = sizeof(u8),
@@ -416,11 +426,22 @@ static int ipq4019_codec_i2c_probe(struct i2c_client *i2c,
 {
 	int ret;
 
+	akd4613_regmap = devm_regmap_init_i2c(i2c, &akd4613_regmap_config);
+
+	if (IS_ERR(akd4613_regmap)) {
+		ret = PTR_ERR(akd4613_regmap);
+		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
+			ret);
+		return ret;
+	}
+
+	dev_info(&i2c->dev, "i2c regmap done\n");
+
 	ret = snd_soc_register_codec(&i2c->dev,
 			&ipq4019_codec, ipq4019_codec_dais,
 			ARRAY_SIZE(ipq4019_codec_dais));
 	if (ret < 0)
-		pr_err("\nsnd_soc_register_codec failed (%d)\n", ret);
+		dev_err(&i2c->dev, "snd_soc_register_codec failed (%d)\n", ret);
 
 	return ret;
 }
