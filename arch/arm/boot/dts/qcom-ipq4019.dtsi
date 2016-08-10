@@ -320,6 +320,18 @@
 			status = "disabled";
 		};
 
+		qcom: ledc@1937000  {
+			compatible = "qca,ledc";
+			reg = <0x1937000 0x20070>;
+			reg-names = "ledc_base_addr";
+			qcom,tcsr_ledc_values = <0x320193 0x14720800 0x20d 0x0 \
+				0x0 0xFFFFFFFF 0x0 0x7 0x7D0010 0x0 \
+				0x10482090 0x3FFFDFC>;
+			qcom,ledc_blink_indices_cnt = <0>;
+			qcom,ledc_blink_indices = <0>;
+			status = "disabled";
+		};
+
 		restart@4ab000 {
 			compatible = "qcom,pshold";
 			reg = <0x4ab000 0x4>;

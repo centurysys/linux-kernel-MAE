@@ -306,6 +306,18 @@ enum ipq4019_functions {
 	qca_mux_sdio5,
 	qca_mux_sdio6,
 	qca_mux_sdio7,
+	qca_mux_led0,
+	qca_mux_led1,
+	qca_mux_led2,
+	qca_mux_led3,
+	qca_mux_led4,
+	qca_mux_led5,
+	qca_mux_led6,
+	qca_mux_led7,
+	qca_mux_led8,
+	qca_mux_led9,
+	qca_mux_led10,
+	qca_mux_led11,
 	qca_mux_NA,
 };
 
@@ -415,6 +427,42 @@ static const char * const sdio6_groups[] = {
 static const char * const sdio7_groups[] = {
 	"gpio32",
 };
+static const char * const led0_groups[] = {
+	"gpio16", "gpio36", "gpio60",
+};
+static const char * const led1_groups[] = {
+	"gpio17", "gpio37", "gpio61",
+};
+static const char * const led2_groups[] = {
+	"gpio36", "gpio38", "gpio58",
+};
+static const char * const led3_groups[] = {
+	"gpio39",
+};
+static const char * const led4_groups[] = {
+	"gpio40",
+};
+static const char * const led5_groups[] = {
+	"gpio44",
+};
+static const char * const led6_groups[] = {
+	"gpio45",
+};
+static const char * const led7_groups[] = {
+	"gpio46",
+};
+static const char * const led8_groups[] = {
+	"gpio47",
+};
+static const char * const led9_groups[] = {
+	"gpio48",
+};
+static const char * const led10_groups[] = {
+	"gpio49",
+};
+static const char * const led11_groups[] = {
+	"gpio50",
+};
 
 static const struct msm_function ipq4019_functions[] = {
 	FUNCTION(gpio),
@@ -447,6 +495,18 @@ static const struct msm_function ipq4019_functions[] = {
 	FUNCTION(sdio5),
 	FUNCTION(sdio6),
 	FUNCTION(sdio7),
+	FUNCTION(led0),
+	FUNCTION(led1),
+	FUNCTION(led2),
+	FUNCTION(led3),
+	FUNCTION(led4),
+	FUNCTION(led5),
+	FUNCTION(led6),
+	FUNCTION(led7),
+	FUNCTION(led8),
+	FUNCTION(led9),
+	FUNCTION(led10),
+	FUNCTION(led11),
 };
 
 static const struct msm_pingroup ipq4019_groups[] = {
@@ -466,8 +526,10 @@ static const struct msm_pingroup ipq4019_groups[] = {
 	PINGROUP(13, blsp_spi0, blsp_i2c1, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(14, blsp_spi0, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(15, blsp_spi0, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(16, blsp_uart0, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(17, blsp_uart0, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(16, blsp_uart0, led0, NA, NA, NA, NA, NA,
+					NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(17, blsp_uart0, led1, NA, NA, NA, NA, NA,
+					NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(18, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(19, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(20, blsp_i2c0, i2s_rx_mclk, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
@@ -493,21 +555,26 @@ static const struct msm_pingroup ipq4019_groups[] = {
 	PINGROUP(33, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(34, blsp_i2c1, i2s_spdif_in, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(35, blsp_i2c1, i2s_spdif_out, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(36, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(37, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(38, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(39, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(40, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(36, NA, led2, led0, NA, NA, NA, NA, NA,
+					NA, NA, NA, NA, NA, NA),
+	PINGROUP(37, NA, NA, NA, led1, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(38, NA, led2, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(39, NA, NA, led3, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(40, NA, NA, NA, NA, led4, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(41, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(42, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(43, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(44, NA, blsp_spi1, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(45, NA, blsp_spi1, blsp_spi0, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(46, NA, blsp_spi1, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(47, NA, blsp_spi1, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(48, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(49, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(50, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(44, NA, blsp_spi1, NA, led5, NA, NA, NA,
+					NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(45, NA, blsp_spi1, blsp_spi0, NA, led6,
+					NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(46, NA, blsp_spi1, NA, led7, NA, NA, NA,
+					NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(47, NA, blsp_spi1, NA, led8, NA, NA, NA,
+					NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(48, NA, NA, NA, led9, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(49, NA, NA, NA, led10, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(50, NA, NA, NA, NA, led11, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(51, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(52, NA, NA, NA, i2s_tx_mclk, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(53, NA, NA, i2s_tx_bclk, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
@@ -515,10 +582,13 @@ static const struct msm_pingroup ipq4019_groups[] = {
 	PINGROUP(55, NA, blsp_spi0, i2s_txd2, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(56, NA, blsp_spi0, i2s_txd3, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(57, NA, blsp_spi0, i2s_tx_fsync, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(58, NA, NA, blsp_i2c0, NA, NA, i2s_rx_mclk, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(58, NA, led2, blsp_i2c0, NA, NA, i2s_rx_mclk,
+					NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(59, NA, blsp_i2c0, NA, NA, i2s_spdif_in, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(60, NA, blsp_uart0, NA, NA, NA, i2s_tx_bclk, i2s_rx_bclk, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(61, NA, blsp_uart0, NA, NA, NA, i2s_tx_fsync, i2s_rx_fsync, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(60, NA, blsp_uart0, NA, NA, led0, i2s_tx_bclk,	i2s_rx_bclk,
+					NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(61, NA, blsp_uart0, NA, NA, led1, i2s_tx_fsync, i2s_rx_fsync,
+					NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(62, NA, NA, NA, NA, i2s_spdif_out, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(63, NA, NA, NA, NA, i2s_txd1, i2s_rxd, i2s_spdif_out, i2s_spdif_in, NA, NA, NA, NA, NA, NA),
 	PINGROUP(64, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),

@@ -126,4 +126,13 @@ config LEDS_TRIGGER_USBDEV
 	  This allows LEDs to be controlled by the presence/activity of
 	  an USB device. If unsure, say N.
 
+config LEDS_IPQ
+	tristate "LED Support for IPQ SoC"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the LEDs on IPQ SoCs.
+	  There is support for ESS, WIFI and configurable LEDs.
+	  Supports 2 and 3 wire mode.
+	  Say Y to enable LEDs on IPQ SoCs.
+
 endif # LEDS_TRIGGERS
