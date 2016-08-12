@@ -311,6 +311,10 @@ static int ipq4019_pcm_i2s_prepare(struct snd_pcm_substream *substream)
 		return ret;
 	}
 
+	/* Set the ownership bits only if mmap is used */
+	if (pcm_rtpriv->mmap_flag == 1)
+		ipq4019_mbox_get_elapsed_size(pcm_rtpriv->channel);
+
 	pcm_rtpriv->last_played = NULL;
 
 	return 0;
