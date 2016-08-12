@@ -305,6 +305,7 @@
 			interrupts = <0 123 0>, <0 138 0>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			qcom,bus-width = <8>;
+			qcom,max_clk = <193000000>;
 			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&gcc GCC_SDCC1_AHB_CLK>;
 			clock-names = "core_clk", "iface_clk";
