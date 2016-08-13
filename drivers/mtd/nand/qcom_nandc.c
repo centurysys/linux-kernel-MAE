@@ -235,6 +235,9 @@ struct nandc_regs {
  * @cmd1/vld:			some fixed controller register values
  * @ecc_modes:			supported ECC modes by the current controller,
  *				initialized via DT match data
+ * @bch_enabled:		flag to tell whether BCH or RS ECC mode is used
+ * @dma_bam_enabled:		flag to tell whether nand controller is using
+ *				bam dma
  */
 struct qcom_nand_controller {
 	struct nand_hw_control controller;
@@ -254,6 +257,7 @@ struct qcom_nand_controller {
 	struct list_head desc_list;
 
 	u8		*data_buffer;
+	bool		dma_bam_enabled;
 	int		buf_size;
 	int		buf_count;
 	int		buf_start;
@@ -315,6 +319,17 @@ struct qcom_nand_host {
 	u32 ecc_bch_cfg;
 	u32 clrflashstatus;
 	u32 clrreadstatus;
+};
+
+/*
+ * This data type corresponds to the nand driver data which will be used at
+ * driver probe time
+ * @ecc_modes - ecc mode for nand
+ * @dma_bam_enabled - whether this driver is using bam
+ */
+struct qcom_nand_driver_data {
+	u32 ecc_modes;
+	bool dma_bam_enabled;
 };
 
 static inline struct qcom_nand_host *to_qcom_nand_host(struct nand_chip *chip)
@@ -2091,6 +2106,7 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	struct device_node *dn = dev->of_node, *child;
 	struct resource *res;
 	int ret;
+	struct qcom_nand_driver_data *driver_data;
 
 	nandc = devm_kzalloc(&pdev->dev, sizeof(*nandc), GFP_KERNEL);
 	if (!nandc)
@@ -2105,7 +2121,10 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	nandc->ecc_modes = (unsigned long)dev_data;
+	driver_data = (struct qcom_nand_driver_data *)dev_data;
+
+	nandc->ecc_modes = driver_data->ecc_modes;
+	nandc->dma_bam_enabled = driver_data->dma_bam_enabled;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	nandc->base = devm_ioremap_resource(dev, res);
@@ -2197,7 +2216,15 @@ static int qcom_nandc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#define EBI2_NANDC_ECC_MODES	(ECC_RS_4BIT | ECC_BCH_8BIT)
+struct qcom_nand_driver_data ebi2_nandc_bam_data = {
+	.ecc_modes = (ECC_BCH_4BIT | ECC_BCH_8BIT),
+	.dma_bam_enabled = true,
+};
+
+struct qcom_nand_driver_data ebi2_nandc_data = {
+	.ecc_modes = (ECC_RS_4BIT | ECC_BCH_8BIT),
+	.dma_bam_enabled = false,
+};
 
 /*
  * data will hold a struct pointer containing more differences once we support
@@ -2205,7 +2232,10 @@ static int qcom_nandc_remove(struct platform_device *pdev)
  */
 static const struct of_device_id qcom_nandc_of_match[] = {
 	{	.compatible = "qcom,ipq806x-nand",
-		.data = (void *)EBI2_NANDC_ECC_MODES,
+		.data = (void *) &ebi2_nandc_data,
+	},
+	{	.compatible = "qcom,ebi2-nandc-bam",
+		.data = (void *) &ebi2_nandc_bam_data,
 	},
 	{}
 };
