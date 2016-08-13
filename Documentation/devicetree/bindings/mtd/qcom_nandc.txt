@@ -13,15 +13,17 @@ Required properties:
 - clock-names:		must contain "core" for the core clock and "aon" for the
 			always on clock
 - dmas:			DMA specifier, consisting of a phandle to the ADM DMA
-			controller node and the channel number to be used for
-			NAND. Refer to dma.txt and qcom_adm.txt for more details
-- dma-names:		must be "rxtx"
-- qcom,cmd-crci:	must contain the ADM command type CRCI block instance
-			number specified for the NAND controller on the given
-			platform
-- qcom,data-crci:	must contain the ADM data type CRCI block instance
-			number specified for the NAND controller on the given
-			platform
+			or BAM DMA controller node and the channel number to
+			be used for NAND. Refer to dma.txt, qcom_adm.txt(ADM)
+			and qcom_bam_dma.txt(BAM) for more details
+- dma-names:		"rxtx" - ADM
+			"tx", "rx", "cmd" - BAM
+- qcom,cmd-crci:	Only required for ADM DMA. must contain the ADM command
+			type CRCI block instance number specified for the NAND
+			controller on the given platform.
+- qcom,data-crci:	Only required for ADM DMA. must contain the ADM data
+			type CRCI block instance number specified for the NAND
+			controller on the given platform.
 - #address-cells:	<1> - subnodes give the chip-select number
 - #size-cells:		<0>
 
@@ -99,10 +101,10 @@ nand@79B0000 {
 		 <&gcc EBI2_AON_CLK>;
 	clock-names = "core", "aon";
 
-	dmas = <&adm_dma 3>;
-	dma-names = "rxtx";
-	qcom,cmd-crci = <15>;
-	qcom,data-crci = <3>;
+	dmas = <&qpicbam 0>,
+		<&qpicbam 1>,
+		<&qpicbam 2>;
+	dma-names = "tx", "rx", "cmd";
 
 	#address-cells = <1>;
 	#size-cells = <0>;
