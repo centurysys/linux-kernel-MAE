@@ -111,20 +111,40 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 {
 	void __iomem	*epio = ep->regs;
 	u16		csr;
+	int		retries = 1000;
 
 	csr = musb_readw(epio, MUSB_TXCSR);
-	if (csr & MUSB_TXCSR_FIFONOTEMPTY) {
-		/* twice in case of double packet buffering */
-		musb_writew(epio, MUSB_TXCSR, MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_CLRDATATOG);
-		musb_writew(epio, MUSB_TXCSR, MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_CLRDATATOG);
+	while (csr & MUSB_TXCSR_FIFONOTEMPTY) {
+		csr |= MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_TXPKTRDY;
+		musb_writew(epio, MUSB_TXCSR, csr);
+		csr = musb_readw(epio, MUSB_TXCSR);
+
+		/*
+		 * FIXME: sometimes the tx fifo flush failed, it has been
+		 * observed during device disconnect on AM335x.
+		 *
+		 * To reproduce the issue, ensure tx urb(s) are queued when
+		 * unplug the usb device which is connected to AM335x usb
+		 * host port.
+		 *
+		 * I found using a usb-ethernet device and running iperf
+		 * (client on AM335x) has very high chance to trigger it.
+		 *
+		 * Better to turn on dev_dbg() in musb_cleanup_urb() with
+		 * CPPI enabled to see the issue when aborting the tx channel.
+		 */
+		if (dev_WARN_ONCE(musb->controller, retries-- < 1,
+				"Could not flush host TX%d fifo: csr: %04x\n",
+				ep->epnum, csr))
+			return;
 	}
 }
 
 static void musb_h_ep0_flush_fifo(struct musb_hw_ep *ep)
 {
 	void __iomem	*epio = ep->regs;
-	u16             csr;
-	int             retries = 5;
+	u16		csr;
+	int		retries = 5;
 
 	/* scrub any data left in the fifo */
 	do {
@@ -137,7 +157,7 @@ static void musb_h_ep0_flush_fifo(struct musb_hw_ep *ep)
 	} while (--retries);
 
 	WARN(!retries, "Could not flush host TX%d fifo: csr: %04x\n",
-	     ep->epnum, csr);
+			ep->epnum, csr);
 
 	/* and reset for the next transfer */
 	musb_writew(epio, MUSB_TXCSR, 0);
