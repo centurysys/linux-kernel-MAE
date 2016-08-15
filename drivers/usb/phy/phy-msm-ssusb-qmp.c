@@ -424,6 +424,9 @@ static int msm_ssusb_qmp_config_vdd(struct msm_ssphy_qmp *phy, int high)
 {
 	int min, ret;
 
+	if (phy->emulation)
+		return 0;
+
 	min = high ? 1 : 0; /* low or none? */
 	ret = regulator_set_voltage(phy->vdd, phy->vdd_levels[min],
 				    phy->vdd_levels[2]);
@@ -441,13 +444,16 @@ static int msm_ssusb_qmp_ldo_enable(struct msm_ssphy_qmp *phy, int on)
 {
 	int rc = 0;
 
+	if (phy->emulation)
+		return 0;
+
 	dev_dbg(phy->phy.dev, "reg (%s)\n", on ? "HPM" : "LPM");
 
 	if (!on)
 		goto disable_regulators;
 
 
-	rc = regulator_set_optimum_mode(phy->vdda18, USB_SSPHY_1P8_HPM_LOAD);
+	rc = regulator_set_mode(phy->vdda18, USB_SSPHY_1P8_HPM_LOAD);
 	if (rc < 0) {
 		dev_err(phy->phy.dev, "Unable to set HPM of vdda18\n");
 		return rc;
@@ -479,7 +485,7 @@ unset_vdda18:
 		dev_err(phy->phy.dev, "unable to set voltage for vdda18\n");
 
 put_vdda18_lpm:
-	rc = regulator_set_optimum_mode(phy->vdda18, 0);
+	rc = regulator_set_mode(phy->vdda18, 0);
 	if (rc < 0)
 		dev_err(phy->phy.dev, "Unable to set LPM of vdda18\n");
 
@@ -704,6 +710,9 @@ static int msm_ssphy_power_enable(struct msm_ssphy_qmp *phy, bool on)
 {
 	bool host = phy->phy.flags & PHY_HOST_MODE;
 	int ret = 0;
+
+	if (phy->emulation)
+		return 0;
 
 	/*
 	 * Turn off the phy's LDOs when cable is disconnected for device mode
@@ -989,47 +998,48 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 
 	phy->emulation = of_property_read_bool(dev->of_node,
 						"qcom,emulation");
+	if (!phy->emulation) {
+		ret = of_property_read_u32_array(dev->of_node,
+				"qcom,vdd-voltage-level",
+				(u32 *) phy->vdd_levels,
+				ARRAY_SIZE(phy->vdd_levels));
+		if (ret) {
+			dev_err(dev, "error reading qcom,vdd-voltage-level property\n");
+			goto err;
+		}
 
-	ret = of_property_read_u32_array(dev->of_node, "qcom,vdd-voltage-level",
-					 (u32 *) phy->vdd_levels,
-					 ARRAY_SIZE(phy->vdd_levels));
-	if (ret) {
-		dev_err(dev, "error reading qcom,vdd-voltage-level property\n");
-		goto err;
+		phy->vdd = devm_regulator_get(dev, "vdd");
+		if (IS_ERR(phy->vdd)) {
+			dev_err(dev, "unable to get vdd supply\n");
+			ret = PTR_ERR(phy->vdd);
+			goto err;
+		}
+
+		phy->vdda18 = devm_regulator_get(dev, "vdda18");
+		if (IS_ERR(phy->vdda18)) {
+			dev_err(dev, "unable to get vdda18 supply\n");
+			ret = PTR_ERR(phy->vdda18);
+			goto err;
+		}
+
+		ret = msm_ssusb_qmp_config_vdd(phy, 1);
+		if (ret) {
+			dev_err(dev, "ssusb vdd_dig configuration failed\n");
+			goto err;
+		}
+
+		ret = regulator_enable(phy->vdd);
+		if (ret) {
+			dev_err(dev, "unable to enable the ssusb vdd_dig\n");
+			goto unconfig_ss_vdd;
+		}
+
+		ret = msm_ssusb_qmp_ldo_enable(phy, 1);
+		if (ret) {
+			dev_err(dev, "ssusb vreg enable failed\n");
+			goto disable_ss_vdd;
+		}
 	}
-
-	phy->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(phy->vdd)) {
-		dev_err(dev, "unable to get vdd supply\n");
-		ret = PTR_ERR(phy->vdd);
-		goto err;
-	}
-
-	phy->vdda18 = devm_regulator_get(dev, "vdda18");
-	if (IS_ERR(phy->vdda18)) {
-		dev_err(dev, "unable to get vdda18 supply\n");
-		ret = PTR_ERR(phy->vdda18);
-		goto err;
-	}
-
-	ret = msm_ssusb_qmp_config_vdd(phy, 1);
-	if (ret) {
-		dev_err(dev, "ssusb vdd_dig configuration failed\n");
-		goto err;
-	}
-
-	ret = regulator_enable(phy->vdd);
-	if (ret) {
-		dev_err(dev, "unable to enable the ssusb vdd_dig\n");
-		goto unconfig_ss_vdd;
-	}
-
-	ret = msm_ssusb_qmp_ldo_enable(phy, 1);
-	if (ret) {
-		dev_err(dev, "ssusb vreg enable failed\n");
-		goto disable_ss_vdd;
-	}
-
 	phy->ref_clk_src = devm_clk_get(dev, "ref_clk_src");
 	if (IS_ERR(phy->ref_clk_src))
 		phy->ref_clk_src = NULL;
@@ -1067,7 +1077,8 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 disable_ss_ldo:
 	msm_ssusb_qmp_ldo_enable(phy, 0);
 disable_ss_vdd:
-	regulator_disable(phy->vdd);
+	if (!phy->emulation)
+		regulator_disable(phy->vdd);
 unconfig_ss_vdd:
 	msm_ssusb_qmp_config_vdd(phy, 0);
 err:
@@ -1087,7 +1098,8 @@ static int msm_ssphy_qmp_remove(struct platform_device *pdev)
 	if (phy->ref_clk_src)
 		clk_disable_unprepare(phy->ref_clk_src);
 	msm_ssusb_qmp_ldo_enable(phy, 0);
-	regulator_disable(phy->vdd);
+	if (!phy->emulation)
+		regulator_disable(phy->vdd);
 	msm_ssusb_qmp_config_vdd(phy, 0);
 	clk_disable_unprepare(phy->aux_clk);
 	clk_disable_unprepare(phy->cfg_ahb_clk);
