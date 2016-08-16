@@ -99,6 +99,18 @@
 		};
 	};
 
+	xio_hub_ctrl: xio_hub_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@Ctrl1 {
+			label = "USB_Hub_Reset";
+			gpios = <&gpiox_0x00 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "oneshot";
+		};
+	};
+
 	leds_onboard: leds_onboard {
 		pinctrl-names = "default";
 		pinctrl-0 = <&power_led_pins>;
@@ -727,7 +739,8 @@
 	/* XIO: (id: 0x12) KYM_WLAN (Atheros) */
 	xio_12: xio@0x12 {
 		#size-cells = <0>;
-		devices = <&gpiox_0x04_kym11
+		devices = <&xio_hub_ctrl
+			   &gpiox_0x00 &gpiox_0x04_kym11
 			   &gpiox_0x08_wlan &gpiox_0x0e_wlan
 			   &gpiox_0x10_kymwlan &gpiox_0x12_kymwlan &gpiox_0x14
 			   &leds_mobile_wlan &leds_wlan_ctrl &leds_au_wlan_ctrl>;
@@ -736,7 +749,8 @@
 	/* XIO: (id: 0x13/0x14) AMP_WLAN (Atheros) */
 	xio_13_14: xio@0x13_14 {
 		#size-cells = <0>;
-		devices = <&gpiox_0x04_lisa
+		devices = <&xio_hub_ctrl
+			   &gpiox_0x00 &gpiox_0x04_lisa
 			   &gpiox_0x08_wlan &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &leds_amp_wlan_ctrl &leds_mobile_wlan &leds_wlan_ctrl>;
 	};
