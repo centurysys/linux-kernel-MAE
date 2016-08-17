@@ -615,7 +615,7 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 	for_each_sg(sgl, sg, sg_len, i)
 		num_alloc += DIV_ROUND_UP(sg_dma_len(sg), BAM_FIFO_SIZE);
 
-	/* allocate enough room to accomodate the number of entries */
+	/* allocate enough room to accommodate the number of entries */
 	async_desc = kzalloc(sizeof(*async_desc) +
 			(num_alloc * sizeof(struct bam_desc_hw)), GFP_NOWAIT);
 
@@ -643,6 +643,93 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 		do {
 			desc->addr = cpu_to_le32(sg_dma_address(sg) +
 						 curr_offset);
+
+			if (remainder > BAM_FIFO_SIZE) {
+				desc->size = cpu_to_le16(BAM_FIFO_SIZE);
+				remainder -= BAM_FIFO_SIZE;
+				curr_offset += BAM_FIFO_SIZE;
+			} else {
+				desc->size = cpu_to_le16(remainder);
+				remainder = 0;
+			}
+
+			async_desc->length += desc->size;
+			desc++;
+		} while (remainder > 0);
+	}
+
+	return vchan_tx_prep(&bchan->vc, &async_desc->vd, flags);
+
+err_out:
+	kfree(async_desc);
+	return NULL;
+}
+
+/**
+ * bam_prep_dma_custom_mapping - Prep DMA descriptor from custom data
+ *
+ * @chan: dma channel
+ * @data: custom data
+ * @flags: DMA flags
+ */
+static struct dma_async_tx_descriptor *bam_prep_dma_custom_mapping(
+		struct dma_chan *chan,
+		void *data, unsigned long flags)
+{
+	struct bam_chan *bchan = to_bam_chan(chan);
+	struct bam_device *bdev = bchan->bdev;
+	struct bam_async_desc *async_desc;
+	struct qcom_bam_custom_data *desc_data = data;
+	u32 i;
+	struct bam_desc_hw *desc;
+	unsigned int num_alloc = 0;
+
+
+	if (!is_slave_direction(desc_data->dir)) {
+		dev_err(bdev->dev, "invalid dma direction\n");
+		return NULL;
+	}
+
+	/* calculate number of required entries */
+	for (i = 0; i < desc_data->sgl_cnt; i++)
+		num_alloc += DIV_ROUND_UP(
+			sg_dma_len(&desc_data->bam_sgl[i].sgl), BAM_FIFO_SIZE);
+
+	/* allocate enough room to accommodate the number of entries */
+	async_desc = kzalloc(sizeof(*async_desc) +
+			(num_alloc * sizeof(struct bam_desc_hw)), GFP_NOWAIT);
+
+	if (!async_desc)
+		goto err_out;
+
+	if (flags & DMA_PREP_FENCE)
+		async_desc->flags |= DESC_FLAG_NWD;
+
+	if (flags & DMA_PREP_INTERRUPT)
+		async_desc->flags |= DESC_FLAG_EOT;
+	else
+		async_desc->flags |= DESC_FLAG_INT;
+
+	async_desc->num_desc = num_alloc;
+	async_desc->curr_desc = async_desc->desc;
+	async_desc->dir = desc_data->dir;
+
+	/* fill in temporary descriptors */
+	desc = async_desc->desc;
+	for (i = 0; i < desc_data->sgl_cnt; i++) {
+		unsigned int remainder;
+		unsigned int curr_offset = 0;
+
+		remainder = sg_dma_len(&desc_data->bam_sgl[i].sgl);
+
+		do {
+			desc->addr = cpu_to_le32(
+				sg_dma_address(&desc_data->bam_sgl[i].sgl) +
+						 curr_offset);
+
+			if (desc_data->bam_sgl[i].dma_flags)
+				desc->flags |= cpu_to_le16(
+					desc_data->bam_sgl[i].dma_flags);
 
 			if (remainder > BAM_FIFO_SIZE) {
 				desc->size = cpu_to_le16(BAM_FIFO_SIZE);
@@ -956,7 +1043,7 @@ static void bam_start_dma(struct bam_chan *bchan)
 
 	/* set any special flags on the last descriptor */
 	if (async_desc->num_desc == async_desc->xfer_len)
-		desc[async_desc->xfer_len - 1].flags =
+		desc[async_desc->xfer_len - 1].flags |=
 					cpu_to_le16(async_desc->flags);
 	else
 		desc[async_desc->xfer_len - 1].flags |=
@@ -1233,6 +1320,8 @@ static int bam_dma_probe(struct platform_device *pdev)
 	bdev->common.device_alloc_chan_resources = bam_alloc_chan;
 	bdev->common.device_free_chan_resources = bam_free_chan;
 	bdev->common.device_prep_slave_sg = bam_prep_slave_sg;
+	bdev->common.device_prep_dma_custom_mapping =
+		bam_prep_dma_custom_mapping;
 	bdev->common.device_config = bam_slave_config;
 	bdev->common.device_pause = bam_pause;
 	bdev->common.device_resume = bam_resume;

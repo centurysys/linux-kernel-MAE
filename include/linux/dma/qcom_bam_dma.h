@@ -37,6 +37,19 @@ struct qcom_bam_sgl {
 };
 
 /*
+ * QCOM BAM DMA custom data
+ *
+ * @sgl_cnt: number of sgl in bam_sgl
+ * @dir: DMA data transfer direction
+ * @bam_sgl: BAM SGL pointer
+ */
+struct qcom_bam_custom_data {
+	u32 sgl_cnt;
+	enum dma_transfer_direction dir;
+	struct qcom_bam_sgl *bam_sgl;
+};
+
+/*
  * qcom_bam_sg_init_table - Init QCOM BAM SGL
  * @bam_sgl: bam sgl
  * @nents: number of entries in bam sgl
