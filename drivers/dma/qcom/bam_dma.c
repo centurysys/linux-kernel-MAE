@@ -49,6 +49,7 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/pm_runtime.h>
+#include <linux/dma/qcom_bam_dma.h>
 
 #include "../dmaengine.h"
 #include "../virt-dma.h"
@@ -60,11 +61,6 @@ struct bam_desc_hw {
 };
 
 #define BAM_DMA_AUTOSUSPEND_DELAY 100
-
-#define DESC_FLAG_INT BIT(15)
-#define DESC_FLAG_EOT BIT(14)
-#define DESC_FLAG_EOB BIT(13)
-#define DESC_FLAG_NWD BIT(12)
 
 struct bam_async_desc {
 	struct virt_dma_desc vd;
