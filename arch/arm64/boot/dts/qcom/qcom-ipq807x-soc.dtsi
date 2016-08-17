@@ -60,7 +60,7 @@
 		serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
-			interrupts = <0x0 0x1c 0x0>;
+			interrupts = <0x0 0x6b 0x0>;
 			status = "ok";
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				 <&gcc GCC_DUMMY_CLK>;
