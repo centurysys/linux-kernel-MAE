@@ -758,7 +758,8 @@
 	/* XIO: (id: 0x15) KYM_WLAN (Mediatek) */
 	xio_15: xio@0x15 {
 		#size-cells = <0>;
-		devices = <&gpiox_0x04_kym11
+		devices = <&xio_hub_ctrl
+			   &gpiox_0x00 &gpiox_0x04_kym11
 			   &gpiox_0x08_wlan &gpiox_0x0e_wlan
 			   &gpiox_0x10_kymwlan &gpiox_0x12_kymwlan &gpiox_0x14
 			   &leds_mobile_wlan_mediatek &leds_wlan_ctrl &leds_au_wlan_ctrl>;
@@ -767,7 +768,8 @@
 	/* XIO: (id: 0x16/0x17) AMP_WLAN (Mediatek) */
 	xio_16_17: xio@0x16_17 {
 		#size-cells = <0>;
-		devices = <&gpiox_0x04_lisa
+		devices = <&xio_hub_ctrl
+			   &gpiox_0x00 &gpiox_0x04_lisa
 			   &gpiox_0x08_wlan &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &leds_amp_wlan_ctrl &leds_mobile_wlan_mediatek &leds_wlan_ctrl>;
 	};
