@@ -1553,9 +1553,11 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 		goto out;
 	}
 
-	if (sdhci_msm_dt_parse_gpio_info(dev, pdata)) {
-		dev_err(dev, "failed parsing gpio data\n");
-		goto out;
+	if (!of_property_read_bool(np, "qcom,dedicated-io")) {
+		if (sdhci_msm_dt_parse_gpio_info(dev, pdata)) {
+			dev_err(dev, "failed parsing gpio data\n");
+			goto out;
+		}
 	}
 
 	len = of_property_count_strings(np, "qcom,bus-speed-mode");
