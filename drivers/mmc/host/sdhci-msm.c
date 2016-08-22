@@ -2885,7 +2885,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		goto pclk_disable;
 	}
 
-	np = &pdev->dev;
+	np = pdev->dev.of_node;
 	if (of_property_read_u32(np, "qcom,max_clk", &max_clk))
 		goto pclk_disable;
 
