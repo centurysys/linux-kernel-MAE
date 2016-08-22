@@ -50,6 +50,34 @@ struct qcom_bam_custom_data {
 };
 
 /*
+ * This data type corresponds to the native Command Element
+ * supported by BAM DMA Engine.
+ *
+ * @addr - register address.
+ * @command - command type.
+ * @data - for write command: content to be written into peripheral register.
+ *	 for read command: dest addr to write peripheral register value to.
+ * @mask - register mask.
+ * @reserved - for future usage.
+ *
+ */
+struct bam_cmd_element {
+	__le32 addr:24;
+	__le32 command:8;
+	__le32 data;
+	__le32 mask;
+	__le32 reserved;
+};
+
+/*
+ * This enum indicates the command type in a command element
+ */
+enum bam_command_type {
+	BAM_WRITE_COMMAND = 0,
+	BAM_READ_COMMAND,
+};
+
+/*
  * qcom_bam_sg_init_table - Init QCOM BAM SGL
  * @bam_sgl: bam sgl
  * @nents: number of entries in bam sgl
@@ -113,5 +141,22 @@ static inline int qcom_bam_map_sg(struct device *dev,
 		qcom_bam_unmap_sg(dev, bam_sgl, i, dir);
 
 	return ret;
+}
+
+/*
+ * qcom_prep_bam_ce - Wrapper function to prepare a single BAM command element
+ *	with the data that is passed to this function.
+ * @bam_ce: bam command element
+ * @addr: target address
+ * @command: command in bam_command_type
+ * @data: actual data for write and dest addr for read
+ */
+static inline void qcom_prep_bam_ce(struct bam_cmd_element *bam_ce,
+				uint32_t addr, uint32_t command, uint32_t data)
+{
+	bam_ce->addr = cpu_to_le32(addr);
+	bam_ce->command = cpu_to_le32(command);
+	bam_ce->data = cpu_to_le32(data);
+	bam_ce->mask = 0xFFFFFFFF;
 }
 #endif

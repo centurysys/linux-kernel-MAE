@@ -23,6 +23,7 @@
 #include <linux/of_device.h>
 #include <linux/of_mtd.h>
 #include <linux/delay.h>
+#include <linux/dma/qcom_bam_dma.h>
 
 /* NANDc reg offsets */
 #define	NAND_FLASH_CMD			0x00
@@ -170,6 +171,65 @@
 #define	ECC_BCH_4BIT	BIT(2)
 #define	ECC_BCH_8BIT	BIT(3)
 
+/* Flags used for BAM DMA desc preparation*/
+/* Don't set the EOT in current tx sgl */
+#define DMA_DESC_FLAG_NO_EOT		(0x0001)
+/* Set the NWD flag in current sgl */
+#define DMA_DESC_FLAG_BAM_NWD		(0x0002)
+/* Close current sgl and start writing in another sgl */
+#define DMA_DESC_FLAG_BAM_NEXT_SGL	(0x0004)
+
+/* Returns the dma address for reg read buffer */
+#define REG_BUF_DMA_ADDR(chip, vaddr) \
+	((chip)->reg_read_buf_phys + \
+	((uint8_t *)(vaddr) - (uint8_t *)(chip)->reg_read_buf))
+
+/* Returns the nand register physical address */
+#define NAND_REG_PHYS_ADDRESS(chip, addr) \
+	((chip)->base_dma + (addr))
+
+/* command element array size in bam transaction */
+#define BAM_CMD_ELEMENT_SIZE	(256)
+/* command sgl size in bam transaction */
+#define BAM_CMD_SGL_SIZE	(256)
+/* data sgl size in bam transaction */
+#define BAM_DATA_SGL_SIZE	(128)
+
+/*
+ * This data type corresponds to the BAM transaction which will be used for any
+ * nand request.
+ * @bam_ce - the array of bam command elements
+ * @cmd_sgl - sgl for nand bam command pipe
+ * @tx_sgl - sgl for nand bam consumer pipe
+ * @rx_sgl - sgl for nand bam producer pipe
+ * @bam_ce_index - the index in bam_ce which is available for next sgl request
+ * @pre_bam_ce_index - the index in bam_ce which marks the start position ce
+ *                     for current sgl. It will be used for size calculation
+ *                     for current sgl
+ * @cmd_sgl_cnt - no of entries in command sgl.
+ * @tx_sgl_cnt - no of entries in tx sgl.
+ * @rx_sgl_cnt - no of entries in rx sgl.
+ */
+struct bam_transaction {
+	struct bam_cmd_element bam_ce[BAM_CMD_ELEMENT_SIZE];
+	struct qcom_bam_sgl cmd_sgl[BAM_CMD_SGL_SIZE];
+	struct qcom_bam_sgl tx_sgl[BAM_DATA_SGL_SIZE];
+	struct qcom_bam_sgl rx_sgl[BAM_DATA_SGL_SIZE];
+	uint32_t bam_ce_index;
+	uint32_t pre_bam_ce_index;
+	uint32_t cmd_sgl_cnt;
+	uint32_t tx_sgl_cnt;
+	uint32_t rx_sgl_cnt;
+};
+
+/**
+ * This data type corresponds to the nand dma descriptor
+ * @list - list for desc_info
+ * @dir - DMA transfer direction
+ * @sgl - sgl which will be used for single sgl dma descriptor
+ * @dma_desc - low level dma engine descriptor
+ * @bam_desc_data - used for bam desc mappings
+ */
 struct desc_info {
 	struct list_head node;
 
@@ -218,6 +278,7 @@ struct nandc_regs {
  * @aon_clk:			another controller clock
  *
  * @chan:			dma channel
+ * @bam_txn:			contains the bam transaction address
  * @cmd_crci:			ADM DMA CRCI for command flow control
  * @data_crci:			ADM DMA CRCI for data flow control
  * @desc_list:			DMA descriptor list (list of desc_infos)
@@ -266,6 +327,7 @@ struct qcom_nand_controller {
 	};
 
 	struct list_head desc_list;
+	struct bam_transaction *bam_txn;
 
 	u8		*data_buffer;
 	bool		dma_bam_enabled;
@@ -343,6 +405,44 @@ struct qcom_nand_driver_data {
 	u32 ecc_modes;
 	bool dma_bam_enabled;
 };
+
+/* Allocates and Initializes the BAM transaction */
+struct bam_transaction *alloc_bam_transaction(struct qcom_nand_controller *this)
+{
+	struct bam_transaction *bam_txn;
+
+	bam_txn = kzalloc(sizeof(*bam_txn), GFP_KERNEL);
+
+	if (!bam_txn)
+		return NULL;
+
+	bam_txn->bam_ce_index = 0;
+	bam_txn->pre_bam_ce_index = 0;
+	bam_txn->cmd_sgl_cnt = 0;
+	bam_txn->tx_sgl_cnt = 0;
+	bam_txn->rx_sgl_cnt = 0;
+
+	qcom_bam_sg_init_table(bam_txn->cmd_sgl, BAM_CMD_SGL_SIZE);
+	qcom_bam_sg_init_table(bam_txn->tx_sgl, BAM_DATA_SGL_SIZE);
+	qcom_bam_sg_init_table(bam_txn->rx_sgl, BAM_DATA_SGL_SIZE);
+
+	return bam_txn;
+}
+
+/* Resets the BAM transaction */
+void reset_bam_tranasction(struct qcom_nand_controller *this)
+{
+	struct bam_transaction *bam_txn = this->bam_txn;
+
+	if (!this->dma_bam_enabled)
+		return;
+
+	bam_txn->bam_ce_index = 0;
+	bam_txn->pre_bam_ce_index = 0;
+	bam_txn->cmd_sgl_cnt = 0;
+	bam_txn->tx_sgl_cnt = 0;
+	bam_txn->rx_sgl_cnt = 0;
+}
 
 static inline struct qcom_nand_host *to_qcom_nand_host(struct nand_chip *chip)
 {
@@ -476,6 +576,99 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read)
 	nandc_set_reg(nandc, NAND_EXEC_CMD, 1);
 }
 
+/*
+ * Prepares the command descriptor for BAM DMA which will be used for NAND
+ * register read and write. The command descriptor requires the command
+ * to be formed in command element type so this function uses the command
+ * element from bam transaction ce array and fills the same with required
+ * data. A single SGL can contain multiple command elements so
+ * DMA_DESC_FLAG_BAM_NEXT_SGL will be used for starting the separate SGL
+ * after the current command element.
+ */
+static int prep_dma_desc_command(struct qcom_nand_controller *nandc, bool read,
+					int reg_off, const void *vaddr,
+					int size, unsigned int flags)
+{
+	int bam_ce_size;
+	int i;
+	struct bam_cmd_element *bam_ce_buffer;
+	struct bam_transaction *bam_txn = nandc->bam_txn;
+
+	bam_ce_buffer = &bam_txn->bam_ce[bam_txn->bam_ce_index];
+
+	/* fill the command desc */
+	for (i = 0; i < size; i++) {
+		if (read) {
+			qcom_prep_bam_ce(&bam_ce_buffer[i],
+				NAND_REG_PHYS_ADDRESS(nandc, reg_off + 4 * i),
+				BAM_READ_COMMAND,
+				REG_BUF_DMA_ADDR(nandc,
+					(unsigned int *)vaddr + i));
+		} else {
+			qcom_prep_bam_ce(&bam_ce_buffer[i],
+				NAND_REG_PHYS_ADDRESS(nandc, reg_off + 4 * i),
+				BAM_WRITE_COMMAND,
+				*((unsigned int *)vaddr + i));
+		}
+	}
+
+	/* use the separate sgl after this command */
+	if (flags & DMA_DESC_FLAG_BAM_NEXT_SGL) {
+		bam_ce_buffer = &bam_txn->bam_ce[bam_txn->pre_bam_ce_index];
+		bam_txn->bam_ce_index += size;
+		bam_ce_size = (bam_txn->bam_ce_index -
+				bam_txn->pre_bam_ce_index) *
+				sizeof(struct bam_cmd_element);
+		sg_set_buf(&bam_txn->cmd_sgl[bam_txn->cmd_sgl_cnt].sgl,
+				bam_ce_buffer,
+				bam_ce_size);
+		if (flags & DMA_DESC_FLAG_BAM_NWD)
+			bam_txn->cmd_sgl[bam_txn->cmd_sgl_cnt].dma_flags =
+				DESC_FLAG_NWD | DESC_FLAG_CMD;
+		else
+			bam_txn->cmd_sgl[bam_txn->cmd_sgl_cnt].dma_flags =
+				DESC_FLAG_CMD;
+
+		bam_txn->cmd_sgl_cnt++;
+		bam_txn->pre_bam_ce_index = bam_txn->bam_ce_index;
+	} else {
+		bam_txn->bam_ce_index += size;
+	}
+
+	return 0;
+}
+
+/*
+ * Prepares the data descriptor for BAM DMA which will be used for NAND
+ * data read and write.
+ */
+static int prep_dma_desc_data_bam(struct qcom_nand_controller *nandc, bool read,
+					int reg_off, const void *vaddr,
+					int size, unsigned int flags)
+{
+	struct bam_transaction *bam_txn = nandc->bam_txn;
+
+	if (read) {
+		sg_set_buf(&bam_txn->rx_sgl[bam_txn->rx_sgl_cnt].sgl,
+				vaddr, size);
+		bam_txn->rx_sgl[bam_txn->rx_sgl_cnt].dma_flags = 0;
+		bam_txn->rx_sgl_cnt++;
+	} else {
+		sg_set_buf(&bam_txn->tx_sgl[bam_txn->tx_sgl_cnt].sgl,
+				vaddr, size);
+		if (flags & DMA_DESC_FLAG_NO_EOT)
+			bam_txn->tx_sgl[bam_txn->tx_sgl_cnt].dma_flags = 0;
+		else
+			bam_txn->tx_sgl[bam_txn->tx_sgl_cnt].dma_flags =
+				DESC_FLAG_EOT;
+
+		bam_txn->tx_sgl_cnt++;
+	}
+
+	return 0;
+}
+
+/* Prepares the dma desciptor for adm dma engine */
 static int prep_dma_desc(struct qcom_nand_controller *nandc, bool read,
 			 int reg_off, const void *vaddr, int size,
 			 bool flow_control)
@@ -2024,6 +2217,12 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 			dev_err(nandc->dev, "failed to request cmd channel\n");
 			return -ENODEV;
 		}
+
+		nandc->bam_txn = alloc_bam_transaction(nandc);
+		if (!nandc->bam_txn) {
+			dev_err(nandc->dev, "failed to allocate bam transaction\n");
+			return -ENOMEM;
+		}
 	}
 
 	INIT_LIST_HEAD(&nandc->desc_list);
@@ -2059,6 +2258,9 @@ static void qcom_nandc_unalloc(struct qcom_nand_controller *nandc)
 		if (nandc->reg_read_buf)
 			devm_kfree(nandc->dev, nandc->reg_read_buf);
 	}
+
+	if (nandc->bam_txn)
+		devm_kfree(nandc->dev, nandc->bam_txn);
 
 	if (nandc->regs)
 		devm_kfree(nandc->dev, nandc->regs);
