@@ -65,30 +65,6 @@
 		.intr_detection_width = 2,	\
 	}
 
-#define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
-	{					        \
-		.name = #pg_name,			\
-		.pins = pg_name##_pins,			\
-		.npins = (unsigned)ARRAY_SIZE(pg_name##_pins),	\
-		.ctl_reg = ctl,				\
-		.io_reg = 0,				\
-		.intr_cfg_reg = 0,			\
-		.intr_status_reg = 0,			\
-		.intr_target_reg = 0,			\
-		.mux_bit = -1,				\
-		.pull_bit = pull,			\
-		.drv_bit = drv,				\
-		.oe_bit = -1,				\
-		.in_bit = -1,				\
-		.out_bit = -1,				\
-		.intr_enable_bit = -1,			\
-		.intr_status_bit = -1,			\
-		.intr_target_bit = -1,			\
-		.intr_raw_status_bit = -1,		\
-		.intr_polarity_bit = -1,		\
-		.intr_detection_bit = -1,		\
-		.intr_detection_width = -1,		\
-	}
 static const struct pinctrl_pin_desc ipq807x_pins[] = {
 	PINCTRL_PIN(0, "GPIO_0"),
 	PINCTRL_PIN(1, "GPIO_1"),
@@ -240,13 +216,6 @@ DECLARE_MSM_GPIO_PINS(66);
 DECLARE_MSM_GPIO_PINS(67);
 DECLARE_MSM_GPIO_PINS(68);
 DECLARE_MSM_GPIO_PINS(69);
-
-static const unsigned int sdc1_clk_pins[] = { 70 };
-static const unsigned int sdc1_cmd_pins[] = { 71 };
-static const unsigned int sdc1_data_pins[] = { 72 };
-static const unsigned int sdc2_clk_pins[] = { 73 };
-static const unsigned int sdc2_cmd_pins[] = { 74 };
-static const unsigned int sdc2_data_pins[] = { 75 };
 
 enum ipq807x_functions {
 	msm_mux_qpic_pad,
@@ -1091,12 +1060,6 @@ static const struct msm_pingroup ipq807x_groups[] = {
 	PINGROUP(67, sd_write, pwm31, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(68, mdc, NA, boot9, NA, NA, NA, NA, NA, NA),
 	PINGROUP(69, mdio, NA, NA, NA, NA, NA, NA, NA, NA),
-	SDC_QDSD_PINGROUP(sdc1_clk, 0x10a000, 13, 6),
-	SDC_QDSD_PINGROUP(sdc1_cmd, 0x10a000, 11, 3),
-	SDC_QDSD_PINGROUP(sdc1_data, 0x10a000, 9, 0),
-	SDC_QDSD_PINGROUP(sdc2_clk, 0x109000, 14, 6),
-	SDC_QDSD_PINGROUP(sdc2_cmd, 0x109000, 11, 3),
-	SDC_QDSD_PINGROUP(sdc2_data, 0x109000, 9, 0),
 };
 
 static const struct msm_pinctrl_soc_data ipq807x_pinctrl = {
