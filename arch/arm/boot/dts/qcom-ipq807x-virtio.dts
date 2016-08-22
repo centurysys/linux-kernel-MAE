@@ -31,6 +31,10 @@
 
 	soc: soc {
 		serial@78af000 {
+			interrupts = <0x0 0x1c 0x0>,
+					<0x0 377 0x1>,
+					<0x0 378 0x1>,
+					<0x0 379 0x1>;
 			serial_clk = <7372800>;
 		};
 	};
