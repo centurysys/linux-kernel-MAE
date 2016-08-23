@@ -67,6 +67,14 @@
 				};
 			};
 
+			i2c_0_pins: i2c_0_pinmux {
+				mux {
+					pins = "gpio20", "gpio21";
+					function = "blsp_i2c0";
+					bias-disable;
+				};
+			};
+
 			sd_0_pins: sd_0_pinmux {
 				sd0 {
 					pins = "gpio23";
@@ -211,6 +219,12 @@
 				spi-max-frequency = <24000000>;
 				use-default-sizes;
 			};
+		};
+
+		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
+			pinctrl-0 = <&i2c_0_pins>;
+			pinctrl-names = "default";
+			status = "ok";
 		};
 
 		pcie0: pci@40000000 {
