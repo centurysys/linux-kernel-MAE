@@ -109,17 +109,12 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
  */
 static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 {
-	struct musb	*musb = ep->musb;
 	void __iomem	*epio = ep->regs;
-	u16		csr, lastcsr = 0;
-	int		retries = 100;
+	u16		csr;
+	int		retries = 1000;
 
 	csr = musb_readw(epio, MUSB_TXCSR);
 	while (csr & MUSB_TXCSR_FIFONOTEMPTY) {
-		if (csr != lastcsr)
-			dev_info(musb->controller, "Host TX FIFONOTEMPTY csr: %02x\n",
-				 csr);
-		lastcsr = csr;
 		csr |= MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_TXPKTRDY;
 		musb_writew(epio, MUSB_TXCSR, csr);
 		csr = musb_readw(epio, MUSB_TXCSR);
@@ -138,19 +133,10 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 		 * Better to turn on dev_dbg() in musb_cleanup_urb() with
 		 * CPPI enabled to see the issue when aborting the tx channel.
 		 */
-#if 0
 		if (dev_WARN_ONCE(musb->controller, retries-- < 1,
 				"Could not flush host TX%d fifo: csr: %04x\n",
 				ep->epnum, csr))
 			return;
-#else
-		if (retries-- < 1) {
-			dev_err(musb->controller,
-				"Could not flush host TX%d fifo: csr: %04x\n",
-				ep->epnum, csr);
-			return;
-		}
-#endif
 	}
 }
 
