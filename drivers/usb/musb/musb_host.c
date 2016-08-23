@@ -117,7 +117,7 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 	csr = musb_readw(epio, MUSB_TXCSR);
 	while (csr & MUSB_TXCSR_FIFONOTEMPTY) {
 		if (csr != lastcsr)
-			dev_info(musb->controller, "Host TX FIFONOTEMPTY csr: %04x\n",
+			dev_info(musb->controller, "Host TX FIFONOTEMPTY csr: %02x\n",
 				 csr);
 		lastcsr = csr;
 		csr |= MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_TXPKTRDY;
