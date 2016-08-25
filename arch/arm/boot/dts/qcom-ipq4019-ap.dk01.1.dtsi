@@ -52,6 +52,7 @@
 			pinctrl-names = "default";
 			status = "ok";
 			cs-gpios = <&tlmm 54 0>;
+			num-cs = <1>;
 
 			m25p80@0 {
 				#address-cells = <1>;
