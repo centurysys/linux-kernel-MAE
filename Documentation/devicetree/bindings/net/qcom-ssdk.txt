@@ -1,0 +1,16 @@
+* Qualcomm Technologies Inc. SSDK Driver.
+
+
+Required properties:
+- compatible: = should be "qcom,ess-switch";
+- reg: Base address and size for the ess-switch register space
+- switch_access_mode: should be "local bus"
+
+Example:
+
+ess-switch@3a000000 {
+	compatible = "qcom,ess-switch";
+	reg = <0x3a000000 0x1000000>;
+	switch_access_mode = "local bus";
+};
+

@@ -308,6 +308,12 @@
 		local-mac-address = [000000000000];
 	};
 
+	ess-switch@3a000000 {
+		compatible = "qcom,ess-switch";
+		reg = <0x3a000000 0x1000000>;
+		switch_access_mode = "local bus";
+	};
+
 	nss-common {
 		compatible = "qcom,nss-common";
 		reg = <0x01d00000 0x1000>;
