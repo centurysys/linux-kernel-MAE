@@ -811,10 +811,6 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 			spi_qup_write(controller);
 	}
 
-	/* re-read opflags as flags may have changed due to actions above */
-	if (opflags & QUP_OP_OUT_SERVICE_FLAG)
-		opflags = readl_relaxed(controller->base + QUP_OPERATIONAL);
-
 	if ((controller->rx_bytes == spi_qup_len(controller) &&
 		(opflags & QUP_OP_MAX_INPUT_DONE_FLAG)) ||  error)
 		done = true;
