@@ -426,7 +426,8 @@ struct qcom_nand_driver_data {
 };
 
 /* Allocates and Initializes the BAM transaction */
-struct bam_transaction *alloc_bam_transaction(struct qcom_nand_controller *this)
+struct bam_transaction *alloc_bam_transaction(
+	struct qcom_nand_controller *nandc)
 {
 	struct bam_transaction *bam_txn;
 
@@ -448,12 +449,12 @@ struct bam_transaction *alloc_bam_transaction(struct qcom_nand_controller *this)
 	return bam_txn;
 }
 
-/* Resets the BAM transaction */
-void reset_bam_tranasction(struct qcom_nand_controller *this)
+/* Clears the BAM transaction index */
+void clear_bam_transaction(struct qcom_nand_controller *nandc)
 {
-	struct bam_transaction *bam_txn = this->bam_txn;
+	struct bam_transaction *bam_txn = nandc->bam_txn;
 
-	if (!this->dma_bam_enabled)
+	if (!nandc->dma_bam_enabled)
 		return;
 
 	bam_txn->bam_ce_index = 0;
