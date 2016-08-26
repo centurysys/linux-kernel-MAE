@@ -25,7 +25,6 @@
 		.ngroups = ARRAY_SIZE(fname##_groups),	\
 	}
 
-#define REG_BASE 0x1000000
 #define REG_SIZE 0x1000
 #define PINGROUP(id, f1, f2, f3, f4, f5, f6, f7, f8, f9)	\
 	{					        \
@@ -45,11 +44,11 @@
 			msm_mux_##f9			\
 		},				        \
 		.nfuncs = 10,				\
-		.ctl_reg = REG_BASE + REG_SIZE * id,	        	\
-		.io_reg = REG_BASE + 0x4 + REG_SIZE * id,		\
-		.intr_cfg_reg = REG_BASE + 0x8 + REG_SIZE * id,		\
-		.intr_status_reg = REG_BASE + 0xc + REG_SIZE * id,	\
-		.intr_target_reg = REG_BASE + 0x8 + REG_SIZE * id,	\
+		.ctl_reg = REG_SIZE * id,	        	\
+		.io_reg = 0x4 + REG_SIZE * id,		\
+		.intr_cfg_reg = 0x8 + REG_SIZE * id,		\
+		.intr_status_reg = 0xc + REG_SIZE * id,	\
+		.intr_target_reg = 0x8 + REG_SIZE * id,	\
 		.mux_bit = 2,			\
 		.pull_bit = 0,			\
 		.drv_bit = 6,			\
