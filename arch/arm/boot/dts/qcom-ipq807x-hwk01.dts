@@ -264,6 +264,10 @@
 		reg = <0x0b1b8000 0x1000>;
 	};
 
+	q6v5_wcss@CD00000 {
+		qcom,emulation = <1>;
+	};
+
 	spi_0: spi@78b5000 { /* BLSP1 QUP1 */
 		#pinctrl-0 = <&spi_0_pins>;
 		#pinctrl-names = "default";

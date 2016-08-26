@@ -39,6 +39,7 @@ static struct q6v5_rtable q6v5_rtable = {
 struct q6v5_rproc_pdata {
 	void __iomem *q6_base;
 	struct rproc *rproc;
+	int emulation;
 };
 
 static struct q6v5_rproc_pdata *q6v5_rproc_pdata;
@@ -91,15 +92,19 @@ static int q6_rproc_start(struct rproc *rproc)
 	/* Turn on BHS */
 	writel(0x1700000, pdata->q6_base + QDSP6SS_PWR_CTL);
 	/* Wait till BHS Reset is done */
-	while (1) {
-		val = readl(pdata->q6_base + QDSP6SS_BHS_STATUS);
-		if (val & BHS_EN_REST_ACK)
-			break;
-		mdelay(1);
-		nretry++;
-		if (nretry >= 10) {
-			pr_err("Can't bring q6 out of reset\n");
-			return -EIO;
+	if (pdata->emulation == 1) {
+		mdelay(100);
+	} else {
+		while (1) {
+			val = readl(pdata->q6_base + QDSP6SS_BHS_STATUS);
+			if (val & BHS_EN_REST_ACK)
+				break;
+			mdelay(1);
+			nretry++;
+			if (nretry >= 10) {
+				pr_err("Can't bring q6 out of reset\n");
+				return -EIO;
+			}
 		}
 	}
 	/* Put LDO in bypass mode */
@@ -202,6 +207,8 @@ static int q6_rproc_probe(struct platform_device *pdev)
 
 	q6v5_rproc_pdata = rproc->priv;
 	q6v5_rproc_pdata->rproc = rproc;
+	q6v5_rproc_pdata->emulation = of_property_read_bool(pdev->dev.of_node,
+					"qcom,emulation");
 	rproc->has_iommu = false;
 
 	q6_fw_ops = *(rproc->fw_ops);

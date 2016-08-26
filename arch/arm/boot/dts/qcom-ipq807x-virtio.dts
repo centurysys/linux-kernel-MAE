@@ -221,4 +221,8 @@
 		compatible = "qcom,arm-cortex-acc";
 		reg = <0x0b1b8000 0x1000>;
 	};
+
+	q6v5_wcss@CD00000 {
+		qcom,emulation = <1>;
+	};
 };
