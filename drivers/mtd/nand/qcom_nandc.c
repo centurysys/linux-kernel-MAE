@@ -434,16 +434,10 @@ struct bam_transaction *alloc_bam_transaction(
 {
 	struct bam_transaction *bam_txn;
 
-	bam_txn = kzalloc(sizeof(*bam_txn), GFP_KERNEL);
+	bam_txn = devm_kzalloc(nandc->dev, sizeof(*bam_txn), GFP_KERNEL);
 
 	if (!bam_txn)
 		return NULL;
-
-	bam_txn->bam_ce_index = 0;
-	bam_txn->pre_bam_ce_index = 0;
-	bam_txn->cmd_sgl_cnt = 0;
-	bam_txn->tx_sgl_cnt = 0;
-	bam_txn->rx_sgl_cnt = 0;
 
 	qcom_bam_sg_init_table(bam_txn->cmd_sgl, BAM_CMD_SGL_SIZE);
 	qcom_bam_sg_init_table(bam_txn->tx_sgl, BAM_DATA_SGL_SIZE);
