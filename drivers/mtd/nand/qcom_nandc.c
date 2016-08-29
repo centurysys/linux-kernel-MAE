@@ -1421,6 +1421,9 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	int i, ret;
 
+	if (nandc->dma_bam_enabled)
+		config_bam_page_read(nandc);
+
 	/* queue cmd descs for each codeword */
 	for (i = 0; i < ecc->steps; i++) {
 		int data_size, oob_size;
@@ -1434,7 +1437,32 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 			oob_size = host->ecc_bytes_hw + host->spare_bytes;
 		}
 
-		config_cw_read(nandc);
+		if (nandc->dma_bam_enabled) {
+			if (data_buf && oob_buf) {
+				nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+					(0 << READ_LOCATION_OFFSET) |
+					(data_size << READ_LOCATION_SIZE) |
+					(0 << READ_LOCATION_LAST));
+				nandc_set_reg(nandc, NAND_READ_LOCATION_1,
+					(data_size << READ_LOCATION_OFFSET) |
+					(oob_size << READ_LOCATION_SIZE) |
+					(1 << READ_LOCATION_LAST));
+			} else if (data_buf) {
+				nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+					(0 << READ_LOCATION_OFFSET) |
+					(data_size << READ_LOCATION_SIZE) |
+					(1 << READ_LOCATION_LAST));
+			} else {
+				nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+					(data_size << READ_LOCATION_OFFSET) |
+					(oob_size << READ_LOCATION_SIZE) |
+					(1 << READ_LOCATION_LAST));
+			}
+
+			config_bam_cw_read(nandc);
+		} else {
+			config_cw_read(nandc);
+		}
 
 		if (data_buf)
 			read_data_dma(nandc, FLASH_BUF_ACC, data_buf,
