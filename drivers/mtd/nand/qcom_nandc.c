@@ -2550,18 +2550,7 @@ static void qcom_nandc_unalloc(struct qcom_nand_controller *nandc)
 		if (nandc->chan)
 			dma_release_channel(nandc->chan);
 
-		if (nandc->reg_read_buf)
-			devm_kfree(nandc->dev, nandc->reg_read_buf);
 	}
-
-	if (nandc->bam_txn)
-		devm_kfree(nandc->dev, nandc->bam_txn);
-
-	if (nandc->regs)
-		devm_kfree(nandc->dev, nandc->regs);
-
-	if (nandc->data_buffer)
-		devm_kfree(nandc->dev, nandc->data_buffer);
 }
 
 /* one time setup of a few nand controller registers */
