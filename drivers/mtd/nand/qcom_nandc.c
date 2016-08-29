@@ -157,6 +157,8 @@
 #define	FETCH_ID			0xb
 #define	RESET_DEVICE			0xd
 
+/* NAND_CTRL bits */
+#define	BAM_MODE_EN			BIT(0)
 /*
  * the NAND controller performs reads/writes with ECC in 516 byte chunks.
  * the driver calls the chunks 'step' or 'codeword' interchangeably
@@ -797,9 +799,17 @@ static int read_reg_dma(struct qcom_nand_controller *nandc, int first,
 	if (first == NAND_READ_ID || first == NAND_FLASH_STATUS)
 		flow_control = true;
 
-	size = num_regs * sizeof(u32);
 	vaddr = nandc->reg_read_buf + nandc->reg_read_pos;
 	nandc->reg_read_pos += num_regs;
+
+	if (nandc->dma_bam_enabled) {
+		size = num_regs;
+
+		return prep_dma_desc_command(nandc, true, first, vaddr, size,
+						flags);
+	}
+
+	size = num_regs * sizeof(u32);
 
 	return prep_dma_desc(nandc, true, first, vaddr, size, flow_control);
 }
@@ -840,6 +850,13 @@ static int write_reg_dma(struct qcom_nand_controller *nandc, int first,
 	if (first == NAND_DEV_CMD_VLD_RESTORE)
 		first = NAND_DEV_CMD_VLD;
 
+	if (nandc->dma_bam_enabled) {
+		size = num_regs;
+
+		return prep_dma_desc_command(nandc, false, first, vaddr, size,
+						flags);
+	}
+
 	size = num_regs * sizeof(u32);
 
 	return prep_dma_desc(nandc, false, first, vaddr, size, flow_control);
@@ -856,6 +873,10 @@ static int write_reg_dma(struct qcom_nand_controller *nandc, int first,
 static int read_data_dma(struct qcom_nand_controller *nandc, int reg_off,
 			 const u8 *vaddr, int size, unsigned int flags)
 {
+	if (nandc->dma_bam_enabled)
+		return prep_dma_desc_data_bam(nandc, true, reg_off, vaddr, size,
+						flags);
+
 	return prep_dma_desc(nandc, true, reg_off, vaddr, size, false);
 }
 
@@ -870,6 +891,10 @@ static int read_data_dma(struct qcom_nand_controller *nandc, int reg_off,
 static int write_data_dma(struct qcom_nand_controller *nandc, int reg_off,
 			  const u8 *vaddr, int size, unsigned int flags)
 {
+	if (nandc->dma_bam_enabled)
+		return prep_dma_desc_data_bam(nandc, false, reg_off, vaddr,
+							size, flags);
+
 	return prep_dma_desc(nandc, false, reg_off, vaddr, size, false);
 }
 
@@ -964,6 +989,8 @@ static int nandc_param(struct qcom_nand_host *host)
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 
+	clear_bam_transaction(nandc);
+
 	/*
 	 * NAND_CMD_PARAM is called before we know much about the FLASH chip
 	 * in use. we configure the controller to perform a raw read of 512
@@ -1027,6 +1054,8 @@ static int erase_block(struct qcom_nand_host *host, int page_addr)
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 
+	clear_bam_transaction(nandc);
+
 	nandc_set_reg(nandc, NAND_FLASH_CMD,
 		      BLOCK_ERASE | PAGE_ACC | LAST_PAGE);
 	nandc_set_reg(nandc, NAND_ADDR0, page_addr);
@@ -1059,10 +1088,13 @@ static int read_id(struct qcom_nand_host *host, int column)
 	if (column == -1)
 		return 0;
 
+	clear_bam_transaction(nandc);
+
 	nandc_set_reg(nandc, NAND_FLASH_CMD, FETCH_ID);
 	nandc_set_reg(nandc, NAND_ADDR0, column);
 	nandc_set_reg(nandc, NAND_ADDR1, 0);
-	nandc_set_reg(nandc, NAND_FLASH_CHIP_SELECT, DM_EN);
+	nandc_set_reg(nandc, NAND_FLASH_CHIP_SELECT,
+			nandc->dma_bam_enabled ? 0 : DM_EN);
 	nandc_set_reg(nandc, NAND_EXEC_CMD, 1);
 
 	write_reg_dma(nandc, NAND_FLASH_CMD, 4, DMA_DESC_FLAG_BAM_NEXT_SGL);
@@ -1078,6 +1110,8 @@ static int reset(struct qcom_nand_host *host)
 {
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+
+	clear_bam_transaction(nandc);
 
 	nandc_set_reg(nandc, NAND_FLASH_CMD, RESET_DEVICE);
 	nandc_set_reg(nandc, NAND_EXEC_CMD, 1);
@@ -1552,6 +1586,7 @@ static int qcom_nandc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	data_buf = buf;
 	oob_buf = oob_required ? chip->oob_poi : NULL;
 
+	clear_bam_transaction(nandc);
 	ret = read_page_ecc(host, data_buf, oob_buf);
 	if (ret) {
 		dev_err(nandc->dev, "failure to read page\n");
@@ -1576,6 +1611,8 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 	oob_buf = chip->oob_poi;
 
 	host->use_ecc = false;
+
+	clear_bam_transaction(nandc);
 	update_rw_regs(host, ecc->steps, true);
 
 	for (i = 0; i < ecc->steps; i++) {
@@ -1632,6 +1669,7 @@ static int qcom_nandc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	int ret;
 
 	clear_read_regs(nandc);
+	clear_bam_transaction(nandc);
 
 	host->use_ecc = true;
 	set_address(host, 0, page);
@@ -1655,6 +1693,7 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	int i, ret;
 
 	clear_read_regs(nandc);
+	clear_bam_transaction(nandc);
 
 	data_buf = (u8 *)buf;
 	oob_buf = chip->oob_poi;
@@ -1720,6 +1759,7 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
 	int i, ret;
 
 	clear_read_regs(nandc);
+	clear_bam_transaction(nandc);
 
 	data_buf = (u8 *)buf;
 	oob_buf = chip->oob_poi;
@@ -1795,6 +1835,7 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 
 	host->use_ecc = true;
 
+	clear_bam_transaction(nandc);
 	ret = copy_last_cw(host, page);
 	if (ret)
 		return ret;
@@ -1853,6 +1894,7 @@ static int qcom_nandc_block_bad(struct mtd_info *mtd, loff_t ofs)
 	 */
 	host->use_ecc = false;
 
+	clear_bam_transaction(nandc);
 	ret = copy_last_cw(host, page);
 	if (ret)
 		goto err;
@@ -1883,6 +1925,7 @@ static int qcom_nandc_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	int page, ret, status = 0;
 
 	clear_read_regs(nandc);
+	clear_bam_transaction(nandc);
 
 	/*
 	 * to mark the BBM as bad, we flash the entire last codeword with 0s.
@@ -2407,11 +2450,18 @@ static void qcom_nandc_unalloc(struct qcom_nand_controller *nandc)
 /* one time setup of a few nand controller registers */
 static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 {
+	u32 nand_ctrl;
+
 	/* kill onenand */
 	nandc_write(nandc, SFLASHC_BURST_CFG, 0);
 
-	/* enable ADM DMA */
-	nandc_write(nandc, NAND_FLASH_CHIP_SELECT, DM_EN);
+	/* enable ADM or BAM DMA */
+	if (!nandc->dma_bam_enabled) {
+		nandc_write(nandc, NAND_FLASH_CHIP_SELECT, DM_EN);
+	} else {
+		nand_ctrl = nandc_read(nandc, NAND_CTRL);
+		nandc_write(nandc, NAND_CTRL, nand_ctrl | BAM_MODE_EN);
+	}
 
 	/* save the original values of these registers */
 	nandc->cmd1 = nandc_read(nandc, NAND_DEV_CMD1);
