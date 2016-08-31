@@ -120,7 +120,7 @@ static struct parent_map gcc_xo_sdcc1_500_map[] = {
 
 static const char * const gcc_xo_sdcc1_500[] = {
 	"xo",
-	"ddrpll",
+	"ddrpllsdcc",
 	"fepll500",
 };
 
@@ -540,13 +540,13 @@ static struct clk_branch gcc_gp3_clk = {
 };
 
 static const struct freq_tbl ftbl_gcc_sdcc1_apps_clk[] = {
-	F(144000,    P_XO,			1,  3, 240),
-	F(400000,    P_XO,			1,  1, 0),
-	F(20000000,  P_FEPLL500,		1,  1, 25),
-	F(25000000,  P_FEPLL500,		1,  1, 20),
-	F(50000000,  P_FEPLL500,		1,  1, 10),
-	F(100000000, P_FEPLL500,		1,  1, 5),
-	F(193000000, P_DDRPLL,		1,  0, 0),
+	F(144000,    P_XO,       1,  3, 240),
+	F(400000,    P_XO,       1,  1, 0),
+	F(20000000,  P_FEPLL500, 1,  1, 25),
+	F(25000000,  P_FEPLL500, 1,  1, 20),
+	F(50000000,  P_FEPLL500, 1,  1, 10),
+	F(100000000, P_FEPLL500, 1,  1, 5),
+	F(190000000, P_DDRPLL,   1,  0, 0),
 	{ }
 };
 
