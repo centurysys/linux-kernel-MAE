@@ -114,6 +114,35 @@ DEFINE_EVENT(rpm_internal, rpm_idle,
 
 	TP_ARGS(dev, flags)
 );
+
+DECLARE_EVENT_CLASS(rpm_send_msg,
+
+	TP_PROTO(unsigned int msg_id, unsigned int rsc_type,
+		unsigned int rsc_id),
+
+	TP_ARGS(msg_id, rsc_type, rsc_id),
+
+	TP_STRUCT__entry(
+		__field(u32, msg_id)
+		__field(u32, rsc_type)
+		__field(u32, rsc_id)
+		__array(char, name, 5)
+	),
+
+	TP_fast_assign(
+		__entry->msg_id = msg_id;
+		__entry->name[4] = 0;
+		__entry->rsc_type = rsc_type;
+		__entry->rsc_id = rsc_id;
+		memcpy(__entry->name, &rsc_type, sizeof(uint32_t));
+
+	),
+
+	TP_printk("msg_id:%d, rsc_type:0x%08x(%s), rsc_id:0x%08x",
+			__entry->msg_id,
+			__entry->rsc_type, __entry->name,
+			__entry->rsc_id)
+);
 DEFINE_EVENT(rpm_send_msg, rpm_smd_sleep_set,
 	TP_PROTO(unsigned int msg_id, unsigned int rsc_type,
 		unsigned int rsc_id),
