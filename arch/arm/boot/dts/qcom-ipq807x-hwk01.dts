@@ -380,6 +380,7 @@
 		qcom,num-queue = <2>;
 		qcom,num-irq = <5>;
 		qcom,load-addr = <0x40000000>;
+		qcom,bridge-enabled;
 		qcom,ipv4-enabled;
 		qcom,ipv6-enabled;
 		qcom,wlanredirect-enabled;
