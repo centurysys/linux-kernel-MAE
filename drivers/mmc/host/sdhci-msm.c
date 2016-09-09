@@ -2887,7 +2887,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 	if (of_property_read_u32(np, "qcom,max_clk", &max_clk))
-		goto pclk_disable;
+		max_clk = sdhci_msm_get_min_clock(host);
 
 	/* Set to the maximum supported clock frequency */
 	ret = clk_set_rate(msm_host->clk, max_clk);
