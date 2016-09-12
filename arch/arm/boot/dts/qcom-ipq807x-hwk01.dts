@@ -376,10 +376,12 @@
 	};
 
 	ssphy: ssphy@78000 {
+		qcom,emulation = <1>;
 		status = "ok";
 	};
 
 	qusb_phy: qusb@79000 {
+		qcom,emulation = <1>;
 		status = "ok";
 	};
 
