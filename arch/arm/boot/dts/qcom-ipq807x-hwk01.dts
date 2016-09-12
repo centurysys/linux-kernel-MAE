@@ -374,6 +374,18 @@
 		qcom,shaping-enabled;
 		qcom,wlan-dataplane-offload-enabled;
 	};
+
+	ssphy: ssphy@78000 {
+		status = "ok";
+	};
+
+	qusb_phy: qusb@79000 {
+		status = "ok";
+	};
+
+	usb3: usb3@8A00000 {
+		status = "ok";
+	};
 };
 
 &sdhc_1{
