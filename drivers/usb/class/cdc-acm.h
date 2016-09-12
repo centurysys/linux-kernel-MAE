@@ -142,3 +142,6 @@ struct acm {
 #define	USB_REQ_SET_LINK	(0x62)
 #define	USB_REQ_CLEAR_LINK	(0x63)
 #endif
+#define IGNORE_DEVICE			32
+#define CLEAR_HALT_CONDITIONS		BIT(7)
+#define SEND_ZERO_PACKET		BIT(8)

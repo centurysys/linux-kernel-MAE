@@ -468,6 +468,11 @@ struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 	skb->protocol = htons(ETH_P_CAN);
 	skb->pkt_type = PACKET_BROADCAST;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+
 	*cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
 	memset(*cf, 0, sizeof(struct can_frame));
 
@@ -605,10 +610,14 @@ static int can_changelink(struct net_device *dev,
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		cm = nla_data(data[IFLA_CAN_CTRLMODE]);
-		if (cm->flags & ~priv->ctrlmode_supported)
+
+		/* check whether changed bits are allowed to be modified */
+		if (cm->mask & ~priv->ctrlmode_supported)
 			return -EOPNOTSUPP;
+
+		/* clear bits to be modified and copy the flag values */
 		priv->ctrlmode &= ~cm->mask;
-		priv->ctrlmode |= cm->flags;
+		priv->ctrlmode |= (cm->flags & cm->mask);
 	}
 
 	if (data[IFLA_CAN_BITTIMING]) {
@@ -684,7 +693,7 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	NLA_PUT_U32(skb, IFLA_CAN_RESTART_MS, priv->restart_ms);
 	NLA_PUT(skb, IFLA_CAN_BITTIMING,
 		sizeof(priv->bittiming), &priv->bittiming);
-	NLA_PUT(skb, IFLA_CAN_CLOCK, sizeof(cm), &priv->clock);
+	NLA_PUT(skb, IFLA_CAN_CLOCK, sizeof(priv->clock), &priv->clock);
 	if (priv->do_get_berr_counter && !priv->do_get_berr_counter(dev, &bec))
 		NLA_PUT(skb, IFLA_CAN_BERR_COUNTER, sizeof(bec), &bec);
 	if (priv->bittiming_const)
@@ -721,6 +730,11 @@ static int can_newlink(struct net *src_net, struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 
+static void can_dellink(struct net_device *dev, struct list_head *head)
+{
+	return;
+}
+
 static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.kind		= "can",
 	.maxtype	= IFLA_CAN_MAX,
@@ -728,6 +742,7 @@ static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.setup		= can_setup,
 	.newlink	= can_newlink,
 	.changelink	= can_changelink,
+	.dellink	= can_dellink,
 	.get_size	= can_get_size,
 	.fill_info	= can_fill_info,
 	.get_xstats_size = can_get_xstats_size,
