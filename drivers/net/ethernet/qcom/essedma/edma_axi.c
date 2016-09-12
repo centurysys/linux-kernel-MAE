@@ -314,6 +314,5 @@ static void __exit edma_axi_exit_module(void)
 }
 module_exit(edma_axi_exit_module);
 
-MODULE_AUTHOR("Qualcomm Atheros Inc");
 MODULE_DESCRIPTION("QCA ESS EDMA driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual BSD/GPL");
