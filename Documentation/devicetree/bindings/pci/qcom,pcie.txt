@@ -8,6 +8,7 @@
 		    - "qcom,pcie-apq8064" for apq8064
 		    - "qcom,pcie-apq8084" for apq8084
 		    - "qcom,pcie-ipq4019" for ipq4019
+		    - "qcom,pcie-ipq807x" for ipq807x
 
 - reg:
 	Usage: required
@@ -292,3 +293,61 @@
 
 		status = "disabled";
 	};
+
+* Example for v3
+	pcie0: pci@20000000 {
+		compatible = "qcom,pcie-ipq807x";
+		reg =  <0x20000000 0xf1d
+			0x20000F20 0xa8
+			0x80000 0x2000
+			0x20100000 0x1000>;
+		reg-names = "dbi", "elbi", "parf", "config";
+		device_type = "pci";
+		linux,pci-domain = <0>;
+		bus-range = <0x00 0xff>;
+		num-lanes = <1>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ranges = <0x81000000 0 0x20200000 0x20200000
+			  0 0x00100000   /* downstream I/O */
+			  0x82000000 0 0x20300000 0x20300000
+			  0 0x00d00000>; /* non-prefetchable memory */
+
+		interrupts = <0 52 0>;
+		interrupt-names = "msi";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		interrupt-map = <0 0 0 1 &intc 0 75
+				 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
+				<0 0 0 2 &intc 0 78
+				 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
+				<0 0 0 3 &intc 0 79
+				 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
+				<0 0 0 4 &intc 0 83
+				 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
+		clocks = <&gcc 0>,
+			 <&gcc 0>,
+			 <&gcc 0>,
+			 <&gcc 0>,
+			 <&gcc 0>,
+			 <&gcc 0>,
+			 <&gcc 0>;
+		clock-names = "boot",
+			      "axi_m",
+			      "axi_s",
+			      "ahb",
+			      "aux",
+			      "pipe",
+			      "phy";
+
+		resets = <&gcc GCC_PCIE0_BCR>,
+			 <&gcc GCC_PCIE0_PHY_BCR>,
+			 <&gcc GCC_PCIE0PHY_PHY_BCR>;
+		reset-names = "pci",
+			      "phy",
+			      "phy1";
+
+		perst-gpio = <&tlmm 58 1>;
+		status = "ok";
+		};
