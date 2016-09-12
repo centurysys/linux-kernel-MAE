@@ -106,6 +106,9 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 };
 
 static const struct qcom_reset_map gcc_ipq807x_resets[] = {
+	[GCC_PCIE0_BCR] = { 0x01875004, 0},
+	[GCC_PCIE0_PHY_BCR]  = { 0x01875038, 0},
+	[GCC_PCIE0PHY_PHY_BCR] = { 0x0187503C, 0},
 };
 
 static const struct regmap_config gcc_ipq807x_regmap_config = {
