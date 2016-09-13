@@ -571,6 +571,7 @@
 				      "phy1";
 
 			perst-gpio = <&tlmm 58 1>;
+			is_emulation = <1>;
 			status = "disabled";
 		};
 
@@ -628,6 +629,7 @@
 				      "phy1";
 
 			perst-gpio = <&tlmm 61 1>;
+			is_emulation = <1>;
 			status = "disabled";
 		};
 	};

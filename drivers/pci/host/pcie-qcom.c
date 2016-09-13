@@ -205,6 +205,7 @@ struct qcom_pcie {
 	struct gpio_desc *reset;
 	struct qcom_pcie_ops *ops;
 	uint32_t force_gen1;
+	u32 is_emulation;
 };
 
 #define to_qcom_pcie(x)		container_of(x, struct qcom_pcie, pp)
@@ -1083,7 +1084,8 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 	int ret;
 
 	qcom_pcie_v3_reset(pcie);
-	qcom_ep_reset_assert(pcie);
+	if (!pcie->is_emulation)
+		qcom_ep_reset_assert(pcie);
 
 	ret = qcom_pcie_enable_resources_v3(pcie);
 	if (ret)
@@ -1123,7 +1125,8 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 	struct qcom_pcie *pcie = to_qcom_pcie(pp);
 	int ret;
 
-	qcom_ep_reset_assert(pcie);
+	if (!pcie->is_emulation)
+		qcom_ep_reset_assert(pcie);
 
 	ret = pcie->ops->init(pcie);
 	if (ret)
@@ -1138,7 +1141,8 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		dw_pcie_msi_init(pp);
 
-	qcom_ep_reset_deassert(pcie);
+	if (!pcie->is_emulation)
+		qcom_ep_reset_deassert(pcie);
 
 	ret = qcom_pcie_establish_link(pcie);
 	if (ret)
@@ -1146,7 +1150,9 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 
 	return 0;
 err:
-	qcom_ep_reset_assert(pcie);
+	if (!pcie->is_emulation)
+		qcom_ep_reset_assert(pcie);
+
 	phy_power_off(pcie->phy);
 err_deinit:
 	pcie->ops->deinit(pcie);
@@ -1206,6 +1212,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	int ret;
 	uint32_t force_gen1 = 0;
 	struct device_node *np = pdev->dev.of_node;
+	u32 is_emulation = 0;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -1213,6 +1220,9 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	pcie->ops = (struct qcom_pcie_ops *)of_device_get_match_data(dev);
 	pcie->dev = dev;
+
+	of_property_read_u32(np, "is_emulation", &is_emulation);
+	pcie->is_emulation = is_emulation;
 
 	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_LOW);
 	if (IS_ERR(pcie->reset))
@@ -1283,7 +1293,9 @@ static int qcom_pcie_remove(struct platform_device *pdev)
 {
 	struct qcom_pcie *pcie = platform_get_drvdata(pdev);
 
-	qcom_ep_reset_assert(pcie);
+	if (!pcie->is_emulation)
+		qcom_ep_reset_assert(pcie);
+
 	phy_power_off(pcie->phy);
 	phy_exit(pcie->phy);
 	pcie->ops->deinit(pcie);

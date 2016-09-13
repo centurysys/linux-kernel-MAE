@@ -1853,6 +1853,10 @@ static int __init msm_serial_init(void)
 	ret = uart_register_driver(&msm_uart_driver);
 	if (unlikely(ret))
 		return ret;
+	
+	debug_base = debugfs_create_dir("msm_serial", NULL);
+	if (IS_ERR_OR_NULL(debug_base))
+		pr_err("qca_serial_hs: Cannot create debugfs dir\n");
 
 	ret = platform_driver_register(&msm_platform_driver);
 	if (unlikely(ret))
