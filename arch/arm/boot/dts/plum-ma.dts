@@ -609,7 +609,7 @@
 
 	aliases {
 		xio_02 = &xio_02;
-		xio_03 = &xio_03;
+		xio_03 = &xio_03_1f;
 		xio_04 = &xio_04;
 
 		xio_06 = &xio_06;
@@ -637,6 +637,7 @@
 
 		xio_1d = &xio_1d_1e;
 		xio_1e = &xio_1d_1e;
+		xio_1f = &xio_03_1f;
 
 		xio_21 = &xio_21;
 		xio_22 = &xio_22_23;
@@ -650,8 +651,8 @@
 			   &leds_foma &leds_foma_ctrl>;
 	};
 
-	/* XIO: (id: 0x03) FOMA/UARTx2/DIO */
-	xio_03: xio@0x03 {
+	/* XIO: (id: 0x03/0x1f) FOMA/UARTx2/DIO (+SATA) */
+	xio_03_1f: xio@0x03_1f {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20 &uartx2_0x30
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
