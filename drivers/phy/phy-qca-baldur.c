@@ -37,14 +37,6 @@
 #define PHY_MISC_ADDR	0x024
 #define PHY_IPG_ADDR	0x030
 
-#define PHY_CTRL0_EMU_ADDR	0x180
-#define PHY_CTRL1_EMU_ADDR	0x184
-#define PHY_CTRL2_EMU_ADDR	0x188
-#define PHY_CTRL3_EMU_ADDR	0x18C
-#define PHY_CTRL4_EMU_ADDR	0x190
-#define PHY_MISC_EMU_ADDR	0x1A4
-#define PHY_IPG_EMU_ADDR	0x1B0
-
 #define PHY_CTRL0_VAL	0xA4600015
 #define PHY_CTRL1_VAL	0x09500000
 #define PHY_CTRL2_VAL	0x00058180
@@ -52,14 +44,6 @@
 #define PHY_CTRL4_VAL	0x836DB6DB
 #define PHY_MISC_VAL	0x3803FB0C
 #define PHY_IPG_VAL		0x47323232
-
-#define PHY_CTRL0_EMU_VAL	0xb4000015
-#define PHY_CTRL1_EMU_VAL	0x09500000
-#define PHY_CTRL2_EMU_VAL	0x00058180
-#define PHY_CTRL3_EMU_VAL	0x6DB6DCD6
-#define PHY_CTRL4_EMU_VAL	0x836DB6DB
-#define PHY_MISC_EMU_VAL	0x3803FB0C
-#define PHY_IPG_EMU_VAL		0x47323232
 
 #define USB30_HS_PHY_HOST_MODE	(0x01 << 21)
 #define USB20_HS_PHY_HOST_MODE	(0x01 << 5)
@@ -104,32 +88,6 @@ static inline u32 qca_baldur_hs_read(void __iomem *base, u32 offset)
 	return val;
 }
 
-/**
- * Write register and read back masked value to confirm it is written
- *
- * @base - PHY base virtual address.
- * @offset - register offset.
- * @mask - register bitmask specifying what should be updated
- * @val - value to write.
- */
-static inline void qca_baldur_hs_write_readback(void __iomem *base, u32 offset,
-		const u32 mask, u32 val)
-{
-	u32 write_val, tmp = readl(base + offset);
-
-	tmp &= ~mask;		/* retain other bits */
-	write_val = tmp | val;
-
-	writel(write_val, base + offset);
-
-	/* Read back to see if val was written */
-	tmp = readl(base + offset);
-	tmp &= mask;		/* clear other bits */
-
-	if (tmp != val)
-		pr_err("write: %x to BALDUR PHY: %x FAILED\n", val, offset);
-}
-
 static int qca_baldur_hs_phy_init(struct phy *x)
 {
 	struct qca_baldur_hs_phy	*phy = phy_get_drvdata(x);
@@ -147,13 +105,13 @@ static int qca_baldur_hs_phy_init(struct phy *x)
 	msleep(10);
 
 	/* perform PHY register writes */
-	qca_baldur_hs_write(phy->base, PHY_CTRL0_EMU_ADDR, PHY_CTRL0_EMU_VAL);
-	qca_baldur_hs_write(phy->base, PHY_CTRL1_EMU_ADDR, PHY_CTRL1_EMU_VAL);
-	qca_baldur_hs_write(phy->base, PHY_CTRL2_EMU_ADDR, PHY_CTRL2_EMU_VAL);
-	qca_baldur_hs_write(phy->base, PHY_CTRL3_EMU_ADDR, PHY_CTRL3_EMU_VAL);
-	qca_baldur_hs_write(phy->base, PHY_CTRL4_EMU_ADDR, PHY_CTRL4_EMU_VAL);
-	qca_baldur_hs_write(phy->base, PHY_MISC_EMU_ADDR, PHY_MISC_EMU_VAL);
-	qca_baldur_hs_write(phy->base, PHY_IPG_EMU_ADDR, PHY_IPG_EMU_VAL);
+	qca_baldur_hs_write(phy->base, PHY_CTRL0_ADDR, PHY_CTRL0_VAL);
+	qca_baldur_hs_write(phy->base, PHY_CTRL1_ADDR, PHY_CTRL1_VAL);
+	qca_baldur_hs_write(phy->base, PHY_CTRL2_ADDR, PHY_CTRL2_VAL);
+	qca_baldur_hs_write(phy->base, PHY_CTRL3_ADDR, PHY_CTRL3_VAL);
+	qca_baldur_hs_write(phy->base, PHY_CTRL4_ADDR, PHY_CTRL4_VAL);
+	qca_baldur_hs_write(phy->base, PHY_MISC_ADDR, PHY_MISC_VAL);
+	qca_baldur_hs_write(phy->base, PHY_IPG_ADDR, PHY_IPG_VAL);
 
 	msleep(10);
 
