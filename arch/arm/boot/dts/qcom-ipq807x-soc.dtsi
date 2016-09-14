@@ -63,6 +63,7 @@
 			compatible = "qcom,gcc-ipq807x";
 			reg = <0x1800000 0x80000>;
 			#clock-cells = <0x1>;
+			#reset-cells = <1>;
 		};
 
 		serial@78af000 {
