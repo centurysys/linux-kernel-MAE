@@ -259,6 +259,24 @@
 		local-mac-address = [000000000000];
 	};
 
+	edma@3ab00000 {
+		compatible = "qcom,edma";
+		reg = <0x3ab00000 0x76900>;
+		reg-names = "edma-reg-base";
+		qcom,txdesc-ring-start = <23>;
+		qcom,txdesc-rings = <1>;
+		qcom,txcmpl-ring-start = <7>;
+		qcom,txcmpl-rings = <1>;
+		qcom,rxfill-ring-start = <7>;
+		qcom,rxfill-rings = <1>;
+		qcom,rxdesc-ring-start = <15>;
+		qcom,rxdesc-rings = <1>;
+		interrupts = <0 345 4>,
+			   <0 353 4>,
+			   <0 361 4>,
+			   <0 344 4>;
+	};
+
 	ess-switch@3a000000 {
 		compatible = "qcom,ess-switch";
 		reg = <0x3a000000 0x1000000>;
