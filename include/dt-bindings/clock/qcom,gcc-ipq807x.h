@@ -18,4 +18,5 @@
 #define _DT_BINDINGS_CLOCK_IPQ_GCC_807x_H
 
 #define	GCC_DUMMY_CLK					0
+#define GCC_I2C_CLK					1
 #endif

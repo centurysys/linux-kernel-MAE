@@ -18,6 +18,7 @@
 #define _DT_BINDINGS_RESET_IPQ_GCC_807x_H
 
 #define	GCC_DUMMY_CLK					0
+#define GCC_I2C_CLK					1
 #define GCC_PCIE0_BCR					0
 #define GCC_PCIE0_PHY_BCR				1
 #define GCC_PCIE0PHY_PHY_BCR				2
