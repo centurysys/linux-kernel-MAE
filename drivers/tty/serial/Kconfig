@@ -1515,6 +1515,10 @@ config SERIAL_ST_ASC_CONSOLE
 	depends on SERIAL_ST_ASC=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_TTY0TTY
+	tristate "Support for null modem emulator (tty0tty)"
+	depends on SERIAL_CORE
+
 endmenu
 
 endif # TTY

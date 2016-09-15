@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.14.76 Kernel Configuration
+# Linux/arm 3.14.79 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1642,6 +1642,7 @@ CONFIG_SERIAL_RS485_GPIO=y
 # CONFIG_SERIAL_ARC is not set
 # CONFIG_SERIAL_FSL_LPUART is not set
 # CONFIG_SERIAL_ST_ASC is not set
+CONFIG_SERIAL_TTY0TTY=m
 # CONFIG_TTY_PRINTK is not set
 # CONFIG_HVC_DCC is not set
 # CONFIG_IPMI_HANDLER is not set
