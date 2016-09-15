@@ -28,23 +28,27 @@
 			wifi_0_pins: wifi1_pinmux {
 				mux_1 {
 					pins = "gpio37";
-					output-high;
-					function="wcss0_dbg16";
-					bias-pull-up;
-					drive-strength = <6>;
+					function="wifi0_wci";
+					bias-pull-down;
+					drive-strength = <2>;
 				};
 				mux_2 {
 					pins = "gpio43";
 					function="wifi_wci1";
-					bias-pull-up;
-					drive-strength = <6>;
+					bias-pull-down;
+					drive-strength = <2>;
 				};
 				mux_3 {
-					pins = "gpio52";
-					output-high;
+					pins = "gpio42";
 					function="gpio";
-					bias-pull-up;
-					drive-strength = <6>;
+					bias-pull-down;
+					drive-strength = <2>;
+				};
+				mux_4 {
+					pins = "gpio40";
+					function="gpio";
+					bias-pull-down;
+					drive-strength = <2>;
 				};
 			};
 		};
@@ -53,7 +57,10 @@
 			pinctrl-0 = <&wifi_0_pins>;
 			pinctrl-names = "default";
 			btcoex_support = <1>;
-			wlan_prio_gpio = <52>;
+			coex_gpio_pin_1 = <40>;
+			coex_gpio_pin_2 = <42>;
+			coex_gpio_pin_3 = <37>;
+			coex_gpio_pin_4 = <43>;
 		};
 
 		wifi1: wifi@a800000 {
