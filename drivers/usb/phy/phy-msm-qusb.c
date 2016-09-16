@@ -484,11 +484,14 @@ static int qusb_phy_init(struct usb_phy *phy)
 	/* Required to get PHY PLL lock successfully */
 	usleep_range(100, 110);
 
-	if (!(readb_relaxed(qphy->base + QUSB2PHY_PLL_STATUS) &
+	if (!qphy->emulation) {
+		if (!(readb_relaxed(qphy->base + QUSB2PHY_PLL_STATUS) &
 					QUSB2PHY_PLL_LOCK)) {
-		dev_err(phy->dev, "QUSB PHY PLL LOCK fails:%x\n",
-			readb_relaxed(qphy->base + QUSB2PHY_PLL_STATUS));
-		WARN_ON(1);
+			dev_err(phy->dev, "QUSB PHY PLL LOCK fails:%x\n",
+				readb_relaxed(qphy->base
+					+ QUSB2PHY_PLL_STATUS));
+			WARN_ON(1);
+		}
 	}
 
 	return 0;
