@@ -386,6 +386,7 @@
 		qcom,tun6rd-enabled;
 		qcom,l2tpv2-enabled;
 		qcom,portid-enabled;
+		qcom,ppe-enabled;
 		qcom,pppoe-enabled;
 		qcom,pptp-enabled;
 		qcom,tunipip6-enabled;
