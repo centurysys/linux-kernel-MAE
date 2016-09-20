@@ -95,6 +95,15 @@ static struct clk_regmap dummy = {
 	},
 };
 
+static struct clk_regmap i2c_clk = {
+	.hw.init = &(struct clk_init_data){
+		.name = "dummy_clk_src_i2c",
+		.parent_names = (const char *[]){ "xo"},
+		.num_parents = 1,
+		.ops = &clk_dummy_ops,
+	},
+};
+
 static const struct of_device_id gcc_dummy_match_table[] = {
 	{ .compatible = "qcom,gcc-ipq807x" },
 	{ }
@@ -103,6 +112,7 @@ MODULE_DEVICE_TABLE(of, gcc_dummy_match_table);
 
 static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_DUMMY_CLK] = &dummy,
+	[GCC_I2C_CLK] = &i2c_clk,
 };
 
 static const struct qcom_reset_map gcc_ipq807x_resets[] = {
