@@ -631,6 +631,17 @@
 			perst-gpio = <&tlmm 61 1>;
 			is_emulation = <1>;
 			status = "disabled";
+
+		qcom: ledc@191E000  {
+			compatible = "qca,ledc";
+			reg = <0x191E000 0x20070>;
+			reg-names = "ledc_base_addr";
+			qcom,tcsr_ledc_values = <0x320195 0xA418820 0x16A4A0E6 \
+				0x2307B9AC 0x16AD272 0xFFFFFFFF 0x0 0x0 \
+				0x7D006F 0x0 0x10482090 0x3FFFFE4>;
+			qcom,ledc_blink_indices_cnt = <4>;
+			qcom,ledc_blink_indices = <19 20 21 22>;
+			status = "disabled";
 		};
 	};
 };
