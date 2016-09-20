@@ -25,7 +25,6 @@
    For e-mail suggestions :  lcgamboa@yahoo.com
    ######################################################################## */
 
-
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -117,13 +116,13 @@ static int tty0tty_open(struct tty_struct *tty, struct file *file)
 	if ((index % 2) == 0) {
 		if (tty0tty_table[index + 1] != NULL) {
 			if (tty0tty_table[index + 1]->open_count > 0) {
-				mcr=tty0tty_table[index + 1]->mcr;
+				mcr = tty0tty_table[index + 1]->mcr;
 			}
 		}
 	} else {
 		if (tty0tty_table[index - 1] != NULL) {
 			if (tty0tty_table[index - 1]->open_count > 0) {
-				mcr=tty0tty_table[index - 1]->mcr;
+				mcr = tty0tty_table[index - 1]->mcr;
 			}
 		}
 	}
@@ -165,13 +164,13 @@ static void do_close(struct tty0tty_serial *tty0tty)
 	if ((tty0tty->tty->index % 2) == 0) {
 		if (tty0tty_table[tty0tty->tty->index + 1] != NULL) {
 			if (tty0tty_table[tty0tty->tty->index + 1]->open_count > 0) {
-				tty0tty_table[tty0tty->tty->index + 1]->msr=msr;
+				tty0tty_table[tty0tty->tty->index + 1]->msr = msr;
 			}
 		}
 	} else {
 		if (tty0tty_table[tty0tty->tty->index - 1] != NULL) {
 			if (tty0tty_table[tty0tty->tty->index - 1]->open_count > 0) {
-				tty0tty_table[tty0tty->tty->index - 1]->msr=msr;
+				tty0tty_table[tty0tty->tty->index - 1]->msr = msr;
 			}
 		}
 	}
@@ -220,13 +219,13 @@ static int tty0tty_write(struct tty_struct *tty, const unsigned char *buffer, in
 	if ((tty0tty->tty->index % 2) == 0) {
 		if (tty0tty_table[tty0tty->tty->index + 1] != NULL) {
 			if (tty0tty_table[tty0tty->tty->index + 1]->open_count > 0) {
-				ttyx=tty0tty_table[tty0tty->tty->index + 1]->tty;
+				ttyx = tty0tty_table[tty0tty->tty->index + 1]->tty;
 			}
 		}
 	} else {
 		if (tty0tty_table[tty0tty->tty->index - 1] != NULL) {
 			if (tty0tty_table[tty0tty->tty->index - 1]->open_count > 0) {
-				ttyx=tty0tty_table[tty0tty->tty->index - 1]->tty;
+				ttyx = tty0tty_table[tty0tty->tty->index - 1]->tty;
 			}
 		}
 	}
@@ -297,12 +296,15 @@ static void tty0tty_set_termios(struct tty_struct *tty, struct ktermios *old_ter
 	case CS5:
 		printk(KERN_DEBUG " - data bits = 5\n");
 		break;
+
 	case CS6:
 		printk(KERN_DEBUG " - data bits = 6\n");
 		break;
+
 	case CS7:
 		printk(KERN_DEBUG " - data bits = 7\n");
 		break;
+
 	default:
 	case CS8:
 		printk(KERN_DEBUG " - data bits = 8\n");
@@ -395,13 +397,13 @@ static int tty0tty_tiocmset(struct tty_struct *tty,
 	if ((tty0tty->tty->index % 2) == 0) {
 		if (tty0tty_table[tty0tty->tty->index + 1] != NULL) {
 			if (tty0tty_table[tty0tty->tty->index + 1]->open_count > 0) {
-				msr=tty0tty_table[tty0tty->tty->index + 1]->msr;
+				msr = tty0tty_table[tty0tty->tty->index + 1]->msr;
 			}
 		}
 	} else {
 		if (tty0tty_table[tty0tty->tty->index - 1] != NULL) {
 			if (tty0tty_table[tty0tty->tty->index - 1]->open_count > 0) {
-				msr=tty0tty_table[tty0tty->tty->index - 1]->msr;
+				msr = tty0tty_table[tty0tty->tty->index - 1]->msr;
 			}
 		}
 	}
@@ -436,13 +438,13 @@ static int tty0tty_tiocmset(struct tty_struct *tty,
 	if ((tty0tty->tty->index % 2) == 0) {
 		if (tty0tty_table[tty0tty->tty->index + 1] != NULL) {
 			if (tty0tty_table[tty0tty->tty->index + 1]->open_count > 0) {
-				tty0tty_table[tty0tty->tty->index + 1]->msr=msr;
+				tty0tty_table[tty0tty->tty->index + 1]->msr = msr;
 			}
 		}
 	} else {
 		if (tty0tty_table[tty0tty->tty->index - 1] != NULL) {
 			if (tty0tty_table[tty0tty->tty->index - 1]->open_count > 0) {
-				tty0tty_table[tty0tty->tty->index - 1]->msr=msr;
+				tty0tty_table[tty0tty->tty->index - 1]->msr = msr;
 			}
 		}
 	}
@@ -581,8 +583,10 @@ static int tty0tty_ioctl(struct tty_struct *tty,
 	switch (cmd) {
 	case TIOCGSERIAL:
 		return tty0tty_ioctl_tiocgserial(tty, cmd, arg);
+
 	case TIOCMIWAIT:
 		return tty0tty_ioctl_tiocmiwait(tty, cmd, arg);
+
 	case TIOCGICOUNT:
 		return tty0tty_ioctl_tiocgicount(tty, cmd, arg);
 	}
@@ -621,11 +625,13 @@ static int __init tty0tty_init(void)
 	tty0tty_tty_driver->owner = THIS_MODULE;
 	tty0tty_tty_driver->driver_name = "tty0tty";
 	tty0tty_tty_driver->name = "tnt";
+
 	/* no more devfs subsystem */
 	tty0tty_tty_driver->major = TTY0TTY_MAJOR;
 	tty0tty_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	tty0tty_tty_driver->subtype = SERIAL_TYPE_NORMAL;
 	tty0tty_tty_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW;
+
 	/* no more devfs subsystem */
 	tty0tty_tty_driver->init_termios = tty_std_termios;
 	tty0tty_tty_driver->init_termios.c_iflag = 0;
