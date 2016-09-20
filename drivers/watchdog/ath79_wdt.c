@@ -108,7 +108,11 @@ static inline void ath79_wdt_enable(void)
 	 */
 	udelay(2);
 
+#ifdef CONFIG_KEXEC
+	ath79_wdt_wr(WDOG_REG_CTRL, WDOG_CTRL_ACTION_GPI);
+#else
 	ath79_wdt_wr(WDOG_REG_CTRL, WDOG_CTRL_ACTION_FCR);
+#endif
 	/* flush write */
 	ath79_wdt_rr(WDOG_REG_CTRL);
 }
@@ -290,6 +294,7 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 	struct resource *res;
 	u32 ctrl;
 	int err;
+	u8 wdtboot;
 
 	if (wdt_base)
 		return -EBUSY;
@@ -323,6 +328,10 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 
 	ctrl = ath79_wdt_rr(WDOG_REG_CTRL);
 	boot_status = (ctrl & WDOG_CTRL_LAST_RESET) ? WDIOF_CARDRESET : 0;
+	wdtboot = (ctrl & WDOG_CTRL_LAST_RESET) ? 1 : 0;
+	pr_info("WDOG_REG_CTRL: 0x%x\n ", ctrl);
+	if (wdtboot)
+		pr_info("Last system reboot was due to WDOG\n");
 
 	err = misc_register(&ath79_wdt_miscdev);
 	if (err) {
