@@ -33,7 +33,7 @@
 #include <linux/spinlock.h>
 #include <linux/srcu.h>
 #include <linux/wait.h>
-#include <soc/qcom/smem.h>
+#include <linux/soc/qcom/smem.h>
 #include <soc/qcom/tracer_pkt.h>
 #include "glink_core_if.h"
 #include "glink_private.h"
@@ -51,6 +51,8 @@
 #define RPM_MAX_TOC_ENTRIES 20
 #define RPM_FIFO_ADDR_ALIGN_BYTES 3
 #define TRACER_PKT_FEATURE BIT(2)
+
+#define NUM_SMEM_SUBSYSTEMS 3
 
 /**
  * enum command_types - definition of the types of commands sent/received
@@ -217,6 +219,8 @@ struct edge_info {
 	uint32_t num_pw_states;
 	unsigned long *ramp_time_us;
 	struct mailbox_config_info *mailbox;
+	uint32_t tx_fifo_number;
+	uint32_t rx_fifo_number;
 };
 
 /**
@@ -242,6 +246,7 @@ static uint32_t negotiate_features_v1(struct glink_transport_if *if_ptr,
 				      const struct glink_core_version *version,
 				      uint32_t features);
 static void register_debugfs_info(struct edge_info *einfo);
+static int ssr(struct glink_transport_if *if_ptr);
 
 static struct edge_info *edge_infos[NUM_SMEM_SUBSYSTEMS];
 static DEFINE_MUTEX(probe_lock);
@@ -776,17 +781,11 @@ static bool queue_cmd(struct edge_info *einfo, void *cmd, void *data)
  */
 static bool get_rx_fifo(struct edge_info *einfo)
 {
-	if (einfo->mailbox) {
-		einfo->rx_fifo = &einfo->mailbox->fifo[einfo->mailbox->tx_size];
-		einfo->rx_fifo_size = einfo->mailbox->rx_size;
-	} else {
-		einfo->rx_fifo = smem_get_entry(SMEM_GLINK_NATIVE_XPRT_FIFO_1,
-							&einfo->rx_fifo_size,
-							einfo->remote_proc_id,
-							SMEM_ITEM_CACHED_FLAG);
-		if (!einfo->rx_fifo)
-			return false;
-	}
+	einfo->rx_fifo = qcom_smem_get(einfo->remote_proc_id,
+				einfo->rx_fifo_number, &einfo->rx_fifo_size);
+
+	if (!einfo->rx_fifo)
+		return false;
 
 	return true;
 }
@@ -828,6 +827,8 @@ static void __rx_worker(struct edge_info *einfo, bool atomic_ctx)
 
 	if (unlikely(!einfo->rx_fifo)) {
 		if (!get_rx_fifo(einfo)) {
+			pr_err("%s\trx fifo not found\n",
+				glink_smem_native_driver.driver.name);
 			srcu_read_unlock(&einfo->use_ref, rcu_id);
 			return;
 		}
@@ -1429,45 +1430,6 @@ static void tx_cmd_ch_remote_close_ack(struct glink_transport_if *if_ptr,
 
 	fifo_tx(einfo, &cmd, sizeof(cmd));
 	srcu_read_unlock(&einfo->use_ref, rcu_id);
-}
-
-/**
- * ssr() - process a subsystem restart notification of a transport
- * @if_ptr:	The transport to restart
- *
- * Return: 0 on success or standard Linux error code.
- */
-static int ssr(struct glink_transport_if *if_ptr)
-{
-	struct edge_info *einfo;
-	struct deferred_cmd *cmd;
-
-	einfo = container_of(if_ptr, struct edge_info, xprt_if);
-
-	BUG_ON(einfo->remote_proc_id == SMEM_RPM);
-
-	einfo->in_ssr = true;
-	wake_up_all(&einfo->tx_blocked_queue);
-
-	synchronize_srcu(&einfo->use_ref);
-
-	while (!list_empty(&einfo->deferred_cmds)) {
-		cmd = list_first_entry(&einfo->deferred_cmds,
-						struct deferred_cmd, list_node);
-		list_del(&cmd->list_node);
-		kfree(cmd->data);
-		kfree(cmd);
-	}
-
-	einfo->tx_resume_needed = false;
-	einfo->tx_blocked_signal_sent = false;
-	einfo->rx_fifo = NULL;
-	einfo->rx_fifo_size = 0;
-	einfo->tx_ch_desc->write_index = 0;
-	einfo->rx_ch_desc->read_index = 0;
-	einfo->xprt_if.glink_core_if_ptr->link_down(&einfo->xprt_if);
-
-	return 0;
 }
 
 /**
@@ -2150,32 +2112,14 @@ mem_alloc_fail:
 	return rc;
 }
 
-/**
- * subsys_name_to_id() - translate a subsystem name to a processor id
- * @name:	The subsystem name to look up.
- *
- * Return: The processor id corresponding to @name or standard Linux error code.
- */
-static int subsys_name_to_id(const char *name)
+void get_entry_by_name(struct device_node *node, char *id, uint32_t *value)
 {
-	if (!name)
-		return -ENODEV;
+	int index = 0;
 
-	if (!strcmp(name, "apss"))
-		return SMEM_APPS;
-	if (!strcmp(name, "dsps"))
-		return SMEM_DSPS;
-	if (!strcmp(name, "lpass"))
-		return SMEM_Q6;
-	if (!strcmp(name, "mpss"))
-		return SMEM_MODEM;
-	if (!strcmp(name, "rpm"))
-		return SMEM_RPM;
-	if (!strcmp(name, "wcnss"))
-		return SMEM_WCNSS;
-	if (!strcmp(name, "spss"))
-		return SMEM_SPSS;
-	return -ENODEV;
+	if (id)
+		index = of_property_match_string(node, "smem-entry-names", id);
+
+	of_property_read_u32_index(node, "smem-entry", index, value);
 }
 
 static int glink_smem_native_probe(struct platform_device *pdev)
@@ -2188,6 +2132,8 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 	const char *subsys_name;
 	uint32_t irq_line;
 	uint32_t irq_mask;
+	uint32_t ch_desc_size = SMEM_CH_DESC_SIZE;
+	uint32_t entry = 0;
 	struct resource *r;
 
 	node = pdev->dev.of_node;
@@ -2231,12 +2177,13 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 		goto missing_key;
 	}
 
-	if (subsys_name_to_id(subsys_name) == -ENODEV) {
-		pr_err("%s: unknown subsystem: %s\n", __func__, subsys_name);
+	key = "qcom,subsys-id";
+	rc = of_property_read_u32(node, key, &einfo->remote_proc_id);
+	if (rc) {
+		pr_err("%s: missing key %s\n", __func__, key);
 		rc = -ENODEV;
-		goto invalid_key;
+		goto missing_key;
 	}
-	einfo->remote_proc_id = subsys_name_to_id(subsys_name);
 
 	init_xprt_cfg(einfo, subsys_name);
 	init_xprt_if(einfo);
@@ -2277,31 +2224,45 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 		goto kthread_fail;
 	}
 
-	einfo->tx_ch_desc = smem_alloc(SMEM_GLINK_NATIVE_XPRT_DESCRIPTOR,
-							SMEM_CH_DESC_SIZE,
-							einfo->remote_proc_id,
-							0);
+	key = "ch";
+	get_entry_by_name(node, key, &entry);
+	rc = qcom_smem_alloc(einfo->remote_proc_id, entry, ch_desc_size);
+	if ((rc != -EEXIST) && (rc != 0)) {
+		pr_err("%s: smem alloc of ch descriptor failed\n", __func__);
+		goto smem_alloc_fail;
+	}
+
+	einfo->tx_ch_desc = qcom_smem_get(einfo->remote_proc_id, entry,
+								&ch_desc_size);
 	if (PTR_ERR(einfo->tx_ch_desc) == -EPROBE_DEFER) {
-		rc = -EPROBE_DEFER;
 		goto smem_alloc_fail;
 	}
 	if (!einfo->tx_ch_desc) {
-		pr_err("%s: smem alloc of ch descriptor failed\n", __func__);
-		rc = -ENOMEM;
+		pr_err("%s: smem retrieval of ch descriptor failed\n", __func__);
 		goto smem_alloc_fail;
 	}
 	einfo->rx_ch_desc = einfo->tx_ch_desc + 1;
 
 	einfo->tx_fifo_size = SZ_16K;
-	einfo->tx_fifo = smem_alloc(SMEM_GLINK_NATIVE_XPRT_FIFO_0,
-							einfo->tx_fifo_size,
-							einfo->remote_proc_id,
-							SMEM_ITEM_CACHED_FLAG);
-	if (!einfo->tx_fifo) {
-		pr_err("%s: smem alloc of tx fifo failed\n", __func__);
-		rc = -ENOMEM;
+
+	key = "tx_fifo";
+	get_entry_by_name(node, key, &einfo->tx_fifo_number);
+	rc = qcom_smem_alloc(einfo->remote_proc_id, einfo->tx_fifo_number,
+							einfo->tx_fifo_size);
+	if (rc) {
+		pr_err("%s: smem alloc of ch descriptor failed\n", __func__);
 		goto smem_alloc_fail;
 	}
+
+	einfo->tx_fifo = qcom_smem_get(einfo->remote_proc_id,
+				einfo->tx_fifo_number, &einfo->tx_fifo_size);
+	if (!einfo->tx_fifo) {
+		pr_err("%s: smem retrieval of tx fifo failed\n", __func__);
+		goto smem_alloc_fail;
+	}
+
+	key = "rx_fifo";
+	get_entry_by_name(node, key, &einfo->rx_fifo_number);
 
 	key = "qcom,qos-config";
 	phandle_node = of_parse_phandle(node, key, 0);
@@ -2416,12 +2377,13 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 		goto missing_key;
 	}
 
-	if (subsys_name_to_id(subsys_name) == -ENODEV) {
-		pr_err("%s: unknown subsystem: %s\n", __func__, subsys_name);
+	key = "qcom,subsys-id";
+	rc = of_property_read_u32(node, key, &einfo->remote_proc_id);
+	if (rc) {
+		pr_err("%s: missing key %s\n", __func__, key);
 		rc = -ENODEV;
-		goto invalid_key;
+		goto missing_key;
 	}
-	einfo->remote_proc_id = subsys_name_to_id(subsys_name);
 
 	init_xprt_cfg(einfo, subsys_name);
 	init_xprt_if(einfo);
@@ -2605,259 +2567,6 @@ edge_info_alloc_fail:
 	return rc;
 }
 
-static int glink_mailbox_probe(struct platform_device *pdev)
-{
-	struct device_node *node;
-	struct edge_info *einfo;
-	int rc;
-	char *key;
-	const char *subsys_name;
-	uint32_t irq_line;
-	uint32_t irq_mask;
-	struct resource *irq_r;
-	struct resource *mbox_loc_r;
-	struct resource *mbox_size_r;
-	struct resource *rx_reset_r;
-	void *mbox_loc;
-	void *mbox_size;
-	struct mailbox_config_info *mbox_cfg;
-	uint32_t mbox_cfg_size;
-	phys_addr_t cfg_p_addr;
-
-	node = pdev->dev.of_node;
-
-	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
-	if (!einfo) {
-		rc = -ENOMEM;
-		goto edge_info_alloc_fail;
-	}
-
-	key = "label";
-	subsys_name = of_get_property(node, key, NULL);
-	if (!subsys_name) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "interrupts";
-	irq_line = irq_of_parse_and_map(node, 0);
-	if (!irq_line) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "qcom,irq-mask";
-	rc = of_property_read_u32(node, key, &irq_mask);
-	if (rc) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "irq-reg-base";
-	irq_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!irq_r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "mbox-loc-addr";
-	mbox_loc_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!mbox_loc_r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "mbox-loc-size";
-	mbox_size_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!mbox_size_r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "irq-rx-reset";
-	rx_reset_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!rx_reset_r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "qcom,tx-ring-size";
-	rc = of_property_read_u32(node, key, &einfo->tx_fifo_size);
-	if (rc) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "qcom,rx-ring-size";
-	rc = of_property_read_u32(node, key, &einfo->rx_fifo_size);
-	if (rc) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	if (subsys_name_to_id(subsys_name) == -ENODEV) {
-		pr_err("%s: unknown subsystem: %s\n", __func__, subsys_name);
-		rc = -ENODEV;
-		goto invalid_key;
-	}
-	einfo->remote_proc_id = subsys_name_to_id(subsys_name);
-
-	init_xprt_cfg(einfo, subsys_name);
-	einfo->xprt_cfg.name = "mailbox";
-	init_xprt_if(einfo);
-	spin_lock_init(&einfo->write_lock);
-	init_waitqueue_head(&einfo->tx_blocked_queue);
-	init_kthread_work(&einfo->kwork, rx_worker);
-	init_kthread_worker(&einfo->kworker);
-	einfo->read_from_fifo = read_from_fifo;
-	einfo->write_to_fifo = write_to_fifo;
-	init_srcu_struct(&einfo->use_ref);
-	spin_lock_init(&einfo->rx_lock);
-	INIT_LIST_HEAD(&einfo->deferred_cmds);
-
-	mutex_lock(&probe_lock);
-	if (edge_infos[einfo->remote_proc_id]) {
-		pr_err("%s: duplicate subsys %s is not valid\n", __func__,
-								subsys_name);
-		rc = -ENODEV;
-		mutex_unlock(&probe_lock);
-		goto invalid_key;
-	}
-	edge_infos[einfo->remote_proc_id] = einfo;
-	mutex_unlock(&probe_lock);
-
-	einfo->out_irq_mask = irq_mask;
-	einfo->out_irq_reg = ioremap_nocache(irq_r->start,
-							resource_size(irq_r));
-	if (!einfo->out_irq_reg) {
-		pr_err("%s: unable to map irq reg\n", __func__);
-		rc = -ENOMEM;
-		goto irq_ioremap_fail;
-	}
-
-	mbox_loc = ioremap_nocache(mbox_loc_r->start,
-						resource_size(mbox_loc_r));
-	if (!mbox_loc) {
-		pr_err("%s: unable to map mailbox location reg\n", __func__);
-		rc = -ENOMEM;
-		goto mbox_loc_ioremap_fail;
-	}
-
-	mbox_size = ioremap_nocache(mbox_size_r->start,
-						resource_size(mbox_size_r));
-	if (!mbox_size) {
-		pr_err("%s: unable to map mailbox size reg\n", __func__);
-		rc = -ENOMEM;
-		goto mbox_size_ioremap_fail;
-	}
-
-	einfo->rx_reset_reg = ioremap_nocache(rx_reset_r->start,
-						resource_size(rx_reset_r));
-	if (!einfo->rx_reset_reg) {
-		pr_err("%s: unable to map rx reset reg\n", __func__);
-		rc = -ENOMEM;
-		goto rx_reset_ioremap_fail;
-	}
-
-	einfo->task = kthread_run(kthread_worker_fn, &einfo->kworker,
-						"smem_native_%s", subsys_name);
-	if (IS_ERR(einfo->task)) {
-		rc = PTR_ERR(einfo->task);
-		pr_err("%s: kthread_run failed %d\n", __func__, rc);
-		goto kthread_fail;
-	}
-
-	mbox_cfg_size = sizeof(*mbox_cfg) + einfo->tx_fifo_size +
-							einfo->rx_fifo_size;
-	mbox_cfg = smem_alloc(SMEM_GLINK_NATIVE_XPRT_DESCRIPTOR,
-							mbox_cfg_size,
-							einfo->remote_proc_id,
-							0);
-	if (PTR_ERR(mbox_cfg) == -EPROBE_DEFER) {
-		rc = -EPROBE_DEFER;
-		goto smem_alloc_fail;
-	}
-	if (!mbox_cfg) {
-		pr_err("%s: smem alloc of mailbox struct failed\n", __func__);
-		rc = -ENOMEM;
-		goto smem_alloc_fail;
-	}
-	einfo->mailbox = mbox_cfg;
-	einfo->tx_ch_desc = (struct channel_desc *)(&mbox_cfg->tx_read_index);
-	einfo->rx_ch_desc = (struct channel_desc *)(&mbox_cfg->rx_read_index);
-	mbox_cfg->tx_size = einfo->tx_fifo_size;
-	mbox_cfg->rx_size = einfo->rx_fifo_size;
-	einfo->tx_fifo = &mbox_cfg->fifo[0];
-
-	rc = glink_core_register_transport(&einfo->xprt_if, &einfo->xprt_cfg);
-	if (rc == -EPROBE_DEFER)
-		goto reg_xprt_fail;
-	if (rc) {
-		pr_err("%s: glink core register transport failed: %d\n",
-								__func__, rc);
-		goto reg_xprt_fail;
-	}
-
-	einfo->irq_line = irq_line;
-	rc = request_irq(irq_line, irq_handler,
-			IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND | IRQF_SHARED,
-			node->name, einfo);
-	if (rc < 0) {
-		pr_err("%s: request_irq on %d failed: %d\n", __func__, irq_line,
-									rc);
-		goto request_irq_fail;
-	}
-	rc = enable_irq_wake(irq_line);
-	if (rc < 0)
-		pr_err("%s: enable_irq_wake() failed on %d\n", __func__,
-								irq_line);
-
-	register_debugfs_info(einfo);
-
-	writel_relaxed(mbox_cfg_size, mbox_size);
-	cfg_p_addr = smem_virt_to_phys(mbox_cfg);
-	writel_relaxed(lower_32_bits(cfg_p_addr), mbox_loc);
-	writel_relaxed(upper_32_bits(cfg_p_addr), mbox_loc + 4);
-	send_irq(einfo);
-	iounmap(mbox_size);
-	iounmap(mbox_loc);
-	return 0;
-
-request_irq_fail:
-	glink_core_unregister_transport(&einfo->xprt_if);
-reg_xprt_fail:
-smem_alloc_fail:
-	flush_kthread_worker(&einfo->kworker);
-	kthread_stop(einfo->task);
-	einfo->task = NULL;
-kthread_fail:
-	iounmap(einfo->rx_reset_reg);
-rx_reset_ioremap_fail:
-	iounmap(mbox_size);
-mbox_size_ioremap_fail:
-	iounmap(mbox_loc);
-mbox_loc_ioremap_fail:
-	iounmap(einfo->out_irq_reg);
-irq_ioremap_fail:
-	mutex_lock(&probe_lock);
-	edge_infos[einfo->remote_proc_id] = NULL;
-	mutex_unlock(&probe_lock);
-invalid_key:
-missing_key:
-	kfree(einfo);
-edge_info_alloc_fail:
-	return rc;
-}
-
 #if defined(CONFIG_DEBUG_FS)
 /**
  * debug_edge() - generates formatted text output displaying current edge state
@@ -2981,19 +2690,53 @@ static struct platform_driver glink_rpm_native_driver = {
 	},
 };
 
-static struct of_device_id mailbox_match_table[] = {
-	{ .compatible = "qcom,glink-mailbox-xprt" },
-	{},
-};
+/**
+ * ssr() - process a subsystem restart notification of a transport
+ * @if_ptr:	The transport to restart
+ *
+ * Return: 0 on success or standard Linux error code.
+ */
+static int ssr(struct glink_transport_if *if_ptr)
+{
+	struct edge_info *einfo;
+	struct deferred_cmd *cmd;
+	struct device_node *node;
+	uint32_t rpm_id;
+	int rc = 0;
 
-static struct platform_driver glink_mailbox_driver = {
-	.probe = glink_mailbox_probe,
-	.driver = {
-		.name = "msm_glink_mailbox_xprt",
-		.owner = THIS_MODULE,
-		.of_match_table = mailbox_match_table,
-	},
-};
+	einfo = container_of(if_ptr, struct edge_info, xprt_if);
+
+	node = of_find_compatible_node(NULL, NULL, (*rpm_match_table).compatible);
+
+	rc = of_property_read_u32(node, "qcom,subsys-id", &rpm_id);
+	if (rc)
+		pr_err("%s: missing key\n", __func__);
+
+	BUG_ON(einfo->remote_proc_id == rpm_id);
+
+	einfo->in_ssr = true;
+	wake_up_all(&einfo->tx_blocked_queue);
+
+	synchronize_srcu(&einfo->use_ref);
+
+	while (!list_empty(&einfo->deferred_cmds)) {
+		cmd = list_first_entry(&einfo->deferred_cmds,
+						struct deferred_cmd, list_node);
+		list_del(&cmd->list_node);
+		kfree(cmd->data);
+		kfree(cmd);
+	}
+
+	einfo->tx_resume_needed = false;
+	einfo->tx_blocked_signal_sent = false;
+	einfo->rx_fifo = NULL;
+	einfo->rx_fifo_size = 0;
+	einfo->tx_ch_desc->write_index = 0;
+	einfo->rx_ch_desc->read_index = 0;
+	einfo->xprt_if.glink_core_if_ptr->link_down(&einfo->xprt_if);
+
+	return 0;
+}
 
 static int __init glink_smem_native_xprt_init(void)
 {
@@ -3012,14 +2755,6 @@ static int __init glink_smem_native_xprt_init(void)
 								__func__, rc);
 		return rc;
 	}
-
-	rc = platform_driver_register(&glink_mailbox_driver);
-	if (rc) {
-		pr_err("%s: glink_mailbox_driver register failed %d\n",
-								__func__, rc);
-		return rc;
-	}
-
 	return 0;
 }
 arch_initcall(glink_smem_native_xprt_init);
