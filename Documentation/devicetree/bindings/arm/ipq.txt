@@ -13,4 +13,6 @@ Platform
 Device tree must specify which Platform it uses, with one of the following
 compatible strings
 	"qcom,ipq807x-hk01"
+	"qcom,ipq8064-ap160"
+	"qcom,ipq8064-ap160_2xx"
 	"qcom,ipq8064-ap161"
