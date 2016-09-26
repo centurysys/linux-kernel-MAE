@@ -625,6 +625,7 @@
 			perst-gpio = <&tlmm 61 1>;
 			is_emulation = <1>;
 			status = "disabled";
+		};
 
 		qcom: ledc@191E000  {
 			compatible = "qca,ledc";
