@@ -66,17 +66,37 @@
 			#reset-cells = <1>;
 		};
 
+		blsp_dma: dma@7884000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x07884000 0x2b000>;
+			interrupts = <GIC_SPI 238 0>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+
 		serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
-			interrupts = <0x0 0x6b 0x0>,
-					<0x0 377 0x1>,
-					<0x0 378 0x1>,
-					<0x0 379 0x1>;
+			interrupts = <0x0 0x6b 0x0>;
 			status = "ok";
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
+		};
+
+		serial@78B2000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78B2000 0x200>;
+			interrupts = <0x0 307 0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				 <&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 6>,
+				 <&blsp_dma 7>;
+			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
@@ -285,16 +305,6 @@
 			clock-names = "iface", "bus", "core";
 			dmas = <&cryptobam 2>, <&cryptobam 3>;
 			dma-names = "rx", "tx";
-		};
-
-		blsp_dma: dma@7884000 {
-			compatible = "qcom,bam-v1.7.0";
-			reg = <0x07884000 0x2b000>;
-			interrupts = <GIC_SPI 238 0>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
-			clock-names = "bam_clk";
-			#dma-cells = <1>;
-			qcom,ee = <0>;
 		};
 
 		i2c_0: i2c@78b6000 {
