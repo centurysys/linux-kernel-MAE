@@ -20,6 +20,10 @@
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK07.1-C1";
 
 	soc {
+		spi_1: spi@78b6000 { /* BLSP1 QUP2 */
+			status = "ok";
+		};
+
 		pinctrl@0x01000000 {
 			wifi_0_pins: wifi1_pinmux {
 				mux_1 {

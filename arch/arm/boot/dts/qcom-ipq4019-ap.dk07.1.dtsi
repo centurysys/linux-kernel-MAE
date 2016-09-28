@@ -61,6 +61,34 @@
 				};
 			};
 
+			spi_1_pins: spi_1_pinmux {
+				mux {
+					pins = "gpio44", "gpio46", "gpio47";
+					function = "blsp_spi1";
+					bias-disable;
+				};
+				host_int {
+					pins = "gpio42";
+					function = "gpio";
+					input;
+				};
+				cs {
+					pins = "gpio45";
+					function = "gpio";
+					bias-pull-up;
+				};
+				wake {
+					pins = "gpio31";
+					function = "gpio";
+					output-high;
+				};
+				reset {
+					pins = "gpio49";
+					function = "gpio";
+					output-high;
+				};
+			};
+
 			i2c_0_pins: i2c_0_pinmux {
 				mux {
 					pins = "gpio20", "gpio21";
@@ -163,6 +191,18 @@
 				linux,modalias = "m25p80", "n25q128a11";
 				spi-max-frequency = <24000000>;
 				use-default-sizes;
+			};
+		};
+
+		spi_1: spi@78b6000 { /* BLSP1 QUP2 */
+			pinctrl-0 = <&spi_1_pins>;
+			pinctrl-names = "default";
+			status = "disabled";
+
+			spidev1: spi@1 {
+				compatible = "spidev";
+				reg = <0>;
+				spi-max-frequency = <24000000>;
 			};
 		};
 
