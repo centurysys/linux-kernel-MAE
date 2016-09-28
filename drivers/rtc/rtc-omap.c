@@ -70,6 +70,7 @@
 #define OMAP_RTC_KICK0_REG		0x6c
 #define OMAP_RTC_KICK1_REG		0x70
 
+#define OMAP_RTC_SYSCONFIG		0x78
 #define OMAP_RTC_IRQWAKEEN		0x7c
 
 #define OMAP_RTC_ALARM2_SECONDS_REG	0x80
@@ -104,6 +105,10 @@
 #define OMAP_RTC_INTERRUPTS_IT_ALARM2   (1<<4)
 #define OMAP_RTC_INTERRUPTS_IT_ALARM    (1<<3)
 #define OMAP_RTC_INTERRUPTS_IT_TIMER    (1<<2)
+
+/* OMAP_RTC_SYSCONFIG bit fields: */
+#define OMAP_RTC_SYSCONFIG_IDLE_NOWAKEUP (2<<0)
+#define OMAP_RTC_SYSCONFIG_IDLE_WAKEUP   (3<<0)
 
 /* OMAP_RTC_IRQWAKEEN bit fields: */
 #define OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN    (1<<1)
@@ -577,7 +582,7 @@ static u8 irqstat;
 
 static int omap_rtc_suspend(struct device *dev)
 {
-	u8 irqwake_stat;
+	u8 irqwake_stat, sysconfig_stat;
 	struct platform_device *pdev = to_platform_device(dev);
 	const struct platform_device_id *id_entry =
 					platform_get_device_id(pdev);
@@ -595,6 +600,10 @@ static int omap_rtc_suspend(struct device *dev)
 			irqwake_stat = rtc_read(OMAP_RTC_IRQWAKEEN);
 			irqwake_stat |= OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
 			rtc_write(irqwake_stat, OMAP_RTC_IRQWAKEEN);
+
+			sysconfig_stat = rtc_read(OMAP_RTC_SYSCONFIG);
+			sysconfig_stat |= OMAP_RTC_SYSCONFIG_IDLE_WAKEUP;
+			rtc_write(sysconfig_stat, OMAP_RTC_SYSCONFIG);
 		}
 	} else {
 		rtc_write(0, OMAP_RTC_INTERRUPTS_REG);
@@ -608,7 +617,7 @@ static int omap_rtc_suspend(struct device *dev)
 
 static int omap_rtc_resume(struct device *dev)
 {
-	u8 irqwake_stat;
+	u8 irqwake_stat, sysconfig_stat;
 	struct platform_device *pdev = to_platform_device(dev);
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(pdev);
@@ -623,6 +632,11 @@ static int omap_rtc_resume(struct device *dev)
 			irqwake_stat = rtc_read(OMAP_RTC_IRQWAKEEN);
 			irqwake_stat &= ~OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
 			rtc_write(irqwake_stat, OMAP_RTC_IRQWAKEEN);
+
+			sysconfig_stat = rtc_read(OMAP_RTC_SYSCONFIG);
+			sysconfig_stat &= ~OMAP_RTC_SYSCONFIG_IDLE_WAKEUP;
+			sysconfig_stat |= OMAP_RTC_SYSCONFIG_IDLE_NOWAKEUP;
+			rtc_write(sysconfig_stat, OMAP_RTC_SYSCONFIG);
 		}
 	} else {
 		rtc_write(irqstat, OMAP_RTC_INTERRUPTS_REG);
