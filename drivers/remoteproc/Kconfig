@@ -11,7 +11,7 @@ config REMOTEPROC
 
 config IPQ807X_REMOTEPROC
 	tristate "IPQ807x Q6-WCSS rproc support"
-	depends on REMOTEPROC
+	depends on REMOTEPROC && QCOM_SMP2P
 	help
 	  Say y here to support IPQ807x q6v5 wcss remote processors
 	  via the remote processor framework. Q6v5 WCSS are DSP remote

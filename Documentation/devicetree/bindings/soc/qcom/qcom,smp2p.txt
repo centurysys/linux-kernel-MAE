@@ -55,6 +55,14 @@ important.
 		    and for outbound entries this name is used for allocating
 		    entries
 
+- qcom,smp2p-feature-ssr-ack:
+	Usage: optional for outgoing entries
+	Value type: <empty>
+	Definition: specifies that the remote node needs an ACK on smp2p
+		    incoming interrupts, defining this will result in an
+		    ACK interrupt being sent to remote node, and if not
+		    if not specified no ACK will be sent
+
 - interrupt-controller:
 	Usage: required for incoming entries
 	Value type: <empty>
@@ -92,6 +100,7 @@ wcnss-smp2p {
 	wcnss_smp2p_out: master-kernel {
 		qcom,entry-name = "master-kernel";
 
+		qcom,smp2p-feature-ssr-ack;
 		#qcom,smem-state-cells = <1>;
 	};
 

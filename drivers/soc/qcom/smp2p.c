@@ -118,6 +118,7 @@ struct smp2p_entry {
 /**
  * struct qcom_smp2p - device driver context
  * @dev:	device driver handle
+ * need_ssr_ack: remote device needs ack
  * @in:		pointer to the inbound smem item
  * @smem_items:	ids of the two smem items
  * @valid_entries: already scanned inbound entries
@@ -131,6 +132,7 @@ struct smp2p_entry {
  */
 struct qcom_smp2p {
 	struct device *dev;
+	unsigned int need_ssr_ack;
 
 	struct smp2p_smem_item *in;
 	struct smp2p_smem_item *out;
@@ -231,6 +233,9 @@ static irqreturn_t qcom_smp2p_intr(int irq, void *data)
 			}
 		}
 	}
+
+	if (smp2p->need_ssr_ack == SMP2P_FEATURE_SSR_ACK)
+		qcom_smp2p_kick(smp2p);
 
 	return IRQ_HANDLED;
 }
@@ -347,6 +352,13 @@ static int qcom_smp2p_outbound_entry(struct qcom_smp2p *smp2p,
 
 	/* Make the logical entry reference the physical value */
 	entry->value = &out->entries[out->valid_entries].value;
+
+	if (of_property_read_bool(node, "qcom,smp2p-feature-ssr-ack")) {
+		out->features = SMP2P_FEATURE_SSR_ACK;
+		smp2p->need_ssr_ack = SMP2P_FEATURE_SSR_ACK;
+	} else {
+		smp2p->need_ssr_ack = 0;
+	}
 
 	out->valid_entries++;
 
