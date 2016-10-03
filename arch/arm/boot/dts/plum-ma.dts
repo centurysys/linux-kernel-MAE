@@ -595,6 +595,31 @@
 		};
 	};
 
+	leds_PIC: leds_PIC {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "FXS1_Reset";
+			gpios = <&gpiox_0x42 0 GPIO_ACTIVE_LOW>;
+		};
+
+		led@x2 {
+			label = "FXS1_USR";
+			gpios = <&gpiox_0x42 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led@x4 {
+			label = "FXS2_Reset";
+			gpios = <&gpiox_0x42 4 GPIO_ACTIVE_LOW>;
+		};
+
+		led@x5 {
+			label = "FXS2_USR";
+			gpios = <&gpiox_0x42 5 GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	leds_kym1x_pwr: leds_kym1x_pwr {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -804,9 +829,9 @@
 		#size-cells = <0>;
 		devices = <&gpiox_0x04_lisa
 			   &gpiox_0x10 &gpiox_0x12_FXS &gpiox_0x14 &gpiox_0x22
-			   &gpiox_0x30 &gpiox_0x34
+			   &gpiox_0x30 &gpiox_0x34 &gpiox_0x42
 			   &leds_amp_wlan_ctrl &leds_foma &leds_aux
-			   &leds_fxs1 &leds_fxs2>;
+			   &leds_fxs1 &leds_fxs2 &leds_PIC>;
 	};
 };
 
@@ -1787,6 +1812,17 @@
 			label = "DI_07";
 			reg = <7>;
 		};
+	};
+
+	/* FXS PIC Control */
+	gpiox_0x42: gpio@2,0x42 {
+		reg = <2 0x00000042 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
 	};
 
 	/* DIO DOUT */
