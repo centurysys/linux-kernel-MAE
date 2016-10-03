@@ -248,6 +248,25 @@
 			smem-entry-names = "ch", "tx_fifo", "rx_fifo";
 		};
 
+		qcom,glink-rpm-native-xprt@60000 {
+			compatible = "qcom,glink-rpm-native-xprt";
+			reg = <0x60000 0x6000>,
+				<0x0b111008 0x4>;
+			reg-names = "msgram", "irq-reg-base";
+			qcom,irq-mask = <0x1>;
+			interrupts = <0 168 1>;
+			label = "rpm";
+			status = "disabled";
+		};
+
+		rpm_bus: qcom,rpm-glink {
+			compatible = "qcom,rpm-glink";
+			qcom,glink-edge = "rpm";
+			rpm-channel-name = "rpm_requests";
+			qcom,rpm-channel-type = <15>; // SMD_APPS_RPM
+			status = "disabled";
+		};
+
 		qcom,ipc_router {
 			compatible = "qcom,ipc_router";
 			qcom,node-id = <1>;
@@ -730,3 +749,5 @@
 		};
 	};
 };
+
+#include "qcom-ipq807x-rpm-regulator.dtsi"

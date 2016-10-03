@@ -65,6 +65,8 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
 			enable-method = "qcom,arm-cortex-acc";
+			voltage-tolerance = <1>;
+			cpu-supply = <&ipq807x_s1_corner>;
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 
@@ -82,6 +84,8 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
+			voltage-tolerance = <1>;
+			cpu-supply = <&ipq807x_s1_corner>;
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
 		};
@@ -94,6 +98,8 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
+			voltage-tolerance = <1>;
+			cpu-supply = <&ipq807x_s1_corner>;
 			qcom,acc = <&acc2>;
 			next-level-cache = <&L2_0>;
 		};
@@ -106,6 +112,8 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
+			voltage-tolerance = <1>;
+			cpu-supply = <&ipq807x_s1_corner>;
 			qcom,acc = <&acc3>;
 			next-level-cache = <&L2_0>;
 		};
