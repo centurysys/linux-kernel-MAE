@@ -29,10 +29,13 @@
 #define MAX_BUF_SIZE	256
 #define SFP_ADDR_SIZE	1
 
+#define SFP_VENDOR_ADDR   20
+
 struct sfp_priv {
 	struct i2c_client * client;
 	struct mutex lock;
 	struct proc_dir_entry * proc_entry;
+	struct proc_dir_entry * proc_type;
 };
 
 static const char * version = "0.1";
@@ -103,6 +106,39 @@ static const struct file_operations sfp_proc_fops = {
 };
 
 static int
+sfp_type_proc_show(struct seq_file * seq, void * unused)
+{
+	struct sfp_priv * priv = seq->private;
+	struct i2c_client * client = priv->client;
+	u8 buf[MAX_BUF_SIZE];
+	int ret;
+
+	ret = get_sfp_data(client, buf, MAX_BUF_SIZE, 0);
+
+	if (ret < 0)
+		seq_printf(seq, "none\n");
+	else if (!strncmp("NTT", &buf[SFP_VENDOR_ADDR], 3))
+		seq_printf(seq, "onu\n");
+	else
+		seq_printf(seq, "sfp\n");
+
+	return 0;
+}
+
+static int
+sfp_type_proc_open(struct inode * inode, struct file * file)
+{
+	return single_open(file, sfp_type_proc_show, PDE_DATA(inode));
+}
+
+static const struct file_operations sfp_type_proc_fops = {
+	.owner = THIS_MODULE,
+	.open = sfp_type_proc_open,
+	.read = seq_read,
+	.llseek = noop_llseek,
+};
+
+static int
 init_proc(struct sfp_priv * priv)
 {
 	struct i2c_client * client = priv->client;
@@ -119,6 +155,14 @@ init_proc(struct sfp_priv * priv)
 	}
 	priv->proc_entry = entry;
 
+	if (!strncmp("sfp0-a0",client->name, 7))  {
+		entry = proc_create_data("type", 0400, sfp_proc_root, &sfp_type_proc_fops, priv);
+		if (!entry) {
+			dev_err(&client->dev, "%s : proc_create failed\n", __func__);
+			return -ENOMEM;
+		}
+		priv->proc_type = entry;
+	}
 	return 0;
 }
 
@@ -127,6 +171,9 @@ remove_proc(struct sfp_priv * priv)
 {
 	if (priv->proc_entry)
 		proc_remove(priv->proc_entry);
+
+	if (priv->proc_type)
+		proc_remove(priv->proc_type);
 }
 
 static int
