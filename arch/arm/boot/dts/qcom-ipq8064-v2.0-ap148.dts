@@ -13,5 +13,5 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  */
-#include "qcom-ipq8064-v1.0.dtsi"
+#include "qcom-ipq8064-v2.0.dtsi"
 #include "qcom-ipq8064-ap148.dtsi"
