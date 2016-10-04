@@ -136,8 +136,6 @@
 
 			#address-cells = <1>;
 			#size-cells = <0>;
-			ath79,cs-type = <0>;
-			ath79,cs-line = <0>;
 			ath79,is-flash = <1>;
 			spi-max-frequency = <25000000>;
 		};
