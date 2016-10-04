@@ -39,17 +39,18 @@ struct qca_uni_ss_phy {
 
 #define	phy_to_dw_phy(x)	container_of((x), struct qca_uni_ss_phy, phy)
 
-static void qca_uni_ss_phy_shutdown(struct phy *x)
+static int qca_uni_ss_phy_shutdown(struct phy *x)
 {
-	struct qca_uni_ss_phy *phy = phy_to_dw_phy(x);
+	struct qca_uni_ss_phy *phy = phy_get_drvdata(x);
 
 	/* assert SS PHY POR reset */
 	reset_control_assert(phy->por_rst);
+
+	return 0;
 }
 
 static int qca_uni_ss_phy_init(struct phy *x)
 {
-	int ret;
 	struct qca_uni_ss_phy *phy = phy_get_drvdata(x);
 
 	/* assert SS PHY POR reset */
@@ -60,7 +61,7 @@ static int qca_uni_ss_phy_init(struct phy *x)
 	/* deassert SS PHY POR reset */
 	reset_control_deassert(phy->por_rst);
 
-	return ret;
+	return 0;
 }
 
 static int qca_uni_ss_get_resources(struct platform_device *pdev,
@@ -88,13 +89,6 @@ static int qca_uni_ss_get_resources(struct platform_device *pdev,
 	return 0;
 }
 
-static int qca_uni_ss_remove(struct platform_device *pdev)
-{
-	struct qca_uni_ss_phy *phy = platform_get_drvdata(pdev);
-
-	return 0;
-}
-
 static const struct of_device_id qca_uni_ss_id_table[] = {
 	{ .compatible = "qca,uni-ssphy" },
 	{ /* Sentinel */ }
@@ -109,7 +103,6 @@ static const struct phy_ops ops = {
 static int qca_uni_ss_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	struct device_node *np = pdev->dev.of_node;
 	struct qca_uni_ss_phy  *phy;
 	int ret;
 	struct phy *generic_phy;
@@ -147,7 +140,6 @@ static int qca_uni_ss_probe(struct platform_device *pdev)
 
 static struct platform_driver qca_uni_ss_driver = {
 	.probe		= qca_uni_ss_probe,
-	.remove		= qca_uni_ss_remove,
 	.driver		= {
 		.name	= "qca-uni-ssphy",
 		.owner	= THIS_MODULE,
