@@ -272,12 +272,10 @@
 
 		pci@1b500000 {
 			status = "ok";
-			phy-tx0-term-offset = <0>;
 		};
 
 		pci@1b700000 {
 			status = "ok";
-			phy-tx0-term-offset = <0>;
 		};
 
 		dma@18300000 {

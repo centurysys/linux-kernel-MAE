@@ -17,16 +17,6 @@
 #include "qcom-ipq8064.dtsi"
 
 &soc {
-	pcie0: pci@1b500000 {
-		phy-tx0-term-offset = <7>;
-	};
-	pcie1: pci@1b700000 {
-		phy-tx0-term-offset = <7>;
-	};
-	pcie2: pci@1b900000 {
-		phy-tx0-term-offset = <7>;
-	};
-
 	ss_phy_1: phy@110f8830 {
 		rx_eq = <2>;
 		tx_deamp_3_5db = <32>;
@@ -44,5 +34,4 @@
 		mpll = <0xa0>;
 		term_off = <7>;
 	};
-
 };
