@@ -40,6 +40,7 @@ struct sfp_priv {
 
 static const char * version = "0.1";
 struct proc_dir_entry * sfp_proc_root = NULL;
+int event_sfp_attach = 0;
 
 static int
 get_sfp_data(struct i2c_client * client, unsigned char * buf, int len, int offset)
@@ -51,6 +52,9 @@ get_sfp_data(struct i2c_client * client, unsigned char * buf, int len, int offse
 		{.addr = client->addr, .flags = 0, .buf = addr, .len = SFP_ADDR_SIZE},
 		{.addr = client->addr, .flags = I2C_M_RD, .buf = buf, .len = len}
 	};
+
+	if (!event_sfp_attach)
+		return -ENODEV;
 
 	if (!client) {
 		dev_warn(&client->dev, "%s: chip not found.\n", __func__);
@@ -281,8 +285,10 @@ sfp_moddef_interrupt(int irq, void * data)
 
 	status = gpio_get_value_cansleep(event->sfp_moddef_gpio);
 	if (status == SFP_MOD_PRESENT) {
+		event_sfp_attach = 1;
 		nxr_sfp_klogd(" Attaching SFP0\n");
 	} else {
+		event_sfp_attach = 0;
 		nxr_sfp_klogd(" Detaching SFP0\n");
 	}
 	
@@ -381,6 +387,7 @@ fail:
 static void
 event_exit(void)
 {
+	event_sfp_attach = 0;
 	if (g_event) {
 		if (gpio_is_valid(g_event->sfp_tx_disable))
 			gpio_free(g_event->sfp_tx_disable);
