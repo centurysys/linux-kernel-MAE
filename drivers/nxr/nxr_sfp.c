@@ -278,7 +278,7 @@ sfp_proc_show(struct seq_file * seq, void * unused)
 	}
 
 	seq_printf(seq, "### SFP Memory(Address 0x%02x) ###\n", (client->addr << 1));
-	nxr_proc_print_hex_dump(seq, "", DUMP_PREFIX_OFFSET, 16, 4, buf, MAX_BUF_SIZE, false);
+	nxr_proc_print_hex_dump(seq, "", DUMP_PREFIX_OFFSET, 16, 1, buf, MAX_BUF_SIZE, true);
 
 	return 0;
 }
