@@ -17,6 +17,7 @@ compatible strings
 	"qcom,ipq8064-ap160"
 	"qcom,ipq8064-ap160_2xx"
 	"qcom,ipq8064-ap161"
+	"qcom,ipq8064-db149"
 	"qcom,ipq8062-ap145"
 	"qcom,ipq8062-ap145_1xx"
 	"qcom,ipq8064-ap148"
