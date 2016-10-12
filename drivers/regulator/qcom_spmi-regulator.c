@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -414,6 +414,7 @@ static struct spmi_voltage_range ln_ldo_ranges[] = {
 };
 
 static struct spmi_voltage_range smps_ranges[] = {
+	SPMI_VOLTAGE_RANGE(2,  670000,  670000, 990000,  990000,  8000),
 	SPMI_VOLTAGE_RANGE(0,  375000,  375000, 1562500, 1562500, 12500),
 	SPMI_VOLTAGE_RANGE(1, 1550000, 1575000, 3125000, 3125000, 25000),
 };
@@ -1568,10 +1569,28 @@ static const struct spmi_regulator_data pm8916_regulators[] = {
 	{ }
 };
 
+static const struct spmi_regulator_data pmd9655_regulators[] = {
+	{ "s3", 0x1a00, "vdd_s3", NULL, 0x0308},
+	{ }
+};
+
 static const struct of_device_id qcom_spmi_regulator_match[] = {
-	{ .compatible = "qcom,pm8841-regulators", .data = &pm8841_regulators },
-	{ .compatible = "qcom,pm8916-regulators", .data = &pm8916_regulators },
-	{ .compatible = "qcom,pm8941-regulators", .data = &pm8941_regulators },
+	{
+		.compatible = "qcom,pm8841-regulators",
+		.data = &pm8841_regulators
+	},
+	{
+		.compatible = "qcom,pm8916-regulators",
+		.data = &pm8916_regulators
+	},
+	{
+		.compatible = "qcom,pm8941-regulators",
+		.data = &pm8941_regulators
+	},
+	{
+		.compatible = "qcom,pmd9655-regulators",
+		.data = &pmd9655_regulators
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_spmi_regulator_match);

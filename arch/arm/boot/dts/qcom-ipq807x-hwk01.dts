@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
+#include "qcom-ipq807x-spmi-regulator.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -66,7 +67,7 @@
 			operating-points-v2 = <&cpu0_opp_table>;
 			enable-method = "qcom,arm-cortex-acc";
 			voltage-tolerance = <1>;
-			cpu-supply = <&ipq807x_s1_corner>;
+			cpu0-supply = <&s3>;
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 
@@ -85,7 +86,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
 			voltage-tolerance = <1>;
-			cpu-supply = <&ipq807x_s1_corner>;
+			cpu-supply = <&s3>;
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
 		};
@@ -99,7 +100,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
 			voltage-tolerance = <1>;
-			cpu-supply = <&ipq807x_s1_corner>;
+			cpu-supply = <&s3>;
 			qcom,acc = <&acc2>;
 			next-level-cache = <&L2_0>;
 		};
@@ -113,7 +114,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
 			voltage-tolerance = <1>;
-			cpu-supply = <&ipq807x_s1_corner>;
+			cpu-supply = <&s3>;
 			qcom,acc = <&acc3>;
 			next-level-cache = <&L2_0>;
 		};

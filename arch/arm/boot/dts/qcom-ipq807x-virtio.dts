@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
+#include "qcom-ipq807x-spmi-regulator.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -74,8 +75,8 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
                         clock-names = "cpu";
                         operating-points-v2 = <&cpu0_opp_table>;
+			cpu0-supply = <&s3>;
                         voltage-tolerance = <1>;
-                        cpu0-supply = <&ipq807x_s1_corner>;
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 
@@ -92,6 +93,7 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
                         clock-names = "cpu";
                         operating-points-v2 = <&cpu0_opp_table>;
+			cpu-supply = <&s3>;
                         voltage-tolerance = <1>;
 			reg = <0x1>;
 			qcom,acc = <&acc1>;
@@ -105,6 +107,7 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
                         clock-names = "cpu";
                         operating-points-v2 = <&cpu0_opp_table>;
+			cpu-supply = <&s3>;
                         voltage-tolerance = <1>;
 			reg = <0x2>;
 			qcom,acc = <&acc2>;
@@ -118,6 +121,7 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
                         clock-names = "cpu";
                         operating-points-v2 = <&cpu0_opp_table>;
+			cpu-supply = <&s3>;
                         voltage-tolerance = <1>;
 			reg = <0x3>;
 			qcom,acc = <&acc3>;

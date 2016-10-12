@@ -7,6 +7,7 @@ Qualcomm SPMI Regulators
 			"qcom,pm8841-regulators"
 			"qcom,pm8916-regulators"
 			"qcom,pm8941-regulators"
+			"qcom,pmd9655-regulators"
 
 - interrupts:
 	Usage: optional
