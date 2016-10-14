@@ -317,7 +317,8 @@ static void qca956x_ip3_irq_dispatch(struct irq_desc *desc)
 	}
 }
 
-static void qca956x_enable_timer_cb(void) {
+static void qca956x_enable_timer_cb(void)
+{
 	u32 misc;
 
 	misc = ath79_reset_rr(AR71XX_RESET_REG_MISC_INT_ENABLE);
@@ -421,7 +422,6 @@ static int __init ath79_misc_intc_of_init(
 	/* Disable and clear all interrupts */
 	__raw_writel(0, base + AR71XX_RESET_REG_MISC_INT_ENABLE);
 	__raw_writel(0, base + AR71XX_RESET_REG_MISC_INT_STATUS);
-
 
 	irq_set_chained_handler(irq, ath79_misc_irq_handler);
 
@@ -573,6 +573,14 @@ void __init arch_init_irq(void)
 
 	if (mips_machtype == ATH79_MACH_GENERIC_OF) {
 		irqchip_init();
+		if (soc_is_qca956x() || soc_is_tp9343()) {
+			/*
+			 * QCA956x timer init workaround has to be applied
+			 * right before setting up the clock. Else, there will
+			 * be no jiffies
+			 */
+			late_time_init = &qca956x_enable_timer_cb;
+		}
 		return;
 	}
 
