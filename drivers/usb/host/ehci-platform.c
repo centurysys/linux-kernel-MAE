@@ -158,6 +158,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 	struct ehci_platform_priv *priv;
 	struct ehci_hcd *ehci;
 	int err, irq, phy_num, clk = 0;
+	u32 caps_offset;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -168,6 +169,13 @@ static int ehci_platform_probe(struct platform_device *dev)
 	 */
 	if (!pdata)
 		pdata = &ehci_platform_defaults;
+
+	if (pdata == &ehci_platform_defaults && dev->dev.of_node) {
+		if (of_property_read_bool(dev->dev.of_node, "dma-bit-mask-64"))
+			pdata->dma_mask_64 = 1;
+		else
+			pdata->dma_mask_64 = 0;
+	}
 
 	err = dma_coerce_mask_and_coherent(&dev->dev,
 		pdata->dma_mask_64 ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32));
@@ -209,6 +217,18 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node,
 					  "has-transaction-translator"))
 			hcd->has_tt = 1;
+
+		if (of_property_read_bool(dev->dev.of_node,
+					  "qca_force_host_mode"))
+			ehci->qca_force_host_mode = 1;
+
+		if (of_property_read_bool(dev->dev.of_node,
+					  "qca_force_16bit_ptw"))
+			ehci->qca_force_16bit_ptw = 1;
+
+		of_property_read_u32(dev->dev.of_node,
+					  "caps-offset", &caps_offset);
+		pdata->caps_offset = caps_offset;
 
 		priv->num_phys = of_count_phandle_with_args(dev->dev.of_node,
 				"phys", "#phy-cells");

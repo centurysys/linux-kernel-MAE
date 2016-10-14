@@ -380,6 +380,28 @@ static const struct irq_domain_ops misc_irq_domain_ops = {
 	.map = misc_map,
 };
 
+static int ip2_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(irq, &ip2_chip, handle_level_irq);
+	return 0;
+}
+
+static const struct irq_domain_ops ip2_irq_domain_ops = {
+	.xlate = irq_domain_xlate_onecell,
+	.map = ip2_map,
+};
+
+static int ip3_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(irq, &ip3_chip, handle_level_irq);
+	return 0;
+}
+
+static const struct irq_domain_ops ip3_irq_domain_ops = {
+	.xlate = irq_domain_xlate_onecell,
+	.map = ip3_map,
+};
+
 static int __init ath79_misc_intc_of_init(
 	struct device_node *node, struct device_node *parent)
 {
@@ -425,6 +447,62 @@ static int __init ar7240_misc_intc_of_init(
 
 IRQCHIP_DECLARE(ar7240_misc_intc, "qca,ar7240-misc-intc",
 		ar7240_misc_intc_of_init);
+
+static int __init ath79_ip2_irq_of_init(
+	struct device_node *node, struct device_node *parent)
+{
+	struct irq_domain *domain;
+	int irq;
+
+	irq = irq_of_parse_and_map(node, 0);
+	if (!irq)
+		panic("Failed to get IP2 IRQ");
+
+	domain = irq_domain_add_legacy(node, ATH79_IP2_IRQ_COUNT,
+			   ATH79_IP2_IRQ_BASE, 0, &ip2_irq_domain_ops, NULL);
+	if (!domain)
+		panic("Failed to add IP2 irqdomain");
+
+	if (soc_is_ar934x())
+		irq_set_chained_handler(ATH79_CPU_IRQ(2), ar934x_ip2_irq_dispatch);
+	else if (soc_is_qca953x())
+		irq_set_chained_handler(ATH79_CPU_IRQ(2), qca953x_ip2_irq_dispatch);
+	else if (soc_is_qca955x())
+		irq_set_chained_handler(ATH79_CPU_IRQ(2), qca955x_ip2_irq_dispatch);
+	else if (soc_is_qca956x() || soc_is_tp9343())
+		irq_set_chained_handler(ATH79_CPU_IRQ(2), qca956x_ip2_irq_dispatch);
+
+	return 0;
+}
+
+IRQCHIP_DECLARE(ath79_ip2_intc, "qca,ath79-ip2-intc",
+		ath79_ip2_irq_of_init);
+
+static int __init ath79_ip3_irq_of_init(
+	struct device_node *node, struct device_node *parent)
+{
+	struct irq_domain *domain;
+	int irq;
+
+	irq = irq_of_parse_and_map(node, 0);
+	if (!irq)
+		panic("Failed to get IP3 IRQ");
+
+	domain = irq_domain_add_legacy(node, ATH79_IP3_IRQ_COUNT,
+			ATH79_IP3_IRQ_BASE, 0, &ip3_irq_domain_ops, NULL);
+	if (!domain)
+		panic("Failed to add IP3 irqdomain");
+	if (soc_is_qca955x())
+		irq_set_chained_handler(ATH79_CPU_IRQ(3), qca955x_ip3_irq_dispatch);
+	else if (soc_is_qca956x() || soc_is_tp9343()) {
+		irq_set_chained_handler(ATH79_CPU_IRQ(3), qca956x_ip3_irq_dispatch);
+	}
+
+	return 0;
+}
+
+IRQCHIP_DECLARE(ath79_ip3_intc, "qca,ath79-ip3-intc",
+		ath79_ip3_irq_of_init);
 
 static int __init ar79_cpu_intc_of_init(
 	struct device_node *node, struct device_node *parent)
