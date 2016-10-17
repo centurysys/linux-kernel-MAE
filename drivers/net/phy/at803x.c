@@ -187,7 +187,36 @@ static int at803x_update_link(struct phy_device *phydev)
 
 	return 0;
 }
-#endif
+
+/*
+ * AR8033 errata
+ *   Remote Fault reported by AR8033 after reset in 1000BASE-X mode.
+ *
+ * Workaroud:
+ *   Set MMD7 register 0x8012 bits[1:0] to 11, witch stops the AR8033 transceiver
+ *   from generating the specific kind of Remote Fault.
+ */
+static int at803x_1000BASEX_workaround(struct phy_device *phydev)
+{
+	int val;
+
+	mutex_lock(&phydev->lock);
+
+	phy_write(phydev, AT803X_MMD_ACCESS_CONTROL, 7);
+	phy_write(phydev, AT803X_MMD_ACCESS_CONTROL_DATA, 0x8012);
+	phy_write(phydev, AT803X_MMD_ACCESS_CONTROL, 0x4007);
+	val = phy_read(phydev, AT803X_MMD_ACCESS_CONTROL_DATA);
+	if (val < 0) {
+		mutex_unlock(&phydev->lock);
+		return val;
+	}
+	phy_write(phydev, AT803X_MMD_ACCESS_CONTROL_DATA, val | 0x3);
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+#endif	/* CONFIG_NXR_SFP */
 
 static u16
 at803x_dbg_reg_rmw(struct phy_device *phydev, u16 reg, u16 clear, u16 set)
@@ -446,10 +475,14 @@ static int at803x_config_init(struct phy_device *phydev)
 	if (val < 0)
 		return val;	/* error */
 
-	if ((val & AT803X_BT_BX_REG_SELL) == 0)
+	if ((val & AT803X_BT_BX_REG_SELL) == 0) {
+		ret = at803x_1000BASEX_workaround(phydev);
+		if (ret < 0)
+			return ret;
 		phydev->phy_media = PHY_MEDIA_FIBER;
-	else
+	} else {
 		phydev->phy_media = PHY_MEDIA_CAT5;
+	}
 #endif
 
 	return 0;

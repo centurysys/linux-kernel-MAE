@@ -67,6 +67,8 @@ nxr_sfp_tx_enable(void)
 
 	gpio_direction_output(g_event->sfp_tx_disable, 0);
 
+	msleep(1000);
+
 	return 0;
 }
 EXPORT_SYMBOL(nxr_sfp_tx_enable);
