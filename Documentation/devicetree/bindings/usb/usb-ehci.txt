@@ -19,6 +19,10 @@ Optional properties:
  - phys : phandle + phy specifier pair
  - phy-names : "usb"
  - resets : phandle + reset specifier pair
+ - qca_force_host_mode: Set, if host mode to be forced for ATH79 SoCs
+ - qca_force_16bit_ptw: Set, if 16bit ptw to be forced for ATH79 SoCs
+ - caps-offset: Specify the caps offset
+
 
 Example (Sequoia 440EPx):
     ehci@e0000300 {
@@ -37,4 +41,18 @@ Example (Allwinner sun4i A10 SoC):
 	   clocks = <&ahb_gates 1>;
 	   phys = <&usbphy 1>;
 	   phy-names = "usb";
+   };
+
+Example (Qualcomm Atheros ATH79 SoC)
+
+   ehci0: usb@1b000000 {
+	   compatible = "generic-ehci", "ehci-platform";
+	   reg = <0x1b000000 0x200>;
+	   interrupt-parent = <&ip3_int>;
+	   interrupts = <0>;
+	   has-transaction-translator;
+	   qca_force_host_mode;
+	   qca_force_16bit_ptw;
+	   caps-offset = <0x100>;
+	   status = "okay";
    };

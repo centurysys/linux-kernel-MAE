@@ -19,3 +19,4 @@ value must be one of the following values:
 - qca,ar9344
 - qca,qca9556
 - qca,qca9558
+- qca,ath79
