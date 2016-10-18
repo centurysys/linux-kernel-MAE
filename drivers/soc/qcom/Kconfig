@@ -140,3 +140,30 @@ config MSM_RPM_GLINK
 
 	 Say M here if you want to include support for the Qualcomm RPM as a
 	 module. This will build a module called "qcom-rpm-glink".
+
+config QCOM_RESTART_REASON
+	bool "Write restart reason on reboot"
+	depends on ARCH_QCOM
+	help
+	Say y here to enable writing restart reason. This adds a reboot handler
+	to write the restart reason command to distinguish between normal and
+	abnormal reboots. This also registers for panic notification so that
+	magic cookies can be set for download mode.
+	If unsure, say N
+
+config QCOM_DLOAD_MODE
+	bool "Enable download mode on crashes"
+	depends on ARCH_QCOM
+	default n
+	help
+	This makes the SoC enter download mode when it resets
+	due to a kernel panic. Note that this doesn't by itself
+	make the kernel reboot on a kernel panic - that must be
+	enabled via another mechanism.
+	If unsure, say N
+
+config QCOM_DLOAD_MODE_APPSBL
+	bool "Application bootloader based download mode handling"
+	depends on QCOM_DLOAD_MODE
+	default n
+	help
