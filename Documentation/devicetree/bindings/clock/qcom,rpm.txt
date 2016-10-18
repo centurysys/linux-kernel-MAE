@@ -1,4 +1,4 @@
-Qualcomm RPM Clock & Reset Controller Binding
+Qualcomm Technologies Inc RPM Clock & Reset Controller Binding
 ------------------------------------------------
 
 Required properties :
