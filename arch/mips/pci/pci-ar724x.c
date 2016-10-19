@@ -330,6 +330,13 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 	struct ar724x_pci_controller *apc;
 	struct resource *res;
 	int id;
+	int ret;
+
+	if (pdev->dev.of_node) {
+		ret = of_alias_get_id(pdev->dev.of_node, "pci");
+		if (ret >= 0)
+			pdev->id = ret;
+	}
 
 	id = pdev->id;
 	if (id == -1)
