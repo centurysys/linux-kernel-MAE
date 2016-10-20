@@ -1585,8 +1585,13 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 	u32			reg;
 
 	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
-	ret = request_threaded_irq(irq, dwc3_interrupt, dwc3_thread_interrupt,
-			IRQF_SHARED, "dwc3", dwc);
+	if (dwc->emulation)
+		ret = request_irq(irq, dwc3_interrupt, IRQF_SHARED, "dwc3",
+				  dwc);
+	else
+		ret = request_threaded_irq(irq, dwc3_interrupt,
+					   dwc3_thread_interrupt,
+					   IRQF_SHARED, "dwc3", dwc);
 	if (ret) {
 		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
 				irq, ret);
@@ -2737,8 +2742,12 @@ static irqreturn_t dwc3_interrupt(int irq, void *_dwc)
 		irqreturn_t status;
 
 		status = dwc3_check_event_buf(dwc, i);
-		if (status == IRQ_WAKE_THREAD)
-			ret = status;
+		if (status == IRQ_WAKE_THREAD) {
+			if (dwc->emulation)
+				ret = dwc3_thread_interrupt(irq, _dwc);
+			else
+				ret = status;
+		}
 	}
 
 	return ret;

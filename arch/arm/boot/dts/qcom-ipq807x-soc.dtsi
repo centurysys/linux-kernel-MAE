@@ -542,6 +542,7 @@
 				snps,nominal-elastic-buffer;
 				snps,is-utmi-l1-suspend;
 				snps,hird-threshold = /bits/ 8 <0x0>;
+				qcom,emulation = <1>;
 			};
 		};
 
