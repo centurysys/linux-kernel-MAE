@@ -44,6 +44,10 @@
 #define ALFPS_DTCT_EN		BIT(1)
 #define ARCVR_DTCT_EVENT_SEL	BIT(4)
 
+/* USB30_SS_PHY_CTRL LANE0_PWR_PRESENT bit */
+#define USB30_SS_PHY_CTRL	0x30
+#define LANE0_PWR_PRESENT	(0x01 << 24)
+
 enum qmp_phy_rev_reg {
 	USB3_REVISION_ID0,
 	USB3_REVISION_ID1,
@@ -332,6 +336,7 @@ static const struct qmp_reg_val qmp_settings_rev1_misc[] = {
 struct msm_ssphy_qmp {
 	struct usb_phy		phy;
 	void __iomem		*base;
+	void __iomem		*qscratch_base;
 	void __iomem		*vls_clamp_reg;
 	void __iomem		*tcsr_phy_clk_scheme_sel;
 
@@ -637,6 +642,10 @@ static int msm_ssphy_qmp_init(struct usb_phy *uphy)
 					phy->phy_reg[USB3_PHY_PCS_STATUS]));
 		return -EBUSY;
 	};
+
+	/* Set LANE0_PWR_PRESENT */
+	writel_relaxed(LANE0_PWR_PRESENT, phy->qscratch_base +
+		       USB30_SS_PHY_CTRL);
 
 	return 0;
 }
@@ -973,6 +982,16 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 				res->start, resource_size(res));
 		if (IS_ERR(phy->tcsr_phy_clk_scheme_sel))
 			dev_dbg(dev, "err reading tcsr_phy_clk_scheme_sel\n");
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+							"qscratch_base");
+	if (res) {
+		phy->qscratch_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(phy->qscratch_base)) {
+			dev_err(dev, "couldn't ioremap qscratch_base\n");
+			phy->qscratch_base = NULL;
+		}
 	}
 
 	of_get_property(dev->of_node, "qcom,qmp-phy-init-seq", &size);

@@ -842,6 +842,9 @@ struct dwc3 {
 
 	const char		*hsphy_interface;
 
+	/* emulation targets specific */
+	bool			emulation;
+
 	unsigned		delayed_status:1;
 	unsigned		ep0_bounced:1;
 	unsigned		ep0_expect_in:1;

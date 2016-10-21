@@ -505,10 +505,12 @@
 			qcom,emulation = <1>;
 			reg = <0x78000 0x45c>,
 				<0x0193f244 0x4>,
-				<0x0193f044 0x4>;
+				<0x0193f044 0x4>,
+				<0x08af8800 0x100>;
 			reg-names = "qmp_phy_base",
 				    "vls_clamp_reg",
-				    "tcsr_phy_clk_scheme_sel";
+				    "tcsr_phy_clk_scheme_sel",
+				    "qscratch_base";
 			qcom,qmp-phy-init-seq = <0xac 0x14 0x1a 0x00
 						0x34 0x08 0x08 0x00
 						0x174 0x30 0x30 0x00
@@ -665,6 +667,7 @@
 				snps,nominal-elastic-buffer;
 				snps,is-utmi-l1-suspend;
 				snps,hird-threshold = /bits/ 8 <0x0>;
+				qcom,emulation = <1>;
 			};
 		};
 
