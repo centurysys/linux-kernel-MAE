@@ -695,7 +695,7 @@
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x7984000 0x1a000>;
 			interrupts = <0 101 0>;
-			clocks = <&gcc GCC_QPIC_AHB_CLK>;
+			clocks = <&gcc GCC_QPIC_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <0>;
