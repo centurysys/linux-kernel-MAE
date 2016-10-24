@@ -8,6 +8,7 @@
 
 struct irqaction;
 struct softirq_action;
+struct tasklet_struct;
 
 #define SOFTIRQ_NAME_LIST				\
 			 softirq_name(HI)		\
@@ -97,6 +98,54 @@ TRACE_EVENT(irq_handler_exit,
 
 	TP_printk("irq=%d ret=%s",
 		  __entry->irq, __entry->ret ? "handled" : "unhandled")
+);
+
+/**
+ * tlet_entry - called immediately before the tasklet handler
+ * @t: pointer to struct tasklet_struct
+ *
+ * When used in combination with the tlet_exit tracepoint we can
+ * determine the latency of the tasklet.
+ */
+TRACE_EVENT(tlet_entry,
+
+	TP_PROTO(struct tasklet_struct *t),
+
+	TP_ARGS(t),
+
+	TP_STRUCT__entry(
+		__field(void *, func)
+	),
+
+	TP_fast_assign(
+		__entry->func = t->func;
+	),
+
+	TP_printk("func=%pf", __entry->func)
+);
+
+/**
+ * tlet_exit - called immediately after the tasklet handler returns
+ * @t: pointer to struct tasklet_struct
+ *
+ * When used in combination with the tasklet_entry tracepoint we can
+ * determine the latency of the tasklet.
+ */
+TRACE_EVENT(tlet_exit,
+
+	TP_PROTO(struct tasklet_struct *t),
+
+	TP_ARGS(t),
+
+	TP_STRUCT__entry(
+		__field(void *, func)
+	),
+
+	TP_fast_assign(
+		__entry->func = t->func;
+	),
+
+	TP_printk("func=%pf", __entry->func)
 );
 
 DECLARE_EVENT_CLASS(softirq,
