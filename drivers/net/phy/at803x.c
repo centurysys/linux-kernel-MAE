@@ -104,7 +104,7 @@ struct at803x_context {
 #ifdef CONFIG_NXR_SFP
 static int at803x_start(struct phy_device *phydev)
 {
-        if (phydev->phy_media == PHY_MEDIA_FIBER)
+	if (phydev->phy_media == PHY_MEDIA_FIBER)
 		nxr_sfp_tx_enable();
 
 	return 0;
@@ -112,7 +112,7 @@ static int at803x_start(struct phy_device *phydev)
 
 static int at803x_stop(struct phy_device *phydev)
 {
-        if (phydev->phy_media == PHY_MEDIA_FIBER)
+	if (phydev->phy_media == PHY_MEDIA_FIBER)
 		nxr_sfp_tx_disable();
 
 	return 0;
@@ -120,7 +120,7 @@ static int at803x_stop(struct phy_device *phydev)
 
 static int at803x_config_aneg(struct phy_device *phydev)
 {
-        if (phydev->phy_media == PHY_MEDIA_FIBER)
+	if (phydev->phy_media == PHY_MEDIA_FIBER)
 		return genphy_restart_aneg(phydev);
 	else
 		return genphy_config_aneg(phydev);
@@ -130,7 +130,7 @@ static int at803x_read_status(struct phy_device *phydev)
 {
 	int status = 0;
 
-        if (phydev->phy_media != PHY_MEDIA_FIBER)
+	if (phydev->phy_media != PHY_MEDIA_FIBER)
 		return genphy_read_status(phydev);
 
 	/*
@@ -171,7 +171,7 @@ static int at803x_update_link(struct phy_device *phydev)
 {
 	int status = 0;
 
-        if (phydev->phy_media == PHY_MEDIA_FIBER) {
+	if (phydev->phy_media == PHY_MEDIA_FIBER) {
 		status = phy_read(phydev, AT803X_SPEC_STATUS);
 		if (status < 0)
 			return status;	/* error */
