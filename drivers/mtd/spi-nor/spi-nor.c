@@ -700,6 +700,7 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "md25d40",  INFO(0x514013, 0, 64 * 1024,  8,  SECT_4K) },
 	{ "gd25d20",  INFO(0xc84012, 0, 64 * 1024,  4,  SECT_4K) },
 	{ "gd25d40",  INFO(0xc84013, 0, 64 * 1024,  8,  SECT_4K) },
+	{ "gd25q16", INFO(0xc84015, 0, 64 * 1024, 32, SECT_4K) },
 	{ "gd25q32", INFO(0xc84016, 0, 64 * 1024,  64, SECT_4K) },
 	{ "gd25q64", INFO(0xc84017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "gd25q128", INFO(0xc84018, 0, 64 * 1024, 256, SECT_4K) },
