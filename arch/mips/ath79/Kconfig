@@ -15,6 +15,33 @@ config ATH79_MACH_AP121
 	  Say 'Y' here if you want your kernel to support the
 	  Atheros AP121 reference board.
 
+config ATH79_MACH_AP135
+	bool "Qualcomm Atheros AP135 reference board"
+	select SOC_QCA955X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_M25P80
+	select ATH79_DEV_SPI
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+	select ATH79_DEV_ETH
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Qualcomm Atheros AP135 reference board.
+
+config ATH79_MACH_AP135_DUAL
+	bool "Qualcomm Atheros AP135 Dual reference board"
+	select SOC_QCA955X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_SPI
+	select ATH79_DEV_USB
+	select ATH79_DEV_NAND
+	select ATH79_DEV_WMAC
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Qualcomm Atheros AP135 Dual reference board.
+
 config ATH79_MACH_AP136
 	bool "Atheros AP136/AP135 reference board"
 	select SOC_QCA955X
@@ -159,6 +186,10 @@ config ATH79_DEV_LEDS_GPIO
 
 config ATH79_DEV_NFC
 	depends on (SOC_AR934X || SOC_QCA955X)
+	def_bool n
+
+config ATH79_DEV_NAND
+	select ATH79_NAND_CALDATA_FIXUP
 	def_bool n
 
 config ATH79_DEV_SPI

@@ -1130,6 +1130,10 @@ config IMAGE_CMDLINE_HACK
 	bool "OpenWrt specific image command line hack"
 	default n
 
+config ATHMEM_USE_FROM_UBOOT
+	bool "Use DDR memsize passed from u-boot"
+	default n
+
 config NO_IOPORT_MAP
 	def_bool n
 
