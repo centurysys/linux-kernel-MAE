@@ -168,16 +168,16 @@
 
 		nss0: nss@40000000 {
 			compatible = "qcom,nss0";
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <550000000>;
-			qcom,max_frequency = <733000000>;
+			qcom,low-frequency = <110000000>;
+			qcom,mid-frequency = <550000000>;
+			qcom,max-frequency = <733000000>;
 		};
 
 		nss1: nss@40800000 {
 			compatible = "qcom,nss1";
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <550000000>;
-			qcom,max_frequency = <733000000>;
+			qcom,low-frequency = <110000000>;
+			qcom,mid-frequency = <550000000>;
+			qcom,max-frequency = <733000000>;
 		};
 
 		rpm@108000 {
