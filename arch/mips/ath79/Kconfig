@@ -42,6 +42,19 @@ config ATH79_MACH_AP135_DUAL
 	  Say 'Y' here if you want your kernel to support the
 	  Qualcomm Atheros AP135 Dual reference board.
 
+config ATH79_MACH_AP137
+	bool "Qualcomm Atheros AP137 reference board"
+	select SOC_QCA955X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_M25P80
+	select ATH79_DEV_SPI
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Qualcomm Atheros AP135 reference board.
+
 config ATH79_MACH_AP136
 	bool "Atheros AP136/AP135 reference board"
 	select SOC_QCA955X
