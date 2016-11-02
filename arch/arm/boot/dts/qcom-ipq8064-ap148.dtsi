@@ -231,6 +231,7 @@
 			qcom,wlanredirect-enabled;
 			qcom,tun6rd-enabled;
 			qcom,l2tpv2-enabled;
+			qcom,map-t-enabled;
 			qcom,tunipip6-enabled;
 			qcom,pppoe-enabled;
 			qcom,pptp-enabled;
