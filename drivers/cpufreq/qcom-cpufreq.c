@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
-#include <linux/cpufreq-dt.h>
 
 static void __init get_krait_bin_format_a(int *speed, int *pvs, int *pvs_ver)
 {
@@ -171,12 +170,9 @@ static int __init qcom_cpufreq_driver_init(void)
 	struct platform_device_info devinfo = {
 		.name = "cpufreq-krait",
 	};
-	struct platform_device_info dt = {
-		.name = "cpufreq-dt",
-	};
 	struct device *cpu_dev;
 	struct device_node *np;
-	int ret;
+	int ret = -ENODEV;
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev)
@@ -192,9 +188,6 @@ static int __init qcom_cpufreq_driver_init(void)
 		if (ret)
 			return ret;
 		ret = PTR_ERR_OR_ZERO(platform_device_register_full(&devinfo));
-	} else {
-		of_node_put(np);
-		ret = PTR_ERR_OR_ZERO(platform_device_register_full(&dt));
 	}
 
 	return ret;
