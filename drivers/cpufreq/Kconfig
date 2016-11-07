@@ -198,6 +198,15 @@ config CPUFREQ_DT
 
 	  If in doubt, say N.
 
+config CPUFREQ_DT_PLATDEV
+	bool
+	help
+	  This adds a generic DT based cpufreq platdev driver for frequency
+	  management.  This creates a 'cpufreq-dt' platform device, on the
+	  supported platforms.
+
+	  If in doubt, say N.
+
 config GENERIC_CPUFREQ_KRAIT
 	tristate "Krait cpufreq driver"
 	depends on HAVE_CLK && OF
