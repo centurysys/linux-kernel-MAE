@@ -359,7 +359,7 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 	if (apc->irq < 0)
 		return -EINVAL;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_IO, "io_base");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "io_base");
 	if (!res)
 		return -EINVAL;
 
@@ -396,10 +396,16 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ath79_pci_of_match[] = {
+	{.compatible = "qca,ar724x-pci", },
+	{ },
+};
+
 static struct platform_driver ar724x_pci_driver = {
 	.probe = ar724x_pci_probe,
 	.driver = {
 		.name = "ar724x-pci",
+		.of_match_table = ath79_pci_of_match,
 	},
 };
 
