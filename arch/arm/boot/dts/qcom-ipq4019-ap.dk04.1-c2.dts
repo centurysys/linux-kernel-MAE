@@ -186,5 +186,15 @@
 			pinctrl-names = "default";
 			status = "ok";
 		};
+
+		i2c_0: i2c@78b7000 {
+			status = "ok";
+
+			qca_codec: qca_codec@12 {
+				compatible = "qca,ipq4019-codec";
+				reg = <0x12>;
+				status = "ok";
+			};
+		};
 	};
 };
