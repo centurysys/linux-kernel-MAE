@@ -23,3 +23,5 @@ value must be one of the following values:
 - qca,ap135
 - qca,ap137
 - qca,ap147
+- qca,ap151
+- qca,ap152
