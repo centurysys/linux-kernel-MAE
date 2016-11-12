@@ -65,7 +65,7 @@
 					pins = "gpio14", "gpio15", "gpio16",
 					       "gpio17", "gpio55", "gpio56",
 					       "gpio57", "gpio58";
-					function = "nss-spi";
+					function = "nss_spi";
 					drive-strengh = <10>;
 				};
 				data {
