@@ -431,10 +431,10 @@ static void __init qca953x_clocks_init(void)
 	else
 		ahb_rate = cpu_pll / (postdiv + 1);
 
-	ath79_add_sys_clkdev("ref", ref_rate);
 	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
 	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
 	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[3] = ath79_add_sys_clkdev("ref", ref_rate);
 
 	clk_add_alias("wdt", NULL, "ref", NULL);
 	clk_add_alias("uart", NULL, "ref", NULL);
@@ -516,10 +516,10 @@ static void __init qca955x_clocks_init(void)
 	else
 		ahb_rate = cpu_pll / (postdiv + 1);
 
-	ath79_add_sys_clkdev("ref", ref_rate);
 	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
 	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
 	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[3] = ath79_add_sys_clkdev("ref", ref_rate);
 
 	clk_add_alias("wdt", NULL, "ref", NULL);
 	clk_add_alias("uart", NULL, "ref", NULL);
