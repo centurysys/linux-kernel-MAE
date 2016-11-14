@@ -197,7 +197,7 @@
 	};
 
 	q6v5_wcss@CD00000 {
-		qcom,emulation = <1>;
+		qca,emulation = <1>;
 	};
 
 	spi_0: spi@78b5000 { /* BLSP1 QUP1 */

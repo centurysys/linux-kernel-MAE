@@ -25,6 +25,7 @@ Required properties:
 - interrupt-names	Names of incoming interrupts
 - qcom,smem-states	Output from APPS to Q6 processor
 - qcom,smem-state-names Names of the output values from APPS to Q6 processor
+- qca,emulation		States that this driver is used on emulation platform
 
 Example:
 --------
@@ -47,6 +48,7 @@ soc {
 		qcom,smem-state-names = "shutdown",
 					"stop";
 
+		qca,emulation = <1>;
 	};
 	...
 };
