@@ -456,5 +456,5 @@ static struct platform_driver q6_rproc_driver = {
 
 module_platform_driver(q6_rproc_driver);
 
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("QCA Remote Processor control driver");
