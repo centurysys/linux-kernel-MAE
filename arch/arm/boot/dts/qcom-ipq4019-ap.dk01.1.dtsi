@@ -36,13 +36,11 @@
 				pinmux {
 					function = "blsp_spi0";
 					pins = "gpio55", "gpio56", "gpio57";
-					drive-strength = <12>;
 					bias-disable;
 				};
 				pinmux_cs {
 					function = "gpio";
 					pins = "gpio54";
-					drive-strength = <2>;
 					bias-disable;
 					output-high;
 				};
