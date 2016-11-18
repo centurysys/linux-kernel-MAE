@@ -196,7 +196,7 @@ static unsigned int nf_rtcache_forward(u_int8_t pf,
 		return NF_ACCEPT;
 
 	if (!nf_ct_is_confirmed(ct)) {
-		if (WARN_ON(nf_ct_rtcache_find(ct)))
+		if (nf_ct_rtcache_find(ct))
 			return NF_ACCEPT;
 		nf_ct_rtcache_ext_add(ct);
 		return NF_ACCEPT;
