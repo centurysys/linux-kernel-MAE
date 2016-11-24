@@ -501,8 +501,12 @@ dtb-$(CONFIG_ARCH_PRIMA2) += \
 	prima2-evb.dtb
 dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq4019-ap.dk01.1-c1.dtb \
+	qcom-ipq4019-ap.dk01.1-c2.dtb \
 	qcom-ipq4019-ap.dk04.1-c1.dtb \
 	qcom-ipq4019-ap.dk04.1-c2.dtb \
+	qcom-ipq4019-ap.dk06.1-c1.dtb \
+	qcom-ipq4019-ap.dk07.1-c1.dtb \
+	qcom-ipq4019-ap.dk07.1-c2.dtb \
 	qcom-apq8064-cm-qs600.dtb \
 	qcom-apq8064-ifc6410.dtb \
 	qcom-apq8074-dragonboard.dtb \
@@ -515,7 +519,14 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq8064-v2.0-ap145_1xx.dtb \
 	qcom-ipq8064-v3.0-ap145_1xx.dtb \
 	qcom-ipq8064-ap148.dtb \
+	qcom-ipq8064-v2.0-ap148.dtb \
+	qcom-ipq8064-v3.0-ap148.dtb \
+	qcom-ipq8064-ap148_1xx.dtb \
+	qcom-ipq8064-v2.0-ap148_1xx.dtb \
+	qcom-ipq8064-v3.0-ap148_1xx.dtb \
 	qcom-ipq8064-db149.dtb \
+	qcom-ipq8064-v2.0-db149.dtb \
+	qcom-ipq8064-v3.0-db149.dtb \
 	qcom-ipq8064-ap160.dtb \
 	qcom-ipq8064-v2.0-ap160.dtb \
 	qcom-ipq8064-v3.0-ap160.dtb \

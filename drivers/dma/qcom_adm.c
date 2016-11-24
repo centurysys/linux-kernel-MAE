@@ -379,13 +379,13 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 		if (blk_size < 0) {
 			dev_err(adev->dev, "invalid burst value: %d\n",
 				burst);
-			return ERR_PTR(-EINVAL);
+			return NULL;
 		}
 
 		crci = achan->slave.slave_id & 0xf;
 		if (!crci || achan->slave.slave_id > 0x1f) {
 			dev_err(adev->dev, "invalid crci value\n");
-			return ERR_PTR(-EINVAL);
+			return NULL;
 		}
 	}
 
@@ -403,8 +403,10 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 	}
 
 	async_desc = kzalloc(sizeof(*async_desc), GFP_NOWAIT);
-	if (!async_desc)
-		return ERR_PTR(-ENOMEM);
+	if (!async_desc) {
+		dev_err(adev->dev, "failed to allocate desc memory\n");
+		return NULL;
+	}
 
 	if (crci)
 		async_desc->mux = achan->slave.slave_id & ADM_CRCI_MUX_SEL ?
@@ -419,8 +421,10 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 				&async_desc->dma_addr, GFP_NOWAIT);
 
 	if (!async_desc->cpl) {
+		dev_err(adev->dev, "failed to allocate cpl memory %d\n",
+				async_desc->dma_len);
 		kfree(async_desc);
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	}
 
 	async_desc->adev = adev;

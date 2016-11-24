@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef __ARCH_ARM_MACH_MSM_RPM_SMD_H
-#define __ARCH_ARM_MACH_MSM_RPM_SMD_H
+#ifndef __ARCH_ARM_MACH_MSM_RPM_GLINK_H
+#define __ARCH_ARM_MACH_MSM_RPM_GLINK_H
 
 /**
  * enum msm_rpm_set - RPM enumerations for sleep/active set
@@ -31,7 +31,8 @@ struct msm_rpm_kvp {
 	uint32_t length;
 	uint8_t *data;
 };
-#ifdef CONFIG_MSM_RPM_SMD
+
+#ifdef CONFIG_MSM_RPM_GLINK
 /**
  * msm_rpm_request() - Creates a parent element to identify the
  * resource on the RPM, that stores the KVPs for different fields modified
@@ -104,7 +105,7 @@ int msm_rpm_add_kvp_data_noirq(struct msm_rpm_request *handle,
 void msm_rpm_free_request(struct msm_rpm_request *handle);
 
 /**
- * msm_rpm_send_request() - Send the RPM messages using SMD. The function
+ * msm_rpm_send_request() - Send the RPM messages using GLINK. The function
  * assigns a message id before sending the data out to the RPM. RPM hardware
  * uses the message id to acknowledge the messages.
  *
@@ -116,7 +117,20 @@ void msm_rpm_free_request(struct msm_rpm_request *handle);
 int msm_rpm_send_request(struct msm_rpm_request *handle);
 
 /**
- * msm_rpm_send_request_noirq() - Send the RPM messages using SMD. The
+ * msm_rpm_send_request_noack() - Send the RPM messages using GLINK. The
+ * functionassigns a message id before sending the data out to the RPM. RPM
+ * hardware uses the message id to acknowledge the messages, but this API does
+ * not wait on the ACK for this message id and it does not add the message id
+ * to the wait list.
+ *
+ * @handle: pointer to the msm_rpm_request for the resource being modified.
+ *
+ * returns NULL on success and PTR_ERR on a failed transaction.
+ */
+void *msm_rpm_send_request_noack(struct msm_rpm_request *handle);
+
+/**
+ * msm_rpm_send_request_noirq() - Send the RPM messages using GLINK. The
  * function assigns a message id before sending the data out to the RPM.
  * RPM hardware uses the message id to acknowledge the messages. This function
  * is similar to msm_rpm_send_request except that it has to be called with
@@ -164,6 +178,22 @@ int msm_rpm_wait_for_ack_noirq(uint32_t msg_id);
  * returns  0 on success and errno on failure.
  */
 int msm_rpm_send_message(enum msm_rpm_set set, uint32_t rsc_type,
+		uint32_t rsc_id, struct msm_rpm_kvp *kvp, int nelems);
+
+/**
+ * msm_rpm_send_message_noack() -Wrapper function for clients to send data
+ * given an array of key value pairs without waiting for ack.
+ *
+ * @set: if the device is setting the active/sleep set parameter
+ * for the resource
+ * @rsc_type: unsigned 32 bit integer that identifies the type of the resource
+ * @rsc_id: unsigned 32 bit that uniquely identifies a resource within a type
+ * @kvp: array of KVP data.
+ * @nelem: number of KVPs pairs associated with the message.
+ *
+ * returns  NULL on success and PTR_ERR(errno) on failure.
+ */
+void *msm_rpm_send_message_noack(enum msm_rpm_set set, uint32_t rsc_type,
 		uint32_t rsc_id, struct msm_rpm_kvp *kvp, int nelems);
 
 /**
@@ -237,6 +267,11 @@ static inline int msm_rpm_send_request_noirq(struct msm_rpm_request *handle)
 
 }
 
+static inline void *msm_rpm_send_request_noack(struct msm_rpm_request *handle)
+{
+	return NULL;
+}
+
 static inline int msm_rpm_send_message(enum msm_rpm_set set, uint32_t rsc_type,
 		uint32_t rsc_id, struct msm_rpm_kvp *kvp, int nelems)
 {
@@ -248,6 +283,13 @@ static inline int msm_rpm_send_message_noirq(enum msm_rpm_set set,
 		int nelems)
 {
 	return 0;
+}
+
+static inline void *msm_rpm_send_message_noack(enum msm_rpm_set set,
+		uint32_t rsc_type, uint32_t rsc_id, struct msm_rpm_kvp *kvp,
+		int nelems)
+{
+	return NULL;
 }
 
 static inline int msm_rpm_wait_for_ack(uint32_t msg_id)
@@ -265,4 +307,4 @@ static inline int __init msm_rpm_driver_init(void)
 	return 0;
 }
 #endif
-#endif /*__ARCH_ARM_MACH_MSM_RPM_SMD_H*/
+#endif /*__ARCH_ARM_MACH_MSM_RPM_GLINK_H*/

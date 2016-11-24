@@ -30,6 +30,7 @@
 #define ATH79_IP3_IRQ_COUNT     3
 #define ATH79_IP3_IRQ(_x)       (ATH79_IP3_IRQ_BASE + (_x))
 
+#define ATH79_MISC_IRQ_WDOG	(ATH79_MISC_IRQ_BASE + 4)
 #include_next <irq.h>
 
 #endif /* __ASM_MACH_ATH79_IRQ_H */

@@ -98,6 +98,8 @@
 unsigned int tune2;
 module_param(tune2, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(tune2, "QUSB PHY TUNE2");
+static void qusb_write_readback(void *base, u32 offset,
+					const u32 mask, u32 val);
 
 struct qusb_phy {
 	struct usb_phy		phy;
@@ -493,6 +495,13 @@ static int qusb_phy_init(struct usb_phy *phy)
 			WARN_ON(1);
 		}
 	}
+
+	/* Set OTG VBUS Valid from HSPHY to controller */
+	qusb_write_readback(qphy->qscratch_base, HS_PHY_CTRL_REG,
+				UTMI_OTG_VBUS_VALID, UTMI_OTG_VBUS_VALID);
+	/* Indicate value is driven by UTMI_OTG_VBUS_VALID bit */
+	qusb_write_readback(qphy->qscratch_base, HS_PHY_CTRL_REG,
+				SW_SESSVLD_SEL, SW_SESSVLD_SEL);
 
 	return 0;
 }

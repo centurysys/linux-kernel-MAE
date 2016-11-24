@@ -94,15 +94,18 @@ static int qca_baldur_hs_phy_init(struct phy *x)
 
 	/* assert HS PHY POR reset */
 	reset_control_assert(phy->por_rst);
-	msleep(10);
+	/* As per PHY design spec, the reset requires a minimum of 20us. */
+	usleep_range(20, 50);
 
 	/* assert HS PHY SRIF reset */
 	reset_control_assert(phy->srif_rst);
-	msleep(10);
+	/* As per PHY design spec, the reset requires a minimum of 20us. */
+	usleep_range(20, 50);
 
 	/* deassert HS PHY SRIF reset and program HS PHY registers */
 	reset_control_deassert(phy->srif_rst);
-	msleep(10);
+	/* As per PHY design spec, the reset requires a minimum of 20us. */
+	usleep_range(20, 50);
 
 	/* perform PHY register writes */
 	qca_baldur_hs_write(phy->base, PHY_CTRL0_ADDR, PHY_CTRL0_VAL);
@@ -113,7 +116,7 @@ static int qca_baldur_hs_phy_init(struct phy *x)
 	qca_baldur_hs_write(phy->base, PHY_MISC_ADDR, PHY_MISC_VAL);
 	qca_baldur_hs_write(phy->base, PHY_IPG_ADDR, PHY_IPG_VAL);
 
-	msleep(10);
+	usleep_range(20, 50);
 
 	/* de-assert USB3 HS PHY POR reset */
 	reset_control_deassert(phy->por_rst);
@@ -156,16 +159,9 @@ static void qca_baldur_hs_put_resources(struct qca_baldur_hs_phy *phy)
 	reset_control_assert(phy->por_rst);
 }
 
-static int qca_baldur_hs_remove(struct platform_device *pdev)
-{
-	struct qca_baldur_hs_phy *phy = platform_get_drvdata(pdev);
-
-	return 0;
-}
-
 static int qca_baldur_hs_phy_shutdown(struct phy *x)
 {
-	struct qca_baldur_hs_phy   *phy = phy_to_dw_phy(x);
+	struct qca_baldur_hs_phy   *phy = phy_get_drvdata(x);
 
 	qca_baldur_hs_put_resources(phy);
 	return 0;
@@ -223,7 +219,6 @@ static int qca_baldur_hs_probe(struct platform_device *pdev)
 
 static struct platform_driver qca_baldur_hs_driver = {
 	.probe		= qca_baldur_hs_probe,
-	.remove		= qca_baldur_hs_remove,
 	.driver		= {
 		.name	= "qca-baldur-hsphy",
 		.owner	= THIS_MODULE,

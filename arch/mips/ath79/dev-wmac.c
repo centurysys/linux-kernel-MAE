@@ -25,6 +25,11 @@
 #include "common.h"
 #include "dev-wmac.h"
 
+#include <linux/ath79_wlan.h>
+
+#ifdef ATH79_WLAN_FW_DUMP
+void *ath79_wlan_fw_dump_addr;
+#endif
 static u8 ath79_wmac_mac[ETH_ALEN];
 
 static struct ath9k_platform_data ath79_wmac_data = {
@@ -62,6 +67,36 @@ static int ar913x_wmac_reset(void)
 
 	return 0;
 }
+
+#ifdef ATH79_WLAN_FW_DUMP
+int ath79_get_wlan_fw_dump_buffer(void **dump_buff, u32 *buff_size)
+{
+	int ret = 0;
+
+	if (ath79_wlan_fw_dump_addr) {
+		*dump_buff = ath79_wlan_fw_dump_addr;
+		*buff_size = ATH79_FW_DUMP_MEM_SIZE;
+	} else {
+		*dump_buff = NULL;
+		*buff_size = 0;
+		ret = -1;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(ath79_get_wlan_fw_dump_buffer);
+EXPORT_SYMBOL(ath79_wlan_fw_dump_addr);
+
+static void ath79_init_wlan_fw_dump_buffer(void)
+{
+	ath79_wlan_fw_dump_addr = kmalloc(ATH79_FW_DUMP_MEM_SIZE, GFP_ATOMIC);
+	if (ath79_wlan_fw_dump_addr)
+		printk("\n WLAN firmware dump buffer allocation of %d bytes @ address 0x%p- SUCCESS !!!",
+		ATH79_FW_DUMP_MEM_SIZE, (void *)ath79_wlan_fw_dump_addr);
+	else
+		printk("\n WLAN firmware dump buffer allocation-FAILED!!!");
+
+}
+#endif
 
 static void __init ar913x_wmac_setup(void)
 {
@@ -432,6 +467,9 @@ void __init ath79_register_wmac(u8 *cal_data, u8 *mac_addr)
 	}
 
 	platform_device_register(&ath79_wmac_device);
+#ifdef ATH79_WLAN_FW_DUMP
+	ath79_init_wlan_fw_dump_buffer();
+#endif
 }
 
 void __init ath79_register_wmac_simple(void)

@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *
  * Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -129,6 +131,37 @@ static void ad_marker_response_received(struct bond_marker *marker,
 					struct port *port);
 static void ad_update_actor_keys(struct port *port, bool reset);
 
+struct bond_cb __rcu *bond_cb;
+
+int bond_register_cb(struct bond_cb *cb)
+{
+	struct bond_cb *lag_cb;
+
+	rcu_read_lock();
+	lag_cb = kzalloc(sizeof(*lag_cb), GFP_ATOMIC | __GFP_NOWARN);
+	if (!lag_cb) {
+		rcu_read_unlock();
+		return -1;
+	}
+
+	memcpy((void *)lag_cb, (void *)cb, sizeof(*cb));
+	rcu_assign_pointer(bond_cb, lag_cb);
+	rcu_read_unlock();
+	return 0;
+}
+EXPORT_SYMBOL(bond_register_cb);
+
+void bond_unregister_cb(void)
+{
+	struct bond_cb *lag_cb_main;
+
+	rcu_read_lock();
+	lag_cb_main = rcu_dereference(bond_cb);
+	kfree(lag_cb_main);
+	rcu_assign_pointer(bond_cb, NULL);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(bond_unregister_cb);
 
 /* ================= api to bonding and kernel code ================== */
 
@@ -977,6 +1010,27 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 			ad_disable_collecting_distributing(port,
 							   update_slave_arr);
 			port->ntt = true;
+
+			/* Send a notificaton about change in state of this
+			 * port. We only want to handle case where port moves
+			 * from AD_MUX_COLLECTING_DISTRIBUTING ->
+			 * AD_MUX_ATTACHED.
+			 */
+			if (bond_slave_is_up(port->slave) &&
+			    (last_state == AD_MUX_COLLECTING_DISTRIBUTING)) {
+				struct bond_cb *lag_cb_main;
+
+				rcu_read_lock();
+				lag_cb_main = rcu_dereference(bond_cb);
+				if (lag_cb_main &&
+				    lag_cb_main->bond_cb_link_down) {
+					struct net_device *dev;
+
+					dev = port->slave->dev;
+					lag_cb_main->bond_cb_link_down(dev);
+				}
+				rcu_read_unlock();
+			}
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			port->actor_oper_port_state |= AD_STATE_COLLECTING;
@@ -1806,12 +1860,21 @@ static void ad_enable_collecting_distributing(struct port *port,
 					      bool *update_slave_arr)
 {
 	if (port->aggregator->is_active) {
+		struct bond_cb *lag_cb_main;
 		pr_debug("Enabling port %d(LAG %d)\n",
 			 port->actor_port_number,
 			 port->aggregator->aggregator_identifier);
 		__enable_port(port);
 		/* Slave array needs update */
 		*update_slave_arr = true;
+
+		rcu_read_lock();
+		lag_cb_main = rcu_dereference(bond_cb);
+
+		if (lag_cb_main && lag_cb_main->bond_cb_link_up)
+			lag_cb_main->bond_cb_link_up(port->slave->dev);
+
+		rcu_read_unlock();
 	}
 }
 
@@ -2514,6 +2577,102 @@ int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 	rcu_read_unlock();
 
 	return ret;
+}
+
+/* bond_3ad_get_tx_dev - Calculate egress interface for a given packet,
+ * for a LAG that is configured in 802.3AD mode
+ * @skb: pointer to skb to be egressed
+ * @src_mac: pointer to source L2 address
+ * @dst_mac: pointer to destination L2 address
+ * @src: pointer to source L3 address
+ * @dst: pointer to destination L3 address
+ * @protocol: L3 protocol id from L2 header
+ * @bond_dev: pointer to bond master device
+ *
+ * If @skb is NULL, bond_xmit_hash is used to calculate hash using L2/L3
+ * addresses.
+ *
+ * Returns: Either valid slave device, or NULL otherwise
+ */
+struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, u8 *src_mac,
+				       u8 *dst_mac, void *src,
+				       void *dst, u16 protocol,
+				       struct net_device *bond_dev,
+				       __be16 *layer4hdr)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct aggregator *agg;
+	struct ad_info ad_info;
+	struct list_head *iter;
+	struct slave *slave;
+	struct slave *first_ok_slave = NULL;
+	u32 hash = 0;
+	int slaves_in_agg;
+	int slave_agg_no = 0;
+	int agg_id;
+
+	if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
+		pr_debug("%s: Error: __bond_3ad_get_active_agg_info failed\n",
+			 bond_dev->name);
+		return NULL;
+	}
+
+	slaves_in_agg = ad_info.ports;
+	agg_id = ad_info.aggregator_id;
+
+	if (slaves_in_agg == 0) {
+		pr_debug("%s: Error: active aggregator is empty\n",
+			 bond_dev->name);
+		return NULL;
+	}
+
+	if (skb) {
+		hash = bond_xmit_hash(bond, skb);
+		slave_agg_no = hash % slaves_in_agg;
+	} else {
+		if (bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER23 &&
+		    bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2 &&
+		    bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER34) {
+			pr_debug("%s: Error: Unsupported hash policy for 802.3AD fast path\n",
+				 bond_dev->name);
+			return NULL;
+		}
+
+		hash = bond_xmit_hash_without_skb(src_mac, dst_mac,
+						  src, dst, protocol,
+						  bond_dev, layer4hdr);
+		slave_agg_no = hash % slaves_in_agg;
+	}
+
+	bond_for_each_slave_rcu(bond, slave, iter) {
+		agg = SLAVE_AD_INFO(slave)->port.aggregator;
+		if (!agg || agg->aggregator_identifier != agg_id)
+			continue;
+
+		if (slave_agg_no >= 0) {
+			if (!first_ok_slave && bond_slave_can_tx(slave))
+				first_ok_slave = slave;
+			slave_agg_no--;
+			continue;
+		}
+
+		if (bond_slave_can_tx(slave))
+			return slave->dev;
+	}
+
+	if (slave_agg_no >= 0) {
+		pr_err("%s: Error: Couldn't find a slave to tx on for aggregator ID %d\n",
+		       bond_dev->name, agg_id);
+		return NULL;
+	}
+
+	/* we couldn't find any suitable slave after the agg_no, so use the
+	 * first suitable found, if found.
+	 */
+	if (first_ok_slave)
+		return first_ok_slave->dev;
+
+	return NULL;
 }
 
 int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,

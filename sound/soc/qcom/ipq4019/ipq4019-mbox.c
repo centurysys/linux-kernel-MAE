@@ -23,23 +23,6 @@
 
 #include "ipq4019-mbox.h"
 
-/* When the mailbox operation is started, the mailbox would get one descriptor
- * for the current data transfer and prefetch one more descriptor. When less
- * than 3 descriptors are configured, then it is possible that before the CPU
- * handles the interrupt, the mailbox could check the pre fetched descriptor
- * and stop the DMA transfer.
- * To handle this, the design is use multiple descriptors, but they would
- * point to the same buffer address. This way  more number of descriptors
- * would satisfy the mbox requirement, and reusing the buffer address would
- * satisfy the upper layer's buffer requirement
- *
- * The value of 5 of repetition times was derived from trial and error testing
- * for minimum number of repetitions that would result in MBOX operations
- * without stopping.
- */
-#define MBOX_MIN_DESC_NUM       3
-#define MBOX_DESC_REPEAT_NUM    5
-
 enum {
 	CHN_DISABLED = 0x00,
 	CHN_ENABLED = 0x01, /* from dtsi */
@@ -270,7 +253,7 @@ int ipq4019_mbox_dma_start(int channel_id)
 		return -EINVAL;
 
 	mbox_reg = mbox_rtime[chan]->mbox_reg_base;
-	mbox_rtime[index]->mbox_started = 1;
+	mbox_rtime[chan]->mbox_started = 1;
 
 	switch (dir) {
 	case PLAYBACK:
@@ -299,7 +282,7 @@ int ipq4019_mbox_dma_resume(int channel_id)
 	if (!mbox_rtime[chan])
 		return -EINVAL;
 
-	if (!mbox_rtime[index]->mbox_started)
+	if (!mbox_rtime[chan]->mbox_started)
 		return 0;
 
 	mbox_reg = mbox_rtime[chan]->mbox_reg_base;
@@ -333,7 +316,7 @@ int ipq4019_mbox_dma_stop(int channel_id, u32 delay_in_ms)
 		return -EINVAL;
 
 	mbox_reg = mbox_rtime[chan]->mbox_reg_base;
-	mbox_rtime[index]->mbox_started = 0;
+	mbox_rtime[chan]->mbox_started = 0;
 
 	switch (dir) {
 	case PLAYBACK:
@@ -567,9 +550,6 @@ int ipq4019_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *area,
 
 	mbox_cb = &mbox_rtime[chan]->dir_priv[dir];
 	ndescs = DIV_ROUND_UP(bufsize, period_bytes);
-
-	if (ndescs < MBOX_MIN_DESC_NUM)
-		ndescs *= MBOX_DESC_REPEAT_NUM;
 
 	desc = (struct ipq4019_mbox_desc *)(area + (ndescs * period_bytes));
 	desc_p = baseaddr + (ndescs * period_bytes);

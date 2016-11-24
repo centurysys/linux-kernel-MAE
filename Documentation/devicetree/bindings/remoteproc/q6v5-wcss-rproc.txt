@@ -21,6 +21,11 @@ Required properties:
 			properly translating these into bus addresses.
 - firmware:		Name of firmware file to be used for loading and
 			booting the q6-wcss remote processor.
+- interrupt-extended	Used to tell the incoming interrupts through SMP2P
+- interrupt-names	Names of incoming interrupts
+- qcom,smem-states	Output from APPS to Q6 processor
+- qcom,smem-state-names Names of the output values from APPS to Q6 processor
+- qca,emulation		States that this driver is used on emulation platform
 
 Example:
 --------
@@ -30,6 +35,20 @@ soc {
 		compatible = "qcom,rproc-q6v5-wcss";
 		firmware = "q6-wcss-boot";
 		reg = <0xC900000 0x4040>;
+		interrupts-extended = <&intc 0 325 1>,
+					<&wcss_smp2p_in 0 0>,
+					<&wcss_smp2p_in 1 0>,
+					<&wcss_smp2p_in 3 0>;
+		interrupt-names = "wdog",
+				  "fatal",
+				  "handover",
+				  "stop-ack";
+		qcom,smem-states = <&wcss_smp2p_out 0>,
+				   <&wcss_smp2p_out 1>;
+		qcom,smem-state-names = "shutdown",
+					"stop";
+
+		qca,emulation = <1>;
 	};
 	...
 };

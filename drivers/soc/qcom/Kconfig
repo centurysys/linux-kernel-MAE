@@ -50,6 +50,17 @@ config QCOM_SMD_RPM
 	  Say M here if you want to include support for the Qualcomm RPM as a
 	  module. This will build a module called "qcom-smd-rpm".
 
+config QCOM_SMEM_STATE
+	bool
+
+config QCOM_SMP2P
+	bool "Qualcomm Shared Memory Point to Point support"
+	depends on QCOM_SMEM
+	select QCOM_SMEM_STATE
+	help
+	  Say yes here to support the Qualcomm Shared Memory Point to Point
+	  protocol.
+
 config MSM_GLINK
 	bool "Generic Link (G-Link)"
 	help
@@ -115,3 +126,44 @@ config MSM_QMI_INTERFACE
 	  This library provides interface functions to the kernel drivers
 	  to perform QMI message marshaling and transport them over IPC
 	  Router.
+
+config MSM_RPM_GLINK
+	tristate "Qualcomm Resource Power Manager (RPM) over GLINK"
+	depends on MSM_GLINK && OF
+	help
+	 If you say yes to this option, support will be included for the
+	 Resource Power Manager system found in the Qualcomm 8974 based
+	 devices.
+
+	 This is required to access many regulators, clocks and bus
+	 frequencies controlled by the RPM on these devices.
+
+	 Say M here if you want to include support for the Qualcomm RPM as a
+	 module. This will build a module called "qcom-rpm-glink".
+
+config QCOM_RESTART_REASON
+	bool "Write restart reason on reboot"
+	depends on ARCH_QCOM
+	help
+	Say y here to enable writing restart reason. This adds a reboot handler
+	to write the restart reason command to distinguish between normal and
+	abnormal reboots. This also registers for panic notification so that
+	magic cookies can be set for download mode.
+	If unsure, say N
+
+config QCOM_DLOAD_MODE
+	bool "Enable download mode on crashes"
+	depends on ARCH_QCOM
+	default n
+	help
+	This makes the SoC enter download mode when it resets
+	due to a kernel panic. Note that this doesn't by itself
+	make the kernel reboot on a kernel panic - that must be
+	enabled via another mechanism.
+	If unsure, say N
+
+config QCOM_DLOAD_MODE_APPSBL
+	bool "Application bootloader based download mode handling"
+	depends on QCOM_DLOAD_MODE
+	default n
+	help

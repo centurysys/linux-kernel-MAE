@@ -50,8 +50,9 @@ struct ath79_spi {
 
 	enum ath79_spi_state	state;
 	u32			clk_div;
-	unsigned long 		read_addr;
+	unsigned long		read_addr;
 	unsigned long		ahb_rate;
+	bool			is_flash;
 };
 
 static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned reg)
@@ -79,7 +80,6 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	int cs_high = (spi->mode & SPI_CS_HIGH) ? is_active : !is_active;
-	struct ath79_spi_controller_data *cdata = spi->controller_data;
 
 	if (is_active) {
 		/* set initial clock polarity */
@@ -91,23 +91,17 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
-	switch (cdata->cs_type) {
-	case ATH79_SPI_CS_TYPE_INTERNAL:
-		if (cs_high)
-			sp->ioc_base |= AR71XX_SPI_IOC_CS(cdata->cs_line);
-		else
-			sp->ioc_base &= ~AR71XX_SPI_IOC_CS(cdata->cs_line);
-
-		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
-		break;
-
-	case ATH79_SPI_CS_TYPE_GPIO:
+	if (spi->cs_gpio >= 0) {
 		/* SPI is normally active-low */
-		if (gpio_cansleep(cdata->cs_line))
-			gpio_set_value_cansleep(cdata->cs_line, cs_high);
+		if (gpio_cansleep(spi->cs_gpio))
+			gpio_set_value_cansleep(spi->cs_gpio, cs_high);
 		else
-			gpio_set_value(cdata->cs_line, cs_high);
-		break;
+			gpio_set_value(spi->cs_gpio, cs_high);
+	} else {
+		if (cs_high)
+			sp->ioc_base |= AR71XX_SPI_IOC_CS(spi->chip_select);
+		else
+			sp->ioc_base &= ~AR71XX_SPI_IOC_CS(spi->chip_select);
 	}
 }
 
@@ -132,59 +126,38 @@ static void ath79_spi_disable(struct ath79_spi *sp)
 static int ath79_spi_setup_cs(struct spi_device *spi)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
-	struct ath79_spi_controller_data *cdata = spi->controller_data;
 	unsigned long flags;
 	int status;
 
-	if (!cdata)
-		return -EINVAL;
-
 	status = 0;
-	switch (cdata->cs_type) {
-	case ATH79_SPI_CS_TYPE_GPIO:
-
+	if (spi->cs_gpio >= 0) {
 		flags = GPIOF_DIR_OUT;
 		if (spi->mode & SPI_CS_HIGH)
 			flags |= GPIOF_INIT_LOW;
 		else
 			flags |= GPIOF_INIT_HIGH;
 
-		status = gpio_request_one(cdata->cs_line, flags,
+		status = gpio_request_one(spi->cs_gpio, flags,
 					  dev_name(&spi->dev));
-		break;
-	case ATH79_SPI_CS_TYPE_INTERNAL:
-		if (cdata->cs_line > ATH79_SPI_CS_LINE_MAX)
+	} else {
+		if (spi->chip_select > ATH79_SPI_CS_LINE_MAX) {
 			status = -EINVAL;
-		break;
-
+			return status;
+		}
 		if (spi->mode & SPI_CS_HIGH)
 			sp->ioc_base &= ~AR71XX_SPI_IOC_CS0;
 		else
 			sp->ioc_base |= AR71XX_SPI_IOC_CS0;
 
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
-		break;
 	}
-
 	return status;
 }
 
 static void ath79_spi_cleanup_cs(struct spi_device *spi)
 {
-	struct ath79_spi_controller_data *cdata;
-
-	cdata = spi->controller_data;
-	if (!cdata)
-		return;
-
-	switch (cdata->cs_type) {
-	case ATH79_SPI_CS_TYPE_INTERNAL:
-		/* nothing to do */
-		break;
-	case ATH79_SPI_CS_TYPE_GPIO:
-		gpio_free(cdata->cs_line);
-		break;
-	}
+	if (spi->cs_gpio >= 0)
+		gpio_free(spi->cs_gpio);
 }
 
 static int ath79_spi_setup(struct spi_device *spi)
@@ -331,15 +304,13 @@ static int ath79_spi_setup_transfer(struct spi_device *spi,
 				    struct spi_transfer *t)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
-	struct ath79_spi_controller_data *cdata;
 	int ret;
 
 	ret = spi_bitbang_setup_transfer(spi, t);
 	if (ret)
 		return ret;
 
-	cdata = spi->controller_data;
-	if (cdata->is_flash)
+	if (sp->is_flash)
 		sp->bitbang.txrx_bufs = ath79_spi_txrx_bufs;
 	else
 		sp->bitbang.txrx_bufs = spi_bitbang_bufs;
@@ -356,10 +327,6 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata)
-		return -EINVAL;
-
 	master = spi_alloc_master(&pdev->dev, sizeof(*sp));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "failed to allocate spi master\n");
@@ -367,6 +334,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	}
 
 	sp = spi_master_get_devdata(master);
+	master->dev.of_node = pdev->dev.of_node;
 	platform_set_drvdata(pdev, sp);
 
 	sp->state = ATH79_SPI_STATE_WAIT_CMD;
@@ -374,9 +342,16 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->setup = ath79_spi_setup;
 	master->cleanup = ath79_spi_cleanup;
-	master->bus_num = pdata->bus_num;
-	master->num_chipselect = pdata->num_chipselect;
-
+	if (master->dev.of_node == NULL) {
+		pdata = pdev->dev.platform_data;
+		if (!pdata)
+			return -EINVAL;
+		master->bus_num = pdata->bus_num;
+		master->num_chipselect = pdata->num_chipselect;
+	} else {
+		sp->is_flash = of_property_read_bool(pdev->dev.of_node,
+							"ath79,is-flash");
+	}
 	sp->bitbang.master = master;
 	sp->bitbang.chipselect = ath79_spi_chipselect;
 	sp->bitbang.txrx_word[SPI_MODE_0] = ath79_spi_txrx_mode0;
@@ -445,12 +420,18 @@ static void ath79_spi_shutdown(struct platform_device *pdev)
 	ath79_spi_remove(pdev);
 }
 
+static const struct of_device_id ath79_spi_of_match[] = {
+	{ .compatible = "qca,ar7100-spi", },
+	{ },
+};
+
 static struct platform_driver ath79_spi_driver = {
 	.probe		= ath79_spi_probe,
 	.remove		= ath79_spi_remove,
 	.shutdown	= ath79_spi_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,
+		.of_match_table = ath79_spi_of_match,
 	},
 };
 module_platform_driver(ath79_spi_driver);

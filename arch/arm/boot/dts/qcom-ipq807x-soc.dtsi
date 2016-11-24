@@ -17,6 +17,93 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x0 0x10000000>;
+	};
+
+	/*
+	 * +=========+==============+========================+
+	 * |        |              |                         |
+	 * | Region | Start Offset |          Size           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |  NSS   |  0x40000000  |          16MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * | Linux  |  0x41000000  | Depends on total memory |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * | uboot  |  0x4A600000  |           4MB           |
+	 * +--------+--------------+-------------------------+
+	 * |  SBL   |  0x4AA00000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * |  smem  |  0x4AB00000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |TZ+APPS |  0x4AC00000  |           4MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |   Q6   |  0x4B000000  |          80MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |                                                 |
+	 * |      Linux Memory for variants above 256MB      |
+	 * |                                                 |
+	 * +=================================================+
+	 */
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		nss@40000000 {
+			no-map;
+			reg = <0x0 0x40000000 0x0 0x01000000>;
+		};
+
+		uboot@4a600000 {
+			no-map;
+			reg = <0x0 0x4a600000 0x0 0x00400000>;
+		};
+
+		sbl@4aa00000 {
+			no-map;
+			reg = <0x0 0x4aa00000 0x0 0x00100000>;
+		};
+
+		smem_region:smem@4ab00000 {
+			no-map;
+			reg = <0x0 0x4ab00000 0x0 0x00100000>;
+		};
+
+		tz@4ac00000 {	/* TZ and TZ_APPS */
+			no-map;
+			reg = <0x0 0x4ac00000 0x0 0x00400000>;
+		};
+
+		wcnss@4ab00000 {
+			no-map;
+			reg = <0x0 0x4b000000 0x0 0x04ffffff>;
+		};
+	};
+
 	soc: soc {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
@@ -66,17 +153,37 @@
 			#reset-cells = <1>;
 		};
 
+		blsp_dma: dma@7884000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x07884000 0x2b000>;
+			interrupts = <GIC_SPI 238 0>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+
 		serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
-			interrupts = <0x0 0x6b 0x0>,
-					<0x0 377 0x1>,
-					<0x0 378 0x1>,
-					<0x0 379 0x1>;
+			interrupts = <0x0 0x6b 0x0>;
 			status = "ok";
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
+		};
+
+		serial@78B2000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78B2000 0x200>;
+			interrupts = <0x0 307 0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				 <&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 6>,
+				 <&blsp_dma 7>;
+			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
@@ -95,9 +202,21 @@
 		};
 
 		q6v5_wcss@CD00000 {
-			compatible = "qcom,q6v5-wcss-rproc";
+			compatible = "qca,q6v5-wcss-rproc";
 			firmware = "IPQ8074/M8074QCAHKAWPLQ00010_WLANFW.elf";
 			reg = <0xCD00000 0x4040>;
+			interrupts-extended = <&intc 0 325 1>,
+					<&wcss_smp2p_in 0 0>,
+					<&wcss_smp2p_in 1 0>,
+					<&wcss_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+					  "fatal",
+					  "handover",
+					  "stop-ack";
+			qcom,smem-states = <&wcss_smp2p_out 0>,
+					   <&wcss_smp2p_out 1>;
+			qcom,smem-state-names = "shutdown",
+						"stop";
 		};
 
 		qcom_rng: qrng@e1000 {
@@ -199,6 +318,43 @@
 			status = "disabled";
 		};
 
+		apcs: syscon@b111000 {
+			compatible = "syscon";
+			reg = <0x0B111000 0x1000>;
+		};
+
+		smp2p-wcss {
+			compatible = "qcom,smp2p";
+			qcom,smem = <435>, <428>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <0 322 1>;
+
+			qcom,ipc = <&apcs 8 9>;
+
+			qcom,local-pid = <0>;
+			qcom,remote-pid = <1>;
+
+			wcss_smp2p_out: master-kernel {
+				qcom,entry-name = "master-kernel";
+				qcom,smp2p-feature-ssr-ack;
+				#qcom,smem-state-cells = <1>;
+			};
+
+			wcss_smp2p_in: slave-kernel {
+				qcom,entry-name = "slave-kernel";
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
+
+		qcom,smem@4AB00000 {
+			compatible = "qcom,smem";
+			memory-region = <&smem_region>;
+			hwlocks = <&tcsr_mutex 0>;
+		};
+
 		tcsr_mutex_block: syscon@193d000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x8000>;
@@ -225,17 +381,6 @@
 			timeout-sec = <10>;
 		};
 
-		qcom,smem@4AB00000 {
-			compatible = "qcom,smem";
-			reg = <0x4AB00000 0x100000>,
-				<0x0b111008 0x4>,
-				<0x60000 0x8000>,
-				<0x193d000 0x8>;
-			reg-names = "smem", "irq-reg-base",
-				"aux-mem1", "smem_targ_info_reg";
-			hwlocks = <&tcsr_mutex 0>;
-		};
-
 		qcom,glink-smem-native-xprt-modem@4AB00000 {
 			compatible = "qcom,glink-smem-native-xprt";
 			reg = <0x4AB00000 0x100000>, <0x0b111008 0x4>;
@@ -246,6 +391,25 @@
 			qcom,subsys-id = <1>;
 			smem-entry = <478>, <479>, <480>;
 			smem-entry-names = "ch", "tx_fifo", "rx_fifo";
+		};
+
+		qcom,glink-rpm-native-xprt@60000 {
+			compatible = "qcom,glink-rpm-native-xprt";
+			reg = <0x60000 0x6000>,
+				<0x0b111008 0x4>;
+			reg-names = "msgram", "irq-reg-base";
+			qcom,irq-mask = <0x1>;
+			interrupts = <0 168 1>;
+			label = "rpm";
+			status = "disabled";
+		};
+
+		rpm_bus: qcom,rpm-glink {
+			compatible = "qcom,rpm-glink";
+			qcom,glink-edge = "rpm";
+			rpm-channel-name = "rpm_requests";
+			qcom,rpm-channel-type = <15>; // SMD_APPS_RPM
+			status = "disabled";
 		};
 
 		qcom,ipc_router {
@@ -282,16 +446,6 @@
 			clock-names = "iface", "bus", "core";
 			dmas = <&cryptobam 2>, <&cryptobam 3>;
 			dma-names = "rx", "tx";
-		};
-
-		blsp_dma: dma@7884000 {
-			compatible = "qcom,bam-v1.7.0";
-			reg = <0x07884000 0x2b000>;
-			interrupts = <GIC_SPI 238 0>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
-			clock-names = "bam_clk";
-			#dma-cells = <1>;
-			qcom,ee = <0>;
 		};
 
 		i2c_0: i2c@78b6000 {
@@ -351,10 +505,12 @@
 			qcom,emulation = <1>;
 			reg = <0x78000 0x45c>,
 				<0x0193f244 0x4>,
-				<0x0193f044 0x4>;
+				<0x0193f044 0x4>,
+				<0x08af8800 0x100>;
 			reg-names = "qmp_phy_base",
 				    "vls_clamp_reg",
-				    "tcsr_phy_clk_scheme_sel";
+				    "tcsr_phy_clk_scheme_sel",
+				    "qscratch_base";
 			qcom,qmp-phy-init-seq = <0xac 0x14 0x1a 0x00
 						0x34 0x08 0x08 0x00
 						0x174 0x30 0x30 0x00
@@ -511,6 +667,7 @@
 				snps,nominal-elastic-buffer;
 				snps,is-utmi-l1-suspend;
 				snps,hird-threshold = /bits/ 8 <0x0>;
+				qcom,emulation = <1>;
 			};
 		};
 
@@ -641,92 +798,25 @@
 			qcom,ledc_blink_indices = <19 20 21 22>;
 			status = "disabled";
 		};
-	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x40000000 0x0 0x10000000>;
-	};
-
-	/*
-	 * +=========+==============+========================+
-	 * |        |              |                         |
-	 * | Region | Start Offset |          Size           |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |  NSS   |  0x40000000  |          16MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * | Linux  |  0x41000000  | Depends on total memory |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | uboot  |  0x4A600000  |           4MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  SBL   |  0x4AA00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  smem  |  0x4AB00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |TZ+APPS |  0x4AC00000  |           4MB           |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |   Q6   |  0x4B000000  |          80MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |                                                 |
-	 * |      Linux Memory for variants above 256MB      |
-	 * |                                                 |
-	 * +=================================================+
-	 */
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		nss@40000000 {
-			no-map;
-			reg = <0x0 0x40000000 0x0 0x01000000>;
-		};
-
-		uboot@4a600000 {
-			no-map;
-			reg = <0x0 0x4a600000 0x0 0x00400000>;
-		};
-
-		sbl@4aa00000 {
-			no-map;
-			reg = <0x0 0x4aa00000 0x0 0x00100000>;
-		};
-
-		smem@4ab00000 {
-			no-map;
-			reg = <0x0 0x4ab00000 0x0 0x00100000>;
-		};
-
-		tz@4ac00000 {	/* TZ and TZ_APPS */
-			no-map;
-			reg = <0x0 0x4ac00000 0x0 0x00400000>;
-		};
-
-		wcnss@4ab00000 {
-			no-map;
-			reg = <0x0 0x4b000000 0x0 0x04ffffff>;
+		spmi_bus: qcom,spmi@200f000 {
+			compatible = "qcom,spmi-pmic-arb";
+			reg = <0x200f000 0x1000>,
+				<0x2400000 0x800000>,
+				<0x2c00000 0x800000>,
+				<0x3800000 0x200000>,
+				<0x200a000 0x000700>;
+			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
+			interrupt-names = "periph_irq";
+			interrupts = <GIC_SPI 326 IRQ_TYPE_NONE>;
+			qcom,ee = <0>;
+			qcom,channel = <0>;
+			#address-cells = <2>;
+			#size-cells = <0>;
+			interrupt-controller;
+			#interrupt-cells = <4>;
+			cell-index = <0>;
 		};
 	};
+
 };

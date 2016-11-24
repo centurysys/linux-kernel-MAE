@@ -279,17 +279,17 @@
 				  0x82000000 0 0x40300000 0x40300000
 				  0 0x00d00000>; /* non-prefetchable memory */
 
-			interrupts = <0 142 0>;
+			interrupts = <0 141 0>;
 			interrupt-names = "msi";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 143
+			interrupt-map = <0 0 0 1 &intc 0 142
 					 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
-					<0 0 0 2 &intc 0 144
+					<0 0 0 2 &intc 0 143
 					 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
-					<0 0 0 3 &intc 0 145
+					<0 0 0 3 &intc 0 144
 					 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
-					<0 0 0 4 &intc 0 146
+					<0 0 0 4 &intc 0 145
 					 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 			clocks = <&gcc GCC_PCIE_AHB_CLK>,
 				 <&gcc GCC_PCIE_AXI_M_CLK>,
@@ -350,7 +350,7 @@
 			interrupts = <0 123 0>, <0 138 0>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			qcom,bus-width = <8>;
-			qcom,max_clk = <193000000>;
+			qcom,max_clk = <192000000>;
 			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&gcc GCC_SDCC1_AHB_CLK>;
 			clock-names = "core_clk", "iface_clk";
@@ -695,7 +695,7 @@
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x7984000 0x1a000>;
 			interrupts = <0 101 0>;
-			clocks = <&gcc GCC_QPIC_AHB_CLK>;
+			clocks = <&gcc GCC_QPIC_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <0>;

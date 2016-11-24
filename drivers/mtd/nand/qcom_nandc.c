@@ -2630,7 +2630,7 @@ static void qcom_nandc_unalloc(struct qcom_nand_controller *nandc)
 			dma_release_channel(nandc->rx_chan);
 
 		if (nandc->cmd_chan)
-			dma_release_channel(nandc->tx_chan);
+			dma_release_channel(nandc->cmd_chan);
 
 		if (nandc->reg_read_buf)
 			dmam_free_coherent(nandc->dev, MAX_REG_RD *

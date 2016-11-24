@@ -926,6 +926,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				    &dwc->hsphy_interface);
 	device_property_read_u32(dev, "snps,quirk-frame-length-adjustment",
 				 &fladj);
+	dwc->emulation = of_property_read_bool(dev->of_node,
+					"qcom,emulation");
 
 	if (pdata) {
 		dwc->maximum_speed = pdata->maximum_speed;

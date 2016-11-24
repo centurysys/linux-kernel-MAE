@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
+#include "qcom-ipq807x-spmi-regulator.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -65,6 +66,8 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
 			enable-method = "qcom,arm-cortex-acc";
+			voltage-tolerance = <1>;
+			cpu0-supply = <&s3>;
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 
@@ -82,6 +85,8 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
+			voltage-tolerance = <1>;
+			cpu-supply = <&s3>;
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
 		};
@@ -94,6 +99,8 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
+			voltage-tolerance = <1>;
+			cpu-supply = <&s3>;
 			qcom,acc = <&acc2>;
 			next-level-cache = <&L2_0>;
 		};
@@ -106,6 +113,8 @@
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
+			voltage-tolerance = <1>;
+			cpu-supply = <&s3>;
 			qcom,acc = <&acc3>;
 			next-level-cache = <&L2_0>;
 		};
@@ -157,6 +166,16 @@
 
 &soc {
 
+	tlmm: pinctrl@1000000 {
+		hsuart_pins: hsuart_pins {
+			mux {
+				pins = "gpio50", "gpio51", "gpio52", "gpio53";
+				function = "blsp3_uart";
+				bias-disable;
+			};
+		};
+	};
+
 	acc0:clock-controller@b188000 {
 		compatible = "qcom,arm-cortex-acc";
 		reg = <0x0b188000 0x1000>;
@@ -178,7 +197,7 @@
 	};
 
 	q6v5_wcss@CD00000 {
-		qcom,emulation = <1>;
+		qca,emulation = <1>;
 	};
 
 	spi_0: spi@78b5000 { /* BLSP1 QUP1 */
@@ -195,6 +214,12 @@
 			spi-max-frequency = <24000000>;
 			use-default-sizes;
 		};
+	};
+
+	serial@78B2000 {
+		pinctrl-0 = <&hsuart_pins>;
+		pinctrl-names = "default";
+		status = "ok";
 	};
 
 	qpic_bam: dma@7984000{
@@ -259,6 +284,24 @@
 		local-mac-address = [000000000000];
 	};
 
+	edma@3ab00000 {
+		compatible = "qcom,edma";
+		reg = <0x3ab00000 0x76900>;
+		reg-names = "edma-reg-base";
+		qcom,txdesc-ring-start = <23>;
+		qcom,txdesc-rings = <1>;
+		qcom,txcmpl-ring-start = <7>;
+		qcom,txcmpl-rings = <1>;
+		qcom,rxfill-ring-start = <7>;
+		qcom,rxfill-rings = <1>;
+		qcom,rxdesc-ring-start = <15>;
+		qcom,rxdesc-rings = <1>;
+		interrupts = <0 345 4>,
+			   <0 353 4>,
+			   <0 361 4>,
+			   <0 344 4>;
+	};
+
 	ess-switch@3a000000 {
 		compatible = "qcom,ess-switch";
 		reg = <0x3a000000 0x1000000>;
@@ -299,7 +342,9 @@
 		qcom,wlanredirect-enabled;
 		qcom,tun6rd-enabled;
 		qcom,l2tpv2-enabled;
+		qcom,map-t-enabled;
 		qcom,portid-enabled;
+		qcom,ppe-enabled;
 		qcom,pppoe-enabled;
 		qcom,pptp-enabled;
 		qcom,tunipip6-enabled;

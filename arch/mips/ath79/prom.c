@@ -137,6 +137,12 @@ void __init prom_init(void)
 	}
 #endif
 
+#ifdef CONFIG_ATHMEM_USE_FROM_UBOOT
+	env = fw_getenv("mem");
+	if (env) {
+		ath79_prom_append_cmdline("mem", env);
+	}
+#endif
 	if (strstr(arcs_cmdline, "board=750Gr3") ||
 	    strstr(arcs_cmdline, "board=951G") ||
 	    strstr(arcs_cmdline, "board=2011L") ||
