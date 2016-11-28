@@ -231,8 +231,8 @@
 			compatible = "qcom,nss";
 			pinctrl-0 = <&nss_spi_pins>;
 			pinctrl-names = "default";
-			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36000000 0x1000 0x39000000 0x10000>;
 			reg-names = "nphys", "vphys";
 			clocks = <&gcc NSS_CORE_CLK>, <&gcc NSSTCM_CLK_SRC>,
@@ -269,8 +269,8 @@
 
 		nss1: nss@40800000 {
 			compatible = "qcom,nss";
-			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36400000 0x1000 0x39010000 0x10000>;
 			reg-names = "nphys", "vphys";
 			resets = <&gcc UBI32_CORE2_CLKRST_CLAMP_RESET>,
