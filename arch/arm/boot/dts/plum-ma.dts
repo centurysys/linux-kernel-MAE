@@ -637,6 +637,86 @@
 		};
 	};
 
+	leds_wigig_aux1: leds_wigig_aux1 {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@aux1_1 {
+			label = "Status_G";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux1_2 {
+			label = "Status_R";
+			gpios = <&gpiox_0x10 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux1_3 {
+			label = "GPS_G";
+			gpios = <&gpiox_0x10 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux1_4 {
+			label = "GPS_R";
+			gpios = <&gpiox_0x10 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux1_5 {
+			label = "PC_LINK_G";
+			gpios = <&gpiox_0x10 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux1_6 {
+			label = "PC_LINK_R";
+			gpios = <&gpiox_0x10 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux1_7 {
+			label = "Camera_G";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux1_8 {
+			label = "Camera_R";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_wigig_aux2: leds_wigig_aux2 {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@aux2_1 {
+			label = "CardA_G";
+			gpios = <&gpiox_0x12_wigig 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux2_2 {
+			label = "CardA_R";
+			gpios = <&gpiox_0x12_wigig 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux2_3 {
+			label = "CardC_G";
+			gpios = <&gpiox_0x12_wigig 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@aux2_4 {
+			label = "CardC_R";
+			gpios = <&gpiox_0x12_wigig 3 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_wigig_poe: leds_wigig_poe {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		ctrl@x1 {
+			label = "PSE_Control";
+			gpios = <&gpiox_0x1c 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	aliases {
 		xio_02 = &xio_02;
 		xio_03 = &xio_03_1f;
@@ -672,6 +752,7 @@
 		xio_21 = &xio_21;
 		xio_22 = &xio_22_23;
 		xio_23 = &xio_22_23;
+		xio_24 = &xio_24;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -837,6 +918,18 @@
 			   &gpiox_0x30 &gpiox_0x34 &gpiox_0x42
 			   &leds_amp_wlan_ctrl &leds_foma &leds_aux
 			   &leds_fxs1 &leds_fxs2 &leds_PIC>;
+	};
+
+	/* XIO: (id: 0x24) Panasonic WiGig */
+	xio_24: xio@0x24 {
+		#size-cells = <0>;
+		devices = <&uartx2_0x20
+			   &gpiox_0x10 &gpiox_0x12_wigig
+			   &gpiox_0x14_WiGig &gpiox_0x16_WiGig
+			   &gpiox_0x18 &gpiox_0x1a &gpiox_0x1c
+			   &gpiox_0x40_wigig
+			   &leds_wigig_aux1 &leds_wigig_aux2
+			   &leds_wigig_poe>;
 	};
 };
 
@@ -1692,6 +1785,16 @@
 		};
 	};
 
+	gpiox_0x12_wigig: gpio@2,0x12_wigig {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
 	/* FOMA LED */
 	gpiox_0x14: gpio@2,0x14 {
 		reg = <2 0x00000014 0x00000001>;
@@ -1701,6 +1804,69 @@
 		reg-names = "dat";
 
 		status = "disabled";
+	};
+
+	/* WiGig ROTARY switch */
+	gpiox_0x14_WiGig: gpio@2,0x14 {
+		reg = <2 0x00000014 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sw@1 {
+			label = "ROTARY1";
+			reg = <0>;
+		};
+
+		sw@2 {
+			label = "ROTARY2";
+			reg = <1>;
+		};
+
+		sw@4 {
+			label = "ROTARY4";
+			reg = <2>;
+		};
+
+		sw@8 {
+			label = "ROTARY8";
+			reg = <3>;
+		};
+	};
+
+	/* WiGig PUSH switch */
+	gpiox_0x16_WiGig: gpio@2,0x16 {
+		reg = <2 0x00000016 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sw@0 {
+			label = "PS_INIT";
+			reg = <0>;
+		};
+
+		sw@1 {
+			label = "PS_Fn1";
+			reg = <1>;
+		};
+
+		sw@2 {
+			label = "PS_Fn2";
+			reg = <2>;
+		};
 	};
 
 	/* UART@0x20 TxEnable/RxEnable */
@@ -1717,6 +1883,16 @@
 	/* UART@0x30 TxEnable/RxEnable */
 	gpiox_0x1a: gpio@2,0x1a {
 		reg = <2 0x0000001a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	gpiox_0x1c: gpio@2,0x1c {
+		reg = <2 0x0000001c 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
@@ -1816,6 +1992,37 @@
 		din@7 {
 			label = "DI_07";
 			reg = <7>;
+		};
+	};
+
+	/* WiGig GPIO */
+	gpiox_0x40_wigig: gpio@2,0x40 {
+		reg = <2 0x00000040 0x00000001>,
+		      <2 0x00000080 0x00000001>,
+		      <2 0x00000082 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat", "set", "dirout";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dio@0 {
+			label = "DIO_0";
+			reg = <0>;
+		};
+
+		dio@1 {
+			label = "DIO_1";
+			reg = <1>;
+		};
+
+		dio@2 {
+			label = "DIO_2";
+			reg = <2>;
 		};
 	};
 
