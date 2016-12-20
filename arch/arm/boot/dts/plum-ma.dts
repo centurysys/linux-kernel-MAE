@@ -926,7 +926,7 @@
 		devices = <&uartx2_0x20
 			   &gpiox_0x10 &gpiox_0x12_wigig
 			   &gpiox_0x14_WiGig &gpiox_0x16_WiGig
-			   &gpiox_0x18 &gpiox_0x1a &gpiox_0x1c
+			   &gpiox_0x18 &gpiox_0x1a_WiGig &gpiox_0x1c
 			   &gpiox_0x40_wigig
 			   &leds_wigig_aux1 &leds_wigig_aux2
 			   &leds_wigig_poe>;
@@ -1891,6 +1891,25 @@
 		status = "disabled";
 	};
 
+	/* WiGig PowerFail */
+	gpiox_0x1a_WiGig: gpio@2,0x1a_WiGig {
+		reg = <2 0x0000001a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "PowerFail";
+			reg = <0>;
+		};
+	};
+
 	gpiox_0x1c: gpio@2,0x1c {
 		reg = <2 0x0000001c 0x00000001>;
 		#gpio-cells = <2>;
@@ -1996,7 +2015,7 @@
 	};
 
 	/* WiGig GPIO */
-	gpiox_0x40_wigig: gpio@2,0x40 {
+	gpiox_0x40_wigig: gpio@2,0x40_WiGig {
 		reg = <2 0x00000040 0x00000001>,
 		      <2 0x00000080 0x00000001>,
 		      <2 0x00000082 0x00000001>;
