@@ -1807,7 +1807,7 @@
 	};
 
 	/* WiGig ROTARY switch */
-	gpiox_0x14_WiGig: gpio@2,0x14 {
+	gpiox_0x14_WiGig: gpio@2,0x14_wigig {
 		reg = <2 0x00000014 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
@@ -1841,7 +1841,7 @@
 	};
 
 	/* WiGig PUSH switch */
-	gpiox_0x16_WiGig: gpio@2,0x16 {
+	gpiox_0x16_WiGig: gpio@2,0x16_wigig {
 		reg = <2 0x00000016 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
@@ -1892,7 +1892,7 @@
 	};
 
 	/* WiGig PowerFail */
-	gpiox_0x1a_WiGig: gpio@2,0x1a_WiGig {
+	gpiox_0x1a_WiGig: gpio@2,0x1a_wigig {
 		reg = <2 0x0000001a 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
@@ -2015,7 +2015,7 @@
 	};
 
 	/* WiGig GPIO */
-	gpiox_0x40_wigig: gpio@2,0x40_WiGig {
+	gpiox_0x40_wigig: gpio@2,0x40_wigig {
 		reg = <2 0x00000040 0x00000001>,
 		      <2 0x00000080 0x00000001>,
 		      <2 0x00000082 0x00000001>;
