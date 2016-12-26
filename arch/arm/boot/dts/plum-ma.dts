@@ -1854,17 +1854,17 @@
 		#size-cells = <0>;
 
 		sw@0 {
-			label = "PS_INIT";
+			label = "PS_Fn1";
 			reg = <0>;
 		};
 
 		sw@1 {
-			label = "PS_Fn1";
+			label = "PS_Fn2";
 			reg = <1>;
 		};
 
 		sw@2 {
-			label = "PS_Fn2";
+			label = "PS_INIT";
 			reg = <2>;
 		};
 	};
