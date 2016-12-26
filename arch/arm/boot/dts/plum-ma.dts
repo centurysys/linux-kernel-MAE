@@ -1669,7 +1669,7 @@
 	};
 
 	/* SIM7100 Mobile Status */
-	gpiox_0x12_SIM7100: gpio@2,0x12 {
+	gpiox_0x12_SIM7100: gpio@2,0x12_SIM7100 {
 		reg = <2 0x00000012 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
