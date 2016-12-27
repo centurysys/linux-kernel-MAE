@@ -714,6 +714,8 @@
 		ctrl@x1 {
 			label = "PSE_Control";
 			gpios = <&gpiox_0x1c 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
 		};
 	};
 
