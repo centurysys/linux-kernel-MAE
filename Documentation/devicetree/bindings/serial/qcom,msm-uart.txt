@@ -12,6 +12,10 @@ Required properties:
 - clocks: Should contain the core clock.
 - clock-names: Should be "core".
 
+Optional properties:
+- serial_clk: Required to set the clock rate when its not passing from boot
+            loader such as u-boot.
+
 Example:
 
 A uart device at 0xa9c00000 with interrupt 11.
