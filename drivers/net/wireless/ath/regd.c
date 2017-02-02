@@ -223,6 +223,7 @@ static const struct
 ieee80211_regdomain *ath_world_regdomain(struct ath_regulatory *reg)
 {
 	switch (reg->regpair->regDmnEnum) {
+	case 0x40:
 	case 0x60:
 	case 0x61:
 	case 0x62:
@@ -682,6 +683,7 @@ static int __ath_regd_init(struct ath_regulatory *reg)
 
 	ath_regd_sanitize(reg);
 
+	reg->current_rd = 0x40; /* force JP */
 	printk(KERN_DEBUG "ath: EEPROM regdomain: 0x%0x\n", reg->current_rd);
 
 	if (!ath_regd_is_eeprom_valid(reg)) {
