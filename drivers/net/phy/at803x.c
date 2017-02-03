@@ -228,6 +228,34 @@ static int at803x_1000BASEX_workaround(struct phy_device *phydev)
 
 	return 0;
 }
+
+/*
+ * AR8033
+ *   Drive outpu Vdiff, peak-to-peak = 700mV
+ *   Set MMD7 register 0x8011 bits[15:13] to 010
+ */
+static int at803x_1000BASEX_sgmii_txdr_drive_output(struct phy_device *phydev)
+{
+	int val;
+
+	mutex_lock(&phydev->lock);
+
+	phy_write(phydev, AT803X_MMD_ACCESS_CONTROL, 7);
+	phy_write(phydev, AT803X_MMD_ACCESS_CONTROL_DATA, 0x8011);
+	phy_write(phydev, AT803X_MMD_ACCESS_CONTROL, 0x4007);
+	val = phy_read(phydev, AT803X_MMD_ACCESS_CONTROL_DATA);
+	if (val < 0) {
+		mutex_unlock(&phydev->lock);
+		return val;
+	}
+	val &= ~0xe000;
+	val |= 0x2 << 13;
+	phy_write(phydev, AT803X_MMD_ACCESS_CONTROL_DATA, val);
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
 #endif	/* CONFIG_NXR_SFP */
 
 static u16
@@ -489,6 +517,9 @@ static int at803x_config_init(struct phy_device *phydev)
 
 	if ((val & AT803X_BT_BX_REG_SELL) == 0) {
 		ret = at803x_1000BASEX_workaround(phydev);
+		if (ret < 0)
+			return ret;
+		ret = at803x_1000BASEX_sgmii_txdr_drive_output(phydev);
 		if (ret < 0)
 			return ret;
 		phydev->phy_media = PHY_MEDIA_FIBER;
