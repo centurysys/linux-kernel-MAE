@@ -986,7 +986,8 @@
 			   &gpiox_0x10 &gpiox_0x12_WiSUN
 			   &gpiox_0x14 &gpiox_0x16_WiSUN
 			   &gpiox_0x18_WiSUN
-			   &leds_foma &leds_wisun &leds_wisun_ctrl>;
+			   &leds_foma &leds_amp_ctrl
+			   &leds_wisun &leds_wisun_ctrl>;
 	};
 };
 
