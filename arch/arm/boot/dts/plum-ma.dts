@@ -521,6 +521,38 @@
 		};
 	};
 
+	leds_do_mrb: leds_do_mrb {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@do0 {
+			label = "DO_0";
+			gpios = <&gpiox_0x80 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do1 {
+			label = "DO_1";
+			gpios = <&gpiox_0x80 1 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_diodir_mrb: leds_diodir_mrb {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@do0 {
+			label = "DIO_OUT_0";
+			gpios = <&gpiox_0x82_mrb 0 GPIO_ACTIVE_HIGH>;
+			retain-suspend;
+		};
+
+		led@do1 {
+			label = "DIO_OUT_1";
+			gpios = <&gpiox_0x82_mrb 1 GPIO_ACTIVE_HIGH>;
+			retain-suspend;
+		};
+	};
+
 	leds_aux: leds_aux {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -800,6 +832,7 @@
 		xio_23 = &xio_22_23;
 		xio_24 = &xio_24;
 		xio_27 = &xio_27;
+		xio_28 = &xio_28;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -988,6 +1021,17 @@
 			   &gpiox_0x18_WiSUN
 			   &leds_foma &leds_amp_ctrl
 			   &leds_wisun &leds_wisun_ctrl>;
+	};
+
+	/* XIO: (id: 0x28) MRB-50 (/LW+DIO) */
+	xio_28: xio@0x28 {
+		#size-cells = <0>;
+		devices = <&xio_hub_ctrl
+			   &gpiox_0x00 &gpiox_0x04_lisa
+			   &gpiox_0x08_wlan &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x40_mrb &gpiox_0x80 &gpiox_0x82_mrb
+			   &leds_amp_wlan_ctrl &leds_mobile_wlan &leds_wlan_ctrl
+			   &leds_do_mrb &leds_diodir_mrb>;
 	};
 };
 
@@ -2192,6 +2236,37 @@
 		};
 	};
 
+	/* DIO DIN (MRB-50) */
+	gpiox_0x40_mrb: gpio@2,0x40_mrb {
+		reg = <2 0x00000040 0x00000012>;
+		#gpio-cells = <2>;
+		compatible = "plum,ext-DI";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		interrupt-controller;
+
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		din@0 {
+			label = "DI_00";
+			reg = <0>;
+		};
+
+		din@1 {
+			label = "DI_01";
+			reg = <1>;
+		};
+	};
+
 	/* FXS PIC Control */
 	gpiox_0x42: gpio@2,0x42 {
 		reg = <2 0x00000042 0x00000001>;
@@ -2206,6 +2281,17 @@
 	/* DIO DOUT */
 	gpiox_0x80: gpio@2,0x80 {
 		reg = <2 0x00000080 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* DIO Direction Control */
+	gpiox_0x82_mrb: gpio@2,0x82 {
+		reg = <2 0x00000082 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
