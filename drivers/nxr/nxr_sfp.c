@@ -437,6 +437,86 @@ sfp_probe(struct i2c_client * client, const struct i2c_device_id * id)
 	return init_proc(priv);
 }
 
+static ssize_t sfp_link_led_write_proc(struct file* file, const char* buffer, size_t count, loff_t* data)
+{
+	int *gpio = PDE_DATA(file_inode(file));
+	int gpio_link_led = *gpio;
+	int val, len;
+	char buf[8];
+
+	if (!gpio_is_valid(gpio_link_led))
+		return -EIO;
+
+	if (count <= sizeof(buf))
+		len = count;
+	else
+		len = sizeof(buf);
+
+	pr_info("%s: len %d\n", __func__, len);
+
+	if (copy_from_user(&buf, buffer, len))
+		return -EFAULT;
+
+	val = simple_strtoul(buf, NULL, 10);
+
+	if (val == 0)	/* led turn off */
+		gpio_direction_output(gpio_link_led, 1);
+	else		 /* led turn on */
+		gpio_direction_output(gpio_link_led, 0);
+
+	return count;
+}
+
+static int sfp_link_led_proc_show(struct seq_file * seq, void * unused)
+{
+	return -EPERM;
+}
+
+static int sfp_link_led_seq_open(struct inode *inode, struct file *file)
+{
+#ifdef CONFIG_LXC_RESTRICT_ACCESS
+	if (!task_css_is_root(current, devices_subsys_id))
+		return -EPERM;
+#endif
+	return single_open(file, sfp_link_led_proc_show, PDE_DATA(inode));
+}
+
+struct file_operations fops_sfp_link_led = {
+	.owner    = THIS_MODULE,
+	.open     = sfp_link_led_seq_open,
+	.write    = sfp_link_led_write_proc,
+	.read     = seq_read,
+	.llseek   = seq_lseek,
+	.release  = seq_release,
+};
+
+static struct proc_dir_entry * sfp_link_led_entry = 0;
+
+int nxr_create_proc_sfp_link_led(int * data)
+{
+	if (!sfp_proc_root)
+		return -ENODEV;
+
+	sfp_link_led_entry = proc_create_data("link_led", 0200, sfp_proc_root, &fops_sfp_link_led, data);
+	if (!sfp_link_led_entry) {
+		pr_err("%s : proc_create failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(nxr_create_proc_sfp_link_led);
+
+void nxr_remove_proc_sfp_link_led(void)
+{
+	if (!sfp_link_led_entry)
+		return;
+
+	proc_remove(sfp_link_led_entry);
+	sfp_link_led_entry = 0;
+}
+EXPORT_SYMBOL(nxr_remove_proc_sfp_link_led);
+
 static int
 sfp_remove(struct i2c_client * client)
 {
