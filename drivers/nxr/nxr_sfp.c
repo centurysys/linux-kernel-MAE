@@ -452,8 +452,6 @@ static ssize_t sfp_link_led_write_proc(struct file* file, const char* buffer, si
 	else
 		len = sizeof(buf);
 
-	pr_info("%s: len %d\n", __func__, len);
-
 	if (copy_from_user(&buf, buffer, len))
 		return -EFAULT;
 
