@@ -833,6 +833,7 @@
 		xio_24 = &xio_24;
 		xio_27 = &xio_27;
 		xio_28 = &xio_28;
+		xio_29 = &xio_0b;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
