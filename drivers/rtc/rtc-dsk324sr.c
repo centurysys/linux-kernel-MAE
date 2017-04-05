@@ -213,13 +213,6 @@ static int dsk324sr_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, rtc);
 
-	/* initialize control register */
-	err = i2c_smbus_write_byte_data(client, DSK324SR_REG_CTRL, DSK324SR_CTRL_RESET);
-	if (err != 0) {
-		dev_err(&client->dev, "Unable to initialize control register\n");
-		return -EIO;
-	}
-
 	/* initialize select register */
 	err = i2c_smbus_write_byte_data(client, DSK324SR_REG_SEL, 0xc0);
 	if (err != 0) {
