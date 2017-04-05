@@ -221,7 +221,7 @@ static int dsk324sr_probe(struct i2c_client *client,
 	}
 
 	/* initialize select register */
-	err = i2c_smbus_write_byte_data(client, DSK324SR_REG_SEL, 0);
+	err = i2c_smbus_write_byte_data(client, DSK324SR_REG_SEL, 0xc0);
 	if (err != 0) {
 		dev_err(&client->dev, "Unable to initialize select register\n");
 		return -EIO;
