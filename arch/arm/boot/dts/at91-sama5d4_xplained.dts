@@ -166,6 +166,10 @@
 			status = "okay";
 		};
 
+		vdec0: vdec@00300000 {
+			status = "okay";
+		};
+
 		ebi: ebi@10000000 {
 			pinctrl-0 = <&pinctrl_ebi_cs3 &pinctrl_ebi_nrd_nandoe
 				     &pinctrl_ebi_nwe_nandwe &pinctrl_ebi_nandrdy
