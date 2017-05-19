@@ -296,6 +296,7 @@ static const struct file_operations sfp_proc_fops = {
 	.open = sfp_proc_open,
 	.read = seq_read,
 	.llseek = noop_llseek,
+	.release = single_release,
 };
 
 static int
@@ -368,6 +369,7 @@ static const struct file_operations sfp_type_proc_fops = {
 	.open = sfp_type_proc_open,
 	.read = seq_read,
 	.llseek = noop_llseek,
+	.release = single_release,
 };
 
 static int
@@ -485,7 +487,7 @@ struct file_operations fops_sfp_link_led = {
 	.write    = sfp_link_led_write_proc,
 	.read     = seq_read,
 	.llseek   = seq_lseek,
-	.release  = seq_release,
+	.release = single_release,
 };
 
 static struct proc_dir_entry * sfp_link_led_entry = 0;
