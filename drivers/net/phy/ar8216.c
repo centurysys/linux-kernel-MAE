@@ -2163,9 +2163,9 @@ ar8xxx_phy_soft_reset(struct phy_device *phydev)
 #endif
 
 static struct phy_driver ar8xxx_phy_driver = {
-	.phy_id		= 0x004d0000,
+	.phy_id		= 0x004dd030,
 	.name		= "Atheros AR8216/AR8236/AR8316",
-	.phy_id_mask	= 0xffff0000,
+	.phy_id_mask	= 0xfffffff0,
 	.features	= PHY_BASIC_FEATURES,
 	.probe		= ar8xxx_phy_probe,
 	.remove		= ar8xxx_phy_remove,
