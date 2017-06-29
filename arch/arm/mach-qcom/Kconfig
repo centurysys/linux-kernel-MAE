@@ -32,3 +32,9 @@ config ARCH_IPQ807x
 	  This enables support for the IPQ807x chipset. If you dont
 	  know what do here, say N
 endif
+
+config KUMQUAT
+	bool "KUMQUAT board"
+	depends on ARCH_MSM8X60
+	help
+	  Enable support for KUMQUAT board
