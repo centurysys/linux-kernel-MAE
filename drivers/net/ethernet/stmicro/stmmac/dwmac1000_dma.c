@@ -49,6 +49,10 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
 	if (limit < 0)
 		return -EBUSY;
 
+#ifdef CONFIG_KUMQUAT
+	msleep(1000);
+#endif
+
 	/*
 	 * Set the DMA PBL (Programmable Burst Length) mode
 	 * Before stmmac core 3.50 this mode bit was 4xPBL, and
