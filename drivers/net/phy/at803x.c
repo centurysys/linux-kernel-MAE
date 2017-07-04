@@ -102,6 +102,9 @@ struct at803x_context {
 };
 
 #ifdef CONFIG_NXR_SFP
+extern int nxr_sfp_tx_disable(void);
+extern int nxr_sfp_tx_enable(void);
+
 static int at803x_start(struct phy_device *phydev)
 {
 	if (phydev->phy_media == PHY_MEDIA_FIBER)
@@ -511,11 +514,11 @@ static int at803x_config_init(struct phy_device *phydev)
 	}
 
 #ifdef CONFIG_NXR_SFP
-	val = phy_read(phydev, AT803X_CHIP_CONFIG);
-	if (val < 0)
-		return val;	/* error */
+	ret = phy_read(phydev, AT803X_CHIP_CONFIG);
+	if (ret < 0)
+		return ret;	/* error */
 
-	if ((val & AT803X_BT_BX_REG_SELL) == 0) {
+	if ((ret & AT803X_BT_BX_REG_SELL) == 0) {
 		ret = at803x_1000BASEX_workaround(phydev);
 		if (ret < 0)
 			return ret;

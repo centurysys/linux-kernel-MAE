@@ -795,7 +795,7 @@ void phy_stop(struct phy_device *phydev)
 
 	phydev->state = PHY_HALTED;
 
-#ifdef CONFIG_NXR_G200
+#ifdef CONFIG_NXR_SFP
 	if (phydev->drv->phy_stop)
 		phydev->drv->phy_stop(phydev);
 #endif
@@ -846,7 +846,7 @@ void phy_start(struct phy_device *phydev)
 		break;
 	}
 
-#ifdef CONFIG_NXR_G200
+#ifdef CONFIG_NXR_SFP
 	if (phydev->drv->phy_start)
 		phydev->drv->phy_start(phydev);
 #endif

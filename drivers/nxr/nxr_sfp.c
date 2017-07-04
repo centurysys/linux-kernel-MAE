@@ -23,8 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
-#include <linux/nxr/nxr_misc.h>
-#include <linux/nxr/nxr_debug.h>
+#include <linux/slab.h>
 
 static const char * version = "0.1";
 struct sfp_event * g_event = NULL;
@@ -84,10 +83,10 @@ sfp_check_mount_state(struct sfp_event * event)
 	status = gpio_get_value_cansleep(event->sfp_moddef_gpio);
 	if (status == SFP_MOD_PRESENT) {
 		event->sfp_attach = 1;
-		nxr_sfp_klogd(" Attaching SFP0\n");
+		pr_info(" Attaching SFP0\n");
 	} else {
 		event->sfp_attach = 0;
-		nxr_sfp_klogd(" Detaching SFP0\n");
+		pr_info(" Detaching SFP0\n");
 	}
 	event->sfp_change = 1;
 }
@@ -112,7 +111,7 @@ event_of_init(const char * node, struct sfp_event * event)
 
 	np = of_find_compatible_node(NULL, NULL, node);
 	if (!np) {
-		err("could not find a %s node\n", node);
+		pr_err("could not find a %s node\n", node);
 		return -ENODEV;
 	}
 
@@ -121,34 +120,34 @@ event_of_init(const char * node, struct sfp_event * event)
 
 	gpio = of_get_named_gpio_flags(np, "sfp-tx-disable", 0, &flags);
 	if (gpio_is_valid(gpio) == 0) {
-		info("Can't get %s property '%s'\n", np->full_name, "sfp-tx-disable");
+		pr_info("Can't get %s property '%s'\n", np->full_name, "sfp-tx-disable");
 		goto fail1;
 	}
 
 	ret = gpio_request(gpio, "sfp_tx_disable");
 	if (ret < 0) {
-		info("Failed to request GPIO %d, error %d\n", gpio, ret);
+		pr_info("Failed to request GPIO %d, error %d\n", gpio, ret);
 		goto fail1;
 	}
 	event->sfp_tx_disable = gpio;
 
 	gpio = of_get_named_gpio_flags(np, "sfp-moddef", 0, &flags);
 	if (gpio_is_valid(gpio) == 0) {
-		info("Can't get %s property '%s'\n", np->full_name, "sfp-moddef");
+		pr_info("Can't get %s property '%s'\n", np->full_name, "sfp-moddef");
 		gpio_free(event->sfp_tx_disable);
 		goto fail2;
 	}
 
 	ret = gpio_request(gpio, "sfp_moddef");
 	if (ret < 0) {
-		info("Failed to request GPIO %d, error %d\n", gpio, ret);
+		pr_info("Failed to request GPIO %d, error %d\n", gpio, ret);
 		goto fail2;
 	}
 	event->sfp_moddef_gpio = gpio;
 
 	irq = gpio_to_irq(gpio);
 	if (irq < 0) {
-		info("Can't get irq property\n");
+		pr_info("Can't get irq property\n");
 		goto fail3;
 	}
 	event->sfp_moddef_irq = irq;
@@ -184,7 +183,7 @@ event_init(void)
 			IRQF_SHARED | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"sfp0-moddef", event);
 	if (ret < 0) {
-		err("failed to install irq (%d)\n", event->sfp_moddef_irq);
+		pr_err("failed to install irq (%d)\n", event->sfp_moddef_irq);
 		goto fail;
 	}
 	return 0;
@@ -263,6 +262,37 @@ get_sfp_data(struct i2c_client * client, unsigned char * buf, int len, int offse
 	}
 
 	return 0;
+}
+
+static void
+nxr_proc_print_hex_dump(struct seq_file * seq, const char * prefix_str, int prefix_type,
+                        int rowsize, int groupsize, const void * buf, size_t len, bool ascii)
+{
+	const u8 * ptr = buf;
+	int i, linelen, remaining = len;
+	unsigned char linebuf[32 * 3 + 2 + 32 + 1];
+
+	if (rowsize != 16 && rowsize != 32)
+		rowsize = 16;
+
+	for (i = 0; i < len; i += rowsize) {
+		linelen = min(remaining, rowsize);
+		remaining -= rowsize;
+
+		hex_dump_to_buffer(ptr + i, linelen, rowsize, groupsize, linebuf, sizeof(linebuf), ascii);
+
+		switch (prefix_type) {
+		case DUMP_PREFIX_ADDRESS:
+			seq_printf(seq, "%s%p: %s\n", prefix_str, ptr + i, linebuf);
+			break;
+		case DUMP_PREFIX_OFFSET:
+			seq_printf(seq, "%s%.8x: %s\n", prefix_str, i, linebuf);
+			break;
+		default:
+			seq_printf(seq, "%s%s\n", prefix_str, linebuf);
+			break;
+		}
+	}
 }
 
 static int

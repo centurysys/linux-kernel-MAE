@@ -435,7 +435,6 @@ struct phy_device {
 
 	void (*adjust_link)(struct net_device *dev);
 
-#endif
 #ifdef CONFIG_NXR_SFP
 	int phy_media;
 #endif
