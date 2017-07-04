@@ -525,6 +525,7 @@ static int at803x_config_init(struct phy_device *phydev)
 		ret = at803x_1000BASEX_sgmii_txdr_drive_output(phydev);
 		if (ret < 0)
 			return ret;
+		nxr_sfp_tx_enable();
 		phydev->phy_media = PHY_MEDIA_FIBER;
 	} else {
 		phydev->phy_media = PHY_MEDIA_CAT5;
