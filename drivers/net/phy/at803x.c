@@ -519,6 +519,12 @@ static int at803x_config_init(struct phy_device *phydev)
 		return ret;	/* error */
 
 	if ((ret & AT803X_BT_BX_REG_SELL) == 0) {
+#ifdef CONFIG_KUMQUAT
+		at803x_dbg_reg_set(phydev, AT803X_DBG0_REG,
+				   AT803X_DEBUG_RGMII_RX_CLK_DLY);
+		at803x_dbg_reg_set(phydev, AT803X_DEBUG_SYSTEM_MODE_CTRL,
+				   AT803X_DEBUG_RGMII_TX_CLK_DLY);
+#endif
 		ret = at803x_1000BASEX_workaround(phydev);
 		if (ret < 0)
 			return ret;
