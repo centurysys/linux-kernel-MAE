@@ -1,0 +1,38 @@
+
+1. How to build the kernel
+
+$ source kumquat.env
+$ cp arch/arm/configs/kumquat_defconfig .config && \
+make oldconfig && make -j 8 LOADADDR=0x42208000 uImage && make dtbs
+
+
+2. How to use the kernel
+
+1) Boot KUMQUAT board from your TFTP server
+Copy the kernel image(uImage) and DTB image(dtb) to the /srv/tftp directory of your Linux host PC.
+$ cp arch/arm/boot/uImage /srv/tftp/ && cp arch/arm/boot/dts/qcom-ipq8064-kumquat.dtb /srv/tftp/dtb
+
+Use the following settings for U-Boot command.
+(NXR) # setbootfirm 1
+(NXR) # setwrittenfirm 1 1
+In the case of SSD or USB memory(/dev/sda1):
+(NXR) # run dlbootlinuxdtb_sda1
+In the case of SD(/dev/mmcblk0p1):
+(NXR) # run dlbootlinuxdtb_mmc1
+
+2) Boot KUMQUAT board from target NAND Flash
+
+Copy the kernel image(uImage) and padding DTB image(dtb) to the /srv/tftp directory of your Linux host PC.
+$ dd if=/dev/zero of=pad bs=1 count=256
+$ cat pad arch/arm/boot/dts/qcom-ipq8064-kumquat.dtb > dtb
+$ cp arch/arm/boot/uImage /srv/tftp/ && cp dtb /srv/tftp/
+
+Use the following settings for U-Boot command.
+(NXR) # run dtb1load_update
+(NXR) # run uimage1load_update
+(NXR) # setbootfirm 1
+(NXR) # setwrittenfirm 1 1
+In the case of SSD or USB memory(/dev/sda1):
+(NXR) # run bootlinux_sda1
+In the case of SD(/dev/mmcblk0p1):
+(NXR) # run bootlinux_mmc1
