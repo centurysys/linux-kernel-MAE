@@ -1,0 +1,16 @@
+#
+# Kconfig options for NXR
+#
+
+menu "NXR options"
+
+config NXR
+	boolean
+
+config NXR_SFP
+	bool "NXR SFP/SFP+ driver support"
+	depends on KUMQUAT
+	---help---
+	  Say Y to NXR SFP/SFP+ driver support.
+
+endmenu
