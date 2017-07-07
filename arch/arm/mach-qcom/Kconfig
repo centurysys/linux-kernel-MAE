@@ -36,5 +36,6 @@ endif
 config KUMQUAT
 	bool "KUMQUAT board"
 	depends on ARCH_MSM8X60
+	select NXR
 	help
 	  Enable support for KUMQUAT board
