@@ -457,11 +457,9 @@
 					0x0007c 0x4e        /* PORT0_STATUS */
 					0x00094 0x4e        /* PORT6_STATUS */
 					>;
-/*
 				interrupt-parent = <&qcom_pinmux>;
 				#interrupt-cells = <2>;
 				interrupts = <49 2>;
-*/
 			};
 
 			phy5: ethernet-phy@5 {
@@ -524,9 +522,7 @@
 		gmac3: ethernet@37600000 {
 			qcom,id = <3>;
 			phy-mode = "sgmii";
-/*
 			phy-handle = <&phy0>;
-*/
 			local-mac-address = [000000000000];
 			status = "ok";
 
