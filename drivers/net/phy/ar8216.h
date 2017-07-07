@@ -406,6 +406,10 @@ struct ar8xxx_chip {
 	void (*get_arl_entry)(struct ar8xxx_priv *priv, struct arl_entry *a,
 			      u32 *status, enum arl_op op);
 	int (*sw_hw_apply)(struct switch_dev *dev);
+#ifdef CONFIG_NXR
+	int (*ack_interrupt)(struct ar8xxx_priv *priv);
+	int (*config_intr)(struct ar8xxx_priv *priv, int interrupt);
+#endif
 
 	const struct ar8xxx_mib_desc *mib_decs;
 	unsigned num_mibs;

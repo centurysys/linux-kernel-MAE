@@ -2162,6 +2162,28 @@ ar8xxx_phy_soft_reset(struct phy_device *phydev)
 }
 #endif
 
+#ifdef CONFIG_NXR
+static int ar8xxx_ack_interrupt(struct phy_device *phydev)
+{
+	struct ar8xxx_priv *priv = phydev->priv;
+
+	if (priv->chip->ack_interrupt)
+		return priv->chip->ack_interrupt(priv);
+
+	return 0;
+}
+
+static int ar8xxx_config_intr(struct phy_device *phydev)
+{
+	struct ar8xxx_priv *priv = phydev->priv;
+
+	if (priv->chip->config_intr)
+		return priv->chip->config_intr(priv, phydev->interrupts);
+
+	return 0;
+}
+#endif
+
 static struct phy_driver ar8xxx_phy_driver = {
 	.phy_id		= 0x004dd030,
 	.name		= "Atheros AR8216/AR8236/AR8316",
@@ -2175,6 +2197,11 @@ static struct phy_driver ar8xxx_phy_driver = {
 	.read_status	= ar8xxx_phy_read_status,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0)
 	.soft_reset	= ar8xxx_phy_soft_reset,
+#endif
+#ifdef CONFIG_NXR
+	.flags		= PHY_HAS_INTERRUPT,
+	.ack_interrupt  = ar8xxx_ack_interrupt,
+	.config_intr    = ar8xxx_config_intr,
 #endif
 	.driver		= { .owner = THIS_MODULE },
 };

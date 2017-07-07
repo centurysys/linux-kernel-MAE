@@ -1084,6 +1084,42 @@ ar8327_sw_hw_apply(struct switch_dev *dev)
 	return 0;
 }
 
+#ifdef CONFIG_NXR
+static int
+ar8327_ack_interrupt(struct ar8xxx_priv *priv)
+{
+	u32 value;
+
+	value = ar8xxx_read(priv, AR8327_REG_INT_STATUS1);
+	/* clear interrupt status */
+	ar8xxx_write(priv, AR8327_REG_INT_STATUS1, AR8327_LINK_CHANGE_INT);
+
+	return 0;
+}
+
+static int
+ar8327_config_intr(struct ar8xxx_priv *priv, int interrupt)
+{
+	u32 value;
+
+#ifdef CONFIG_KUMQUAT
+	/* always disable */
+	ar8xxx_write(priv, AR8327_REG_INT_MASK1, 0);
+#else
+	if (interrupt == PHY_INTERRUPT_ENABLED) {
+		value = ar8xxx_read(priv, AR8327_REG_INT_MASK1);
+		value |= AR8327_LINK_CHANGE_INT_PORT;
+		ar8xxx_write(priv, AR8327_REG_INT_MASK1, value);
+	} else {
+		ar8xxx_write(priv, AR8327_REG_INT_MASK1, 0);
+	}
+#endif
+	value = ar8xxx_read(priv, AR8327_REG_INT_MASK1);
+
+	return 0;
+}
+#endif /* CONFIG_NXR */
+
 static const struct switch_attr ar8327_sw_attr_globals[] = {
 	{
 		.type = SWITCH_TYPE_INT,
@@ -1260,6 +1296,10 @@ const struct ar8xxx_chip ar8337_chip = {
 	.set_mirror_regs = ar8327_set_mirror_regs,
 	.get_arl_entry = ar8327_get_arl_entry,
 	.sw_hw_apply = ar8327_sw_hw_apply,
+#ifdef CONFIG_NXR
+	.ack_interrupt = ar8327_ack_interrupt,
+	.config_intr = ar8327_config_intr,
+#endif
 
 	.num_mibs = ARRAY_SIZE(ar8236_mibs),
 	.mib_decs = ar8236_mibs,
