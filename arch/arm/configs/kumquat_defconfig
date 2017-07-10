@@ -3376,6 +3376,7 @@ CONFIG_RAS=y
 #
 # NXR options
 #
+CONFIG_NXR=y
 CONFIG_NXR_SFP=y
 
 #
