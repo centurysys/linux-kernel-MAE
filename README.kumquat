@@ -13,8 +13,6 @@ Copy the kernel image(uImage) and DTB image(dtb) to the /srv/tftp directory of y
 $ cp arch/arm/boot/uImage /srv/tftp/ && cp arch/arm/boot/dts/qcom-ipq8064-kumquat.dtb /srv/tftp/dtb
 
 Use the following settings for U-Boot command.
-(NXR) # setbootfirm 1
-(NXR) # setwrittenfirm 1 1
 In the case of SSD or USB memory(/dev/sda1):
 (NXR) # run dlbootlinuxdtb_sda1
 In the case of SD(/dev/mmcblk0p1):
