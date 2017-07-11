@@ -301,6 +301,11 @@
 					pagesize = <16>;
 					reg = <0x50>;
 				};
+
+				power: powr1014@60 {
+ 					compatible = "powr1014";
+					reg = <0x60>;
+				};
 			};
 		};
 
