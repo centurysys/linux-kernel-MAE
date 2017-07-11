@@ -848,7 +848,27 @@ static struct msm_pinctrl *poweroff_pctrl;
 
 static void msm_ps_hold_poweroff(void)
 {
+#ifdef CONFIG_KUMQUAT
+	extern int powr1014_get_input_value(u8 *val);
+	extern int powr1014_set_input_value(u8 val);
+	u8 val;
+	int ret;
+
+	ret = powr1014_get_input_value(&val);
+	if (ret < 0)
+		goto err;
+
+	ret = powr1014_set_input_value(ret | (1 << 2));
+	if (ret < 0)
+		goto err;
+
+	powr1014_set_input_value(ret & ~(1 << 2));
+
+err:
+	printk("Power down failed\n");
+#else
 	msm_ps_hold_restart(&poweroff_pctrl->restart_nb, 0, NULL);
+#endif
 }
 
 static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
