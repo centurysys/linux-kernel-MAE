@@ -844,14 +844,12 @@ static int msm_ps_hold_restart(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_DONE;
 }
 
-#ifndef CONFIG_KUMQUAT
 static struct msm_pinctrl *poweroff_pctrl;
 
 static void msm_ps_hold_poweroff(void)
 {
 	msm_ps_hold_restart(&poweroff_pctrl->restart_nb, 0, NULL);
 }
-#endif
 
 static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 {
@@ -865,10 +863,8 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 			if (register_restart_handler(&pctrl->restart_nb))
 				dev_err(pctrl->dev,
 					"failed to setup restart handler.\n");
-#ifndef CONFIG_KUMQUAT
 			poweroff_pctrl = pctrl;
 			pm_power_off = msm_ps_hold_poweroff;
-#endif
 			break;
 		}
 }
