@@ -1600,7 +1600,7 @@ static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
 		 * => Protect all HT40 transmissions.
 		 */
 		mm20_mode = gf20_mode = 0;
-		mm40_mode = gf40_mode = 2;
+		mm40_mode = gf40_mode = 1;
 
 		break;
 	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
@@ -1623,7 +1623,7 @@ static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
 		 * Legacy STAs are present
 		 * => Protect all HT transmissions.
 		 */
-		mm20_mode = mm40_mode = gf20_mode = gf40_mode = 2;
+		mm20_mode = mm40_mode = gf20_mode = gf40_mode = 1;
 
 		/*
 		 * If erp protection is needed we have to protect HT
@@ -1639,7 +1639,7 @@ static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
 
 	/* check for STAs not supporting greenfield mode */
 	if (any_sta_nongf)
-		gf20_mode = gf40_mode = 2;
+		gf20_mode = gf40_mode = 1;
 
 	/* Update HT protection config */
 	rt2800_register_read(rt2x00dev, MM20_PROT_CFG, &reg);
