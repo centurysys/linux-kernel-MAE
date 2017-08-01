@@ -38,6 +38,7 @@
 #include <linux/kfifo.h>
 #include <linux/hrtimer.h>
 #include <linux/average.h>
+#include <linux/usb.h>
 
 #include <net/mac80211.h>
 
@@ -667,6 +668,7 @@ enum rt2x00_state_flags {
 	CONFIG_POWERSAVING,
 	CONFIG_HT_DISABLED,
 	CONFIG_QOS_DISABLED,
+	CONFIG_MONITORING,
 
 	/*
 	 * Mark we currently are sequentially reading TX_STA_FIFO register
@@ -999,6 +1001,8 @@ struct rt2x00_dev {
 
 	/* Extra TX headroom required for alignment purposes. */
 	unsigned int extra_tx_headroom;
+
+	struct usb_anchor *anchor;
 };
 
 struct rt2x00_bar_list_entry {
@@ -1019,9 +1023,12 @@ struct rt2x00_bar_list_entry {
  * Register defines.
  * Some registers require multiple attempts before success,
  * in those cases REGISTER_BUSY_COUNT attempts should be
- * taken with a REGISTER_BUSY_DELAY interval.
+ * taken with a REGISTER_BUSY_DELAY interval. Due to USB
+ * bus delays, we do not have to loop so many times to wait
+ * for valid register value on that bus.
  */
 #define REGISTER_BUSY_COUNT	100
+#define REGISTER_USB_BUSY_COUNT 20
 #define REGISTER_BUSY_DELAY	100
 
 /*
