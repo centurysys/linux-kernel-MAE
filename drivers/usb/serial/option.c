@@ -535,6 +535,7 @@ static void option_instat_callback(struct urb *urb);
 #define AMTELECOM_PRODUCT_AMM570_RNDIS		0x0205
 #define AMTELECOM_PRODUCT_AMM570_ECM		0x0208
 #define AMTELECOM_PRODUCT_AMM570_MBIM		0x0209
+#define AMTELECOM_PRODUCT_AMM570_RMNET		0x020b
 
 /* some devices interfaces need special handling due to a number of reasons */
 enum option_blacklist_reason {
@@ -1890,6 +1891,10 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(AMTELECOM_VENDOR_ID, AMTELECOM_PRODUCT_AMM570_MBIM,
 					0xff, 0xff, 0x04) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(AMTELECOM_VENDOR_ID, AMTELECOM_PRODUCT_AMM570_MBIM,
+					0xff, 0xff, 0x06) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(AMTELECOM_VENDOR_ID, AMTELECOM_PRODUCT_AMM570_RMNET,
+					0xff, 0xff, 0x04) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(AMTELECOM_VENDOR_ID, AMTELECOM_PRODUCT_AMM570_RMNET,
 					0xff, 0xff, 0x06) },
 	{ } /* Terminating entry */
 };
