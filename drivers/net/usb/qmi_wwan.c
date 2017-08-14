@@ -204,7 +204,7 @@ static int qmimux_register_device(struct net_device *real_dev, u8 mux_id)
 	int err;
 
 	new_dev = alloc_netdev(sizeof(struct qmimux_priv),
-			       "qmimux%d", NET_NAME_UNKNOWN, qmimux_setup);
+			       "qmimux%d", qmimux_setup);
 	if (!new_dev)
 		return -ENOBUFS;
 
