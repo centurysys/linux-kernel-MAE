@@ -273,6 +273,7 @@
 			status = "ok";
 			serial@12490000 {
 				status = "ok";
+				serial_clk = <1843200>;
 				pinctrl-0 = <&uart1_pins>;
 				pinctrl-names = "default";
 			};
@@ -314,6 +315,7 @@
 			status = "ok";
 			serial@16340000 {
 				status = "ok";
+				serial_clk = <1843200>;
 				pinctrl-0 = <&uart2_pins>;
 				pinctrl-names = "default";
 			};
@@ -373,6 +375,7 @@
 			status = "ok";
 			serial@16540000 {
 				status = "ok";
+				serial_clk = <1843200>;
 				pinctrl-0 = <&uart3_pins>;
 				pinctrl-names = "default";
 
