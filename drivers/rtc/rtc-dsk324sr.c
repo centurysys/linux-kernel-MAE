@@ -95,7 +95,7 @@ static int dsk324sr_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_sec = bcd2bin(date[DSK324SR_REG_SC] & 0x7F);
 	tm->tm_min = bcd2bin(date[DSK324SR_REG_MN] & 0x7F);
 	tm->tm_hour = bcd2bin(date[DSK324SR_REG_HR] & 0x3F); /* rtc hr 0-23 */
-	tm->tm_wday = ilog2(date[DSK324SR_REG_DW] & 0x7F);
+	tm->tm_wday = bcd2bin(date[DSK324SR_REG_DW] & 0x07);
 	tm->tm_mday = bcd2bin(date[DSK324SR_REG_DM] & 0x3F);
 	tm->tm_mon = bcd2bin(date[DSK324SR_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
 	tm->tm_year = bcd2bin(date[DSK324SR_REG_YR]);
@@ -139,7 +139,7 @@ static int dsk324sr_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	/* year and century */
 	buf[DSK324SR_REG_YR] = bin2bcd(tm->tm_year % 100);
-	buf[DSK324SR_REG_DW] = (0x1 << tm->tm_wday);
+	buf[DSK324SR_REG_DW] = tm->tm_wday & 7;
 
 	/* set RESET bit */
  	data = i2c_smbus_read_byte_data(client, DSK324SR_REG_CTRL);
