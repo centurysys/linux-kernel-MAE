@@ -354,17 +354,27 @@
 
 					partition@1 {
 						label = "APPSBLENV";
-						reg = <0x00320000 0x00360000>;
+						reg = <0x00320000 0x00040000>;
 					};
 
 					partition@2 {
 						label = "ART";
-						reg = <0x00360000 0x003a0000>;
+						reg = <0x00360000 0x00040000>;
 					};
 
 					partition@3 {
-						label = "oops";
-						reg = <0x003a0000 0x005a0000>;
+						label = "OOPS";
+						reg = <0x003a0000 0x00200000>;
+					};
+
+					partition@4 {
+						label = "FIRMINFO";
+						reg = <0x01e00000 0x00100000>;
+					};
+
+					partition@5 {
+						label = "BOOTINFO";
+						reg = <0x01f00000 0x00100000>;
 					};
 				};
 			};
@@ -432,13 +442,8 @@
 
 				/* MTD partition table */
 				partition@0 {
-					reg = <0x00000000 0x10000000>;
-					label = "ubi0";
-				};
-
-				partition@1 {
-					reg = <0x10000000 0x06000000>;
-					label = "ubi1";
+					reg = <0x00000000 0x20000000>;
+					label = "UBI";
 				};
 			};
 		};
