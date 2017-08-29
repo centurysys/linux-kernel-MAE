@@ -369,12 +369,12 @@
 
 					partition@4 {
 						label = "FIRMINFO";
-						reg = <0x01e00000 0x00100000>;
+						reg = <0x01f80000 0x00040000>;
 					};
 
 					partition@5 {
 						label = "BOOTINFO";
-						reg = <0x01f00000 0x00100000>;
+						reg = <0x01fc0000 0x00040000>;
 					};
 				};
 			};
