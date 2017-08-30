@@ -368,12 +368,12 @@
 					};
 
 					partition@4 {
-						label = "FIRMINFO";
+						label = "hist_firmup";
 						reg = <0x01f80000 0x00040000>;
 					};
 
 					partition@5 {
-						label = "BOOTINFO";
+						label = "hist_boot";
 						reg = <0x01fc0000 0x00040000>;
 					};
 				};
