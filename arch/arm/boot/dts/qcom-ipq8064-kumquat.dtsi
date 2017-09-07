@@ -236,32 +236,32 @@
 
 					/* LEDs on Main board */
 					led0: power-status-red@0 {
-						label = "power_red";
+						label = "power-stat:r";
 						reg = <0x0>;
 					};
 					led1: system-status1-red@1 {
-						label = "status1_red";
+						label = "system-status1:r";
 						reg = <0x1>;
+						linux,default-trigger = "heartbeat";
 					};
 					led2: system-status2-red@2 {
-						label = "status2_red";
+						label = "system-status2:r";
 						reg = <0x2>;
 					};
 					led3: system-status3-red@3 {
-						label = "status3_red";
+						label = "system-status3:r";
 						reg = <0x3>;
 					};
 					led4: system-status1-green@4 {
-						label = "status1_green";
-						linux,default-trigger = "timer";
+						label = "system-status1:g";
 						reg = <0x4>;
 					};
 					led5: system-status2-green@5 {
-						label = "status2_green";
+						label = "system-status2:g";
 						reg = <0x5>;
 					};
 					led6: system-status3-green@6 {
-						label = "status3_green";
+						label = "system-status3:g";
 						reg = <0x6>;
 					};
 				};
@@ -606,7 +606,7 @@
 		status = "ok";
 
 		power-status-green@0 {
-			label = "power_green";
+			label = "power-stat:g";
 			gpios = <&ioexp_a 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
@@ -617,33 +617,33 @@
 		status = "disabled";
 
 		led@05 {
-			label = "mobile_green";
+			label = "MobileLED_G3";
 			gpios = <&ioexp_a 5 GPIO_ACTIVE_LOW>;
 		};
 
 		led@04 {
-			label = "ant_level2_green";
+			label = "MobileLED_G2";
 			gpios = <&ioexp_a 4 GPIO_ACTIVE_LOW>;
 		};
 
 		led@03 {
-			label = "ant_level1_green";
+			label = "MobileLED_G1";
 			gpios = <&ioexp_a 3 GPIO_ACTIVE_LOW>;
 		};
 
 		led@02 {
-			label = "mobile_red";
+			label = "MobileLED_R3";
 			gpios = <&ioexp_a 2 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		led@01 {
-			label = "ant_level2_red";
+			label = "MobileLED_R2";
 			gpios = <&ioexp_a 1 GPIO_ACTIVE_LOW>;
 		};
 
 		led@00 {
-			label = "ant_level1_red";
+			label = "MobileLED_R1";
 			gpios = <&ioexp_a 0 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -653,12 +653,12 @@
 		status = "ok";
 
 		led@06 {
-			label = "ssd_red";
+			label = "SSD:r";
 			gpios = <&ioexp_a 6 GPIO_ACTIVE_LOW>;
 		};
 
 		led@07 {
-			label = "ssd_green";
+			label = "SSD:g";
 			gpios = <&ioexp_a 7 GPIO_ACTIVE_HIGH>;
 		};
 	};
