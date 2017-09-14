@@ -348,12 +348,12 @@
 
 					/* MTD partition table */
 					partition@0 {
-						label = "BOOTIMAGES";
+						label = "u-boot.bin";
 						reg = <0x00000000 0x00320000>;
 					};
 
 					partition@1 {
-						label = "APPSBLENV";
+						label = "u-boot.env";
 						reg = <0x00320000 0x00040000>;
 					};
 
