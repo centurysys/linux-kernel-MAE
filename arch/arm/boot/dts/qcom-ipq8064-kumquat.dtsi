@@ -32,6 +32,15 @@
 		ethernet1 = &gmac2;
 		ethernet2 = &gmac1;
 		ethernet3 = &gmac0;
+
+		/* XIO */
+		xio_02 = &xio_02;
+	};
+
+	/* XIO: (id: 0x02) AMM570 */
+	xio_02: xio@0x02 {
+		#size-cells = <0>;
+		devices = <&leds_mobile>;
 	};
 
 	memory@0 {
@@ -645,6 +654,22 @@
 		led@00 {
 			label = "MobileLED_R1";
 			gpios = <&ioexp_a 0 GPIO_ACTIVE_LOW>;
+		};
+
+		ctrl@00 {
+			label = "Mobile_Power";
+			gpios = <&ioexp_b 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		ctrl@01 {
+			label = "Mobile_PWRKEY";
+			gpios = <&ioexp_b 1 GPIO_ACTIVE_LOW>;
+		};
+
+		ctrl@02 {
+			label = "Mobile_RESETN";
+			gpios = <&ioexp_b 2 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
