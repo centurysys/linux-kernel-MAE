@@ -665,13 +665,13 @@
 		ctrl@01 {
 			label = "Mobile_PWRKEY";
 			gpios = <&ioexp_b 1 GPIO_ACTIVE_LOW>;
-			default-trigger = "oneshot";
+			linux,default-trigger = "oneshot";
 		};
 
 		ctrl@02 {
 			label = "Mobile_RESETN";
 			gpios = <&ioexp_b 2 GPIO_ACTIVE_HIGH>;
-			default-trigger = "oneshot";
+			linux,default-trigger = "oneshot";
 		};
 	};
 
