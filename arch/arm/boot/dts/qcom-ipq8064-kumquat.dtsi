@@ -665,11 +665,13 @@
 		ctrl@01 {
 			label = "Mobile_PWRKEY";
 			gpios = <&ioexp_b 1 GPIO_ACTIVE_LOW>;
+			default-trigger = "oneshot";
 		};
 
 		ctrl@02 {
 			label = "Mobile_RESETN";
 			gpios = <&ioexp_b 2 GPIO_ACTIVE_HIGH>;
+			default-trigger = "oneshot";
 		};
 	};
 
@@ -686,34 +688,6 @@
 			label = "SSD:g";
 			gpios = <&ioexp_a 7 GPIO_ACTIVE_HIGH>;
 		};
-	};
-
-	/* USB power control */
-	usbctrl_0: usbctrl@00 {
-		compatible = "nxr,usbctrl-0";
-		status = "ok";
-
-		id = <0>;
-		power-gpios = <&qcom_pinmux 67 GPIO_ACTIVE_HIGH>;
-	};
-
-	usbctrl_1: usbctrl@01 {
-		compatible = "nxr,usbctrl-1";
-		status = "disabled";
-
-		id = <1>;
-		power-gpios = <&ioexp_b 0 GPIO_ACTIVE_HIGH>;
-		pwkey-gpios = <&ioexp_b 1 GPIO_ACTIVE_HIGH>;
-	};
-
-	dipsw: dipsw {
-		compatible = "nxr,dipsw";
-		status = "ok";
-
-		gpios = <&qcom_pinmux 58 GPIO_ACTIVE_LOW
-			&qcom_pinmux 57 GPIO_ACTIVE_LOW
-			&qcom_pinmux 56 GPIO_ACTIVE_LOW
-			&qcom_pinmux 55 GPIO_ACTIVE_LOW>;
 	};
 };
 
