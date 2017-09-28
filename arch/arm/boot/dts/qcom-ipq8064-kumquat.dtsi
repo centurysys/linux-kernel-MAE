@@ -643,7 +643,6 @@
 		led@02 {
 			label = "MobileLED_R3";
 			gpios = <&ioexp_a 2 GPIO_ACTIVE_LOW>;
-			default-state = "on";
 		};
 
 		led@01 {
