@@ -35,6 +35,13 @@
 
 		/* XIO */
 		xio_02 = &xio_02;
+		xio_ff = &xio_ff;
+	};
+
+	/* XIO: (id: 0xff) No expansion */
+	xio_ff: xio@0xff {
+		#size-cells = <0>;
+		devices = <&gmac0>;
 	};
 
 	/* XIO: (id: 0x02) AMM570 */
@@ -573,7 +580,7 @@
 			phy-handle = <&phy7>;
  			local-mac-address = [000000000000];
  			led-sfp-link-gpio = <&ioexp_a 11 GPIO_ACTIVE_LOW>;
-			status = "ok";
+			/*status = "ok";*/
 		};
 
 		phy@100f8800 {
