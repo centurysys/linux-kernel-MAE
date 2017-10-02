@@ -827,6 +827,7 @@
 		xio_1e = &xio_1d_1e;
 		xio_1f = &xio_03_1f;
 
+		xio_20 = &xio_06;
 		xio_21 = &xio_21;
 		xio_22 = &xio_22_23;
 		xio_23 = &xio_22_23;
