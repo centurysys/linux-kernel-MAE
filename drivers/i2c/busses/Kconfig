@@ -923,6 +923,10 @@ config I2C_VIPERBOARD
           River Tech's viperboard.h for detailed meaning
           of the module parameters.
 
+config I2C_MCP2221
+	tristate "Microchip MCP2221 I2C support"
+	depends on USB
+
 comment "Other I2C/SMBus bus drivers"
 
 config I2C_ACORN

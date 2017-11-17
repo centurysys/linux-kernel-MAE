@@ -99,6 +99,25 @@
 		};
 	};
 
+	xio_supply_ctrl_wisun: xio_supply_ctrl_wisun {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@Supply0 {
+			label = "AI_Power";
+			gpios = <&gpiox_0x00 4 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			/* retain-suspend;*/
+		};
+
+		led@Supply1 {
+			label = "AI_SPI";
+			gpios = <&gpiox_0x00 3 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			/* retain-suspend;*/
+		};
+	};
+
 	xio_hub_ctrl: xio_hub_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -827,6 +846,7 @@
 		xio_1e = &xio_1d_1e;
 		xio_1f = &xio_03_1f;
 
+		xio_20 = &xio_06;
 		xio_21 = &xio_21;
 		xio_22 = &xio_22_23;
 		xio_23 = &xio_22_23;
@@ -834,6 +854,7 @@
 		xio_27 = &xio_27;
 		xio_28 = &xio_28;
 		xio_29 = &xio_0b;
+		xio_32 = &xio_32;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1033,6 +1054,16 @@
 			   &gpiox_0x40_mrb &gpiox_0x80 &gpiox_0x82_mrb
 			   &leds_amp_wlan_ctrl &leds_mobile_wlan &leds_wlan_ctrl
 			   &leds_do_mrb &leds_diodir_mrb>;
+	};
+
+	/* XIO: (id: 0x32) WiSUN + AI */
+	xio_32: xio@0x32 {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl_wisun &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20_WiSUN
+			   &gpiox_0x00 &gpiox_0x16_WiSUN &gpiox_0x18_WiSUN
+			   &leds_wisun &leds_wisun_ctrl>;
 	};
 };
 
@@ -1516,6 +1547,9 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <22 8>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uartx3_pins>;
 	};
 
 	uartx2_0x30_WiSUN: uart@2,0x30_WiSUN {

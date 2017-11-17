@@ -3423,13 +3423,14 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		if (up->port.pm)
 			uart->port.pm = up->port.pm;
 #ifdef CONFIG_SERIAL_RS485_GPIO
-		uart->port.trxctrl = serial_trxctrl;
-		if (up->port.txen_gpio)
+		if (up->port.txen_gpio &&
+		    up->port.rxen_gpio &&
+		    up->port.type_gpio) {
+			uart->port.trxctrl = serial_trxctrl;
 			uart->port.txen_gpio = up->port.txen_gpio;
-		if (up->port.rxen_gpio)
 			uart->port.rxen_gpio = up->port.rxen_gpio;
-		if (up->port.type_gpio)
 			uart->port.type_gpio = up->port.type_gpio;
+		}
 #endif
 		if (up->port.handle_break)
 			uart->port.handle_break = up->port.handle_break;
