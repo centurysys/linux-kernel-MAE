@@ -1348,8 +1348,11 @@ static int omap_hsmmc_pre_dma_transfer(struct omap_hsmmc_host *host,
 		return -EINVAL;
 
 	if (next) {
+		if (++next->cookie < 0)
+			next->cookie = 1;
+
 		next->dma_len = dma_len;
-		data->host_cookie = ++next->cookie < 0 ? 1 : next->cookie;
+		data->host_cookie = next->cookie;
 	} else
 		host->dma_len = dma_len;
 
