@@ -1058,6 +1058,8 @@
 };
 
 &am33xx_pinmux {
+	pinctrl-names = "default";
+
 	i2c0_pins: i2c0_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x988, (PIN_INPUT_PULLUP | MUX_MODE0))	/* i2c0_sda.i2c0_sda */
@@ -1411,16 +1413,22 @@
 };
 
 &gpmc {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&nandflash_pins_s0>;
 	ranges = <0 0 0x08000000 0x01000000	/* CS0 : NAND */
 		  1 0 0x10000000 0x01000000	/* CS1 : DIPSW */
 		  2 0 0x11000000 0x01000000>;	/* CS2 : eXternal I/O */
+	status = "okay";
+
 	nand@0,0 {
-		reg = <0 0 0>; /* CS0, offset 0 */
+		compatible = "ti,omap2-nand";
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
 		nand-bus-width = <8>;
 		ti,nand-ecc-opt = "bch8";
+		ti,nand-xfer-type = "polled";
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>;  /* gpmc_wait0 */
+
 		gpmc,device-nand = "true";
 		gpmc,device-width = <1>;
 		gpmc,sync-clk-ps = <0>;
@@ -1448,7 +1456,7 @@
 
 		#address-cells = <1>;
 		#size-cells = <1>;
-		elm_id = <&elm>;
+		ti,elm-id = <&elm>;
 
 		/* MTD partition table */
 		partition@0 {
