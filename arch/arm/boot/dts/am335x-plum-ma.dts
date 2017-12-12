@@ -19,6 +19,12 @@
 	model = "Century Systems Plum-MA";
 	compatible = "ti,plum-ma", "ti,am33xx";
 
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&dcdc2_reg>;
+		};
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MiB */
@@ -1374,38 +1380,33 @@
 };
 
 &usb {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb1_pins>;
-
 	status = "okay";
+};
 
-	control@44e10620 {
-		status = "okay";
-	};
+&usb_ctrl_mod {
+	status = "okay";
+};
 
-	usb-phy@47401300 {
-		status = "okay";
-		vcc-supply = <&vbat>;
-	};
+&usb0_phy {
+	status = "okay";
+};
 
-	usb@47401000 {
-		status = "okay";
-		dr_mode = "host";
-	};
+&usb1_phy {
+	status = "okay";
+};
 
-	usb-phy@47401b00 {
-		status = "okay";
-		vcc-supply = <&vbat>;
-	};
+&usb0 {
+	status = "okay";
+	dr_mode = "host";
+};
 
-	usb@47401800 {
-		status = "okay";
-		dr_mode = "host";
-	};
+&usb1 {
+	status = "okay";
+	dr_mode = "host";
+};
 
-	dma-controller@47402000  {
-		status = "okay";
-	};
+&cppi41dma  {
+	status = "okay";
 };
 
 &elm {
@@ -1475,14 +1476,79 @@
 		reg = <1 0x0000000 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		bank-width = <1>;
 		gpio-controller;
 		reg-names = "dat";
+
+		gpmc,cs-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,cs-rd-off-ns = <160>; /* 151 ns - 160 ns; 16 ticks */
+		gpmc,cs-wr-off-ns = <200>; /* 191 ns - 200 ns; 20 ticks */
+		gpmc,adv-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,adv-rd-off-ns = <20>; /* 11 ns - 20 ns; 2 ticks */
+		gpmc,adv-wr-off-ns = <20>; /* 11 ns - 20 ns; 2 ticks */
+		gpmc,adv-aad-mux-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,adv-aad-mux-rd-off-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,adv-aad-mux-wr-off-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,oe-on-ns = <50>; /* 41 ns - 50 ns; 5 ticks */
+		gpmc,oe-off-ns = <140>; /* 131 ns - 140 ns; 14 ticks */
+		gpmc,oe-aad-mux-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,oe-aad-mux-off-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,we-on-ns = <50>; /* 41 ns - 50 ns; 5 ticks */
+		gpmc,we-off-ns = <180>; /* 171 ns - 180 ns; 18 ticks */
+		gpmc,rd-cycle-ns = <190>; /* 181 ns - 190 ns; 19 ticks */
+		gpmc,wr-cycle-ns = <230>; /* 221 ns - 230 ns; 23 ticks */
+		gpmc,access-ns = <130>; /* 121 ns - 130 ns; 13 ticks */
+		gpmc,page-burst-access-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,bus-turnaround-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,cycle2cycle-delay-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,wait-monitoring-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,clk-activation-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,wr-data-mux-bus-ns = <50>; /* 41 ns - 50 ns; 5 ticks */
+		gpmc,wr-access-ns = <180>; /* 171 ns - 180 ns; 18 ticks */
+
+		status = "okay";
+	};
+
+	/* XIO Board status */
+	gpio_xiostat: gpio@2,0x02 {
+		reg = <2 0x0000002 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		bank-width = <1>;
+		gpio-controller;
+		reg-names = "dat";
+
+		gpmc,cs-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,cs-rd-off-ns = <160>; /* 151 ns - 160 ns; 16 ticks */
+		gpmc,cs-wr-off-ns = <200>; /* 191 ns - 200 ns; 20 ticks */
+		gpmc,adv-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,adv-rd-off-ns = <20>; /* 11 ns - 20 ns; 2 ticks */
+		gpmc,adv-wr-off-ns = <20>; /* 11 ns - 20 ns; 2 ticks */
+		gpmc,adv-aad-mux-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,adv-aad-mux-rd-off-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,adv-aad-mux-wr-off-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,oe-on-ns = <50>; /* 41 ns - 50 ns; 5 ticks */
+		gpmc,oe-off-ns = <140>; /* 131 ns - 140 ns; 14 ticks */
+		gpmc,oe-aad-mux-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,oe-aad-mux-off-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,we-on-ns = <50>; /* 41 ns - 50 ns; 5 ticks */
+		gpmc,we-off-ns = <180>; /* 171 ns - 180 ns; 18 ticks */
+		gpmc,rd-cycle-ns = <190>; /* 181 ns - 190 ns; 19 ticks */
+		gpmc,wr-cycle-ns = <230>; /* 221 ns - 230 ns; 23 ticks */
+		gpmc,access-ns = <130>; /* 121 ns - 130 ns; 13 ticks */
+		gpmc,page-burst-access-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,bus-turnaround-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,cycle2cycle-delay-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,wait-monitoring-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,clk-activation-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
+		gpmc,wr-data-mux-bus-ns = <50>; /* 41 ns - 50 ns; 5 ticks */
+		gpmc,wr-access-ns = <180>; /* 171 ns - 180 ns; 18 ticks */
 
 		status = "okay";
 	};
 
 	uartx2_0x20: uart@2,0x20 {
-		reg = <2 0x00000020 0x00000008>;
+		reg = <2 0x00000020 0x00000010>;
 		compatible = "ns16550a";
 
 		status = "disabled";
@@ -1509,7 +1575,7 @@
 	};
 
 	uartx2_0x30: uart@2,0x30 {
-		reg = <2 0x00000030 0x00000008>;
+		reg = <2 0x00000030 0x00000010>;
 		compatible = "ns16550a";
 
 		status = "disabled";
@@ -1533,7 +1599,7 @@
 	};
 
 	uartx2_0x20_WiSUN: uart@2,0x20_WiSUN {
-		reg = <2 0x00000020 0x00000008>;
+		reg = <2 0x00000020 0x00000010>;
 		compatible = "ns16550a";
 
 		status = "disabled";
@@ -1556,7 +1622,7 @@
 	};
 
 	uartx2_0x30_WiSUN: uart@2,0x30_WiSUN {
-		reg = <2 0x00000030 0x00000008>;
+		reg = <2 0x00000030 0x00000010>;
 		compatible = "ns16550a";
 
 		status = "disabled";
@@ -2458,7 +2524,7 @@
 	};
 };
 
-#include "tps65217.dtsi"
+/include/ "tps65217.dtsi"
 
 &tps {
 	interrupts = <7>; /* NMI */
@@ -2613,7 +2679,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	cd-gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio3 17 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio3 17 GPIO_ACTIVE_HIGH>;
 };
 
 &spi0 {
