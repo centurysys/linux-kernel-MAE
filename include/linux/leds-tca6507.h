@@ -28,6 +28,9 @@ struct tca6507_platform_data {
 	int gpio_base;
 	void (*setup)(unsigned gpio_base, unsigned ngpio);
 #endif
+#ifdef CONFIG_TCA6507_RESET_GPIO
+	int gpio_reset;
+#endif
 };
 
 #define	TCA6507_MAKE_GPIO 1
