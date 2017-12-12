@@ -23,6 +23,11 @@ struct cpsw_slave_data {
 	int		phy_if;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
+#ifdef CONFIG_CPSW_LED_GPIO
+	int		led_fast_gpio;
+	int		led_giga_gpio;
+#endif
+	int 		phy_irq_gpio;
 };
 
 struct cpsw_platform_data {
@@ -36,6 +41,7 @@ struct cpsw_platform_data {
 	u32	mac_control;	/* Mac control register */
 	u16	default_vlan;	/* Def VLAN for ALE lookup in VLAN aware mode*/
 	bool	dual_emac;	/* Enable Dual EMAC mode */
+	bool	no_bd_ram;
 };
 
 void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave);
