@@ -1476,9 +1476,14 @@
 		reg = <1 0x0000000 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
-		bank-width = <1>;
+		bank-width = <2>;
 		gpio-controller;
 		reg-names = "dat";
+
+		gpmc,mux-add-data = <2>;
+		gpmc,device-width = <2>;
+		gpmc,wait-pin = <1>;
+		gpmc,burst-length = <4>;
 
 		gpmc,cs-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
 		gpmc,cs-rd-off-ns = <160>; /* 151 ns - 160 ns; 16 ticks */
@@ -1514,9 +1519,14 @@
 		reg = <2 0x0000002 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
-		bank-width = <1>;
+		bank-width = <2>;
 		gpio-controller;
 		reg-names = "dat";
+
+		gpmc,mux-add-data = <2>;
+		gpmc,device-width = <2>;
+		gpmc,wait-pin = <1>;
+		gpmc,burst-length = <4>;
 
 		gpmc,cs-on-ns = <0>; /* 0 ns - 0 ns; 0 ticks */
 		gpmc,cs-rd-off-ns = <160>; /* 151 ns - 160 ns; 16 ticks */
