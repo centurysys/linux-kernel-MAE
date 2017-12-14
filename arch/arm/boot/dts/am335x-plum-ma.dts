@@ -1077,19 +1077,19 @@
 
 	spi0_pins: spi0_pins {
 		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x950, PIN_OUTPUT | MUX_MODE0) /* spi0_sclk.spi0_sclk */
-			AM33XX_IOPAD(0x954, PIN_INPUT | MUX_MODE0) /* spi0_d0.spi0_d0 */
-			AM33XX_IOPAD(0x958, PIN_OUTPUT | MUX_MODE0) /* spi0_d1.spi0_d1 */
-			AM33XX_IOPAD(0x95c, PIN_OUTPUT | MUX_MODE0) /* spi0_cs0.spi0_cs0 */
+			AM33XX_IOPAD(0x950, (PIN_INPUT | MUX_MODE0)) /* spi0_sclk.spi0_sclk */
+			AM33XX_IOPAD(0x954, (PIN_INPUT | MUX_MODE0)) /* spi0_d0.spi0_d0 */
+			AM33XX_IOPAD(0x958, (PIN_INPUT | MUX_MODE0)) /* spi0_d1.spi0_d1 */
+			AM33XX_IOPAD(0x95c, (PIN_INPUT | MUX_MODE0)) /* spi0_cs0.spi0_cs0 */
 		>;
 	};
 
 	spi1_pins: spi1_pins {
 		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x990, (PIN_OUTPUT | PIN_INPUT | MUX_MODE3)) /* mcasp0_aclkx.spi1_sclk */
-			AM33XX_IOPAD(0x994, (PIN_INPUT  | MUX_MODE3)) /* mcasp0_fsx.spi1_d0 */
-			AM33XX_IOPAD(0x998, (PIN_OUTPUT | MUX_MODE3)) /* mcasp0_axr0.spi1_d1 */
-			AM33XX_IOPAD(0x944, (PIN_OUTPUT | MUX_MODE2)) /* rmii_ref_clk.spi1_cs0 */
+			AM33XX_IOPAD(0x990, (PIN_INPUT | MUX_MODE3)) /* mcasp0_aclkx.spi1_sclk */
+			AM33XX_IOPAD(0x994, (PIN_INPUT | MUX_MODE3)) /* mcasp0_fsx.spi1_d0 */
+			AM33XX_IOPAD(0x998, (PIN_INPUT | MUX_MODE3)) /* mcasp0_axr0.spi1_d1 */
+			AM33XX_IOPAD(0x944, (PIN_INPUT | MUX_MODE2)) /* rmii_ref_clk.spi1_cs0 */
 		>;
 	};
 
