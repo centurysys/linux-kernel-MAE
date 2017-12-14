@@ -157,6 +157,9 @@ struct gpio_chip {
 	spinlock_t bgpio_lock;
 	unsigned long bgpio_data;
 	unsigned long bgpio_dir;
+# ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	const char **bgpio_names;
+# endif
 #endif
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP

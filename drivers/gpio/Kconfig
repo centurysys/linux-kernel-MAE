@@ -220,6 +220,10 @@ config GPIO_GENERIC_PLATFORM
 	help
 	  Say yes here to support basic platform_device memory-mapped GPIO controllers.
 
+config GPIO_GENERIC_EXPORT_BY_DT
+	bool "Export GPIO by device-tree"
+	depends on GPIO_GENERIC_PLATFORM
+
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"
 	depends on OF_GPIO
