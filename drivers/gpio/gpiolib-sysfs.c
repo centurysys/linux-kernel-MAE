@@ -615,6 +615,10 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	offset = gpio_chip_hwgpio(desc);
 	if (chip->names && chip->names[offset])
 		ioname = chip->names[offset];
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	else if (chip->bgpio_names && chip->bgpio_names[offset])
+		ioname = chip->bgpio_names[offset];
+#endif
 
 	dev = device_create_with_groups(&gpio_class, &gdev->dev,
 					MKDEV(0, 0), data, gpio_groups,

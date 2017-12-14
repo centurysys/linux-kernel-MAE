@@ -63,6 +63,9 @@ o        `                     ~~~~\___/~~~~    ` controller in FPGA is ,.`
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+#include <linux/of_gpio.h>
+#endif
 
 static void bgpio_write8(void __iomem *reg, unsigned long data)
 {
@@ -626,6 +629,9 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	int err;
 	struct gpio_chip *gc;
 	struct bgpio_pdata *pdata;
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	struct device_node *np = pdev->dev.of_node, *child;
+#endif
 
 	pdata = bgpio_parse_dt(pdev, &flags);
 	if (IS_ERR(pdata))
@@ -678,9 +684,47 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 			gc->ngpio = pdata->ngpio;
 	}
 
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	gc->bgpio_names = devm_kzalloc(dev, sizeof(char *) * gc->ngpio, GFP_KERNEL);
+
+	for_each_child_of_node(np, child) {
+		const char *name;
+		u32 reg;
+		int ret;
+
+		name = of_get_property(child, "label", NULL);
+		ret = of_property_read_u32(child, "reg", &reg);
+
+		if (name && ret == 0 && reg >= 0 && reg < gc->ngpio) {
+			gc->bgpio_names[reg] = name;
+		}
+	}
+#endif
+
 	platform_set_drvdata(pdev, gc);
 
-	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
+	err = devm_gpiochip_add_data(&pdev->dev, gc, NULL);
+
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	if (err == 0) {
+		int i, status, gpio;
+
+		for (i = 0; i < gc->ngpio; i++) {
+			if (gc->bgpio_names[i] != NULL) {
+				gpio = gc->base + i;
+
+				status = gpio_request(gpio, gc->bgpio_names[i]);
+
+				if (status == 0) {
+					status = gpio_export(gpio, true);
+					if (status < 0)
+						gpio_free(gpio);
+				}
+			}
+		}
+	}
+#endif
+	return err;
 }
 
 static const struct platform_device_id bgpio_id_table[] = {
