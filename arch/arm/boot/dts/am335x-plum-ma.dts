@@ -36,8 +36,7 @@
 	ocp {
 		rtc@44e3e000 {
 			compatible = "ti,am3352-rtc";
-			ti,system-power-controller;
-			ti,enable-rtc-clk32k;
+			system-power-controller;
 		};
 
 		gpio0: gpio@44e07000 {
