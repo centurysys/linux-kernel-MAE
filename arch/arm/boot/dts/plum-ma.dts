@@ -851,6 +851,7 @@
 		xio_22 = &xio_22_23;
 		xio_23 = &xio_22_23;
 		xio_24 = &xio_24;
+		xio_25 = &xio_0d_0e;
 		xio_27 = &xio_27;
 		xio_28 = &xio_28;
 		xio_29 = &xio_0b;
