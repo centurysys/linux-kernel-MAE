@@ -1081,3 +1081,4 @@ always		:= $(dtb-y)
 clean-files	:= *.dtb
 
 subdir-y	+= $(dts-dirs-y)
+subdir-		+= ti
