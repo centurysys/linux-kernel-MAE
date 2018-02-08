@@ -444,7 +444,8 @@
 				pmecc: ecc-engine@ffffc070 {
 					compatible = "atmel,at91sam9g45-pmecc";
 					reg = <0xffffc070 0x490>,
-					      <0xffffc500 0x100>;
+					      <0xffffc500 0x100>,
+					      <0xffffc63c 0x14>;	/* SMC timing regs */
 				};
 			};
 
