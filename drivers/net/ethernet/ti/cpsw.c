@@ -1725,6 +1725,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 		q_idx = q_idx % cpsw->tx_ch_num;
 
 	txch = cpsw->txv[q_idx].ch;
+	txq = netdev_get_tx_queue(ndev, q_idx);
 	ret = cpsw_tx_packet_submit(priv, skb, txch);
 	if (unlikely(ret != 0)) {
 		cpsw_err(priv, tx_err, "desc submit failed\n");
@@ -1735,15 +1736,26 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	 * tell the kernel to stop sending us tx frames.
 	 */
 	if (unlikely(!cpdma_check_free_tx_desc(txch))) {
-		txq = netdev_get_tx_queue(ndev, q_idx);
 		netif_tx_stop_queue(txq);
+
+		/* Barrier, so that stop_queue visible to other cpus */
+		smp_mb__after_atomic();
+
+		if (cpdma_check_free_tx_desc(txch))
+			netif_tx_wake_queue(txq);
 	}
 
 	return NETDEV_TX_OK;
 fail:
 	ndev->stats.tx_dropped++;
-	txq = netdev_get_tx_queue(ndev, skb_get_queue_mapping(skb));
 	netif_tx_stop_queue(txq);
+
+	/* Barrier, so that stop_queue visible to other cpus */
+	smp_mb__after_atomic();
+
+	if (cpdma_check_free_tx_desc(txch))
+		netif_tx_wake_queue(txq);
+
 	return NETDEV_TX_BUSY;
 }
 
@@ -2000,6 +2012,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 	case CONFIG_SWITCH_SET_PORT_CONFIG:
 	{
 		struct phy_device *phy = NULL;
+		struct ethtool_link_ksettings cmd;
 
 		if ((config.port == 1) || (config.port == 2))
 			phy = cpsw->slaves[config.port - 1].phy;
@@ -2009,13 +2022,15 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 			break;
 		}
 
-		config.ecmd.base.phy_address = phy->mdio.addr;
-		ret = phy_ethtool_ksettings_set(phy, &config.ecmd);
+		convert_legacy_settings_to_link_ksettings(&cmd, &config.ecmd);
+		cmd.base.phy_address = phy->mdio.addr;
+		ret = phy_ethtool_ksettings_set(phy, &cmd);
 		break;
 	}
 	case CONFIG_SWITCH_GET_PORT_CONFIG:
 	{
 		struct phy_device *phy = NULL;
+		struct ethtool_link_ksettings cmd;
 
 		if ((config.port == 1) || (config.port == 2))
 			phy = cpsw->slaves[config.port - 1].phy;
@@ -2025,8 +2040,9 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 			break;
 		}
 
-		config.ecmd.base.phy_address = phy->mdio.addr;
-		phy_ethtool_ksettings_get(phy, &config.ecmd);
+		cmd.base.phy_address = phy->mdio.addr;
+		phy_ethtool_ksettings_get(phy, &cmd);
+		convert_link_ksettings_to_legacy_settings(&config.ecmd, &cmd);
 
 		ret = copy_to_user(ifrq->ifr_data, &config, sizeof(config));
 		break;
