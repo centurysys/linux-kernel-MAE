@@ -1106,6 +1106,8 @@ endif
 ifeq ($(BUILD_ITBS),y)
 dtb-y=
 dtb-merge-y=
+else
+dts-dirs=
 endif
 
 dtstree		:= $(srctree)/$(src)
