@@ -4,3 +4,4 @@
 *.csp
 *.dsp
 ihex2fw
+!am335x-pm-firmware.elf
