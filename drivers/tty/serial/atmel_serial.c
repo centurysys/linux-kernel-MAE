@@ -2133,7 +2133,7 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned long flags;
-	unsigned int old_mode, mode, imr, quot, baud, div, cd, fp = 0;
+	unsigned int old_mode, mode, mdrop, imr, quot, baud, div, cd, fp = 0;
 
 	/* save the current mode register */
 	mode = old_mode = atmel_uart_readl(port, ATMEL_US_MR);
@@ -2166,9 +2166,11 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* parity */
 	if (termios->c_cflag & PARENB) {
-		/* Mark or Space parity */
+		/* Mark, Space or Multidrop parity */
 		if (termios->c_cflag & CMSPAR) {
-			if (termios->c_cflag & PARODD)
+			if (termios->c_cflag & PARMD)
+				mode |= ATMEL_US_PAR_MULTI_DROP;
+			else if (termios->c_cflag & PARODD)
 				mode |= ATMEL_US_PAR_MARK;
 			else
 				mode |= ATMEL_US_PAR_SPACE;
@@ -2176,8 +2178,11 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 			mode |= ATMEL_US_PAR_ODD;
 		else
 			mode |= ATMEL_US_PAR_EVEN;
+
 	} else
 		mode |= ATMEL_US_PAR_NONE;
+	mdrop = termios->c_cflag & SENDA ? ATMEL_US_SENDA : 0;
+	termios->c_cflag &= ~SENDA; /* SENDA bit must be cleared once used */
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -2319,7 +2324,8 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_RSTSTA | ATMEL_US_RSTRX);
-	atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_TXEN | ATMEL_US_RXEN);
+	atmel_uart_writel(port, ATMEL_US_CR,
+			  mdrop | ATMEL_US_TXEN | ATMEL_US_RXEN);
 	atmel_port->tx_stopped = false;
 
 	/* restore interrupts */
