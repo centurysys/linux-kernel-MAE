@@ -342,9 +342,14 @@ struct vpe_q_data {
 #define	Q_DATA_MODE_TILED		BIT(1)
 #define	Q_DATA_INTERLACED_ALTERNATE	BIT(2)
 #define	Q_DATA_INTERLACED_SEQ_TB	BIT(3)
+#define	Q_DATA_INTERLACED_SEQ_BT	BIT(4)
+
+#define Q_IS_SEQ_XX		(Q_DATA_INTERLACED_SEQ_TB | \
+				Q_DATA_INTERLACED_SEQ_BT)
 
 #define Q_IS_INTERLACED		(Q_DATA_INTERLACED_ALTERNATE | \
-				Q_DATA_INTERLACED_SEQ_TB)
+				Q_DATA_INTERLACED_SEQ_TB | \
+				Q_DATA_INTERLACED_SEQ_BT)
 
 enum {
 	Q_DATA_SRC = 0,
@@ -915,14 +920,6 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 }
 
 /*
- * Return the vpe_ctx structure for a given struct file
- */
-static struct vpe_ctx *file2ctx(struct file *file)
-{
-	return container_of(file->private_data, struct vpe_ctx, fh);
-}
-
-/*
  * mem2mem callbacks
  */
 
@@ -1144,24 +1141,31 @@ static void add_in_dtd(struct vpe_ctx *ctx, int port)
 		dma_addr += offset;
 		stride = q_data->bytesperline[VPE_LUMA];
 
-		if (q_data->flags & Q_DATA_INTERLACED_SEQ_TB) {
-			/*
-			 * Use top or bottom field from same vb alternately
-			 * f,f-1,f-2 = TBT when seq is even
-			 * f,f-1,f-2 = BTB when seq is odd
-			 */
-			field = (p_data->vb_index + (ctx->sequence % 2)) % 2;
+		/*
+		 * field used in VPDMA desc  = 0 (top) / 1 (bottom)
+		 * Use top or bottom field from same vb alternately
+		 * For each de-interlacing operation, f,f-1,f-2 should be one
+		 * of TBT or BTB
+		 */
+		if (q_data->flags & Q_DATA_INTERLACED_SEQ_TB ||
+		    q_data->flags & Q_DATA_INTERLACED_SEQ_TB) {
+			/* Select initial value based on format */
+			if (q_data->flags & Q_DATA_INTERLACED_SEQ_BT)
+				field = 1;
+			else
+				field = 0;
+
+			/* Toggle for each vb_index and each operation */
+			field = (field + p_data->vb_index + ctx->sequence) % 2;
 
 			if (field) {
-				/*
-				 * bottom field of a SEQ_TB buffer
-				 * Skip the top field data by
-				 */
 				int height = q_data->height / 2;
 				int bpp = fmt->fourcc == V4L2_PIX_FMT_NV12 ?
 						1 : (vpdma_fmt->depth >> 3);
+
 				if (plane)
 					height /= 2;
+
 				dma_addr += q_data->width * height * bpp;
 			}
 		}
@@ -1216,12 +1220,14 @@ static void device_run(void *priv)
 	struct vpe_q_data *d_q_data = &ctx->q_data[Q_DATA_DST];
 	struct vpe_q_data *s_q_data = &ctx->q_data[Q_DATA_SRC];
 
-	if (ctx->deinterlacing && s_q_data->flags & Q_DATA_INTERLACED_SEQ_TB &&
-		ctx->sequence % 2 == 0) {
-		/* When using SEQ_TB buffers, When using it first time,
-		 * No need to remove the buffer as the next field is present
-		 * in the same buffer. (so that job_ready won't fail)
-		 * It will be removed when using bottom field
+	if (ctx->deinterlacing && s_q_data->flags & Q_IS_SEQ_XX &&
+	    ctx->sequence % 2 == 0) {
+		/* When using SEQ_XX type buffers, each buffer has two fields
+		 * each buffer has two fields (top & bottom)
+		 * Removing one buffer is actually getting two fields
+		 * Alternate between two operations:-
+		 * Even : consume one field but DO NOT REMOVE from queue
+		 * Odd : consume other field and REMOVE from queue
 		 */
 		ctx->src_vbs[0] = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 		WARN_ON(ctx->src_vbs[0] == NULL);
@@ -1561,7 +1567,7 @@ static int vpe_enum_fmt(struct file *file, void *priv,
 static int vpe_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
-	struct vpe_ctx *ctx = file2ctx(file);
+	struct vpe_ctx *ctx = file->private_data;
 	struct vb2_queue *vq;
 	struct vpe_q_data *q_data;
 	int i;
@@ -1571,6 +1577,8 @@ static int vpe_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		return -EINVAL;
 
 	q_data = get_q_data(ctx, f->type);
+	if (!q_data)
+		return -EINVAL;
 
 	pix->width = q_data->width;
 	pix->height = q_data->height;
@@ -1613,8 +1621,10 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 		return -EINVAL;
 	}
 
-	if (pix->field != V4L2_FIELD_NONE && pix->field != V4L2_FIELD_ALTERNATE
-			&& pix->field != V4L2_FIELD_SEQ_TB)
+	if (pix->field != V4L2_FIELD_NONE &&
+	    pix->field != V4L2_FIELD_ALTERNATE &&
+	    pix->field != V4L2_FIELD_SEQ_TB &&
+	    pix->field != V4L2_FIELD_SEQ_BT)
 		pix->field = V4L2_FIELD_NONE;
 
 	depth = fmt->vpdma_fmt[VPE_LUMA]->depth;
@@ -1666,9 +1676,9 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 
 	/*
 	 * For the actual image parameters, we need to consider the field
-	 * height of the image for SEQ_TB buffers.
+	 * height of the image for SEQ_XX buffers.
 	 */
-	if (pix->field == V4L2_FIELD_SEQ_TB)
+	if (pix->field == V4L2_FIELD_SEQ_TB || pix->field == V4L2_FIELD_SEQ_BT)
 		height = pix->height / 2;
 	else
 		height = pix->height;
@@ -1721,7 +1731,7 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 
 static int vpe_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct vpe_ctx *ctx = file2ctx(file);
+	struct vpe_ctx *ctx = file->private_data;
 	struct vpe_fmt *fmt = find_format(f);
 
 	if (V4L2_TYPE_IS_OUTPUT(f->type))
@@ -1774,11 +1784,13 @@ static int __vpe_s_fmt(struct vpe_ctx *ctx, struct v4l2_format *f)
 		q_data->flags |= Q_DATA_INTERLACED_ALTERNATE;
 	else if (q_data->field == V4L2_FIELD_SEQ_TB)
 		q_data->flags |= Q_DATA_INTERLACED_SEQ_TB;
+	else if (q_data->field == V4L2_FIELD_SEQ_BT)
+		q_data->flags |= Q_DATA_INTERLACED_SEQ_BT;
 	else
 		q_data->flags &= ~Q_IS_INTERLACED;
 
-	/* the crop height is halved for the case of SEQ_TB buffers */
-	if (q_data->flags & Q_DATA_INTERLACED_SEQ_TB)
+	/* the crop height is halved for the case of SEQ_XX buffers */
+	if (q_data->flags & Q_IS_SEQ_XX)
 		q_data->c_rect.height /= 2;
 
 	vpe_dbg(ctx->dev, "Setting format for type %d, wxh: %dx%d, fmt: %d bpl_y %d",
@@ -1794,7 +1806,7 @@ static int __vpe_s_fmt(struct vpe_ctx *ctx, struct v4l2_format *f)
 static int vpe_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	int ret;
-	struct vpe_ctx *ctx = file2ctx(file);
+	struct vpe_ctx *ctx = file->private_data;
 
 	ret = vpe_try_fmt(file, priv, f);
 	if (ret)
@@ -1851,10 +1863,10 @@ static int __vpe_try_selection(struct vpe_ctx *ctx, struct v4l2_selection *s)
 	}
 
 	/*
-	 * For SEQ_TB buffers, crop height should be less than the height of
+	 * For SEQ_XX buffers, crop height should be less than the height of
 	 * the field height, not the buffer height
 	 */
-	if (q_data->flags & Q_DATA_INTERLACED_SEQ_TB)
+	if (q_data->flags & Q_IS_SEQ_XX)
 		height = q_data->height / 2;
 	else
 		height = q_data->height;
@@ -1879,7 +1891,7 @@ static int __vpe_try_selection(struct vpe_ctx *ctx, struct v4l2_selection *s)
 static int vpe_g_selection(struct file *file, void *fh,
 		struct v4l2_selection *s)
 {
-	struct vpe_ctx *ctx = file2ctx(file);
+	struct vpe_ctx *ctx = file->private_data;
 	struct vpe_q_data *q_data;
 	bool use_c_rect = false;
 
@@ -1940,7 +1952,7 @@ static int vpe_g_selection(struct file *file, void *fh,
 static int vpe_s_selection(struct file *file, void *fh,
 		struct v4l2_selection *s)
 {
-	struct vpe_ctx *ctx = file2ctx(file);
+	struct vpe_ctx *ctx = file->private_data;
 	struct vpe_q_data *q_data;
 	struct v4l2_selection sel = *s;
 	int ret;
@@ -2035,6 +2047,8 @@ static int vpe_queue_setup(struct vb2_queue *vq,
 	struct vpe_q_data *q_data;
 
 	q_data = get_q_data(ctx, vq->type);
+	if (!q_data)
+		return -EINVAL;
 
 	*nplanes = q_data->nplanes;
 
@@ -2059,6 +2073,8 @@ static int vpe_buf_prepare(struct vb2_buffer *vb)
 	vpe_dbg(ctx->dev, "type: %d\n", vb->vb2_queue->type);
 
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
+	if (!q_data)
+		return -EINVAL;
 	num_planes = q_data->nplanes;
 
 	if (vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
@@ -2067,7 +2083,8 @@ static int vpe_buf_prepare(struct vb2_buffer *vb)
 		} else {
 			if (vbuf->field != V4L2_FIELD_TOP &&
 			    vbuf->field != V4L2_FIELD_BOTTOM &&
-			    vbuf->field != V4L2_FIELD_SEQ_TB)
+			    vbuf->field != V4L2_FIELD_SEQ_TB &&
+			    vbuf->field != V4L2_FIELD_SEQ_BT)
 				return -EINVAL;
 		}
 	}
@@ -2303,7 +2320,7 @@ static int vpe_open(struct file *file)
 	init_adb_hdrs(ctx);
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
+	file->private_data = ctx;
 
 	hdl = &ctx->hdl;
 	v4l2_ctrl_handler_init(hdl, 1);
@@ -2388,7 +2405,7 @@ free_ctx:
 static int vpe_release(struct file *file)
 {
 	struct vpe_dev *dev = video_drvdata(file);
-	struct vpe_ctx *ctx = file2ctx(file);
+	struct vpe_ctx *ctx = file->private_data;
 
 	vpe_dbg(dev, "releasing instance %p\n", ctx);
 
@@ -2517,7 +2534,12 @@ static int vpe_probe(struct platform_device *pdev)
 	mutex_init(&dev->dev_mutex);
 
 	dev->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-			"vpe_top");
+						"vpe_top");
+	if (!dev->res) {
+		dev_err(&pdev->dev, "missing 'vpe_top' resources data\n");
+		return -ENODEV;
+	}
+
 	/*
 	 * HACK: we get resource info from device tree in the form of a list of
 	 * VPE sub blocks, the driver currently uses only the base of vpe_top
