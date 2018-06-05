@@ -7,7 +7,7 @@
  */
 
 /*
- * Century Systems NSTG-LCD board
+ * Century Systems Plum-LCD board
  *
  */
 
@@ -59,20 +59,6 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	leds_onboard: leds_onboard {
-		pinctrl-names = "default";
-		pinctrl-0 = <&power_led_pins>;
-
-		compatible = "gpio-leds";
-		status = "okay";
-
-		led@1 {
-			label = "PowerLED";
-			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
-			default-state = "on";
-		};
-	};
-
 	panel {
 		compatible = "ti,tilcdc,panel";
 		status = "okay";
@@ -91,18 +77,18 @@
 		};
 
 		display-timings {
-			800x480p62 {
-				clock-frequency = <30000000>;
+			480x272p60 {
+				clock-frequency = <9000000>;
 				hactive = <480>;
-				vactive = <480>;
-				hfront-porch = <39>;
-				hback-porch = <39>;
-				hsync-len = <47>;
-				vback-porch = <29>;
-				vfront-porch = <13>;
-				vsync-len = <2>;
-				hsync-active = <1>;
-				vsync-active = <1>;
+				vactive = <272>;
+				hfront-porch = <8>;
+				hback-porch = <43>;
+				hsync-len = <4>;
+				vback-porch = <12>;
+				vfront-porch = <8>;
+				vsync-len = <4>;
+				hsync-active = <0>;
+				vsync-active = <0>;
 			};
 		};
 	};
@@ -111,7 +97,47 @@
 		compatible = "ti,da830-evm-audio";
 	};
 
+	leds_dout: leds_dout {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@DOUT {
+			label = "DOUT";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			retain-suspend;
+		};
+	};
+
+	leds_lcd: leds_lcd {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@LCD_ON {
+			label = "LCD_POWER";
+			gpios = <&gpiox_0x12 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_radio: leds_radio {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@RADIO {
+			label = "RADIO_POWER";
+			gpios = <&gpiox_0x14 0 GPIO_ACTIVE_HIGH>;
+			retain-suspend;
+		};
+	};
+
 	aliases {
+		xio_2b = &xio_2b;
+	};
+
+	/* XIO: (id: 0x2b) Plum-LCD */
+	xio_2b: xio@0x2b {
+		#size-cells = <0>;
+		devices = <&gpiox_0x08 &gpiox_0x10 &gpiox_0x12 &gpiox_0x14 &gpiox_0x16
+		           &leds_dout &leds_lcd &leds_radio>;
 	};
 };
 
@@ -163,8 +189,8 @@
 
 	uart2_pins: uart2_pins {
 		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x910, (PIN_INPUT | MUX_MODE6))  /* mii1_crs.uart2_rxd */
-			AM33XX_IOPAD(0x90c, (PIN_OUTPUT | MUX_MODE6)) /* mii1_rx_er.uart2_txd */
+			AM33XX_IOPAD(0x90c, (PIN_INPUT | MUX_MODE6))  /* mii1_crs.uart2_rxd */
+			AM33XX_IOPAD(0x910, (PIN_OUTPUT | MUX_MODE6)) /* mii1_rx_er.uart2_txd */
 		>;
 	};
 
@@ -235,12 +261,6 @@
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x908, (PIN_INPUT | MUX_MODE7)) /* mii1_col.gpio3_0 */
 			AM33XX_IOPAD(0x99c, (PIN_INPUT | MUX_MODE7)) /* mcasp0_ahclkr.gpio3_17 */
-		>;
-	};
-
-	power_led_pins: pinmux_power_led_pins {
-		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x83c, (PIN_OUTPUT | MUX_MODE7)) /* gpmc_ad15.gpio1_15 */
 		>;
 	};
 };
@@ -359,6 +379,10 @@
 &usb0 {
 	status = "okay";
 	dr_mode = "otg";
+};
+
+&cppi41dma  {
+	status = "okay";
 };
 
 &elm {
@@ -532,6 +556,93 @@
 		reg-names = "dat";
 
 		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@7 {
+			label = "DIN";
+			reg = <7>;
+		};
+
+		stat@6 {
+			label = "SW_OK";
+			reg = <6>;
+		};
+
+		stat@5 {
+			label = "SW_BACK";
+			reg = <5>;
+		};
+
+		stat@4 {
+			label = "SW_NEXT";
+			reg = <4>;
+		};
+
+		stat@3 {
+			label = "SW_MENU";
+			reg = <3>;
+		};
+
+		stat@2 {
+			label = "SW_EMERGENCY";
+			reg = <2>;
+		};
+
+		stat@1 {
+			label = "SW_VOLUME_DOWN";
+			reg = <1>;
+		};
+
+		stat@0 {
+			label = "SW_VOLUME_UP";
+			reg = <0>;
+		};
+	};
+
+	/* DOUT control */
+	gpiox_0x10: gpio@2,0x10 {
+		reg = <2 0x00000010 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* LCD control */
+	gpiox_0x12: gpio@2,0x12 {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "plum,lcd-panel";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* Radio control */
+	gpiox_0x14: gpio@2,0x14 {
+		reg = <2 0x00000014 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* LCD control(2) */
+	gpiox_0x16: gpio@2,0x16 {
+		reg = <2 0x00000016 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "plum,lcd-panel";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
 	};
 };
 
@@ -690,4 +801,9 @@
 	clocks = <&mcasp0_fck>;
 	clock-names = "mclk";
 	status = "okay";
+};
+
+&lcdc {
+	status = "okay";
+	blue-and-red-wiring = "crossed";
 };
