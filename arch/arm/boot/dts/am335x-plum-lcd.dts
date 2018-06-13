@@ -93,13 +93,6 @@
 		};
 	};
 
-	backlight {
-		compatible = "gpio-backlight";
-
-		gpios = <&gpiox_0x16 4 GPIO_ACTIVE_HIGH>;
-		default-on;
-	};
-
 	sound: sound_iface {
 		compatible = "ti,da830-evm-audio";
 	};
