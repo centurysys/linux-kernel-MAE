@@ -454,6 +454,12 @@ config BACKLIGHT_LV5207LP
 	help
 	  If you have a Sanyo LV5207LP say Y to enable the backlight driver.
 
+config BACKLIGHT_PLUM
+	tristate "Plum-LCD Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  If you have a Plum-LCD board say Y to enable the backlight driver.
+
 config BACKLIGHT_BD6107
 	tristate "Rohm BD6107 Backlight"
 	depends on I2C

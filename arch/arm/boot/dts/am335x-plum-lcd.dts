@@ -93,6 +93,13 @@
 		};
 	};
 
+	backlight {
+		compatible = "gpio-backlight";
+
+		gpios = <&gpiox_0x16 4 GPIO_ACTIVE_HIGH>;
+		default-on;
+	};
+
 	sound: sound_iface {
 		compatible = "ti,da830-evm-audio";
 	};
@@ -638,10 +645,7 @@
 	gpiox_0x16: gpio@2,0x16 {
 		reg = <2 0x00000016 0x00000001>;
 		#gpio-cells = <2>;
-		compatible = "plum,lcd-panel";
-		gpio-controller;
-		reg-names = "dat";
-
+		compatible = "plum-backlight";
 		status = "disabled";
 	};
 };
