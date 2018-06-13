@@ -291,7 +291,7 @@
 	pinctrl-0 = <&i2c0_pins>;
 
 	status = "okay";
-	clock-frequency = <400000>;
+	clock-frequency = <100000>;
 
 	tlv320aic3007: tlv320aic3007@18 {
 		compatible = "ti,tlv320aic3007";
@@ -782,7 +782,7 @@
 	op-mode = <0>; /* DAVINCI_MCASP_IIS_MODE */
 	tdm-slots = <2>;
 	serial-dir = <
-		2 1 0 0 /* # 0: INACTIVE, 1: TX, 2: RX */
+		1 2 0 0 /* # 0: INACTIVE, 1: TX, 2: RX */
 	>;
 	tx-num-evt = <16>;
 	rt-num-evt = <16>;
@@ -794,8 +794,8 @@
 	ti,audio-codec = <&tlv320aic3007>;
 	ti,mcasp-controller = <&mcasp0>;
 	ti,audio-routing =
-		"Line Out",		"LLOUT",
-		"Line Out",		"RLOUT",
+		"Headphone Jack",	"RLOUT",
+		"Line Out",		"SPOP",
 		"LINE2L",		"Line In",
 		"LINE2R",		"Line In";
 	clocks = <&mcasp0_fck>;

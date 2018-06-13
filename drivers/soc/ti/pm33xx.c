@@ -425,9 +425,9 @@ static int am33xx_pm_rtc_setup(void)
 	np = of_find_node_by_name(NULL, "rtc");
 
 	if (of_device_is_available(np)) {
-		omap_rtc = rtc_class_open("rtc0");
+		omap_rtc = rtc_class_open("rtc1");
 		if (!omap_rtc) {
-			pr_warn("PM: rtc0 not available");
+			pr_warn("PM: rtc1 not available");
 			return -EPROBE_DEFER;
 		}
 
