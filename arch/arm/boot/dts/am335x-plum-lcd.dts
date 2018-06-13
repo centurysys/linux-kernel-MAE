@@ -638,9 +638,8 @@
 	gpiox_0x16: gpio@2,0x16 {
 		reg = <2 0x00000016 0x00000001>;
 		#gpio-cells = <2>;
-		compatible = "plum,lcd-panel";
-		gpio-controller;
-		reg-names = "dat";
+		compatible = "plum-backlight";
+		default-on;
 
 		status = "disabled";
 	};
