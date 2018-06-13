@@ -118,7 +118,7 @@ static int plum_backlight_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = PLUM_BACKLIGHT_MAX + 1;
-	bl = devm_backlight_device_register(&pdev->dev, dev_name(&pdev->dev),
+	bl = devm_backlight_device_register(&pdev->dev, "plumLCD-Backlight",
 					&pdev->dev, pbl, &plum_backlight_ops,
 					&props);
 	if (IS_ERR(bl)) {
