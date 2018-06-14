@@ -57,6 +57,15 @@
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	vaudio_fixed: fixedregulator_audio@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vaudio_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
 	};
 
 	panel {
@@ -299,7 +308,7 @@
 		AVDD-supply = <&vmmcsd_fixed>;
 		IOVDD-supply = <&vmmcsd_fixed>;
 		DRVDD-supply = <&vmmcsd_fixed>;
-		DVDD-supply = <&vmmcsd_fixed>;
+		DVDD-supply = <&vaudio_fixed>;
 		status = "okay";
 	};
 
