@@ -30,6 +30,8 @@
 		i2c3 = &main_i2c1;
 		i2c4 = &main_i2c2;
 		i2c5 = &main_i2c3;
+		spi0 = &ospi0;
+		spi1 = &ospi1;
 	};
 
 	chosen { };
@@ -1056,6 +1058,116 @@
 			clocks = <&k3_clks 39 0>;
 			clock-names = "fck";
 			status = "disabled";
+		};
+
+		dwc3_0: dwc3@4000000 {
+			compatible = "ti,am654-dwc3";
+			reg = <0x0 0x4000000 0x0 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x4000000 0x20000>;
+			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
+			status = "disabled";
+			power-domains = <&k3_pds 151>;
+			syscon-usbctrl = <&scm_conf 0x4000>;
+
+			assigned-clocks = <&k3_clks 151 2>, <&k3_clks 151 7>;
+			assigned-clock-parents = <&k3_clks 151 4>,	/* set REF_CLK to 20MHz i.e. PER0_PLL/48 */
+						 <&k3_clks 151 9>;	/* set PIPE3_TXB_CLK to CLK_12M_RC/256 (for HS only) */
+
+			/* TODO
+			 * For SS, set PIPE3_TXB_CLK to WIZ8B2M4VSB serdes clk
+			 */
+
+			usb0_phy: phy {
+				compatible = "usb-nop-xceiv";
+			};
+
+			usb0: usb@10000 {
+				compatible = "snps,dwc3";
+				reg = <0x10000 0x10000>;
+				interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
+				maximum-speed = "high-speed";
+				dr_mode = "otg";
+				usb-phy = <&usb0_phy>;
+			};
+		};
+
+		dwc3_1: dwc3@4020000 {
+			compatible = "ti,am654-dwc3";
+			reg = <0x0 0x4020000 0x0 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x4020000 0x20000>;
+			interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
+			status = "disabled";
+			power-domains = <&k3_pds 152>;
+			syscon-usbctrl = <&scm_conf 0x4020>;
+
+			assigned-clocks = <&k3_clks 152 2>;
+			assigned-clock-parents = <&k3_clks 152 4>;	/* set REF_CLK to 20MHz i.e. PER0_PLL/48 */
+
+			usb1_phy: phy {
+				compatible = "usb-nop-xceiv";
+			};
+
+			usb1: usb@10000 {
+				compatible = "snps,dwc3";
+				reg = <0x10000 0x10000>;
+				interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
+				maximum-speed = "high-speed";
+				dr_mode = "otg";
+				usb-phy = <&usb1_phy>;
+			};
+		};
+
+		fss: fss@47000000 {
+			compatible = "simple-bus";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			ospi0: ospi@47040000 {
+				compatible = "ti,am654-ospi", "cdns,qspi-nor";
+				reg = <0x0 0x47040000 0x0 0x100>,
+					<0x4 0x00000000 0x1 0x0000000>;
+				interrupts = <GIC_SPI 552 IRQ_TYPE_LEVEL_HIGH>;
+				cdns,fifo-depth = <256>;
+				cdns,fifo-width = <4>;
+				cdns,trigger-address = <0x50000000>;
+				clocks = <&k3_clks 55 5>;
+				power-domains = <&k3_pds 55>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			ospi1: ospi@47050000 {
+				compatible = "ti,am654-ospi", "cdns,qspi-nor";
+				reg = <0x0 0x47050000 0x0 0x100>,
+					<0x6 0x00000000 0x1 0x00000000>;
+				interrupts = <GIC_SPI 553 IRQ_TYPE_LEVEL_HIGH>;
+				cdns,fifo-depth = <256>;
+				cdns,fifo-width = <4>;
+				cdns,trigger-address = <0x58000000>;
+				clocks = <&k3_clks 55 16>;
+				power-domains = <&k3_pds 55>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
 		};
 	};
 };
