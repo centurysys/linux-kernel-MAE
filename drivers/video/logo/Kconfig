@@ -82,4 +82,9 @@ config LOGO_M32R_CLUT224
 	depends on M32R
 	default y
 
+config LOGO_PLUM_LCD_CLUT224
+	bool "224-color Plum-LCM logo"
+	depends on SOC_AM33XX
+	default y
+
 endif # LOGO

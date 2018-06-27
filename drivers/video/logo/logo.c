@@ -111,6 +111,10 @@ const struct linux_logo * __ref fb_find_logo(int depth)
 		/* M32R Linux logo */
 		logo = &logo_m32r_clut224;
 #endif
+#ifdef CONFIG_LOGO_PLUM_LCD_CLUT224
+		/* Radio-LCD Terminal logo */
+		logo = &logo_plum_lcd_clut224;
+#endif
 	}
 	return logo;
 }
