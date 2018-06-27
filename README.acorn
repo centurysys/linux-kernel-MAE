@@ -1,0 +1,13 @@
+
+1. How to build the kernel
+
+$ source acorn.env
+$ cp dot.config.ls1012a-nxr .config && make oldconfig && make -j 8 Image.gz && ./mk_uImage.sh && make dtbs
+
+
+2. How to use the kernel
+
+Boot LS1012A-RDB board from your TFTP server
+Copy the kernel image(uImage) and DTB image(dtb) to the /srv/tftp directory of your Linux host PC.
+
+$ cp uImage /srv/tftp/ && cp arch/arm64/boot/dts/freescale/fsl-ls1012a-rdb.dtb /srv/tftp/dtb
