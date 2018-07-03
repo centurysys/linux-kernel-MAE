@@ -73,6 +73,7 @@
 #define OMAP_RTC_KICK0_REG		0x6c
 #define OMAP_RTC_KICK1_REG		0x70
 
+#define OMAP_RTC_SYSCONFIG		0x78
 #define OMAP_RTC_IRQWAKEEN		0x7c
 
 #define OMAP_RTC_ALARM2_SECONDS_REG	0x80
@@ -114,6 +115,10 @@
 #define OMAP_RTC_OSC_32KCLK_EN		BIT(6)
 #define OMAP_RTC_OSC_SEL_32KCLK_SRC	BIT(3)
 #define OMAP_RTC_OSC_OSC32K_GZ_DISABLE	BIT(4)
+
+/* OMAP_RTC_SYSCONFIG bit fields: */
+#define OMAP_RTC_SYSCONFIG_IDLE_NOWAKEUP  BIT(1)
+#define OMAP_RTC_SYSCONFIG_IDLE_WAKEUP   (BIT(1) | BIT(0))
 
 /* OMAP_RTC_IRQWAKEEN bit fields: */
 #define OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN	BIT(1)
@@ -957,6 +962,7 @@ static int omap_rtc_remove(struct platform_device *pdev)
 static int __maybe_unused omap_rtc_suspend(struct device *dev)
 {
 	struct omap_rtc *rtc = dev_get_drvdata(dev);
+	u8 sysconfig_stat;
 
 	rtc->interrupts_reg = rtc_read(rtc, OMAP_RTC_INTERRUPTS_REG);
 
@@ -966,10 +972,15 @@ static int __maybe_unused omap_rtc_suspend(struct device *dev)
 	 * source on some platforms, and in fact this enable() call is just
 	 * saving a flag that's never used...
 	 */
-	if (device_may_wakeup(dev))
+	if (device_may_wakeup(dev)) {
 		enable_irq_wake(rtc->irq_alarm);
-	else
+
+		sysconfig_stat = rtc_read(rtc, OMAP_RTC_SYSCONFIG);
+		sysconfig_stat |= OMAP_RTC_SYSCONFIG_IDLE_WAKEUP;
+		rtc_write(rtc, OMAP_RTC_SYSCONFIG, sysconfig_stat);
+	} else {
 		rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, 0);
+	}
 	rtc->type->lock(rtc);
 
 	rtc->is_suspending = true;
@@ -980,12 +991,19 @@ static int __maybe_unused omap_rtc_suspend(struct device *dev)
 static int __maybe_unused omap_rtc_resume(struct device *dev)
 {
 	struct omap_rtc *rtc = dev_get_drvdata(dev);
+	u8 sysconfig_stat;
 
 	rtc->type->unlock(rtc);
-	if (device_may_wakeup(dev))
+	if (device_may_wakeup(dev)) {
 		disable_irq_wake(rtc->irq_alarm);
-	else
+
+		sysconfig_stat = rtc_read(rtc, OMAP_RTC_SYSCONFIG);
+		sysconfig_stat &= ~OMAP_RTC_SYSCONFIG_IDLE_WAKEUP;
+		sysconfig_stat |= OMAP_RTC_SYSCONFIG_IDLE_NOWAKEUP;
+		rtc_write(rtc, OMAP_RTC_SYSCONFIG, sysconfig_stat);
+	} else {
 		rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, rtc->interrupts_reg);
+	}
 	rtc->type->lock(rtc);
 
 	rtc->is_suspending = false;
