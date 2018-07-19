@@ -1117,7 +1117,6 @@
 	xio_2c: xio@0x2c {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl_380 &xio_di_supply
-			   &spi1
 			   &gpiox_0x00
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x40 &gpiox_0x80
