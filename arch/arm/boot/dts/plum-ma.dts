@@ -118,6 +118,18 @@
 		};
 	};
 
+	xio_supply_ctrl_380: xio_supply_ctrl_380 {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@Supply1 {
+			label = "DI_Power";
+			gpios = <&gpiox_0x00 5 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
+	};
+
 	xio_hub_ctrl: xio_hub_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -884,6 +896,7 @@
 		xio_28 = &xio_28;
 		xio_29 = &xio_0b;
 		xio_2a = &xio_2a;
+		xio_2c = &xio_2c;
 		xio_32 = &xio_32;
 	};
 
@@ -1097,6 +1110,17 @@
 			   &gpiox_0x18
 			   &gpiox_0x40 &gpiox_0x80
 			   &gpiox_0x04_lisa
+			   &leds_foma &leds_telit_ctrl &leds_do>;
+	};
+
+	/* XIO: (id: 0x2c) MA-E380 */
+	xio_2c: xio@0x2c {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl_380 &xio_di_supply
+			   &spi1
+			   &gpiox_0x00
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x40 &gpiox_0x80
 			   &leds_foma &leds_telit_ctrl &leds_do>;
 	};
 
