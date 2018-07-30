@@ -577,6 +577,11 @@ config GPIO_LOONGSON1
 	help
 	  Say Y or M here to support GPIO on Loongson1 SoCs.
 
+config GPIO_XIOIRQ
+	tristate "MA-E3xx eXternal I/O (XIO) GPIO support"
+	depends on OF
+	select OF_GPIO
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
