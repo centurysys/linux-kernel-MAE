@@ -566,8 +566,8 @@
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <22 8>;
-		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		interrupts = <0 8>;
+		irq-gpio = <&gpio0 0 GPIO_ACTIVE_LOW>;
 
 		status = "disabled";
 
