@@ -60,10 +60,42 @@ static void xioirq_gpio_unmask_irq(struct irq_data *d)
 	writeb(reg, port->base + XIO_ENABLE);
 }
 
+static int xioirq_gpio_set_irq_type(struct irq_data *d, unsigned int type)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct xioirq_gpio *port = gpiochip_get_data(gc);
+	u32 gpio_idx = d->hwirq;
+	u8 irq_enable;
+
+	irq_enable = readb(port->base + XIO_ENABLE);
+	irq_enable &= ~(1 << gpio_idx);
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+	case IRQ_TYPE_EDGE_FALLING:
+	case IRQ_TYPE_EDGE_BOTH:
+		irq_set_handler_locked(d, handle_level_irq);
+		irq_enable |= (1 << gpio_idx);
+		break;
+
+	case IRQ_TYPE_NONE:
+		irq_set_handler_locked(d, handle_bad_irq);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	writeb(irq_enable, port->base + XIO_ENABLE);
+
+	return 0;
+}
+
 static struct irq_chip xioirq_gpio_irqchip = {
 	.name = "xioirq_gpio",
 	.irq_mask = xioirq_gpio_mask_irq,
 	.irq_unmask = xioirq_gpio_unmask_irq,
+	.irq_set_type = xioirq_gpio_set_irq_type,
 };
 
 static void xioirq_gpio_irq_handler(struct irq_desc *desc)
@@ -94,6 +126,24 @@ static void xioirq_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(irqchip, desc);
 }
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/seq_file.h>
+
+static void xioirq_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
+{
+	struct xioirq_gpio *port = gpiochip_get_data(gc);
+
+	seq_printf(s, "-----------------------------\n");
+	seq_printf(s, " XIO ENABLE:  %02x\n",
+		   readb_relaxed(port->base + XIO_ENABLE));
+	seq_printf(s, " XIO STATUS:  %02x\n",
+		   readb_relaxed(port->base + XIO_STATUS));
+	seq_printf(s, "-----------------------------\n");
+}
+#else
+#define xioirq_gpio_dbg_show NULL
+#endif
+
 static int xioirq_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node, *child;
@@ -119,7 +169,7 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 
 	ret = bgpio_init(&port->gc, dev, 1,
 			 port->base + XIO_STATUS,
-			 NULL, NULL, NULL, NULL, 0);
+			 NULL, NULL, NULL, NULL, BGPIOF_NO_OUTPUT);
 	if (ret) {
 		dev_err(dev, "unable to init generic GPIO\n");
 		return ret;
@@ -128,6 +178,8 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	port->gc.base = -1;
 	port->gc.parent = dev;
 	port->gc.owner = THIS_MODULE;
+	port->gc.dbg_show = xioirq_gpio_dbg_show;
+
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
 	port->gc.bgpio_names = devm_kzalloc(dev, sizeof(char *) * port->gc.ngpio, GFP_KERNEL);
 
@@ -149,8 +201,18 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Disable, unmask and clear all interrupts */
-	writeb(0x0, port->base + XIO_ENABLE);
-	writeb(0x0, port->base + XIO_STATUS);
+	writeb(0x00, port->base + XIO_ENABLE);
+	writeb(0xff, port->base + XIO_STATUS);
+
+	ret = gpiochip_irqchip_add(&port->gc, &xioirq_gpio_irqchip,
+				   0, handle_bad_irq,
+				   IRQ_TYPE_NONE);
+	if (ret) {
+		dev_info(dev, "could not add irqchip\n");
+		return ret;
+	}
+	gpiochip_set_chained_irqchip(&port->gc, &xioirq_gpio_irqchip,
+				     port->irq, xioirq_gpio_irq_handler);
 
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
 	{
@@ -171,16 +233,6 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 		}
 	}
 #endif
-	ret = gpiochip_irqchip_add(&port->gc, &xioirq_gpio_irqchip,
-				   0, handle_bad_irq,
-				   IRQ_TYPE_NONE);
-	if (ret) {
-		dev_info(dev, "could not add irqchip\n");
-		return ret;
-	}
-	gpiochip_set_chained_irqchip(&port->gc, &xioirq_gpio_irqchip,
-				     port->irq, xioirq_gpio_irq_handler);
-
 	dev_info(dev, "xioirq-gpio @%p registered\n", port->base);
 
 	return 0;
