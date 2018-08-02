@@ -25,6 +25,7 @@
 /* register offset */
 #define XIO_ENABLE	0x00
 #define XIO_STATUS	0x02
+#define XIO_VALUE	0x04
 
 /**
  * struct xioirq_gpio - Gemini GPIO state container
@@ -138,6 +139,8 @@ static void xioirq_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 		   readb_relaxed(port->base + XIO_ENABLE));
 	seq_printf(s, " XIO STATUS:  %02x\n",
 		   readb_relaxed(port->base + XIO_STATUS));
+	seq_printf(s, " XIO VALUE:   %02x\n",
+		   readb_relaxed(port->base + XIO_VALUE));
 	seq_printf(s, "-----------------------------\n");
 }
 #else
@@ -168,7 +171,7 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	ret = bgpio_init(&port->gc, dev, 1,
-			 port->base + XIO_STATUS,
+			 port->base + XIO_VALUE,
 			 NULL, NULL, NULL, NULL, BGPIOF_NO_OUTPUT);
 	if (ret) {
 		dev_err(dev, "unable to init generic GPIO\n");
