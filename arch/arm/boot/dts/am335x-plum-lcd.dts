@@ -145,7 +145,8 @@
 	/* XIO: (id: 0x2b) Plum-LCD */
 	xio_2b: xio@0x2b {
 		#size-cells = <0>;
-		devices = <&gpiox_0x08 &gpiox_0x10 &gpiox_0x12 &gpiox_0x14 &gpiox_0x16
+		devices = <&gpiox_0x04 &gpiox_0x08 &gpiox_0x10 &gpiox_0x12
+		           &gpiox_0x14 &gpiox_0x16
 		           &leds_dout &leds_lcd &leds_radio>;
 	};
 };
@@ -554,6 +555,64 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+	};
+
+	/* XIO Interrupt Enable/Status (PlumLCD) */
+	gpiox_0x04: gpio@2,0x04 {
+		reg = <2 0x00000004 0x00000004>;
+		#gpio-cells = <2>;
+		compatible = "plum,xioirq-gpio";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <0 8>;
+		irq-gpio = <&gpio0 0 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@7 {
+			label = "xio_DIN";
+			reg = <7>;
+		};
+
+		stat@6 {
+			label = "xio_SW_OK";
+			reg = <6>;
+		};
+
+		stat@5 {
+			label = "xio_SW_BACK";
+			reg = <5>;
+		};
+
+		stat@4 {
+			label = "xio_SW_NEXT";
+			reg = <4>;
+		};
+
+		stat@3 {
+			label = "xio_SW_MENU";
+			reg = <3>;
+		};
+
+		stat@2 {
+			label = "xio_SW_EMERGENCY";
+			reg = <2>;
+		};
+
+		stat@1 {
+			label = "xio_SW_VOLUME_DOWN";
+			reg = <1>;
+		};
+
+		stat@0 {
+			label = "xio_SW_VOLUME_UP";
+			reg = <0>;
+		};
 	};
 
 	/* XIO current status */
