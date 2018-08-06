@@ -37,6 +37,7 @@ struct xioirq_gpio {
 	struct gpio_chip gc;
 	void __iomem *base;
 	int irq;
+	resource_size_t size;
 };
 
 static void xioirq_gpio_mask_irq(struct irq_data *d)
@@ -139,8 +140,11 @@ static void xioirq_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 		   readb_relaxed(port->base + XIO_ENABLE));
 	seq_printf(s, " XIO STATUS:  %02x\n",
 		   readb_relaxed(port->base + XIO_STATUS));
-	seq_printf(s, " XIO VALUE:   %02x\n",
-		   readb_relaxed(port->base + XIO_VALUE));
+
+	if (port->size > 4) {
+		seq_printf(s, " XIO VALUE:   %02x\n",
+			   readb_relaxed(port->base + XIO_VALUE));
+	}
 	seq_printf(s, "-----------------------------\n");
 }
 #else
@@ -170,8 +174,10 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	if (!port->irq)
 		return -EINVAL;
 
+	port->size = res->end - res->start + 1;
+
 	ret = bgpio_init(&port->gc, dev, 1,
-			 port->base + XIO_VALUE,
+			 port->base + (port->size == 4 ? XIO_STATUS : XIO_VALUE),
 			 NULL, NULL, NULL, NULL, BGPIOF_NO_OUTPUT);
 	if (ret) {
 		dev_err(dev, "unable to init generic GPIO\n");
