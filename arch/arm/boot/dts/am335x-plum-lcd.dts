@@ -615,60 +615,6 @@
 		};
 	};
 
-	/* XIO current status */
-	gpiox_0x08: gpio@2,0x08 {
-		reg = <2 0x00000008 0x00000001>;
-		#gpio-cells = <2>;
-		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
-		gpio-controller;
-		reg-names = "dat";
-
-		status = "disabled";
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		stat@7 {
-			label = "DIN";
-			reg = <7>;
-		};
-
-		stat@6 {
-			label = "SW_OK";
-			reg = <6>;
-		};
-
-		stat@5 {
-			label = "SW_BACK";
-			reg = <5>;
-		};
-
-		stat@4 {
-			label = "SW_NEXT";
-			reg = <4>;
-		};
-
-		stat@3 {
-			label = "SW_MENU";
-			reg = <3>;
-		};
-
-		stat@2 {
-			label = "SW_EMERGENCY";
-			reg = <2>;
-		};
-
-		stat@1 {
-			label = "SW_VOLUME_DOWN";
-			reg = <1>;
-		};
-
-		stat@0 {
-			label = "SW_VOLUME_UP";
-			reg = <0>;
-		};
-	};
-
 	/* DOUT control */
 	gpiox_0x10: gpio@2,0x10 {
 		reg = <2 0x00000010 0x00000001>;
