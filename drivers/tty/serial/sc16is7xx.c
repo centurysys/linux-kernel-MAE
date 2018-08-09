@@ -24,6 +24,7 @@
 #include <linux/tty_flip.h>
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
+#include <linux/console.h>
 #include <uapi/linux/sched/types.h>
 
 #define SC16IS7XX_NAME			"sc16is7xx"
@@ -332,13 +333,14 @@ struct sc16is7xx_port {
 	struct sc16is7xx_one		p[0];
 };
 
-static unsigned long sc16is7xx_lines;
+#ifdef CONFIG_SERIAL_SC16IS7XX_CONSOLE
+static void sc16is7xx_uart_add_console_port(struct sc16is7xx_one *one);
 
-static struct uart_driver sc16is7xx_uart = {
-	.owner		= THIS_MODULE,
-	.dev_name	= "ttySC",
-	.nr		= SC16IS7XX_MAX_DEVS,
-};
+static struct sc16is7xx_one *sc16is7xx_console_ports[SC16IS7XX_MAX_DEVS];
+#endif
+
+static unsigned long sc16is7xx_lines;
+static struct uart_driver sc16is7xx_uart;
 
 #define to_sc16is7xx_port(p,e)	((container_of((p), struct sc16is7xx_port, e)))
 #define to_sc16is7xx_one(p,e)	((container_of((p), struct sc16is7xx_one, e)))
@@ -1280,8 +1282,16 @@ static int sc16is7xx_probe(struct device *dev,
 		/* Initialize kthread work structs */
 		kthread_init_work(&s->p[i].tx_work, sc16is7xx_tx_proc);
 		kthread_init_work(&s->p[i].reg_work, sc16is7xx_reg_proc);
+#ifdef CONFIG_SERIAL_SC16IS7XX_CONSOLE
+		sc16is7xx_uart_add_console_port(&s->p[i]);
+		/* Register port */
+		s->p[i].port.mapbase = 0x1; /* TODO */
+		uart_add_one_port(&sc16is7xx_uart, &s->p[i].port);
+		s->p[i].port.mapbase = 0x0;
+#else
 		/* Register port */
 		uart_add_one_port(&sc16is7xx_uart, &s->p[i].port);
+#endif
 
 		/* Enable EFR */
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG,
@@ -1492,6 +1502,119 @@ static struct i2c_driver sc16is7xx_i2c_uart_driver = {
 };
 
 #endif
+
+#ifdef CONFIG_SERIAL_SC16IS7XX_CONSOLE
+static void sc16is7xx_uart_add_console_port(struct sc16is7xx_one *one)
+{
+	sc16is7xx_console_ports[one->line] = one;
+}
+
+static void sc16is7xx_uart_console_write(struct console *co, const char *buf,
+					 unsigned int count)
+{
+	struct sc16is7xx_one *one = sc16is7xx_console_ports[co->index];
+	struct uart_port *port = &one->port;
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	unsigned int i, num_newlines;
+	bool replaced = false;
+
+	num_newlines = 0;
+	for (i = 0; i < count; i++)
+		if (buf[i] == '\n')
+			num_newlines++;
+	count += num_newlines;
+
+	spin_lock(&port->lock);
+
+	i = 0;
+	while (i < count) {
+		int j;
+		unsigned int txlen, to_send;
+
+		/* Limit to size of TX FIFO */
+		txlen = sc16is7xx_port_read(port, SC16IS7XX_TXLVL_REG);
+		if (txlen > SC16IS7XX_FIFO_SIZE) {
+			dev_err_ratelimited(port->dev,
+					    "chip reports %d free bytes in TX fifo, but it only has %d",
+					    txlen, SC16IS7XX_FIFO_SIZE);
+			txlen = 0;
+		}
+
+		to_send = min(count - i, txlen);
+
+		for (j = 0; j < to_send; j++) {
+			char c = *buf;
+
+			if (c == '\n' && !replaced) {
+				s->buf[j] = '\r';
+				j++;
+				replaced = true;
+			}
+			if (j < to_send) {
+				s->buf[j] = c;
+				buf++;
+				replaced = false;
+			}
+		}
+
+		sc16is7xx_fifo_write(port, to_send);
+		i += to_send;
+	}
+
+	spin_unlock(&port->lock);
+}
+
+static int __init sc16is7xx_uart_console_setup(struct console *co, char *options)
+{
+	struct sc16is7xx_one *one = sc16is7xx_console_ports[co->index];
+	struct uart_port *port = &one->port;
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	int baud = 115200;
+	int bits = 8;
+	int parity = 'n';
+	int flow = 'n';
+
+	if (co->index < 0 || co->index >= s->devtype->nr_uart)
+		return -EINVAL;
+
+	if (options)
+		uart_parse_options(options, &baud, &parity, &bits, &flow);
+
+	return uart_set_options(port, co, baud, parity, bits, flow);
+}
+
+static struct console sc16is7xx_uart_console = {
+	.name	= "ttySC",
+	.write	= sc16is7xx_uart_console_write,
+	.device	= uart_console_device,
+	.setup	= sc16is7xx_uart_console_setup,
+	.flags	= CON_PRINTBUFFER,
+	.index	= -1,
+	.data	= &sc16is7xx_uart,
+};
+
+#if 0
+static int __init sc16is7xx_uart_console_init(void)
+{
+	register_console(&sc16is7xx_uart_console);
+
+	return 0;
+}
+console_initcall(sc16is7xx_uart_console_init);
+#endif
+
+#define SC16IS7XX_CONSOLE	(&sc16is7xx_uart_console)
+
+#else
+#define SC16IS7XX_CONSOLE	NULL
+#endif
+
+static struct uart_driver sc16is7xx_uart = {
+	.owner		= THIS_MODULE,
+	.dev_name	= "ttySC",
+	.nr		= SC16IS7XX_MAX_DEVS,
+	.cons		= SC16IS7XX_CONSOLE,
+};
 
 static int __init sc16is7xx_init(void)
 {

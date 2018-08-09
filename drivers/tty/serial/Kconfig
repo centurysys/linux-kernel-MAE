@@ -1114,6 +1114,74 @@ config SERIAL_SC16IS7XX_SPI
           This is additional support to exsisting driver.
           You must select at least one bus for the driver to be built.
 
+config SERIAL_SC16IS7XX_CONSOLE
+        bool "SC16IS7XX serial console support"
+        depends on SERIAL_SC16IS7XX=y
+        select SERIAL_CORE_CONSOLE
+
+config SERIAL_BFIN_SPORT
+	tristate "Blackfin SPORT emulate UART"
+	depends on BLACKFIN
+	select SERIAL_CORE
+	help
+	  Enable SPORT emulate UART on Blackfin series.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_sport_uart.
+
+config SERIAL_BFIN_SPORT_CONSOLE
+	bool "Console on Blackfin sport emulated uart"
+	depends on SERIAL_BFIN_SPORT=y
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_BFIN_SPORT0_UART
+	bool "Enable UART over SPORT0"
+	depends on SERIAL_BFIN_SPORT && !(BF542 || BF544)
+	help
+	  Enable UART over SPORT0
+
+config SERIAL_BFIN_SPORT0_UART_CTSRTS
+	bool "Enable UART over SPORT0 hardware flow control"
+	depends on SERIAL_BFIN_SPORT0_UART
+	help
+	  Enable hardware flow control in the driver.
+
+config SERIAL_BFIN_SPORT1_UART
+	bool "Enable UART over SPORT1"
+	depends on SERIAL_BFIN_SPORT
+	help
+	  Enable UART over SPORT1
+
+config SERIAL_BFIN_SPORT1_UART_CTSRTS
+	bool "Enable UART over SPORT1 hardware flow control"
+	depends on SERIAL_BFIN_SPORT1_UART
+	help
+	  Enable hardware flow control in the driver.
+
+config SERIAL_BFIN_SPORT2_UART
+	bool "Enable UART over SPORT2"
+	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
+	help
+	  Enable UART over SPORT2
+
+config SERIAL_BFIN_SPORT2_UART_CTSRTS
+	bool "Enable UART over SPORT2 hardware flow control"
+	depends on SERIAL_BFIN_SPORT2_UART
+	help
+	  Enable hardware flow control in the driver.
+
+config SERIAL_BFIN_SPORT3_UART
+	bool "Enable UART over SPORT3"
+	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
+	help
+	  Enable UART over SPORT3
+
+config SERIAL_BFIN_SPORT3_UART_CTSRTS
+	bool "Enable UART over SPORT3 hardware flow control"
+	depends on SERIAL_BFIN_SPORT3_UART
+	help
+	  Enable hardware flow control in the driver.
+
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
 	select SERIAL_CORE
