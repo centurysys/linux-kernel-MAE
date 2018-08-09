@@ -350,6 +350,8 @@ struct atmel_hlcdc_dc {
 		wait_queue_head_t wait;
 		bool pending;
 	} commit;
+	struct gfx2d_gpu *gpu;
+	struct platform_device *gpu_pdev;
 };
 
 extern struct atmel_hlcdc_formats atmel_hlcdc_plane_rgb_formats;
