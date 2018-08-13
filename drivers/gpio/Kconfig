@@ -61,6 +61,18 @@ config GPIO_SYSFS
 	  Kernel drivers may also request that a particular GPIO be
 	  exported to userspace; this can be useful when debugging.
 
+config GPIO_COUNTER
+	bool "GPIO counter support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a counter node on sysfs interface.
+
+config GPIO_FILTER
+	bool "GPIO filter (debounce) support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a filter (debounce) node on sysfs interface.
+
 config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
 	tristate
@@ -579,6 +591,11 @@ config GPIO_LOONGSON1
 
 config GPIO_XIOIRQ
 	tristate "MA-E3xx eXternal I/O (XIO) GPIO support"
+	depends on OF
+	select OF_GPIO
+
+config GPIO_PLUM_DI
+	tristate "MA-E3xx external DI GPIO support"
 	depends on OF
 	select OF_GPIO
 
