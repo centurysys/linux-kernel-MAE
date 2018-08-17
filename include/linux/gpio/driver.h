@@ -135,6 +135,13 @@ struct gpio_chip {
 	int			(*set_config)(struct gpio_chip *chip,
 					      unsigned offset,
 					      unsigned long config);
+#ifdef CONFIG_GPIO_FILTER
+	int			(*set_debounce)(struct gpio_chip *chip,
+						unsigned offset,
+						unsigned debounce);
+	unsigned		(*get_debounce)(struct gpio_chip *chip,
+						unsigned offset);
+#endif
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
 
