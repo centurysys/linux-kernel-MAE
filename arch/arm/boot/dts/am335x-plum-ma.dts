@@ -113,6 +113,18 @@
 		};
 	};
 
+	xio_supply_ctrl_380: xio_supply_ctrl_380 {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@Supply1 {
+			label = "DI_Power";
+			gpios = <&gpiox_0x00 5 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
+	};
+
 	xio_hub_ctrl: xio_hub_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -243,7 +255,65 @@
 			default-state = "on";
 			retain-suspend;
 		};
-};
+	};
+
+	leds_telit_ctrl: leds_telit_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWROFF_N {
+			label = "Mobile_POWEROFF_N";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_LOW>;
+			retain-suspend;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePowerSel {
+			label = "Mobile_PowerSel";
+			gpios = <&gpiox_0x10 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
+	};
+
+	leds_em7430_ctrl: leds_em7430_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWROFF_N {
+			label = "Mobile_POWEROFF_N";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_LOW>;
+			retain-suspend;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@MobilePowerSel {
+			label = "Mobile_PowerSel";
+			gpios = <&gpiox_0x10 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
+	};
 
 	leds_au: leds_au {
 		compatible = "gpio-leds";
@@ -849,6 +919,9 @@
 		xio_27 = &xio_27;
 		xio_28 = &xio_28;
 		xio_29 = &xio_0b;
+		xio_2a = &xio_2a;
+		xio_2c = &xio_2c;
+		xio_2d = &xio_2d;
 		xio_32 = &xio_32;
 	};
 
@@ -1049,6 +1122,44 @@
 			   &gpiox_0x40_mrb &gpiox_0x80 &gpiox_0x82_mrb
 			   &leds_amp_wlan_ctrl &leds_mobile_wlan &leds_wlan_ctrl
 			   &leds_do_mrb &leds_diodir_mrb>;
+	};
+
+	/* XIO: (id: 0x2a) Telit_AD (/GLAD) */
+	xio_2a: xio@0x2a {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18
+			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_telit_ctrl &leds_do>;
+	};
+
+	/* XIO: (id: 0x2c) MA-E380 */
+	xio_2c: xio@0x2c {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl_380 &xio_di_supply
+			   &gpiox_0x00
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x40 &gpiox_0x80
+			   &leds_foma &leds_telit_ctrl &leds_do>;
+	};
+
+	/* XIO: (id: 0x2d) EM7430_AD (/??AD) */
+	xio_2d: xio@0x2d {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18
+			   &gpiox_0x40 &gpiox_0x80
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_em7430_ctrl &leds_do>;
 	};
 
 	/* XIO: (id: 0x32) WiSUN + AI */
