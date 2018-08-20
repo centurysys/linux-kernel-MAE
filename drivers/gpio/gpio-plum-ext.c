@@ -38,7 +38,9 @@
 #define FILTER_5ms(x)		(2 << ((x) * 2))
 #define FILTER_20ms(x)		(3 << ((x) * 2))
 
+#ifdef CONFIG_GPIO_FILTER
 static unsigned reg2filter[] = { 0, 1, 5, 20 };
+#endif
 
 /**
  * struct plum_gpio - Gemini GPIO state container
@@ -173,6 +175,7 @@ static void plum_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(irqchip, desc);
 }
 
+#ifdef CONFIG_GPIO_FILTER
 static int plum_gpio_set_debounce(struct gpio_chip *gc, unsigned offset, unsigned debounce)
 {
 	struct plum_gpio *port = gpiochip_get_data(gc);
@@ -223,6 +226,7 @@ static unsigned plum_gpio_get_debounce(struct gpio_chip *gc, unsigned offset)
 
 	return reg2filter[filter_val];
 }
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
@@ -284,8 +288,10 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	port->gc.base = -1;
 	port->gc.parent = dev;
 	port->gc.owner = THIS_MODULE;
+#ifdef CONFIG_GPIO_FILTER
 	port->gc.set_debounce = plum_gpio_set_debounce;
 	port->gc.get_debounce = plum_gpio_get_debounce;
+#endif
 	port->gc.dbg_show = plum_gpio_dbg_show;
 
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
