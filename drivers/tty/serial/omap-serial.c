@@ -184,6 +184,10 @@ struct uart_omap_port {
 #endif
 
 	int			rts_gpio;
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	int			txe_gpio;
+	int			rxe_gpio;
+#endif
 
 	struct pm_qos_request	pm_qos_request;
 	u32			latency;
@@ -333,12 +337,25 @@ static void serial_omap_stop_tx(struct uart_port *port)
 			serial_out(up, UART_OMAP_SCR, up->scr);
 			res = (port->rs485.flags & SER_RS485_RTS_AFTER_SEND) ?
 				1 : 0;
+#ifndef CONFIG_SERIAL_RS485_GPIO
 			if (gpio_get_value(up->rts_gpio) != res) {
 				if (port->rs485.delay_rts_after_send > 0)
 					mdelay(
 					port->rs485.delay_rts_after_send);
 				gpio_set_value(up->rts_gpio, res);
 			}
+#else
+			if (gpio_is_valid(up->txe_gpio) &&
+			    gpio_is_valid(up->rxe_gpio)) {
+				if (port->rs485.flags & SER_RS485_ENABLED) {
+					if (port->rs485.delay_rts_after_send > 0)
+						mdelay(port->rs485.delay_rts_after_send);
+
+					gpio_set_value(up->txe_gpio, 0); /* Tx Disable */
+					gpio_set_value(up->rxe_gpio, 0); /* Rx Enable  */
+				}
+			}
+#endif
 		} else {
 			/* We're asked to stop, but there's still stuff in the
 			 * UART FIFO, so make sure the THR interrupt is fired
@@ -359,6 +376,7 @@ static void serial_omap_stop_tx(struct uart_port *port)
 		serial_out(up, UART_IER, up->ier);
 	}
 
+#ifndef CONFIG_SERIAL_RS485_GPIO
 	if ((port->rs485.flags & SER_RS485_ENABLED) &&
 	    !(port->rs485.flags & SER_RS485_RX_DURING_TX)) {
 		/*
@@ -371,6 +389,7 @@ static void serial_omap_stop_tx(struct uart_port *port)
 		up->port.read_status_mask |= UART_LSR_DR;
 		serial_out(up, UART_IER, up->ier);
 	}
+#endif
 
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
@@ -442,16 +461,25 @@ static void serial_omap_start_tx(struct uart_port *port)
 
 		/* if rts not already enabled */
 		res = (port->rs485.flags & SER_RS485_RTS_ON_SEND) ? 1 : 0;
+#ifndef CONFIG_SERIAL_RS485_GPIO
 		if (gpio_get_value(up->rts_gpio) != res) {
 			gpio_set_value(up->rts_gpio, res);
 			if (port->rs485.delay_rts_before_send > 0)
 				mdelay(port->rs485.delay_rts_before_send);
 		}
+#else
+		if (gpio_is_valid(up->txe_gpio) && gpio_is_valid(up->rxe_gpio)) {
+			gpio_set_value(up->rxe_gpio, 1); /* Rx Disable */
+			gpio_set_value(up->txe_gpio, 1); /* Tx Enable  */
+		}
+#endif
 	}
 
+#ifndef CONFIG_SERIAL_RS485_GPIO
 	if ((port->rs485.flags & SER_RS485_ENABLED) &&
 	    !(port->rs485.flags & SER_RS485_RX_DURING_TX))
 		serial_omap_stop_rx(port);
+#endif
 
 	serial_omap_enable_ier_thri(up);
 	pm_runtime_mark_last_busy(up->dev);
@@ -821,6 +849,9 @@ static int serial_omap_startup(struct uart_port *port)
 	struct uart_omap_port *up = to_uart_omap_port(port);
 	unsigned long flags = 0;
 	int retval;
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	int val;
+#endif
 
 	/*
 	 * Allocate the IRQ
@@ -929,6 +960,14 @@ GPIO_IRQ_OK:
 
 	serial_out(up, UART_OMAP_WER, up->wer);
 
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	if (gpio_is_valid(up->txe_gpio) && gpio_is_valid(up->rxe_gpio)) {
+		val = (port->rs485.flags & SER_RS485_ENABLED) ? 0 : 1;
+		gpio_direction_output(up->txe_gpio, val);
+		gpio_direction_output(up->rxe_gpio, 0); /* Rx Enable  */
+	}
+#endif
+
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
 	up->port_activity = jiffies;
@@ -965,6 +1004,13 @@ static void serial_omap_shutdown(struct uart_port *port)
 	 */
 	if (serial_in(up, UART_LSR) & UART_LSR_DR)
 		(void) serial_in(up, UART_RX);
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	if (gpio_is_valid(up->txe_gpio) && gpio_is_valid(up->rxe_gpio)) {
+		gpio_set_value(up->txe_gpio, 0); /* Tx Disable */
+		gpio_set_value(up->rxe_gpio, 1); /* Rx Disable */
+	}
+#endif
 
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
@@ -1574,6 +1620,7 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 	 * Just as a precaution, only allow rs485
 	 * to be enabled if the gpio pin is valid
 	 */
+#ifndef CONFIG_SERIAL_RS485_GPIO
 	if (gpio_is_valid(up->rts_gpio)) {
 		/* enable / disable rts */
 		val = (port->rs485.flags & SER_RS485_ENABLED) ?
@@ -1582,6 +1629,13 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 		gpio_set_value(up->rts_gpio, val);
 	} else
 		port->rs485.flags &= ~SER_RS485_ENABLED;
+#else
+	if (gpio_is_valid(up->txe_gpio) && gpio_is_valid(up->rxe_gpio)) {
+		val = (port->rs485.flags & SER_RS485_ENABLED) ? 0 : 1;
+		gpio_set_value(up->rxe_gpio, 0); /* Rx Enable */
+		gpio_set_value(up->txe_gpio, val);
+	}
+#endif
 
 	/* Enable interrupts */
 	up->ier = mode;
@@ -1820,6 +1874,41 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 	} else {
 		up->rts_gpio = -EINVAL;
 	}
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	/* check for tx enable gpio */
+	up->txe_gpio = of_get_named_gpio_flags(np, "txe-gpio", 0, &flags);
+	if (gpio_is_valid(up->txe_gpio)) {
+		ret = gpio_request(up->txe_gpio, "omap-serial");
+		if (ret < 0)
+			return ret;
+		ret = gpio_direction_output(up->txe_gpio, 0); /* Tx Disable */
+		if (ret < 0)
+			return ret;
+	} else if (up->txe_gpio == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else {
+		up->txe_gpio = -EINVAL;
+	}
+
+	/* check for rx enable gpio */
+	up->rxe_gpio = of_get_named_gpio_flags(np, "rxe-gpio", 0, &flags);
+	if (gpio_is_valid(up->rxe_gpio)) {
+		ret = gpio_request(up->rxe_gpio, "omap-serial");
+		if (ret < 0)
+			return ret;
+		ret = gpio_direction_output(up->rxe_gpio, 1); /* Rx Disable */
+		if (ret < 0)
+			return ret;
+	} else if (up->rxe_gpio == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else {
+		up->rxe_gpio = -EINVAL;
+	}
+
+	/* default: RS-485 */
+	rs485conf->flags |= SER_RS485_ENABLED;
+#endif
 
 	if (of_property_read_u32_array(np, "rs485-rts-delay",
 				    rs485_delay, 2) == 0) {
