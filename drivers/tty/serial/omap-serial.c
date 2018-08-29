@@ -167,6 +167,22 @@ struct uart_omap_port {
 	int			DTR_inverted;
 	int			DTR_active;
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	unsigned char		msr_saved_gpio;
+
+	int			DSR_gpio;
+	int			DSR_inverted;
+	int			DSR_active;
+
+	int			DCD_gpio;
+	int			DCD_inverted;
+	int			DCD_active;
+
+	int			RI_gpio;
+	int			RI_inverted;
+	int			RI_active;
+#endif
+
 	int			rts_gpio;
 
 	struct pm_qos_request	pm_qos_request;
@@ -473,9 +489,48 @@ static void serial_omap_unthrottle(struct uart_port *port)
 static unsigned int check_modem_status(struct uart_omap_port *up)
 {
 	unsigned int status;
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	int val;
+#endif
 
 	status = serial_in(up, UART_MSR);
 	status |= up->msr_saved_flags;
+
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+# define UART_MSR_DSR_SHIFT 5
+# define UART_MSR_RI_SHIFT  6
+# define UART_MSR_DCD_SHIFT 7
+
+	if (gpio_is_valid(up->DSR_gpio)) {
+		val = !gpio_get_value(up->DSR_gpio) << UART_MSR_DSR_SHIFT;
+		status &= ~UART_MSR_DSR;
+		status |= val;
+
+		if ((up->msr_saved_gpio & UART_MSR_DSR) ^ val)
+			status |= UART_MSR_DDSR;
+	}
+
+	if (gpio_is_valid(up->DCD_gpio)) {
+		val = !gpio_get_value(up->DCD_gpio) << UART_MSR_DCD_SHIFT;
+		status &= ~UART_MSR_DCD;
+		status |= val;
+
+		if ((up->msr_saved_gpio & UART_MSR_DCD) ^ val)
+			status |= UART_MSR_DDCD;
+	}
+
+	if (gpio_is_valid(up->RI_gpio)) {
+		val = !gpio_get_value(up->RI_gpio) << UART_MSR_RI_SHIFT;
+		status &= ~UART_MSR_RI;
+		status |= val;
+
+		if ((up->msr_saved_gpio & UART_MSR_RI) ^ val)
+			status |= UART_MSR_TERI;
+	}
+
+	up->msr_saved_gpio = status;
+#endif
+
 	up->msr_saved_flags = 0;
 	if ((status & UART_MSR_ANY_DELTA) == 0)
 		return status;
@@ -627,6 +682,34 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 	return ret;
 }
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+/**
+ * serial_omap_gpio_irq() - This handles the GPIO interrupt from one port
+ * @irq: uart port irq number
+ * @dev_id: uart port info
+ */
+static irqreturn_t serial_omap_gpio_irq(int irq, void *dev_id)
+{
+	struct uart_omap_port *up = dev_id;
+	irqreturn_t ret = IRQ_HANDLED;
+
+	spin_lock(&up->port.lock);
+	pm_runtime_get_sync(up->dev);
+
+	check_modem_status(up);
+
+	spin_unlock(&up->port.lock);
+
+	tty_flip_buffer_push(&up->port.state->port);
+
+	pm_runtime_mark_last_busy(up->dev);
+	pm_runtime_put_autosuspend(up->dev);
+	up->port_activity = jiffies;
+
+	return ret;
+}
+#endif
+
 static unsigned int serial_omap_tx_empty(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
@@ -756,6 +839,50 @@ static int serial_omap_startup(struct uart_port *port)
 		}
 	}
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	/* Extra DSR/CD/RI IRQ */
+
+	if (gpio_is_valid(up->DSR_gpio)) {
+		retval = request_irq(gpio_to_irq(up->DSR_gpio), serial_omap_gpio_irq,
+				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+				     IRQF_SHARED,
+				     "UART DSR", up);
+		if (retval)
+			goto err_DSR;
+	}
+
+	if (gpio_is_valid(up->DCD_gpio)) {
+		retval = request_irq(gpio_to_irq(up->DCD_gpio), serial_omap_gpio_irq,
+				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+				     IRQF_SHARED,
+				     "UART DCD", up);
+		if (retval)
+			goto err_CD;
+	}
+
+	if (gpio_is_valid(up->RI_gpio)) {
+		retval = request_irq(gpio_to_irq(up->RI_gpio), serial_omap_gpio_irq,
+				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+				     IRQF_SHARED,
+				     "UART RI", up);
+		if (retval)
+			goto err_RI;
+	}
+
+	goto GPIO_IRQ_OK;
+
+err_RI:
+	if (gpio_is_valid(up->DCD_gpio))
+		free_irq(gpio_to_irq(up->DCD_gpio), up);
+err_CD:
+	if (gpio_is_valid(up->DSR_gpio))
+		free_irq(gpio_to_irq(up->DSR_gpio), up);
+err_DSR:
+	free_irq(up->port.irq, up);
+	return retval;
+
+GPIO_IRQ_OK:
+#endif
 	dev_dbg(up->port.dev, "serial_omap_startup+%d\n", up->port.line);
 
 	pm_runtime_get_sync(up->dev);
@@ -843,6 +970,15 @@ static void serial_omap_shutdown(struct uart_port *port)
 	pm_runtime_put_autosuspend(up->dev);
 	free_irq(up->port.irq, up);
 	dev_pm_clear_wake_irq(up->dev);
+
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	if (gpio_is_valid(up->RI_gpio))
+		free_irq(gpio_to_irq(up->RI_gpio), up);
+	if (gpio_is_valid(up->DCD_gpio))
+		free_irq(gpio_to_irq(up->DCD_gpio), up);
+	if (gpio_is_valid(up->DSR_gpio))
+		free_irq(gpio_to_irq(up->DSR_gpio), up);
+#endif
 }
 
 static void serial_omap_uart_qos_work(struct work_struct *work)
@@ -1603,6 +1739,34 @@ static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
 	}
 }
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+static void of_get_uart_port_info_ex(struct device *dev,
+				     struct omap_uart_port_info *info)
+{
+	enum of_gpio_flags flags;
+
+#define OF_PROBE_UART_PINS(PINL, PINS) \
+	do { \
+		info->PINL ## _gpio = \
+			of_get_named_gpio_flags(dev->of_node, #PINS "-gpio", \
+						 0, &flags); \
+		if (gpio_is_valid(info->PINL ## _gpio)) {		\
+			info->PINL ## _inverted = (flags & GPIO_ACTIVE_HIGH) ? 0 : 1; \
+			info->PINL ## _present = 1;			\
+		} else {						\
+			info->PINL ## _gpio = -EINVAL;			\
+		}							\
+	} while (0)
+
+	OF_PROBE_UART_PINS(DTR, dtr);
+	OF_PROBE_UART_PINS(DSR, dsr);
+	OF_PROBE_UART_PINS(DCD, dcd);
+	OF_PROBE_UART_PINS(RI, ri);
+
+#undef OF_PROBE_UART_PINS
+}
+#endif
+
 static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 {
 	struct omap_uart_port_info *omap_up_info;
@@ -1613,7 +1777,10 @@ static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 
 	of_property_read_u32(dev->of_node, "clock-frequency",
 					 &omap_up_info->uartclk);
-
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	/* read extra property from DT (DTR_gpio, DSR_gpio, etc...) */
+	of_get_uart_port_info_ex(dev, omap_up_info);
+#endif
 	omap_up_info->flags = UPF_BOOT_AUTOCONF;
 
 	return omap_up_info;
