@@ -18,6 +18,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#ifdef CONFIG_SERIAL_RS485_GPIO
+#include <linux/of_gpio.h>
+#endif
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
@@ -64,11 +67,50 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	struct device_node *np = ofdev->dev.of_node;
 	u32 clk, spd, prop;
 	int ret;
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	enum of_gpio_flags flags;
+	int gpio;
+#endif
 
 	memset(port, 0, sizeof *port);
 
 	pm_runtime_enable(&ofdev->dev);
 	pm_runtime_get_sync(&ofdev->dev);
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	gpio = of_get_named_gpio_flags(np, "txen_gpio", 0, &flags);
+	if (gpio == -EPROBE_DEFER)
+		return gpio;
+
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_txen");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->txen_gpio = gpio;
+	}
+
+	gpio = of_get_named_gpio_flags(np, "rxen_gpio", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_rxen");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->rxen_gpio = gpio;
+	}
+
+	gpio = of_get_named_gpio_flags(np, "type_gpio", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_type");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->type_gpio = gpio;
+	}
+
+//	port->trxctl = 
+out_gpio:
+#endif
 
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 
