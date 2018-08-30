@@ -43,6 +43,9 @@ struct plat_serial8250_port {
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned old);
 	void		(*handle_break)(struct uart_port *);
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	void		(*trxctrl)(struct uart_port *, int txenable, int rxenable);
+#endif
 };
 
 /*
@@ -125,6 +128,10 @@ struct uart_8250_port {
 	unsigned char		lsr_saved_flags;
 #define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
 	unsigned char		msr_saved_flags;
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	struct serial_rs485	rs485;
+#endif
 
 	struct uart_8250_dma	*dma;
 	const struct uart_8250_ops *ops;
