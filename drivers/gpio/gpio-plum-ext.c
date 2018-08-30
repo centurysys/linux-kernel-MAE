@@ -143,15 +143,12 @@ static void plum_flip_edge(struct plum_gpio *port, u32 gpio)
 	writeb(edge_sel, port->base + GPIO_EDGE_SEL);
 }
 
-static void plum_gpio_irq_handler(struct irq_desc *desc)
+static irqreturn_t plum_gpio_irq_handler(int irq, void *data)
 {
-	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct plum_gpio *port = gpiochip_get_data(gc);
-	struct irq_chip *irqchip = irq_desc_get_chip(desc);
-	int offset;
+	struct plum_gpio *port = (struct plum_gpio *) data;
+	struct gpio_chip *gc = &port->gc;
+	int offset, handled = 0;
 	u8 stat, enable;
-
-	chained_irq_enter(irqchip, desc);
 
 	stat = readb(port->base + GPIO_INT_STATUS);
 	enable = readb(port->base + GPIO_INT_ENABLE);
@@ -160,6 +157,9 @@ static void plum_gpio_irq_handler(struct irq_desc *desc)
 	writeb(stat, port->base + GPIO_INT_STATUS);
 
 	stat &= enable;
+
+	if (stat)
+		handled = 1;
 
 	while (stat != 0) {
 		offset = fls(stat) - 1;
@@ -172,7 +172,7 @@ static void plum_gpio_irq_handler(struct irq_desc *desc)
 		stat &= ~(1 << offset);
 	}
 
-	chained_irq_exit(irqchip, desc);
+	return IRQ_RETVAL(handled);
 }
 
 #ifdef CONFIG_GPIO_FILTER
@@ -327,7 +327,11 @@ static int plum_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 	gpiochip_set_chained_irqchip(&port->gc, &plum_gpio_irqchip,
-				     port->irq, plum_gpio_irq_handler);
+				     port->irq, NULL);
+
+	ret = devm_request_irq(port->gc.parent, port->irq,
+			       plum_gpio_irq_handler,
+			       IRQF_SHARED, dev_name(port->gc.parent), port);
 
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
 	{
