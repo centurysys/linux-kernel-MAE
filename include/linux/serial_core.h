@@ -253,6 +253,14 @@ struct uart_port {
 	const struct attribute_group **tty_groups;	/* all attributes (serial core use only) */
 	struct serial_rs485     rs485;
 	void			*private_data;		/* generic platform data pointer */
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	void			(*trxctrl)(struct uart_port *, int txenable, int rxenable);
+	unsigned int		baud;			/* baud rate */
+	int			txen_gpio;
+	int			rxen_gpio;
+	int			type_gpio;
+#endif
 };
 
 static inline int serial_port_in(struct uart_port *up, int offset)

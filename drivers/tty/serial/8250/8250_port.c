@@ -38,6 +38,10 @@
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
 #include <linux/ktime.h>
+#ifdef CONFIG_SERIAL_RS485_GPIO
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#endif
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -455,6 +459,36 @@ static void io_serial_out(struct uart_port *p, int offset, int value)
 	offset = offset << p->regshift;
 	outb(value, p->iobase + offset);
 }
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+static void serial_trxctrl(struct uart_port *p, int txenable, int rxenable)
+{
+	struct uart_8250_port *up =
+		container_of(p, struct uart_8250_port, port);
+	unsigned long char_time, interval_us, loops_us;
+	volatile u8 reg;
+
+	if (txenable == 0 && rxenable == 1) {
+		/* RS485 transmit finished */
+		if (p->baud > 0) {
+			char_time = 1000000 / (p->baud / 10);
+			interval_us = char_time / 10;
+
+			for (loops_us = char_time * 16; loops_us > 0;
+			     loops_us -= interval_us) {
+				reg = serial_in(up, UART_LSR);
+				if (reg & UART_LSR_TEMT)
+					break;
+
+				udelay(interval_us);
+			}
+		}
+	}
+
+	gpio_direction_output(p->txen_gpio, txenable);
+	gpio_direction_output(p->rxen_gpio, !rxenable);
+}
+#endif
 
 static int serial8250_default_handle_irq(struct uart_port *port);
 
@@ -1504,11 +1538,22 @@ static void __stop_tx_rs485(struct uart_8250_port *p)
 
 static inline void __do_stop_tx(struct uart_8250_port *p)
 {
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	struct uart_port *port = &p->port;
+#endif
+
 	if (p->ier & UART_IER_THRI) {
 		p->ier &= ~UART_IER_THRI;
 		serial_out(p, UART_IER, p->ier);
 		serial8250_rpm_put_tx(p);
 	}
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	/* is port configured RS-485 ? */
+	if (port->trxctrl && (p->rs485.flags & SER_RS485_ENABLED))
+		/* Disable TX, Enable RX */
+		port->trxctrl(port, 0, 1);
+#endif
 }
 
 static inline void __stop_tx(struct uart_8250_port *p)
@@ -1559,6 +1604,17 @@ static inline void __start_tx(struct uart_port *port)
 		return;
 
 	if (!(up->ier & UART_IER_THRI)) {
+#ifdef CONFIG_SERIAL_RS485_GPIO
+		/* is port configured RS-485 ? */
+		if (port->trxctrl) {
+			if (up->rs485.flags & SER_RS485_ENABLED)
+				/* Enable TX, Disable RX */
+				port->trxctrl(port, 1, 0);
+			else
+				/* Enable TX/RX */
+				port->trxctrl(port, 1, 1);
+		}
+#endif
 		up->ier |= UART_IER_THRI;
 		serial_port_out(port, UART_IER, up->ier);
 
@@ -1809,6 +1865,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
+#ifndef CONFIG_SERIAL_RS485_GPIO
 	/*
 	 * With RPM enabled, we have to wait until the FIFO is empty before the
 	 * HW can go idle. So we get here once again with empty FIFO and disable
@@ -1816,6 +1873,11 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	 */
 	if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
 		__stop_tx(up);
+#else
+	if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
+		if (!up->port.trxctrl || !(up->rs485.flags & SER_RS485_ENABLED))
+			__stop_tx(up);
+#endif
 }
 EXPORT_SYMBOL_GPL(serial8250_tx_chars);
 
@@ -2398,6 +2460,29 @@ dont_test_tx_en:
 		inb_p(icp);
 	}
 	retval = 0;
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	if (gpio_is_valid(port->txen_gpio) &&
+	    gpio_is_valid(port->rxen_gpio) &&
+	    gpio_is_valid(port->type_gpio)) {
+		port->trxctrl = serial_trxctrl;
+	} else {
+		port->trxctrl = NULL;
+	}
+
+	if (port->trxctrl) {
+		if (gpio_get_value(port->type_gpio) == 1) {
+			/* Set default to RS-485 mode */
+			printk("%s: ttyS%d RS485 mode.\n",
+			       __FUNCTION__, serial_index(port));
+			up->rs485.flags |= SER_RS485_ENABLED;
+
+			/* Disable TX, Enable RX */
+			port->trxctrl(port, 0, 1);
+		}
+	}
+#endif
+
 out:
 	serial8250_rpm_put(up);
 	return retval;
@@ -2640,6 +2725,9 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = serial8250_get_baud_rate(port, termios, old);
 	quot = serial8250_get_divisor(up, baud, &frac);
 
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	port->baud = baud;
+#endif
 	/*
 	 * Ok, we're now changing the port state.  Do it with
 	 * interrupts disabled.
@@ -3110,6 +3198,55 @@ static const char *serial8250_type(struct uart_port *port)
 	return uart_config[type].name;
 }
 
+#ifdef CONFIG_SERIAL_RS485_GPIO
+/* Enable or disable the rs485 support */
+static void serial8250_config_rs485(struct uart_port *p, struct serial_rs485 *rs485conf)
+{
+	struct uart_8250_port *port = container_of(p, struct uart_8250_port, port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&p->lock, flags);
+
+	port->rs485 = *rs485conf;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		printk("Setting UART to RS-485\n");
+	} else {
+		printk("Setting UART to RS-422\n");
+	}
+
+	spin_unlock_irqrestore(&p->lock, flags);
+}
+
+static int
+serial8250_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
+{
+	struct serial_rs485 rs485conf;
+	struct uart_8250_port *up =
+		container_of(port, struct uart_8250_port, port);
+
+	switch (cmd) {
+	case TIOCSRS485:
+		if (copy_from_user(&rs485conf, (struct serial_rs485 *) arg,
+				   sizeof(rs485conf)))
+			return -EFAULT;
+
+		serial8250_config_rs485(port, &rs485conf);
+		break;
+
+	case TIOCGRS485:
+		if (copy_to_user((struct serial_rs485 *) arg,
+				 &up->rs485, sizeof(rs485conf)))
+			return -EFAULT;
+		break;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return 0;
+}
+#endif
+
 static const struct uart_ops serial8250_pops = {
 	.tx_empty	= serial8250_tx_empty,
 	.set_mctrl	= serial8250_set_mctrl,
@@ -3126,6 +3263,9 @@ static const struct uart_ops serial8250_pops = {
 	.set_termios	= serial8250_set_termios,
 	.set_ldisc	= serial8250_set_ldisc,
 	.pm		= serial8250_pm,
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	.ioctl		= serial8250_ioctl,
+#endif
 	.type		= serial8250_type,
 	.release_port	= serial8250_release_port,
 	.request_port	= serial8250_request_port,

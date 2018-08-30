@@ -38,7 +38,23 @@ struct omap_uart_port_info {
 	unsigned int		dma_rx_timeout;
 	unsigned int		autosuspend_timeout;
 	unsigned int		dma_rx_poll_rate;
+	int			DTR_gpio;
+	int			DTR_inverted;
+	int			DTR_present;
 
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	int			DSR_gpio;
+	int			DSR_inverted;
+	int			DSR_present;
+
+	int			DCD_gpio;
+	int			DCD_inverted;
+	int			DCD_present;
+
+	int			RI_gpio;
+	int			RI_inverted;
+	int			RI_present;
+#endif
 	int (*get_context_loss_count)(struct device *);
 	void (*enable_wakeup)(struct device *, bool);
 };
