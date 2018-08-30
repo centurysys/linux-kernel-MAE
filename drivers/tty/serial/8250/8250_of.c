@@ -108,7 +108,6 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		port->type_gpio = gpio;
 	}
 
-//	port->trxctl = 
 out_gpio:
 #endif
 
