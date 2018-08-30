@@ -1961,7 +1961,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 	if (gpio_is_valid(omap_up_info->DTR_gpio) &&
 	    omap_up_info->DTR_present) {
 		ret = devm_gpio_request(&pdev->dev, omap_up_info->DTR_gpio,
-				"omap-serial");
+				"omap-serial-DTR");
 		if (ret < 0)
 			return ret;
 		ret = gpio_direction_output(omap_up_info->DTR_gpio,
@@ -1977,6 +1977,65 @@ static int serial_omap_probe(struct platform_device *pdev)
 	} else {
 		up->DTR_gpio = -EINVAL;
 	}
+
+#ifdef CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO
+	if (gpio_is_valid(omap_up_info->DSR_gpio) &&
+	    omap_up_info->DSR_present) {
+		ret = devm_gpio_request(&pdev->dev, omap_up_info->DSR_gpio,
+				"omap-serial-DSR");
+		if (ret < 0)
+			return ret;
+		ret = gpio_direction_input(omap_up_info->DSR_gpio);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (gpio_is_valid(omap_up_info->DSR_gpio) &&
+	    omap_up_info->DSR_present) {
+		up->DSR_gpio = omap_up_info->DSR_gpio;
+		up->DSR_inverted = omap_up_info->DSR_inverted;
+	} else {
+		up->DSR_gpio = -EINVAL;
+	}
+
+	if (gpio_is_valid(omap_up_info->DCD_gpio) &&
+	    omap_up_info->DCD_present) {
+		ret = devm_gpio_request(&pdev->dev, omap_up_info->DCD_gpio,
+				"omap-serial-DCD");
+		if (ret < 0)
+			return ret;
+		ret = gpio_direction_input(omap_up_info->DCD_gpio);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (gpio_is_valid(omap_up_info->DCD_gpio) &&
+	    omap_up_info->DCD_present) {
+		up->DCD_gpio = omap_up_info->DCD_gpio;
+		up->DCD_inverted = omap_up_info->DCD_inverted;
+	} else {
+		up->DCD_gpio = -EINVAL;
+	}
+
+	if (gpio_is_valid(omap_up_info->RI_gpio) &&
+	    omap_up_info->RI_present) {
+		ret = devm_gpio_request(&pdev->dev, omap_up_info->RI_gpio,
+				"omap-serial-RI");
+		if (ret < 0)
+			return ret;
+		ret = gpio_direction_input(omap_up_info->RI_gpio);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (gpio_is_valid(omap_up_info->RI_gpio) &&
+	    omap_up_info->RI_present) {
+		up->RI_gpio = omap_up_info->RI_gpio;
+		up->RI_inverted = omap_up_info->RI_inverted;
+	} else {
+		up->RI_gpio = -EINVAL;
+	}
+#endif
 
 	up->DTR_active = 0;
 
