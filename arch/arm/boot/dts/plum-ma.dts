@@ -610,6 +610,51 @@
 		};
 	};
 
+	leds_do2: leds_do2 {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@do0 {
+			label = "DO_8";
+			gpios = <&gpiox_0x82 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do1 {
+			label = "DO_9";
+			gpios = <&gpiox_0x82 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do2 {
+			label = "DO_10";
+			gpios = <&gpiox_0x82 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do3 {
+			label = "DO_11";
+			gpios = <&gpiox_0x82 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do4 {
+			label = "DO_12";
+			gpios = <&gpiox_0x82 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do5 {
+			label = "DO_13";
+			gpios = <&gpiox_0x82 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do6 {
+			label = "DO_14";
+			gpios = <&gpiox_0x82 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@do7 {
+			label = "DO_15";
+			gpios = <&gpiox_0x82 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	leds_do_mrb: leds_do_mrb {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -928,7 +973,10 @@
 		xio_2a = &xio_2a;
 		xio_2c = &xio_2c;
 		xio_2d = &xio_2d;
+		xio_2e = &xio_2e_2f;
+		xio_2f = &xio_2e_2f;
 		xio_32 = &xio_32;
+		xio_33 = &xio_33;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1168,6 +1216,20 @@
 			   &leds_foma &leds_em7430_ctrl &leds_do>;
 	};
 
+	/* XIO: (id: 0x2e/0x2f) LD32/LAD36 */
+	xio_2e_2f: xio@0x2e_2f {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18
+			   &gpiox_0x40 &gpiox_0x60 &gpiox_0x90 &gpiox_0x80
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_amp_wlan_ctrl &leds_do>;
+	};
+
 	/* XIO: (id: 0x32) WiSUN + AI */
 	xio_32: xio@0x32 {
 		#size-cells = <0>;
@@ -1176,6 +1238,20 @@
 			   &uartx2_0x20_WiSUN
 			   &gpiox_0x00 &gpiox_0x16_WiSUN &gpiox_0x18_WiSUN
 			   &leds_wisun &leds_wisun_ctrl>;
+	};
+
+	/* XIO: (id: 0x33) LAD40 */
+	xio_33: xio@0x33 {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18
+			   &gpiox_0x40 &gpiox_0x60 &gpiox_0x80 &gpiox_0x82
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_amp_wlan_ctrl &leds_do &leds_do2>;
 	};
 };
 
@@ -2425,9 +2501,142 @@
 		status = "disabled";
 	};
 
+	/* DIO DIN (2nd) */
+	gpiox_0x60: gpio@2,0x60 {
+		reg = <2 0x00000060 0x00000012>;
+		#gpio-cells = <2>;
+		compatible = "plum,ext-DI";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		interrupt-controller;
+
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		din@0 {
+			label = "DI_08";
+			reg = <0>;
+		};
+
+		din@1 {
+			label = "DI_09";
+			reg = <1>;
+		};
+
+		din@2 {
+			label = "DI_10";
+			reg = <2>;
+		};
+
+		din@3 {
+			label = "DI_11";
+			reg = <3>;
+		};
+
+		din@4 {
+			label = "DI_12";
+			reg = <4>;
+		};
+
+		din@5 {
+			label = "DI_13";
+			reg = <5>;
+		};
+
+		din@6 {
+			label = "DI_14";
+			reg = <6>;
+		};
+
+		din@7 {
+			label = "DI_15";
+			reg = <7>;
+		};
+	};
+
+	/* DIO DIN (3rd) */
+	gpiox_0x90: gpio@2,0x90 {
+		reg = <2 0x00000090 0x00000012>;
+		#gpio-cells = <2>;
+		compatible = "plum,ext-DI";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		interrupt-controller;
+
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		din@0 {
+			label = "DI_16";
+			reg = <0>;
+		};
+
+		din@1 {
+			label = "DI_17";
+			reg = <1>;
+		};
+
+		din@2 {
+			label = "DI_18";
+			reg = <2>;
+		};
+
+		din@3 {
+			label = "DI_19";
+			reg = <3>;
+		};
+
+		din@4 {
+			label = "DI_20";
+			reg = <4>;
+		};
+
+		din@5 {
+			label = "DI_21";
+			reg = <5>;
+		};
+
+		din@6 {
+			label = "DI_22";
+			reg = <6>;
+		};
+
+		din@7 {
+			label = "DI_23";
+			reg = <7>;
+		};
+	};
+
 	/* DIO DOUT */
 	gpiox_0x80: gpio@2,0x80 {
 		reg = <2 0x00000080 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* DIO DOUT (2nd) */
+	gpiox_0x82: gpio@2,0x82 {
+		reg = <2 0x00000082 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
