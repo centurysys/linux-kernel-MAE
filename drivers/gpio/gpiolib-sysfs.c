@@ -144,41 +144,42 @@ static DEVICE_ATTR_RW(value);
 static ssize_t counter_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
 	ssize_t			status;
 
-	mutex_lock(&sysfs_lock);
+	mutex_lock(&data->mutex);
 
-	if (!test_bit(FLAG_EXPORT, &desc->flags))
-		status = -EIO;
-	else
-		status = sprintf(buf, "%lu\n", desc->counter);
+	status = sprintf(buf, "%lu\n", desc->counter);
 
-	mutex_unlock(&sysfs_lock);
+	mutex_unlock(&data->mutex);
+
 	return status;
 }
 
 static ssize_t counter_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
 	ssize_t			status;
 
-	mutex_lock(&sysfs_lock);
+	mutex_lock(&data->mutex);
 
-	if (!test_bit(FLAG_EXPORT, &desc->flags))
-		status = -EIO;
-	else {
-		unsigned long		value;
+	if (!test_bit(FLAG_IS_OUT, &desc->flags)) {
+		status = -EPERM;
+	} else {
+		long		counter;
 
-		status = kstrtoul(buf, 0, &value);
+		status = kstrtol(buf, 0, &counter);
 		if (status == 0) {
-			desc->counter = value;
+			desc->counter = counter;
 			status = size;
 		}
 	}
 
-	mutex_unlock(&sysfs_lock);
+	mutex_unlock(&data->mutex);
+
 	return status;
 }
 static DEVICE_ATTR_RW(counter);
@@ -188,7 +189,8 @@ static DEVICE_ATTR_RW(counter);
 static ssize_t debounce_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
 	struct gpio_chip	*chip;
 	int			offset;
 	ssize_t		status;
@@ -198,9 +200,7 @@ static ssize_t debounce_show(struct device *dev,
 
 	chip = desc->gdev->chip;
 
-	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
-		status = -EIO;
-	} else if (!chip->get_debounce) {
+	if (!chip->get_debounce) {
 		return -ENOTSUPP;
 	} else {
 		offset = gpio_chip_hwgpio(desc);
@@ -215,7 +215,8 @@ static ssize_t debounce_show(struct device *dev,
 static ssize_t debounce_store(struct device *dev,
 			      struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
 	struct gpio_chip	*chip;
 	int			offset;
 	ssize_t		status;
@@ -224,9 +225,7 @@ static ssize_t debounce_store(struct device *dev,
 
 	chip = desc->gdev->chip;
 
-	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
-		status = -EIO;
-	} else if (!chip->set_debounce) {
+	if (!chip->set_debounce) {
 		return -ENOTSUPP;
 	} else {
 		unsigned long		value;
