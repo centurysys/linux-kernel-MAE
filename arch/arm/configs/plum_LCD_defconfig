@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 4.14.59 Kernel Configuration
+# Linux/arm 4.14.69 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_ARM_HAS_SG_CHAIN=y
@@ -81,9 +81,8 @@ CONFIG_GENERIC_CLOCKEVENTS=y
 # Timers subsystem
 #
 CONFIG_TICK_ONESHOT=y
-CONFIG_NO_HZ_COMMON=y
-# CONFIG_HZ_PERIODIC is not set
-CONFIG_NO_HZ_IDLE=y
+CONFIG_HZ_PERIODIC=y
+# CONFIG_NO_HZ_IDLE is not set
 CONFIG_NO_HZ=y
 CONFIG_HIGH_RES_TIMERS=y
 
@@ -1395,6 +1394,8 @@ CONFIG_SERIAL_CORE=y
 CONFIG_SERIAL_CORE_CONSOLE=y
 CONFIG_SERIAL_OMAP=y
 CONFIG_SERIAL_OMAP_CONSOLE=y
+# CONFIG_SERIAL_OMAP_FULL_MODEM_GPIO is not set
+# CONFIG_SERIAL_RS485_GPIO is not set
 # CONFIG_SERIAL_SCCNXP is not set
 # CONFIG_SERIAL_SC16IS7XX is not set
 # CONFIG_SERIAL_BCM63XX is not set
@@ -1534,6 +1535,8 @@ CONFIG_OF_GPIO=y
 CONFIG_GPIOLIB_IRQCHIP=y
 # CONFIG_DEBUG_GPIO is not set
 CONFIG_GPIO_SYSFS=y
+# CONFIG_GPIO_COUNTER is not set
+# CONFIG_GPIO_FILTER is not set
 CONFIG_GPIO_GENERIC=y
 
 #
@@ -1553,6 +1556,7 @@ CONFIG_GPIO_OMAP=y
 # CONFIG_GPIO_XILINX is not set
 # CONFIG_GPIO_ZEVIO is not set
 CONFIG_GPIO_XIOIRQ=y
+# CONFIG_GPIO_PLUM_DI is not set
 
 #
 # I2C GPIO expanders
@@ -2175,6 +2179,20 @@ CONFIG_SND_OMAP_SOC=y
 #
 # STMicroelectronics STM32 SOC audio support
 #
+
+#
+# Audio support for Texas Instruments SoCs
+#
+
+#
+# Texas Instruments DAI support for:
+#
+# CONFIG_SND_SOC_TI_MCASP is not set
+# CONFIG_SND_SOC_OMAP_MCBSP is not set
+
+#
+# Audio support for boards with Texas Instruments SoCs
+#
 # CONFIG_SND_SOC_XTFPGA_I2S is not set
 # CONFIG_ZX_TDM is not set
 CONFIG_SND_SOC_I2C_AND_SPI=y
@@ -2461,8 +2479,8 @@ CONFIG_USB_UAS=m
 # CONFIG_USBIP_CORE is not set
 CONFIG_USB_MUSB_HDRC=y
 # CONFIG_USB_MUSB_HOST is not set
-# CONFIG_USB_MUSB_GADGET is not set
-CONFIG_USB_MUSB_DUAL_ROLE=y
+CONFIG_USB_MUSB_GADGET=y
+# CONFIG_USB_MUSB_DUAL_ROLE is not set
 
 #
 # Platform Glue Layer
@@ -3063,6 +3081,7 @@ CONFIG_IIO_SW_TRIGGER=y
 # CONFIG_HI8435 is not set
 # CONFIG_HX711 is not set
 # CONFIG_INA2XX_ADC is not set
+# CONFIG_LTC185X_IIO is not set
 # CONFIG_LTC2471 is not set
 # CONFIG_LTC2485 is not set
 # CONFIG_LTC2497 is not set
