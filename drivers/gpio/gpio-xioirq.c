@@ -100,15 +100,12 @@ static struct irq_chip xioirq_gpio_irqchip = {
 	.irq_set_type = xioirq_gpio_set_irq_type,
 };
 
-static void xioirq_gpio_irq_handler(struct irq_desc *desc)
+static irqreturn_t xioirq_gpio_irq_handler(int irq, void *data)
 {
-	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct xioirq_gpio *port = gpiochip_get_data(gc);
-	struct irq_chip *irqchip = irq_desc_get_chip(desc);
-	int offset;
+	struct xioirq_gpio *port = (struct xioirq_gpio *) data;
+	struct gpio_chip *gc = &port->gc;
+	int offset, handled = 0;
 	u8 stat, enable;
-
-	chained_irq_enter(irqchip, desc);
 
 	stat = readb(port->base + XIO_STATUS);
 	enable = readb(port->base + XIO_ENABLE);
@@ -118,6 +115,9 @@ static void xioirq_gpio_irq_handler(struct irq_desc *desc)
 
 	stat &= enable;
 
+	if (stat)
+		handled = 1;
+
 	while (stat != 0) {
 		offset = fls(stat) - 1;
 		generic_handle_irq(irq_find_mapping(gc->irqdomain,
@@ -125,7 +125,7 @@ static void xioirq_gpio_irq_handler(struct irq_desc *desc)
 		stat &= ~(1 << offset);
 	}
 
-	chained_irq_exit(irqchip, desc);
+	return IRQ_RETVAL(handled);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -221,7 +221,11 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 	gpiochip_set_chained_irqchip(&port->gc, &xioirq_gpio_irqchip,
-				     port->irq, xioirq_gpio_irq_handler);
+				     port->irq, NULL);
+
+	ret = devm_request_irq(port->gc.parent, port->irq,
+			       xioirq_gpio_irq_handler,
+			       IRQF_SHARED, dev_name(port->gc.parent), port);
 
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
 	{
