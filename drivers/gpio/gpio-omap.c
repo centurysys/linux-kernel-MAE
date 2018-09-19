@@ -24,6 +24,7 @@
 #include <linux/pm.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/bitops.h>
 #include <linux/platform_data/gpio-omap.h>
@@ -79,6 +80,7 @@ struct gpio_bank {
 	int (*get_context_loss_count)(struct device *dev);
 
 	struct omap_gpio_reg_offs *regs;
+	bool wakeup_source;
 };
 
 #define GPIO_MOD_CTRL_BIT	BIT(0)
@@ -1201,6 +1203,9 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	if (!node) {
 		bank->get_context_loss_count =
 			pdata->get_context_loss_count;
+	} else {
+		if (of_find_property(node, "wakeup-source", NULL))
+			bank->wakeup_source = true;
 	}
 
 	if (bank->regs->set_dataout && bank->regs->clr_dataout)
@@ -1276,6 +1281,22 @@ static int omap_gpio_remove(struct platform_device *pdev)
 #if defined(CONFIG_PM)
 static void omap_gpio_restore_context(struct gpio_bank *bank);
 
+static void omap_gpio_reset_bank(struct gpio_bank *bank)
+{
+	u32 sysconfig;
+
+	if (bank->regs->sysconfig) {
+		sysconfig = readl_relaxed(bank->base + bank->regs->sysconfig);
+
+		writel_relaxed(sysconfig | 2, bank->base + bank->regs->sysconfig);
+
+		udelay(1000);
+
+		writel_relaxed(sysconfig, bank->base + bank->regs->sysconfig);
+		omap_gpio_restore_context(bank);
+	}
+}
+
 static int omap_gpio_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1285,6 +1306,11 @@ static int omap_gpio_runtime_suspend(struct device *dev)
 	u32 wake_low, wake_hi;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
+
+	if (bank->wakeup_source && bank->context_valid) {
+		/* workaround for wakeup */
+		omap_gpio_reset_bank(bank);
+	}
 
 	/*
 	 * Only edges can generate a wakeup event to the PRCM.
@@ -1591,6 +1617,7 @@ static struct omap_gpio_reg_offs omap4_gpio_regs = {
 	.debounce =		OMAP4_GPIO_DEBOUNCINGTIME,
 	.debounce_en =		OMAP4_GPIO_DEBOUNCENABLE,
 	.ctrl =			OMAP4_GPIO_CTRL,
+	.sysconfig =		OMAP4_GPIO_SYSCONFIG,
 	.wkup_en =		OMAP4_GPIO_IRQWAKEN0,
 	.leveldetect0 =		OMAP4_GPIO_LEVELDETECT0,
 	.leveldetect1 =		OMAP4_GPIO_LEVELDETECT1,
