@@ -131,9 +131,17 @@
 		compatible = "gpio-leds";
 		status = "disabled";
 
+		led@RADIO_POW {
+			label = "RADIO_MAIN_POWER";
+			gpios = <&gpiox_0x14 1 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
+
 		led@RADIO {
 			label = "RADIO_POWER";
 			gpios = <&gpiox_0x14 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 			retain-suspend;
 		};
 	};
@@ -716,7 +724,7 @@
 &tscadc {
 	status = "okay";
 	adc {
-		ti,adc-channels = <2>;
+		ti,adc-channels = <2 3>;
 	};
 };
 
