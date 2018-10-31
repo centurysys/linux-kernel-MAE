@@ -1435,6 +1435,7 @@
 			0x194 (PIN_INPUT  | MUX_MODE3) /* mcasp0_fsx.spi1_d0 */
 			0x198 (PIN_OUTPUT | MUX_MODE3) /* mcasp0_axr0.spi1_d1 */
 			0x144 (PIN_OUTPUT | MUX_MODE2) /* rmii_ref_clk.spi1_cs0 */
+			0x164 (PIN_OUTPUT | MUX_MODE2) /* ecap0_in_pwm0_out.spi1_cs1 */
 		>;
 	};
 
@@ -2952,7 +2953,7 @@
 };
 
 &spi1 {
-	ti,spi-num-cs = <1>;
+	ti,spi-num-cs = <2>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins>;
@@ -2960,6 +2961,16 @@
 	ltc1859@0 {
 		compatible = "ltc185x";
 		reg = <0>;
+		spi-max-frequency = <1000000>;
+		//spi-cpha;
+		//spi-cpol;
+
+		vcc-supply = <&xio_adc_supply>;
+	};
+
+	ltc1859@1 {
+		compatible = "ltc185x";
+		reg = <1>;
 		spi-max-frequency = <1000000>;
 		//spi-cpha;
 		//spi-cpol;
