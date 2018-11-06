@@ -35,15 +35,27 @@
 		#size-cells = <2>;
 		ranges;
 
-		r5f1_memory_region: r5f1-memory@9b000000 {
+		r5f1_dma_memory_region: r5f1-dma-memory@9b000000 {
 			compatible = "shared-dma-pool";
-			reg = <0 0x9b000000 0 0x1000000>;
+			reg = <0 0x9b000000 0 0x100000>;
 			no-map;
 		};
 
-		r5f0_memory_region: r5f0-memory@9c000000 {
+		r5f1_memory_region: r5f1-memory@9b100000 {
 			compatible = "shared-dma-pool";
-			reg = <0 0x9c000000 0 0x800000>;
+			reg = <0 0x9b100000 0 0xf00000>;
+			no-map;
+		};
+
+		r5f0_dma_memory_region: r5f0-dma-memory@9c000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x9c000000 0 0x100000>;
+			no-map;
+		};
+
+		r5f0_memory_region: r5f0-memory@9c100000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x9c100000 0 0x700000>;
 			no-map;
 		};
 
@@ -67,7 +79,7 @@
 				"ti-pruss/am65x-rtu0-prueth-fw.elf",
 				"ti-pruss/am65x-pru1-prueth-fw.elf",
 				"ti-pruss/am65x-rtu1-prueth-fw.elf";
-
+		mii-g-rt = <&icssg2_mii_g_rt>;
 		dma-coherent;
 		dmas = <&main_udmap &pruss2_eth 0 UDMA_DIR_TX>,	/* SLICE 0 */
 		       <&main_udmap &pruss2_eth 0 UDMA_DIR_RX>,
@@ -129,11 +141,11 @@
 };
 
 &mcu_r5f0 {
-	memory-region = <&r5f0_memory_region>;
+	memory-region = <&r5f0_dma_memory_region>, <&r5f0_memory_region>;
 };
 
 &mcu_r5f1 {
-	memory-region = <&r5f1_memory_region>;
+	memory-region = <&r5f1_dma_memory_region>, <&r5f1_memory_region>;
 };
 
 &main_uart0 {
@@ -271,6 +283,13 @@
 		>;
 	};
 
+	mcu_i2c0_pins_default: mcu_i2c0_pins_default {
+		pinctrl-single,pins = <
+			AM65X_WKUP_IOPAD(0x00e8, PIN_INPUT | MUX_MODE0) /* (AD8) MCU_I2C0_SCL */
+			AM65X_WKUP_IOPAD(0x00ec, PIN_INPUT | MUX_MODE0) /* (AD7) MCU_I2C0_SDA */
+		>;
+	};
+
 	push_button_pins_default: push_button__pins_default {
 		pinctrl-single,pins = <
 			AM65X_WKUP_IOPAD(0x0030, PIN_INPUT | MUX_MODE7) /* (R5) WKUP_GPIO0_24 */
@@ -348,6 +367,13 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
+};
+
+&mcu_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcu_i2c0_pins_default>;
+	status = "okay";
+	clock-frequency = <400000>;
 };
 
 &main_i2c0 {
