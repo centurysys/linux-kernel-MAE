@@ -85,6 +85,7 @@ static int plum_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	u32 gpio_idx = d->hwirq;
 	u32 gpio = port->gc.base + gpio_idx;
 	u8 edge_sel, val;
+	bool set_handler = true;
 
 	edge_sel = readb(port->base + GPIO_EDGE_SEL);
 
@@ -109,11 +110,20 @@ static int plum_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 		}
 		port->both_edges |= 1 << gpio_idx;
 		break;
+	case IRQ_TYPE_NONE:
+		set_handler = false;
+		break;
 	default:
 		return -EINVAL;
 	}
 
 	writeb(edge_sel, port->base + GPIO_EDGE_SEL);
+
+	if (set_handler) {
+		irq_set_handler_locked(d, handle_level_irq);
+	} else {
+		irq_set_handler_locked(d, handle_bad_irq);
+	}
 
 	return 0;
 }
