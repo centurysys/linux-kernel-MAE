@@ -3,9 +3,9 @@
 
 $ source acorn.env
 For ls1012a-rdb, ls1012a-frdm and ls1012a-frwy:
-$ cp dot.config.ls1012a .config && make oldconfig && make -j 8 Image.gz && ./mk_uImage.sh && make dtbs
+$ cp dot.config.ls1012a .config && make oldconfig && make -j 8 Image.gz && ./mk_uImage.sh LS1012ARDB && make dtbs
 For acorn:
-$ cp dot.config.ls1012a-acorn .config && make oldconfig && make -j 8 Image.gz && ./mk_uImage.sh && make dtbs
+$ cp dot.config.ls1012a-acorn .config && make oldconfig && make -j 8 Image.gz && ./mk_uImage.sh ACORN && make dtbs
 
 2. How to use the kernel
 
