@@ -167,7 +167,7 @@ static void plum_gpio_irq_handler(struct irq_desc *desc)
 		if (port->both_edges & (1 << offset))
 			plum_flip_edge(port, offset);
 
-		generic_handle_irq(irq_find_mapping(gc->irqdomain,
+		generic_handle_irq(irq_find_mapping(gc->irq.domain,
 						    offset));
 		stat &= ~(1 << offset);
 	}
