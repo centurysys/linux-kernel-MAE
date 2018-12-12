@@ -38,6 +38,11 @@
 #include <linux/kmemleak.h>
 #include <linux/sys_soc.h>
 #include <linux/net_switch_config.h>
+#ifdef CONFIG_CPSW_LED_GPIO
+#include <linux/reboot.h>
+#include <linux/suspend.h>
+#include <linux/of_gpio.h>
+#endif
 
 #include <linux/pinctrl/consumer.h>
 #include <net/pkt_cls.h>
@@ -388,6 +393,10 @@ struct cpsw_slave_data {
 	int		phy_if;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
+#ifdef CONFIG_CPSW_LED_GPIO
+	int		led_fast_gpio;
+	int		led_giga_gpio;
+#endif
 };
 
 struct cpsw_platform_data {
@@ -1187,6 +1196,19 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 	if (mac_control != slave->mac_control) {
 		phy_print_status(phy);
 		writel_relaxed(mac_control, &slave->sliver->mac_control);
+#ifdef CONFIG_CPSW_LED_GPIO
+		{
+			int val;
+
+			val = (phy->speed == 1000) ? 0 : 1;
+			if (gpio_is_valid(slave->data->led_giga_gpio))
+				gpio_direction_output(slave->data->led_giga_gpio, val);
+
+			val = (phy->speed == 100) ? 0 : 1;
+			if (gpio_is_valid(slave->data->led_fast_gpio))
+				gpio_direction_output(slave->data->led_fast_gpio, val);
+		}
+#endif
 	}
 
 	slave->mac_control = mac_control;
@@ -2836,6 +2858,58 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_setup_tc           = cpsw_ndo_setup_tc,
 };
 
+
+#ifdef CONFIG_CPSW_LED_GPIO
+static struct cpsw_platform_data *cpsw_pdata_nb;
+static int cpsw_reboot_notifier(struct notifier_block *nb,
+				unsigned long code, void *unused)
+{
+	int i;
+	struct cpsw_slave_data *slave_data;
+
+	if (cpsw_pdata_nb) {
+		for (i = 0; i < 2; i++) {
+			slave_data = cpsw_pdata_nb->slave_data + i;
+
+			if (gpio_is_valid(slave_data->led_fast_gpio))
+				gpio_direction_output(slave_data->led_fast_gpio, 1);
+
+			if (gpio_is_valid(slave_data->led_giga_gpio))
+				gpio_direction_output(slave_data->led_giga_gpio, 1);
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+static int cpsw_pm_notifier(struct notifier_block *nb,
+			    unsigned long code, void *unused)
+{
+	int i;
+	struct cpsw_slave_data *slave_data;
+	if (code == PM_SUSPEND_PREPARE && cpsw_pdata_nb) {
+		for (i = 0; i < 2; i++) {
+			slave_data = cpsw_pdata_nb->slave_data + i;
+
+			if (gpio_is_valid(slave_data->led_fast_gpio))
+				gpio_direction_output(slave_data->led_fast_gpio, 1);
+
+			if (gpio_is_valid(slave_data->led_giga_gpio))
+				gpio_direction_output(slave_data->led_giga_gpio, 1);
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block cpsw_reboot_nb = {
+	.notifier_call = cpsw_reboot_notifier,
+};
+
+static struct notifier_block cpsw_pm_nb = {
+	.notifier_call = cpsw_pm_notifier,
+};
+#endif
+
 static int cpsw_get_regs_len(struct net_device *ndev)
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
@@ -3417,7 +3491,9 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		const void *mac_addr = NULL;
 		int lenp;
 		const __be32 *parp;
-
+#ifdef CONFIG_CPSW_LED_GPIO
+		int led_fast_gpio, led_giga_gpio;
+#endif
 		/* This is no slave child node, continue */
 		if (strcmp(slave_node->name, "slave"))
 			continue;
@@ -3473,6 +3549,25 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			return slave_data->phy_if;
 		}
 
+#ifdef CONFIG_CPSW_LED_GPIO
+		led_fast_gpio = of_get_named_gpio(slave_node, "led-fast-gpio", 0);
+		led_giga_gpio = of_get_named_gpio(slave_node, "led-giga-gpio", 0);
+
+		if (gpio_is_valid(led_fast_gpio)) {
+			gpio_request(led_fast_gpio, "PHY_LED_100M");
+			slave_data->led_fast_gpio = led_fast_gpio;
+		} else {
+			slave_data->led_fast_gpio = -1;
+		}
+
+		if (gpio_is_valid(led_giga_gpio)) {
+			gpio_request(led_giga_gpio, "PHY_LED_1G");
+			slave_data->led_giga_gpio = led_giga_gpio;
+		} else {
+			slave_data->led_giga_gpio = -1;
+		}
+#endif
+
 no_phy_slave:
 		mac_addr = of_get_mac_address(slave_node);
 		if (mac_addr) {
@@ -3500,6 +3595,11 @@ no_phy_slave:
 			break;
 	}
 
+#ifdef CONFIG_CPSW_LED_GPIO
+	cpsw_pdata_nb = data;
+	register_reboot_notifier(&cpsw_reboot_nb);
+	register_pm_notifier(&cpsw_pm_nb);
+#endif
 	return 0;
 }
 
