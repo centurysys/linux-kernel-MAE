@@ -261,7 +261,6 @@ static const struct iio_chan_spec ltc185x_channels[] = {
 static const struct iio_info ltc185x_info = {
 	.read_raw = ltc185x_read_raw,
 	.update_scan_mode = ltc185x_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static int ltc185x_probe(struct spi_device *spi)
