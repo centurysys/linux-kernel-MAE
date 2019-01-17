@@ -992,7 +992,11 @@ int br_vlan_init(struct net_bridge *br)
 		goto err_tunnel_init;
 	INIT_LIST_HEAD(&vg->vlan_list);
 	br->vlan_proto = htons(ETH_P_8021Q);
+#ifndef CONFIG_TI_CPSW
 	br->default_pvid = 1;
+#else
+	br->default_pvid = 3;
+#endif
 	rcu_assign_pointer(br->vlgrp, vg);
 	ret = br_vlan_add(br, 1,
 			  BRIDGE_VLAN_INFO_PVID | BRIDGE_VLAN_INFO_UNTAGGED |
