@@ -1065,12 +1065,14 @@ found_ep:
 
 		case USB_ENDPOINT_XFER_ISOC:
 			ep->fifo_size = 1024;
-			ep->nr_banks = 2;
+			if (ep->udc->caps->ep_prealloc)
+				ep->nr_banks = 2;
 			break;
 
 		case USB_ENDPOINT_XFER_BULK:
 			ep->fifo_size = 512;
-			ep->nr_banks = 1;
+			if (ep->udc->caps->ep_prealloc)
+				ep->nr_banks = 1;
 			break;
 
 		case USB_ENDPOINT_XFER_INT:
@@ -1080,7 +1082,8 @@ found_ep:
 			else
 				ep->fifo_size =
 				    roundup_pow_of_two(le16_to_cpu(desc->wMaxPacketSize));
-			ep->nr_banks = 1;
+			if (ep->udc->caps->ep_prealloc)
+				ep->nr_banks = 1;
 			break;
 		}
 
@@ -2033,16 +2036,27 @@ static void at91sam9g45_pulse_bias(struct usba_udc *udc)
 
 static const struct usba_udc_caps at91sam9rl_caps = {
 	.toggle_bias = at91sam9rl_toggle_bias,
+	.ep_prealloc = true,
 };
 
 static const struct usba_udc_caps at91sam9g45_caps = {
 	.pulse_bias = at91sam9g45_pulse_bias,
+	.ep_prealloc = true,
+};
+
+static const struct usba_udc_caps sama5d3_caps = {
+	.ep_prealloc = true,
+};
+
+static const struct usba_udc_caps at91sam9x60_caps = {
+	.ep_prealloc = false,
 };
 
 static const struct of_device_id atmel_udc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9rl-udc", .data = &at91sam9rl_caps },
 	{ .compatible = "atmel,at91sam9g45-udc", .data = &at91sam9g45_caps },
-	{ .compatible = "atmel,sama5d3-udc" },
+	{ .compatible = "atmel,sama5d3-udc", .data = &sama5d3_caps },
+	{ .compatible = "microchip,sam9x60-udc", .data = &at91sam9x60_caps },
 	{ /* sentinel */ }
 };
 

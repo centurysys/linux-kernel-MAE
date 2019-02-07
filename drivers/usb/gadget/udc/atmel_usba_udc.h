@@ -305,6 +305,7 @@ struct usba_request {
 struct usba_udc_caps {
 	void (*toggle_bias)(struct usba_udc *udc, int is_on);
 	void (*pulse_bias)(struct usba_udc *udc);
+	bool ep_prealloc;
 };
 
 struct usba_udc {
