@@ -257,6 +257,25 @@
 		};
 	};
 
+	leds_lcad_ctrl: leds_lcad_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWRKEY {
+			label = "Mobile_PWRKEY";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-suspend;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+	};
+
 	leds_telit_ctrl: leds_telit_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -602,6 +621,16 @@
 		led@do7 {
 			label = "DO_7";
 			gpios = <&gpiox_0x80 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_dolcad: leds_dolcad {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@do0 {
+			label = "DO_0";
+			gpios = <&gpiox_0x80 0 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -971,6 +1000,7 @@
 		xio_2f = &xio_2e_2f;
 		xio_32 = &xio_32;
 		xio_33 = &xio_33;
+		xio_35 = &xio_35;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1246,6 +1276,19 @@
 			   &gpiox_0x40 &gpiox_0x60 &gpiox_0x80 &gpiox_0x82
 			   &gpiox_0x04_lisa
 			   &leds_foma &leds_amp_wlan_ctrl &leds_do &leds_do2>;
+	};
+
+	/* XIO: (id: 0x35) LCAD */
+	xio_35: xio@0x35 {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
+			   &uartx2_0x20_WiSUN &uartx2_0x30_lcad
+			   &gpiox_0x00
+			   &gpiox_0x10 &gpiox_0x12_lcad &gpiox_0x14
+			   &gpiox_0x1a
+			   &gpiox_0x40_lcad &gpiox_0x80
+			   &gpiox_0x04_lcad
+			   &leds_foma &leds_lcad_ctrl &leds_dolcad>;
 	};
 };
 
@@ -1795,6 +1838,29 @@
 		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
 	};
 
+	uartx2_0x30_lcad: uart@2,0x30_LCAD {
+		reg = <2 0x00000030 0x00000010>;
+		compatible = "ns16550a";
+
+		status = "disabled";
+
+		current-speed = <115200>;
+		reg-shift = <1>;
+		reg-io-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg-offset = <0x0>;
+		clock-frequency = <7372800>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
+		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
+	};
+
 	uartx2_0x20_WiSUN: uart@2,0x20_WiSUN {
 		reg = <2 0x00000020 0x00000010>;
 		compatible = "ns16550a";
@@ -2108,6 +2174,35 @@
 		stat@2 {
 			label = "ModuleAvailable";
 			reg = <2>;
+		};
+	};
+
+	/* LCAD Status */
+	gpiox_0x12_lcad: gpio@2,0x12_LCAD {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@2 {
+			label = "ModuleAvailable";
+			reg = <2>;
+		};
+
+		stat@4 {
+			label = "BootUp";
+			reg = <4>;
 		};
 	};
 
@@ -2568,6 +2663,32 @@
 		};
 	};
 
+	/* DIO DIN (LCAD) */
+	gpiox_0x40_lcad: gpio@2,0x40_LCAD {
+		reg = <2 0x00000040 0x00000012>;
+		#gpio-cells = <2>;
+		compatible = "plum,ext-DI";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		interrupt-controller;
+
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		din@0 {
+			label = "DI_00";
+			reg = <0>;
+		};
+	};
+
 	/* FXS PIC Control */
 	gpiox_0x42: gpio@2,0x42 {
 		reg = <2 0x00000042 0x00000001>;
@@ -2759,6 +2880,29 @@
 		stat@1 {
 			label = "xio_RI";
 			reg = <1>;
+		};
+	};
+
+	/* XIO Interrupt Enable/Status (LCAD) */
+	gpiox_0x04_lcad: gpio@2,0x04_LCAD {
+		reg = <2 0x00000004 0x00000004>;
+		#gpio-cells = <2>;
+		compatible = "plum,xioirq-gpio";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@7 {
+			label = "xio_WakeUpMPU";
+			reg = <7>;
 		};
 	};
 
