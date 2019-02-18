@@ -425,7 +425,7 @@ static struct regval_list ov7670_fmt_yuv422[] = {
 	{ 0xff, 0xff },
 };
 
-static struct regval_list ov7670_fmt_rgb565[] = {
+struct regval_list ov7670_fmt_rgb565[] = {
 	{ REG_COM7, COM7_RGB },	/* Selects RGB mode */
 	{ REG_RGB444, 0 },	/* No RGB444 please */
 	{ REG_COM1, 0x0 },	/* CCIR601 */
@@ -677,12 +677,6 @@ static struct ov7670_format_struct {
 		.mbus_code	= MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs		= ov7670_fmt_rgb444,
-		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
-	},
-	{
-		.mbus_code	= MEDIA_BUS_FMT_RGB565_2X8_LE,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
-		.regs		= ov7670_fmt_rgb565,
 		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 	},
 	{
