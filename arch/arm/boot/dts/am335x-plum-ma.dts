@@ -1631,6 +1631,9 @@
 };
 
 &usb1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb1_pins>;
+
 	status = "okay";
 	dr_mode = "host";
 };
