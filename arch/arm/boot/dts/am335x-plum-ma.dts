@@ -1283,6 +1283,7 @@
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &uartx2_0x20_WiSUN &uartx2_0x30_lcad
+			   &spi1
 			   &gpiox_0x00
 			   &gpiox_0x10 &gpiox_0x12_lcad &gpiox_0x14
 			   &gpiox_0x1a
