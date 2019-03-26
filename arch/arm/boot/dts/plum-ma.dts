@@ -209,6 +209,53 @@
 		};
 	};
 
+	leds_lora: leds_lora {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x1 {
+			label = "MobileLED_RMS";
+			gpios = <&gpiox_0x90_locad 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x2 {
+			label = "MobileLED_GMS";
+			gpios = <&gpiox_0x90_locad 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "MobileLED_RTXRX";
+			gpios = <&gpiox_0x90_locad 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x4 {
+			label = "MobileLED_GTXRX";
+			gpios = <&gpiox_0x90_locad 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x5 {
+			label = "MobileLED_RRSSI";
+			gpios = <&gpiox_0x90_locad 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "MobileLED_GRSSI";
+			gpios = <&gpiox_0x90_locad 5 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_lora_ctrl: leds_lora_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x92 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+		};
+
+	};
+
 	leds_amp_ctrl: leds_amp_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -1007,6 +1054,7 @@
 		xio_32 = &xio_32;
 		xio_33 = &xio_33;
 		xio_35 = &xio_35;
+		xio_36 = &xio_36;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1289,14 +1337,28 @@
 	xio_35: xio@0x35 {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
-			   &uartx2_0x20_WiSUN &uartx2_0x30_lcad
 			   &spi1
+			   &uartx2_0x20_WiSUN &uartx2_0x30_lcad
 			   &gpiox_0x00
 			   &gpiox_0x10 &gpiox_0x12_lcad &gpiox_0x14
 			   &gpiox_0x1a
 			   &gpiox_0x40_lcad &gpiox_0x80
 			   &gpiox_0x04_lcad
 			   &leds_foma &leds_lcad_ctrl &leds_dolcad>;
+	};	
+
+	/* XIO: (id: 0x36) LOCAD */
+	xio_36: xio@0x36 {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20_WiSUN &uartx2_0x30_lcad &uartx2_0xa0_locad
+			   &gpiox_0x00
+			   &gpiox_0x04_lcad
+			   &gpiox_0x1a
+			   &gpiox_0x40_lcad &gpiox_0x80
+			   &gpiox_0x90_locad &gpiox_0x92
+			   &leds_lora &leds_lora_ctrl &leds_dolcad>;
 	};	
 };
 
@@ -1784,8 +1846,29 @@
 
 		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
 		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
+		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_LOW>;
 	};
 
+	uartx2_0xa0_locad: uart@2,0xa0_LOCAD {
+		reg = <2 0x000000a0 0x00000008>;
+		compatible = "ns16550a";
+
+		status = "disabled";
+
+		current-speed = <115200>;
+		reg-shift = <1>;
+		reg-io-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg-offset = <0x0>;
+		clock-frequency = <7372800>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+	};
+	
 	uartx2_0x20_WiSUN: uart@2,0x20_WiSUN {
 		reg = <2 0x00000020 0x00000008>;
 		compatible = "ns16550a";
@@ -2747,6 +2830,28 @@
 		};
 	};
 
+	/* LORA LED (LOCAD) */
+	gpiox_0x90_locad: gpio@2,0x90_LOCAD {
+		reg = <2 0x00000090 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* LORA Control (LOCAD) */
+	gpiox_0x92: gpio@2,0x92 {
+		reg = <2 0x00000092 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
 	/* DIO DOUT */
 	gpiox_0x80: gpio@2,0x80 {
 		reg = <2 0x00000080 0x00000001>;
@@ -2817,7 +2922,7 @@
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <22 8>;
+		interrupts = <22 1>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
 		status = "disabled";
