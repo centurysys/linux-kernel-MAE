@@ -302,7 +302,7 @@ struct usba_request {
 	unsigned int				mapped:1;
 };
 
-struct usba_udc_errata {
+struct usba_udc_caps {
 	void (*toggle_bias)(struct usba_udc *udc, int is_on);
 	void (*pulse_bias)(struct usba_udc *udc);
 };
@@ -320,7 +320,7 @@ struct usba_udc {
 	struct usb_gadget gadget;
 	struct usb_gadget_driver *driver;
 	struct platform_device *pdev;
-	const struct usba_udc_errata *errata;
+	const struct usba_udc_caps *caps;
 	int irq;
 	struct gpio_desc *vbus_pin;
 	int num_ep;

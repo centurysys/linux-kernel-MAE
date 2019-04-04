@@ -388,8 +388,8 @@ static int vbus_is_present(struct usba_udc *udc)
 
 static void toggle_bias(struct usba_udc *udc, int is_on)
 {
-	if (udc->errata && udc->errata->toggle_bias)
-		udc->errata->toggle_bias(udc, is_on);
+	if (udc->caps && udc->caps->toggle_bias)
+		udc->caps->toggle_bias(udc, is_on);
 }
 
 static void generate_bias_pulse(struct usba_udc *udc)
@@ -397,8 +397,8 @@ static void generate_bias_pulse(struct usba_udc *udc)
 	if (!udc->bias_pulse_needed)
 		return;
 
-	if (udc->errata && udc->errata->pulse_bias)
-		udc->errata->pulse_bias(udc);
+	if (udc->caps && udc->caps->pulse_bias)
+		udc->caps->pulse_bias(udc);
 
 	udc->bias_pulse_needed = false;
 }
@@ -2031,17 +2031,17 @@ static void at91sam9g45_pulse_bias(struct usba_udc *udc)
 			   AT91_PMC_BIASEN);
 }
 
-static const struct usba_udc_errata at91sam9rl_errata = {
+static const struct usba_udc_caps at91sam9rl_caps = {
 	.toggle_bias = at91sam9rl_toggle_bias,
 };
 
-static const struct usba_udc_errata at91sam9g45_errata = {
+static const struct usba_udc_caps at91sam9g45_caps = {
 	.pulse_bias = at91sam9g45_pulse_bias,
 };
 
 static const struct of_device_id atmel_udc_dt_ids[] = {
-	{ .compatible = "atmel,at91sam9rl-udc", .data = &at91sam9rl_errata },
-	{ .compatible = "atmel,at91sam9g45-udc", .data = &at91sam9g45_errata },
+	{ .compatible = "atmel,at91sam9rl-udc", .data = &at91sam9rl_caps },
+	{ .compatible = "atmel,at91sam9g45-udc", .data = &at91sam9g45_caps },
 	{ .compatible = "atmel,sama5d3-udc" },
 	{ /* sentinel */ }
 };
@@ -2052,7 +2052,6 @@ static const struct of_device_id atmel_pmc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9g45-pmc" },
 	{ .compatible = "atmel,at91sam9rl-pmc" },
 	{ .compatible = "atmel,at91sam9x5-pmc" },
-	{ .compatible = "microchip,sam9x60-pmc" },
 	{ /* sentinel */ }
 };
 
@@ -2070,8 +2069,8 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 	if (!match)
 		return ERR_PTR(-EINVAL);
 
-	udc->errata = match->data;
-	if (udc->errata) {
+	udc->caps = match->data;
+	if (udc->caps && (udc->caps->pulse_bias || udc->caps->toggle_bias)) {
 		pp = of_find_matching_node_and_match(NULL, atmel_pmc_dt_ids,
 						     NULL);
 		if (!pp)
