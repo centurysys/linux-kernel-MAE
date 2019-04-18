@@ -151,10 +151,48 @@
 					interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
 					clock-names = "spi_clk";
+					cs-gpios = <&pioA PIN_PC0 GPIO_ACTIVE_LOW>;
 					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_mikrobus2_spi &pinctrl_mikrobus2_spi_cs>;
+					pinctrl-0 = <&pinctrl_mikrobus2_spi &pinctrl_ksz_spi_cs>;
 					atmel,fifo-size = <16>;
 					status = "okay";
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					switch0: ksz8563@0 {
+						compatible = "microchip,ksz8563";
+						reg = <0>;
+						phy-mode = "mii";
+						reset-gpios = <&pioA PIN_PD4 GPIO_ACTIVE_LOW>;
+
+						spi-max-frequency = <500000>;
+						spi-cpha;
+						spi-cpol;
+
+						ports {
+							#address-cells = <1>;
+							#size-cells = <0>;
+							port@0 {
+								reg = <0>;
+								label = "lan1";
+							};
+
+							port@1 {
+								reg = <1>;
+								label = "lan2";
+							};
+
+							port@2 {
+								reg = <2>;
+								label = "cpu";
+								ethernet = <&macb0>;
+								fixed-link {
+									speed = <100>;
+									full-duplex;
+								};
+							};
+						};
+					};
 				};
 			};
 
@@ -216,6 +254,18 @@
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					atmel,fifo-size = <16>;
 					status = "okay";
+				};
+			};
+
+			macb0: ethernet@f8008000 {
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb0_default &pinctrl_macb0_phy_irq &pinctrl_macb0_rst>;
+				phy-mode = "mii";
+
+				fixed-link {
+					speed = <100>;
+					full-duplex;
 				};
 			};
 
@@ -378,6 +428,11 @@
 					bias-disable;
 				};
 
+				pinctrl_ksz_spi_cs: ksz_spi_cs {
+					pinmux = <PIN_PC0__GPIO>;
+					bias-disable;
+				};
+
 				pinctrl_mikrobus2_pwm: mikrobus2_pwm {
 					pinmux = <PIN_PB23__TIOB2>;
 					bias-disable;
@@ -475,7 +530,7 @@
 
 				pinctrl_macb0_rst: macb0_sw_rst {
 					pinmux = <PIN_PD4__GPIO>;
-					bias-disable;
+					bias-pull-up;
 				};
 
 			};
