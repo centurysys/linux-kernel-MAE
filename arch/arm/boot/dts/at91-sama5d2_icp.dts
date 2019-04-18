@@ -262,7 +262,7 @@
 						lpm-gpios = <&pioBU 7 GPIO_ACTIVE_LOW>;
 
 						regulators {
-							VDD_IO {
+							vdd_io_reg: VDD_IO {
 								regulator-name = "VDD_IO";
 								regulator-min-microvolt = <1200000>;
 								regulator-max-microvolt = <3700000>;
@@ -373,6 +373,14 @@
 				};
 			};
 
+			adc: adc@fc030000 {
+				vddana-supply = <&vdd_io_reg>;
+				vref-supply = <&vdd_io_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_adc_default &pinctrl_adtrg_default>;
+				status = "okay";
+			};
+
 			macb0: ethernet@f8008000 {
 				status = "okay";
 				pinctrl-names = "default";
@@ -414,6 +422,26 @@
 			};
 
 			pinctrl@fc038000 {
+				pinctrl_adc_default: adc_default {
+					pinmux = <PIN_PD24__GPIO>,
+						 <PIN_PD25__GPIO>,
+						 <PIN_PD26__GPIO>;
+					bias-disable;
+				};
+				/*
+				 * The ADTRG pin can work on any edge type.
+				 * In here it's being pulled up, so need to
+				 * connect it to ground to get an edge e.g.
+				 * Trigger can be configured on falling, rise
+				 * or any edge, and the pull-up can be changed
+				 * to pull-down or left floating according to
+				 * needs.
+				 */
+				pinctrl_adtrg_default: adtrg_default {
+					pinmux = <PIN_PD31__ADTRG>;
+					bias-pull-up;
+				};
+
 				pinctrl_flx4_default: flx4_default {
 					pinmux = <PIN_PC28__FLEXCOM4_IO0>,
 						 <PIN_PC29__FLEXCOM4_IO1>;
