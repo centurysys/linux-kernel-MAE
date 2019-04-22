@@ -75,6 +75,17 @@
 			status = "okay";
 		};
 
+		sdmmc1: sdio-host@b0000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sdmmc1_default>;
+			bus-width = <4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			no-1-8-v;
+			non-removable;
+			status = "okay";
+		};
+
 		apb {
 			qspi1: spi@f0024000 {
 				pinctrl-names = "default";
@@ -511,6 +522,22 @@
 					ck_cd {
 						pinmux = <PIN_PA0__SDMMC0_CK>,
 							 <PIN_PA13__SDMMC0_CD>;
+						bias-disable;
+					};
+				};
+
+				pinctrl_sdmmc1_default: sdmmc1_default {
+					cmd_data {
+						pinmux = <PIN_PA18__SDMMC1_DAT0>,
+							 <PIN_PA19__SDMMC1_DAT1>,
+							 <PIN_PA20__SDMMC1_DAT2>,
+							 <PIN_PA21__SDMMC1_DAT3>;
+						bias-disable;
+					};
+
+					ck_cd {
+						pinmux = <PIN_PA22__SDMMC1_CK>,
+							 <PIN_PA28__SDMMC1_CMD>;
 						bias-disable;
 					};
 				};
