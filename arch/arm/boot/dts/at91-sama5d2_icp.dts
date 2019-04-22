@@ -20,6 +20,7 @@
 		serial0 = &uart0;	/* DBGU */
 		serial1 = &uart1;	/* mikro BUS 1 */
 		serial3 = &uart3;	/* mikro BUS 2 */
+		serial5 = &uart5;	/* flx2 */
 		i2c0	= &i2c0;
 		i2c1	= &i2c1;
 	};
@@ -99,7 +100,7 @@
 			qspi1: spi@f0024000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_qspi1_default>;
-				status = "disabled"; /* Conflict with wilc_pwrseq. */
+				status = "disabled"; /* Conflict with wilc_pwrseq, flx2 */
 				flash@0 {
 					reg = <0>;
 					compatible = "jedec,spi-nor";
@@ -247,6 +248,31 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "okay";
+			};
+
+			flx2: flexcom@fc010000 {
+				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+				status = "okay";
+
+				uart5: serial@200 {
+					compatible = "atmel,at91sam9260-usart";
+					reg = <0x200 0x200>;
+					interrupts = <21 IRQ_TYPE_LEVEL_HIGH 7>;
+					dmas = <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(15))>,
+					       <&dma0
+					        (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(16))>;
+					dma-names = "tx", "rx";
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 21>;
+					clock-names = "usart";
+					pinctrl-0 = <&pinctrl_flx2_default>;
+					pinctrl-names = "default";
+					atmel,use-dma-rx;
+					atmel,use-dma-tx;
+					status = "okay"; /* Conflict w/ qspi1. */
+				};
 			};
 
 			flx3: flexcom@fc014000 { /* mikrobus1 spi */
@@ -726,6 +752,14 @@
 					pinmux = <PIN_PA8__GPIO>,
 						 <PIN_PC15__GPIO>;
 					bias-pull-up;
+				};
+
+				pinctrl_flx2_default: flx2_default {
+					pinmux = <PIN_PA6__FLEXCOM2_IO0>,
+						 <PIN_PA7__FLEXCOM2_IO1>,
+						 <PIN_PA9__FLEXCOM2_IO3>,
+						 <PIN_PA10__FLEXCOM2_IO4>;
+					bias-disable;
 				};
 			};
 
