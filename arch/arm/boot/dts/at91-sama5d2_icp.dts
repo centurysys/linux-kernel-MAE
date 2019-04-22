@@ -38,6 +38,15 @@
 		};
 	};
 
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-wilc";
+		reset-gpios = <&pioA 8 GPIO_ACTIVE_HIGH>;
+		powerdown-gpios = <&pioA 78 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&pinctrl_wilc_pwrseq_default>;
+		pinctrl-names = "default";
+		status = "okay"; /* Conflict with qspi1. */
+	};
+
 	ahb {
 		usb0: gadget@300000 {
 			atmel,vbus-gpio = <&pioA PIN_PD23 GPIO_ACTIVE_LOW>;
@@ -70,7 +79,7 @@
 			qspi1: spi@f0024000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_qspi1_default>;
-				status = "okay";
+				status = "disabled"; /* Conflict with wilc_pwrseq. */
 				flash@0 {
 					reg = <0>;
 					compatible = "jedec,spi-nor";
@@ -677,6 +686,11 @@
 					bias-pull-up;
 				};
 
+				pinctrl_wilc_pwrseq_default: wilc_pwrseq_default {
+					pinmux = <PIN_PA8__GPIO>,
+						 <PIN_PC15__GPIO>;
+					bias-pull-up;
+				};
 			};
 
 			can1: can@fc050000 {
