@@ -79,11 +79,20 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sdmmc1_default>;
 			bus-width = <4>;
+			mmc-pwrseq = <&wifi_pwrseq>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			no-1-8-v;
 			non-removable;
 			status = "okay";
+
+			wilc: wilc@1 {
+				compatible = "microchip,wilc1000", "microchip,wilc3000";
+				reg = <1>;
+				bus-width = <4>;
+				irq-gpios = <&pioA 77 0>;
+				status = "okay";
+			};
 		};
 
 		apb {
