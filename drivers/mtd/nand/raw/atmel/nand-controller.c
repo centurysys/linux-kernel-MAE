@@ -2558,13 +2558,38 @@ static int atmel_nand_controller_remove(struct platform_device *pdev)
 	return nc->caps->ops->remove(nc);
 }
 
+static __maybe_unused int atmel_nand_controller_suspend(struct device *dev)
+{
+	struct atmel_nand_controller *nc = dev_get_drvdata(dev);
+	struct atmel_pmecc *pmecc = nc->pmecc;
+
+	if (pmecc && pmecc->regs.timing) {
+		pmecc->suspend.setup = readl(pmecc->regs.timing);
+		pmecc->suspend.pulse = readl(pmecc->regs.timing + 0x4);
+		pmecc->suspend.cycle = readl(pmecc->regs.timing + 0x8);
+		pmecc->suspend.timings = readl(pmecc->regs.timing + 0xc);
+		pmecc->suspend.mode = readl(pmecc->regs.timing + 0x10);
+	}
+
+	return 0;
+}
+
 static __maybe_unused int atmel_nand_controller_resume(struct device *dev)
 {
 	struct atmel_nand_controller *nc = dev_get_drvdata(dev);
+	struct atmel_pmecc *pmecc = nc->pmecc;
 	struct atmel_nand *nand;
 
 	if (nc->pmecc)
 		atmel_pmecc_reset(nc->pmecc);
+
+	if (pmecc && pmecc->regs.timing) {
+		writel(pmecc->suspend.setup, pmecc->regs.timing);
+		writel(pmecc->suspend.pulse, pmecc->regs.timing + 0x4);
+		writel(pmecc->suspend.cycle, pmecc->regs.timing + 0x8);
+		writel(pmecc->suspend.timings, pmecc->regs.timing + 0xc);
+		writel(pmecc->suspend.mode, pmecc->regs.timing + 0x10);
+	}
 
 	list_for_each_entry(nand, &nc->chips, node) {
 		int i;
@@ -2576,7 +2601,8 @@ static __maybe_unused int atmel_nand_controller_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(atmel_nand_controller_pm_ops, NULL,
+static SIMPLE_DEV_PM_OPS(atmel_nand_controller_pm_ops,
+			 atmel_nand_controller_suspend,
 			 atmel_nand_controller_resume);
 
 static struct platform_driver atmel_nand_controller_driver = {
