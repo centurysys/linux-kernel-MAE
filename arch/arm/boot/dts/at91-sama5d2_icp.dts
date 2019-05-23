@@ -13,7 +13,7 @@
 #include <dt-bindings/mfd/atmel-flexcom.h>
 
 / {
-	model = "Atmel SAMA5D27 ICP EK";
+	model = "Microchip SAMA5D2-ICP";
 	compatible = "atmel,sama5d27-icp-ek", "atmel,sama5d27-icp", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
 	aliases {
