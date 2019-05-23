@@ -14,7 +14,7 @@
 
 / {
 	model = "Microchip SAMA5D2-ICP";
-	compatible = "atmel,sama5d27-icp-ek", "atmel,sama5d27-icp", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
+	compatible = "microchip,sama5d2-icp", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
 	aliases {
 		serial0 = &uart0;	/* DBGU */
