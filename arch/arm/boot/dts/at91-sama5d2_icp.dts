@@ -776,7 +776,7 @@
 
 				pinctrl_macb0_rst: macb0_sw_rst {
 					pinmux = <PIN_PD4__GPIO>;
-					bias-pull-up;
+					bias-disable;
 				};
 
 				pinctrl_wilc_pwrseq_default: wilc_pwrseq_default {
