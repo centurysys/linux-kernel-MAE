@@ -1926,7 +1926,7 @@
 
 		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
 		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
-		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_LOW>;
+		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
 	};
 
 	uartx2_0xa0_locad: uart@2,0xa0_LOCAD {
