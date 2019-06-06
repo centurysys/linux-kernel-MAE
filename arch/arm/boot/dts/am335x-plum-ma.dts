@@ -1047,6 +1047,7 @@
 		xio_2f = &xio_2e_2f;
 		xio_32 = &xio_32;
 		xio_33 = &xio_33;
+		xio_34 = &xio_13_14;
 		xio_35 = &xio_35;
                 xio_36 = &xio_36;
 	};
