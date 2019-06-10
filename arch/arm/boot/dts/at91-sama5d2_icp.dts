@@ -50,7 +50,7 @@
 
 	ahb {
 		usb0: gadget@300000 {
-			atmel,vbus-gpio = <&pioA PIN_PD23 GPIO_ACTIVE_LOW>;
+			atmel,vbus-gpio = <&pioA PIN_PD23 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "okay";
