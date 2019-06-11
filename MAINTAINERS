@@ -18091,6 +18091,7 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/platform/dwc
+F:	include/media/dwc/dw-csi-data.h
 F:	Documentation/devicetree/bindings/media/snps,dw-csi.txt
 
 SYNOPSYS DESIGNWARE DMAC DRIVER
