@@ -71,15 +71,18 @@ u8 dw_dphy_setup_config(struct dw_dphy_rx *dphy)
 		dev_vdbg(&dphy->phy->dev, "CONFIG 4L\n");
 		return CTRL_4_LANES;
 	}
-
-	ret = gpio_request(dphy->config_8l, "config");
-	if (ret < 0) {
-		dev_vdbg(&dphy->phy->dev,
-			 "could not acquire config gpio (err=%d)\n", ret);
-		return ret;
+	if (IS_ENABLED(CONFIG_OF)) {
+		ret = gpio_request(dphy->config_8l, "config");
+		if (ret < 0) {
+			dev_vdbg(&dphy->phy->dev,
+				 "could not acquire config (err=%d)\n", ret);
+			return ret;
+		}
+		ret = gpio_get_value(dphy->config_8l);
+		gpio_free(dphy->config_8l);
+	} else {
+		ret = dphy->config_8l;
 	}
-	ret = gpio_get_value(dphy->config_8l);
-	gpio_free(dphy->config_8l);
 
 	dev_vdbg(&dphy->phy->dev,
 		 "Booting in [%s] mode\n",
