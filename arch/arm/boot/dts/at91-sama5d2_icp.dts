@@ -17,8 +17,8 @@
 	compatible = "microchip,sama5d2-icp", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
 	aliases {
-		serial0 = &uart0;	/* DBGU */
-		serial1 = &uart1;	/* mikro BUS 1 */
+		serial0 = &uart0;	/* debug uart0 + mikro BUS 1 */
+		serial1 = &uart1;	/* mikro BUS 3 */
 		serial3 = &uart3;	/* mikro BUS 2 */
 		serial5 = &uart5;	/* flx2 */
 		i2c0	= &i2c0;
