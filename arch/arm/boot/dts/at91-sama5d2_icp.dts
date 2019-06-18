@@ -489,7 +489,7 @@
 					compatible = "atmel,24c32";
 					reg = <0x50>;
 					pagesize = <16>;
-					status = "disabled";
+					status = "okay";
 				};
 
 				eeprom@52 {
