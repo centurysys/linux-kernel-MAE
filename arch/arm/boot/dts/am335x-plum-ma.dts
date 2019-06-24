@@ -147,20 +147,6 @@
 			default-state = "off";
 			linux,default-trigger = "oneshot";
 		};
-
-		led@uart_ctrl1 {
-			label = "UART1_Reset";
-			gpios = <&gpiox_0x00 1 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-			linux,default-trigger = "oneshot";
-		};
-
-		led@uart_ctrl0 {
-			label = "UART0_Reset";
-			gpios = <&gpiox_0x00 0 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-			linux,default-trigger = "oneshot";
-		};
 	};
 
 	leds_onboard: leds_onboard {
