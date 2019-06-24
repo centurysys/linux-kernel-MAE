@@ -79,8 +79,48 @@ struct smsc95xx_priv {
 };
 
 static bool turbo_mode = true;
+static char *usb_macaddr = ":";
+
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
+module_param(usb_macaddr, charp, 0);
+MODULE_PARM_DESC(usb_macaddr, "MAC address");
+
+static char *get_mac_addr(u8 *addr)
+{
+	static char mac_address[ETH_ALEN];
+	int i, j, got_num, num;
+
+	i = j = num = got_num = 0;
+
+	while (j < ETH_ALEN) {
+		if (addr[i]) {
+			int digit;
+
+			got_num = 1;
+			digit = hex_to_bin(addr[i]);
+
+			if (digit >= 0)
+				num = num * 16 + digit;
+			else if (addr[i] == ':')
+				got_num = 2;
+			else
+				break;
+		} else if (got_num)
+			got_num = 2;
+		else
+			break;
+
+		if (got_num == 2) {
+			mac_address[j++] = (u8) num;
+			num = got_num = 0;
+		}
+
+		i++;
+	}
+
+	return mac_address;
+}
 
 static int __must_check __smsc95xx_read_reg(struct usbnet *dev, u32 index,
 					    u32 *data, int in_pm)
@@ -916,6 +956,12 @@ static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 static void smsc95xx_init_mac_address(struct usbnet *dev)
 {
 	const u8 *mac_addr;
+
+	if (usb_macaddr[0] != ':') {
+		mac_addr = get_mac_addr(usb_macaddr);
+		memcpy(dev->net->dev_addr, mac_addr, ETH_ALEN);
+		return;
+	}
 
 	/* maybe the boot loader passed the MAC address in devicetree */
 	mac_addr = of_get_mac_address(dev->udev->dev.of_node);
