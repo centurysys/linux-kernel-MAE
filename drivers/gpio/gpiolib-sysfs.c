@@ -177,7 +177,7 @@ static ssize_t counter_store(struct device *dev,
 
 	mutex_lock(&data->mutex);
 
-	if (!test_bit(FLAG_IS_OUT, &desc->flags)) {
+	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
 		status = -EPERM;
 	} else {
 		long		counter;
