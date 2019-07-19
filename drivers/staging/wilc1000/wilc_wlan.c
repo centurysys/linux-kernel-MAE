@@ -1314,9 +1314,7 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 		} else if (pkt_offset & IS_MON_PKT) {
 			/* packet received on monitor interface */
 			buff_ptr += HOST_HDR_OFFSET;
-			mutex_lock(&wilc->vif_mutex);
 			wilc_wfi_handle_monitor_rx(wilc, buff_ptr, pkt_len);
-			mutex_unlock(&wilc->vif_mutex);
 		} else if (pkt_len > 0) {
 			struct net_device *wilc_netdev;
 			struct wilc_vif *vif;
