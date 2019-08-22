@@ -1024,6 +1024,23 @@
 		};
 	};
 
+	leds_gnss: leds_gnss {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@GNSS_STATUS {
+			label = "GNSS_STATUS";
+			gpios = <&gpiox_0x16_GNSS 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led@GNSS_RTK_STATUS {
+			label = "GNSS_RTK_STATUS";
+			gpios = <&gpiox_0x16_GNSS 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
 	aliases {
 		xio_02 = &xio_02;
 		xio_03 = &xio_03_1f;
@@ -1076,6 +1093,7 @@
 		xio_35 = &xio_35;
 		xio_36 = &xio_36;
 		xio_38 = &xio_38;
+		xio_3c = &xio_3c;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1390,6 +1408,16 @@
 			   &gpiox_0x10_kymwlan &gpiox_0x12_kymwlan
 			   &gpiox_0x14 &gpiox_0x18 &gpiox_0x1a
 			   &leds_foma &leds_au_wlan_ctrl &leds_poe_ctrl>;
+	};
+
+	/* XIO: (id: 0x3c) MA-E350/LMR */
+	xio_3c: xio@0x3c {
+		#size-cells = <0>;
+		devices = <&gpiox_0x00 &gpiox_0x04_lisa
+			   &gpiox_0x10 &gpiox_0x12_WiSUN &gpiox_0x14
+			   &gpiox_0x16_GNSS &gpiox_0x18_GNSS
+			   &leds_foma &leds_amp_ctrl
+			   &leds_gnss>;
 	};
 };
 
@@ -2578,6 +2606,17 @@
 		status = "disabled";
 	};
 
+	/* GNSS LED */
+	gpiox_0x16_GNSS: gpio@2,0x16_GNSS {
+		reg = <2 0x00000016 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
 	/* UART@0x20 TxEnable/RxEnable */
 	gpiox_0x18: gpio@2,0x18 {
 		reg = <2 0x00000018 0x00000001>;
@@ -2601,6 +2640,25 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+	};
+
+	/* GNSS RTK Status */
+	gpiox_0x18_GNSS: gpio@2,0x18_gnss {
+		reg = <2 0x00000018 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "RTK_STATUS";
+			reg = <0>;
+		};
 	};
 
 	/* UART@0x30 TxEnable/RxEnable */
