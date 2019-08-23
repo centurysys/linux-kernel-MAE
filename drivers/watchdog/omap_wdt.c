@@ -208,7 +208,11 @@ static unsigned int omap_wdt_get_timeleft(struct watchdog_device *wdog)
 	void __iomem *base = wdev->base;
 	u32 value;
 
-	value = readl_relaxed(base + OMAP_WATCHDOG_CRR);
+	if (wdev->omap_wdt_users == false)
+		value = 0;
+	else
+		value = readl_relaxed(base + OMAP_WATCHDOG_CRR);
+
 	return GET_WCCR_SECS(value);
 }
 
