@@ -3123,55 +3123,6 @@ static const char *serial8250_type(struct uart_port *port)
 	return uart_config[type].name;
 }
 
-#ifdef CONFIG_SERIAL_RS485_GPIO
-/* Enable or disable the rs485 support */
-static void serial8250_config_rs485(struct uart_port *p, struct serial_rs485 *rs485conf)
-{
-	struct uart_8250_port *port = container_of(p, struct uart_8250_port, port);
-	unsigned long flags;
-
-	spin_lock_irqsave(&p->lock, flags);
-
-	port->rs485 = *rs485conf;
-
-	if (rs485conf->flags & SER_RS485_ENABLED) {
-		printk("Setting UART to RS-485\n");
-	} else {
-		printk("Setting UART to RS-422\n");
-	}
-
-	spin_unlock_irqrestore(&p->lock, flags);
-}
-
-static int
-serial8250_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
-{
-	struct serial_rs485 rs485conf;
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
-
-	switch (cmd) {
-	case TIOCSRS485:
-		if (copy_from_user(&rs485conf, (struct serial_rs485 *) arg,
-				   sizeof(rs485conf)))
-			return -EFAULT;
-
-		serial8250_config_rs485(port, &rs485conf);
-		break;
-
-	case TIOCGRS485:
-		if (copy_to_user((struct serial_rs485 *) arg,
-				 &up->rs485, sizeof(rs485conf)))
-			return -EFAULT;
-		break;
-
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-}
-#endif
-
 static const struct uart_ops serial8250_pops = {
 	.tx_empty	= serial8250_tx_empty,
 	.set_mctrl	= serial8250_set_mctrl,
@@ -3188,9 +3139,6 @@ static const struct uart_ops serial8250_pops = {
 	.set_termios	= serial8250_set_termios,
 	.set_ldisc	= serial8250_set_ldisc,
 	.pm		= serial8250_pm,
-#ifdef CONFIG_SERIAL_RS485_GPIO
-	.ioctl		= serial8250_ioctl,
-#endif
 	.type		= serial8250_type,
 	.release_port	= serial8250_release_port,
 	.request_port	= serial8250_request_port,

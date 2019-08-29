@@ -51,6 +51,29 @@ static inline void tegra_serial_handle_break(struct uart_port *port)
 }
 #endif
 
+#ifdef CONFIG_SERIAL_RS485_GPIO
+/* Enable or disable the rs485 support */
+static int serial8250_config_rs485(struct uart_port *p, struct serial_rs485 *rs485conf)
+{
+	struct uart_8250_port *port = container_of(p, struct uart_8250_port, port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&p->lock, flags);
+
+	port->rs485 = *rs485conf;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		printk("Setting UART to RS-485\n");
+	} else {
+		printk("Setting UART to RS-422\n");
+	}
+
+	spin_unlock_irqrestore(&p->lock, flags);
+
+	return 0;
+}
+#endif
+
 /*
  * Fill a struct uart_port for a given device node
  */
@@ -102,6 +125,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 		port->type_gpio = gpio;
 	}
+
+	port->rs485_config = serial8250_config_rs485;
 
 out_gpio:
 #endif
