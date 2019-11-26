@@ -42,6 +42,7 @@ struct pci_test {
 	int		irqtype;
 	bool		set_irqtype;
 	bool		get_irqtype;
+	bool		clear_irq;
 	bool		read;
 	bool		write;
 	bool		copy;
@@ -86,6 +87,15 @@ static int run_test(struct pci_test *test)
 			fprintf(stdout, "FAILED\n");
 		else
 			fprintf(stdout, "%s\n", irq[ret]);
+	}
+
+	if (test->clear_irq) {
+		ret = ioctl(fd, PCITEST_CLEAR_IRQ);
+		fprintf(stdout, "CLEAR IRQ:\t\t");
+		if (ret < 0)
+			fprintf(stdout, "FAILED\n");
+		else
+			fprintf(stdout, "%s\n", result[ret]);
 	}
 
 	if (test->legacyirq) {
@@ -165,7 +175,7 @@ int main(int argc, char **argv)
 	/* set default endpoint device */
 	test->device = "/dev/pci-endpoint-test.0";
 
-	while ((c = getopt(argc, argv, "D:b:m:x:i:Ilrwcs:")) != EOF)
+	while ((c = getopt(argc, argv, "D:b:m:x:i:eIlhrwcs:")) != EOF)
 	switch (c) {
 	case 'D':
 		test->device = optarg;
@@ -206,10 +216,12 @@ int main(int argc, char **argv)
 	case 'c':
 		test->copy = true;
 		continue;
+	case 'e':
+		test->clear_irq = true;
+		continue;
 	case 's':
 		test->size = strtoul(optarg, NULL, 0);
 		continue;
-	case '?':
 	case 'h':
 	default:
 usage:
@@ -221,12 +233,14 @@ usage:
 			"\t-m <msi num>		MSI test (msi number between 1..32)\n"
 			"\t-x <msix num>	\tMSI-X test (msix number between 1..2048)\n"
 			"\t-i <irq type>	\tSet IRQ type (0 - Legacy, 1 - MSI, 2 - MSI-X)\n"
+			"\t-e			Clear IRQ\n"
 			"\t-I			Get current IRQ type configured\n"
 			"\t-l			Legacy IRQ test\n"
 			"\t-r			Read buffer test\n"
 			"\t-w			Write buffer test\n"
 			"\t-c			Copy buffer test\n"
 			"\t-s <size>		Size of buffer {default: 100KB}\n",
+			"\t-h			Print this help message\n",
 			argv[0]);
 		return -EINVAL;
 	}

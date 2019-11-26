@@ -84,14 +84,14 @@
 #define PDMA_STATIC_TR_X(x)	\
 	(((x) << PDMA_STATIC_TR_X_SHIFT) & PDMA_STATIC_TR_X_MASK)
 
+#define PDMA_STATIC_TR_XY_ACC32		BIT(30)
+#define PDMA_STATIC_TR_XY_BURST		BIT(31)
+
 /*
  * UDMA_TCHAN_RT_PEER_STATIC_TR_Z_REG /
  * UDMA_RCHAN_RT_PEER_STATIC_TR_Z_REG
  */
-#define PDMA_STATIC_TR_Z_MASK		GENMASK(11, 0)
-#define PDMA_STATIC_TR_Z_SHIFT		(0)
-#define PDMA_STATIC_TR_Z(x)	\
-	(((x) << PDMA_STATIC_TR_Z_SHIFT) & PDMA_STATIC_TR_Z_MASK)
+#define PDMA_STATIC_TR_Z(x, mask)	((x) & (mask))
 
 /* Private API to UDMA via k3-udma-private */
 #include <linux/of.h>
@@ -114,6 +114,7 @@ enum udma_rm_range {
 enum udma_tp_level {
 	UDMA_TP_NORMAL = 0,
 	UDMA_TP_HIGH = 1,
+	UDMA_TP_ULTRAHIGH = 2,
 	UDMA_TP_LAST,
 };
 
@@ -139,8 +140,8 @@ void xudma_dev_put(struct udma_dev *ud);
 u32 xudma_dev_get_psil_base(struct udma_dev *ud);
 struct udma_tisci_rm *xudma_dev_get_tisci_rm(struct udma_dev *ud);
 
-int xudma_reserve_rflow_range(struct udma_dev *ud, int from, int cnt);
-int xudma_free_rflow_range(struct udma_dev *ud, int from, int cnt);
+int xudma_alloc_gp_rflow_range(struct udma_dev *ud, int from, int cnt);
+int xudma_free_gp_rflow_range(struct udma_dev *ud, int from, int cnt);
 
 struct udma_tchan *xudma_tchan_get(struct udma_dev *ud, int id);
 struct udma_rchan *xudma_rchan_get(struct udma_dev *ud, int id);
@@ -158,5 +159,6 @@ u32 xudma_tchanrt_read(struct udma_tchan *tchan, int reg);
 void xudma_tchanrt_write(struct udma_tchan *tchan, int reg, u32 val);
 u32 xudma_rchanrt_read(struct udma_rchan *rchan, int reg);
 void xudma_rchanrt_write(struct udma_rchan *rchan, int reg, u32 val);
+bool xudma_rflow_is_gp(struct udma_dev *ud, int id);
 
 #endif /* K3_UDMA_H_ */

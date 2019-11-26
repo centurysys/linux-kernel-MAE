@@ -82,6 +82,10 @@
 #define MSI_REQ_GRANT					BIT(0)
 #define MSI_VECTOR_SHIFT				7
 
+#define PCIE_1LANE_2LANE_SELECTION			BIT(13)
+#define PCIE_B1C0_MODE_SEL				BIT(2)
+#define PCIE_B0_B1_TSYNCEN				BIT(0)
+
 struct dra7xx_pcie {
 	struct dw_pcie		*pci;
 	void __iomem		*base;		/* DT ti_conf */
@@ -94,6 +98,7 @@ struct dra7xx_pcie {
 
 struct dra7xx_pcie_of_data {
 	enum dw_pcie_device_mode mode;
+	u32 b1co_mode_sel_mask;
 };
 
 #define to_dra7xx_pcie(x)	dev_get_drvdata((x)->dev)
@@ -258,12 +263,29 @@ static irqreturn_t dra7xx_pcie_msi_irq_handler(int irq, void *arg)
 	struct pcie_port *pp = &pci->pp;
 	unsigned long reg;
 	u32 virq, bit;
+	int count = 0;
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI);
+	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI, reg);
 
 	switch (reg) {
 	case MSI:
-		dw_handle_msi_irq(pp);
+		/*
+		 * Need to make sure no MSI IRQs are pending before
+		 * exiting handler, else the wrapper will not catch new
+		 * IRQs. So loop around till dw_handle_msi_irq() returns
+		 * IRQ_NONE
+		 */
+		while (dw_handle_msi_irq(pp) != IRQ_NONE && count < 1000)
+			count++;
+
+		if (count == 1000) {
+			dev_err(pci->dev, "too much work in msi irq\n");
+			dra7xx_pcie_writel(dra7xx,
+					   PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI,
+					   reg);
+			return IRQ_HANDLED;
+		}
 		break;
 	case INTA:
 	case INTB:
@@ -276,8 +298,6 @@ static irqreturn_t dra7xx_pcie_msi_irq_handler(int irq, void *arg)
 		}
 		break;
 	}
-
-	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI, reg);
 
 	return IRQ_HANDLED;
 }
@@ -390,9 +410,22 @@ static int dra7xx_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 	return 0;
 }
 
-static struct dw_pcie_ep_ops pcie_ep_ops = {
+static const struct pci_epc_features dra7xx_pcie_epc_features = {
+	.linkup_notifier = true,
+	.msi_capable = true,
+	.msix_capable = false,
+};
+
+static const struct pci_epc_features*
+dra7xx_pcie_get_features(struct dw_pcie_ep *ep)
+{
+	return &dra7xx_pcie_epc_features;
+}
+
+static const struct dw_pcie_ep_ops pcie_ep_ops = {
 	.ep_init = dra7xx_pcie_ep_init,
 	.raise_irq = dra7xx_pcie_raise_irq,
+	.get_features = dra7xx_pcie_get_features,
 };
 
 static int __init dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
@@ -530,6 +563,26 @@ static const struct dra7xx_pcie_of_data dra7xx_pcie_ep_of_data = {
 	.mode = DW_PCIE_EP_TYPE,
 };
 
+static const struct dra7xx_pcie_of_data dra746_pcie_rc_of_data = {
+	.b1co_mode_sel_mask = BIT(2),
+	.mode = DW_PCIE_RC_TYPE,
+};
+
+static const struct dra7xx_pcie_of_data dra726_pcie_rc_of_data = {
+	.b1co_mode_sel_mask = GENMASK(3, 2),
+	.mode = DW_PCIE_RC_TYPE,
+};
+
+static const struct dra7xx_pcie_of_data dra746_pcie_ep_of_data = {
+	.b1co_mode_sel_mask = BIT(2),
+	.mode = DW_PCIE_EP_TYPE,
+};
+
+static const struct dra7xx_pcie_of_data dra726_pcie_ep_of_data = {
+	.b1co_mode_sel_mask = GENMASK(3, 2),
+	.mode = DW_PCIE_EP_TYPE,
+};
+
 static const struct of_device_id of_dra7xx_pcie_match[] = {
 	{
 		.compatible = "ti,dra7-pcie",
@@ -538,6 +591,22 @@ static const struct of_device_id of_dra7xx_pcie_match[] = {
 	{
 		.compatible = "ti,dra7-pcie-ep",
 		.data = &dra7xx_pcie_ep_of_data,
+	},
+	{
+		.compatible = "ti,dra746-pcie-rc",
+		.data = &dra746_pcie_rc_of_data,
+	},
+	{
+		.compatible = "ti,dra726-pcie-rc",
+		.data = &dra726_pcie_rc_of_data,
+	},
+	{
+		.compatible = "ti,dra746-pcie-ep",
+		.data = &dra746_pcie_ep_of_data,
+	},
+	{
+		.compatible = "ti,dra726-pcie-ep",
+		.data = &dra726_pcie_ep_of_data,
 	},
 	{},
 };
@@ -584,6 +653,34 @@ static int dra7xx_pcie_unaligned_memaccess(struct device *dev)
 	return ret;
 }
 
+static int dra7xx_pcie_configure_two_lane(struct device *dev,
+					  u32 b1co_mode_sel_mask)
+{
+	struct device_node *np = dev->of_node;
+	struct regmap *pcie_syscon;
+	unsigned int pcie_reg;
+	u32 mask;
+	u32 val;
+
+	pcie_syscon = syscon_regmap_lookup_by_phandle(np, "ti,syscon-lane-sel");
+	if (IS_ERR(pcie_syscon)) {
+		dev_err(dev, "unable to get ti,syscon-lane-sel\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32_index(np, "ti,syscon-lane-sel", 1,
+				       &pcie_reg)) {
+		dev_err(dev, "couldn't get lane selection reg offset\n");
+		return -EINVAL;
+	}
+
+	mask = b1co_mode_sel_mask | PCIE_B0_B1_TSYNCEN;
+	val = PCIE_B1C0_MODE_SEL | PCIE_B0_B1_TSYNCEN;
+	regmap_update_bits(pcie_syscon, pcie_reg, mask, val);
+
+	return 0;
+}
+
 static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 {
 	u32 reg;
@@ -604,6 +701,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const struct dra7xx_pcie_of_data *data;
 	enum dw_pcie_device_mode mode;
+	u32 b1co_mode_sel_mask;
 
 	match = of_match_device(of_match_ptr(of_dra7xx_pcie_match), dev);
 	if (!match)
@@ -611,6 +709,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	data = (struct dra7xx_pcie_of_data *)match->data;
 	mode = (enum dw_pcie_device_mode)data->mode;
+	b1co_mode_sel_mask = data->b1co_mode_sel_mask;
 
 	dra7xx = devm_kzalloc(dev, sizeof(*dra7xx), GFP_KERNEL);
 	if (!dra7xx)
@@ -630,7 +729,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ti_conf");
-	base = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	base = devm_ioremap_resource(dev, res);
 	if (!base)
 		return -ENOMEM;
 
@@ -665,6 +764,12 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	dra7xx->phy = phy;
 	dra7xx->pci = pci;
 	dra7xx->phy_count = phy_count;
+
+	if (phy_count == 2) {
+		ret = dra7xx_pcie_configure_two_lane(dev, b1co_mode_sel_mask);
+		if (ret < 0)
+			dra7xx->phy_count = 1; /* Fallback to x1 lane mode */
+	}
 
 	ret = dra7xx_pcie_enable_phy(dra7xx);
 	if (ret) {

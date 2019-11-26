@@ -42,6 +42,14 @@
 #define TI_SCI_MSG_SET_IRQ		0x1000
 #define TI_SCI_MSG_FREE_IRQ		0x1001
 
+/* Processor Control requests */
+#define TI_SCI_MSG_PROC_REQUEST		0xc000
+#define TI_SCI_MSG_PROC_RELEASE		0xc001
+#define TI_SCI_MSG_PROC_HANDOVER	0xc005
+#define TI_SCI_MSG_SET_CONFIG		0xc100
+#define TI_SCI_MSG_SET_CTRL		0xc101
+#define TI_SCI_MSG_GET_STATUS		0xc400
+
 /* NAVSS resource management */
 /* Ringacc requests */
 #define TI_SCI_MSG_RM_RING_ALLOCATE		0x1100
@@ -231,7 +239,8 @@ struct ti_sci_msg_req_set_device_resets {
  * @dev_id:	Device identifier this request is for
  * @clk_id:	Clock identifier for the device for this request.
  *		Each device has it's own set of clock inputs. This indexes
- *		which clock input to modify.
+ *		which clock input to modify. Set to 255 if clock ID is
+ *		greater than or equal to 255.
  * @request_state: Request the state for the clock to be set to.
  *		MSG_CLOCK_SW_STATE_UNREQ: The IP does not require this clock,
  *		it can be disabled, regardless of the state of the device
@@ -242,6 +251,9 @@ struct ti_sci_msg_req_set_device_resets {
  *		being required by the device.(default)
  *		MSG_CLOCK_SW_STATE_REQ:  Configure the clock to be enabled,
  *		regardless of the state of the device.
+ * @clk_id_32:	Clock identifier for the device for this request.
+ *		Only to be used if the clock ID is greater than or equal to
+ *		255.
  *
  * Normally, all required clocks are managed by TISCI entity, this is used
  * only for specific control *IF* required. Auto managed state is
@@ -263,6 +275,7 @@ struct ti_sci_msg_req_set_clock_state {
 #define MSG_CLOCK_SW_STATE_AUTO		1
 #define MSG_CLOCK_SW_STATE_REQ		2
 	u8 request_state;
+	u32 clk_id_32;
 } __packed;
 
 /**
@@ -271,7 +284,11 @@ struct ti_sci_msg_req_set_clock_state {
  * @dev_id:	Device identifier this request is for
  * @clk_id:	Clock identifier for the device for this request.
  *		Each device has it's own set of clock inputs. This indexes
- *		which clock input to get state of.
+ *		which clock input to get state of. Set to 255 if the clock
+ *		ID is greater than or equal to 255.
+ * @clk_id_32:	Clock identifier for the device for the request.
+ *		Only to be used if the clock ID is greater than or equal to
+ *		255.
  *
  * Request type is TI_SCI_MSG_GET_CLOCK_STATE, response is state
  * of the clock
@@ -280,6 +297,7 @@ struct ti_sci_msg_req_get_clock_state {
 	struct ti_sci_msg_hdr hdr;
 	u32 dev_id;
 	u8 clk_id;
+	u32 clk_id_32;
 } __packed;
 
 /**
@@ -307,9 +325,13 @@ struct ti_sci_msg_resp_get_clock_state {
  * @dev_id:	Device identifier this request is for
  * @clk_id:	Clock identifier for the device for this request.
  *		Each device has it's own set of clock inputs. This indexes
- *		which clock input to modify.
+ *		which clock input to modify. Set to 255 if clock ID is
+ *		greater than or equal to 255.
  * @parent_id:	The new clock parent is selectable by an index via this
- *		parameter.
+ *		parameter. Set to 255 if clock ID is greater than or
+ *		equal to 255.
+ * @clk_id_32:	Clock identifier if @clk_id field is 255.
+ * @parent_id_32:	Parent identifier if @parent_id is 255.
  *
  * Request type is TI_SCI_MSG_SET_CLOCK_PARENT, response is generic
  * ACK / NACK message.
@@ -319,6 +341,8 @@ struct ti_sci_msg_req_set_clock_parent {
 	u32 dev_id;
 	u8 clk_id;
 	u8 parent_id;
+	u32 clk_id_32;
+	u32 parent_id_32;
 } __packed;
 
 /**
@@ -327,7 +351,10 @@ struct ti_sci_msg_req_set_clock_parent {
  * @dev_id:	Device identifier this request is for
  * @clk_id:	Clock identifier for the device for this request.
  *		Each device has it's own set of clock inputs. This indexes
- *		which clock input to get the parent for.
+ *		which clock input to get the parent for. If this field
+ *		contains 255, the actual clock identifier is stored in
+ *		@clk_id_32.
+ * @clk_id_32:	Clock identifier if the @clk_id field contains 255.
  *
  * Request type is TI_SCI_MSG_GET_CLOCK_PARENT, response is parent information
  */
@@ -335,25 +362,32 @@ struct ti_sci_msg_req_get_clock_parent {
 	struct ti_sci_msg_hdr hdr;
 	u32 dev_id;
 	u8 clk_id;
+	u32 clk_id_32;
 } __packed;
 
 /**
  * struct ti_sci_msg_resp_get_clock_parent - Response with clock parent
  * @hdr:	Generic Header
- * @parent_id:	The current clock parent
+ * @parent_id:	The current clock parent. If set to 255, the current parent
+ *		ID can be found from the @parent_id_32 field.
+ * @parent_id_32:	Current clock parent if @parent_id field is set to
+ *			255.
  *
  * Response to TI_SCI_MSG_GET_CLOCK_PARENT.
  */
 struct ti_sci_msg_resp_get_clock_parent {
 	struct ti_sci_msg_hdr hdr;
 	u8 parent_id;
+	u32 parent_id_32;
 } __packed;
 
 /**
  * struct ti_sci_msg_req_get_clock_num_parents - Request to get clock parents
  * @hdr:	Generic header
  * @dev_id:	Device identifier this request is for
- * @clk_id:	Clock identifier for the device for this request.
+ * @clk_id:	Clock identifier for the device for this request. Set to
+ *		255 if clock ID is greater than or equal to 255.
+ * @clk_id_32:	Clock identifier if the @clk_id field contains 255.
  *
  * This request provides information about how many clock parent options
  * are available for a given clock to a device. This is typically used
@@ -366,18 +400,24 @@ struct ti_sci_msg_req_get_clock_num_parents {
 	struct ti_sci_msg_hdr hdr;
 	u32 dev_id;
 	u8 clk_id;
+	u32 clk_id_32;
 } __packed;
 
 /**
  * struct ti_sci_msg_resp_get_clock_num_parents - Response for get clk parents
  * @hdr:		Generic header
- * @num_parents:	Number of clock parents
+ * @num_parents:	Number of clock parents. If set to 255, the actual
+ *			number of parents is stored into @num_parents_32
+ *			field instead.
+ * @num_parents_32:	Number of clock parents if @num_parents field is
+ *			set to 255.
  *
  * Response to TI_SCI_MSG_GET_NUM_CLOCK_PARENTS
  */
 struct ti_sci_msg_resp_get_clock_num_parents {
 	struct ti_sci_msg_hdr hdr;
 	u8 num_parents;
+	u32 num_parents_32;
 } __packed;
 
 /**
@@ -392,7 +432,9 @@ struct ti_sci_msg_resp_get_clock_num_parents {
  * @max_freq_hz: The maximum allowable frequency in Hz. This is the maximum
  *		allowable programmed frequency and does not account for clock
  *		tolerances and jitter.
- * @clk_id:	Clock identifier for the device for this request.
+ * @clk_id:	Clock identifier for the device for this request. Set to
+ *		255 if clock identifier is greater than or equal to 255.
+ * @clk_id_32:	Clock identifier if @clk_id is set to 255.
  *
  * NOTE: Normally clock frequency management is automatically done by TISCI
  * entity. In case of specific requests, TISCI evaluates capability to achieve
@@ -409,6 +451,7 @@ struct ti_sci_msg_req_query_clock_freq {
 	u64 target_freq_hz;
 	u64 max_freq_hz;
 	u8 clk_id;
+	u32 clk_id_32;
 } __packed;
 
 /**
@@ -436,7 +479,9 @@ struct ti_sci_msg_resp_query_clock_freq {
  * @max_freq_hz: The maximum allowable frequency in Hz. This is the maximum
  *		allowable programmed frequency and does not account for clock
  *		tolerances and jitter.
- * @clk_id:	Clock identifier for the device for this request.
+ * @clk_id:	Clock identifier for the device for this request. Set to
+ *		255 if clock ID is greater than or equal to 255.
+ * @clk_id_32:	Clock identifier if @clk_id field is set to 255.
  *
  * NOTE: Normally clock frequency management is automatically done by TISCI
  * entity. In case of specific requests, TISCI evaluates capability to achieve
@@ -465,13 +510,16 @@ struct ti_sci_msg_req_set_clock_freq {
 	u64 target_freq_hz;
 	u64 max_freq_hz;
 	u8 clk_id;
+	u32 clk_id_32;
 } __packed;
 
 /**
  * struct ti_sci_msg_req_get_clock_freq - Request to get the clock frequency
  * @hdr:	Generic Header
  * @dev_id:	Device identifier this request is for
- * @clk_id:	Clock identifier for the device for this request.
+ * @clk_id:	Clock identifier for the device for this request. Set to
+ *		255 if clock ID is greater than or equal to 255.
+ * @clk_id_32:	Clock identifier if @clk_id field is set to 255.
  *
  * NOTE: Normally clock frequency management is automatically done by TISCI
  * entity. In some cases, clock frequencies are configured by host.
@@ -483,6 +531,7 @@ struct ti_sci_msg_req_get_clock_freq {
 	struct ti_sci_msg_hdr hdr;
 	u32 dev_id;
 	u8 clk_id;
+	u32 clk_id_32;
 } __packed;
 
 /**
@@ -590,6 +639,133 @@ struct ti_sci_msg_req_manage_irq {
 	u16 global_event;
 	u8 vint_status_bit;
 	u8 secondary_host;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_proc_request - Request a processor
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being requested
+ *
+ * Request type is TI_SCI_MSG_PROC_REQUEST, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_proc_request {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_proc_release - Release a processor
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being released
+ *
+ * Request type is TI_SCI_MSG_PROC_RELEASE, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_proc_release {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_proc_handover - Handover a processor to a host
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being handed over
+ * @host_id:		Host ID the control needs to be transferred to
+ *
+ * Request type is TI_SCI_MSG_PROC_HANDOVER, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_proc_handover {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u8 host_id;
+} __packed;
+
+/* Boot Vector masks */
+#define TI_SCI_ADDR_LOW_MASK			GENMASK_ULL(31, 0)
+#define TI_SCI_ADDR_HIGH_MASK			GENMASK_ULL(63, 32)
+#define TI_SCI_ADDR_HIGH_SHIFT			32
+
+/**
+ * struct ti_sci_msg_req_set_config - Set Processor boot configuration
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being configured
+ * @bootvector_low:	Lower 32 bit address (Little Endian) of boot vector
+ * @bootvector_high:	Higher 32 bit address (Little Endian) of boot vector
+ * @config_flags_set:	Optional Processor specific Config Flags to set.
+ *			Setting a bit here implies the corresponding mode
+ *			will be set
+ * @config_flags_clear:	Optional Processor specific Config Flags to clear.
+ *			Setting a bit here implies the corresponding mode
+ *			will be cleared
+ *
+ * Request type is TI_SCI_MSG_PROC_HANDOVER, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_set_config {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u32 bootvector_low;
+	u32 bootvector_high;
+	u32 config_flags_set;
+	u32 config_flags_clear;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_set_ctrl - Set Processor boot control flags
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being configured
+ * @control_flags_set:	Optional Processor specific Control Flags to set.
+ *			Setting a bit here implies the corresponding mode
+ *			will be set
+ * @control_flags_clear:Optional Processor specific Control Flags to clear.
+ *			Setting a bit here implies the corresponding mode
+ *			will be cleared
+ *
+ * Request type is TI_SCI_MSG_SET_CTRL, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_set_ctrl {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u32 control_flags_set;
+	u32 control_flags_clear;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_get_status - Processor boot status request
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor whose status is being requested
+ *
+ * Request type is TI_SCI_MSG_GET_STATUS, response is an appropriate
+ * message, or NACK in case of inability to satisfy request.
+ */
+struct ti_sci_msg_req_get_status {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_get_status - Processor boot status response
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor whose status is returned
+ * @bootvector_low:	Lower 32 bit address (Little Endian) of boot vector
+ * @bootvector_high:	Higher 32 bit address (Little Endian) of boot vector
+ * @config_flags:	Optional Processor specific Config Flags set currently
+ * @control_flags:	Optional Processor specific Control Flags set currently
+ * @status_flags:	Optional Processor specific Status Flags set currently
+ *
+ * Response structure to a TI_SCI_MSG_GET_STATUS request.
+ */
+struct ti_sci_msg_resp_get_status {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u32 bootvector_low;
+	u32 bootvector_high;
+	u32 config_flags;
+	u32 control_flags;
+	u32 status_flags;
 } __packed;
 
 /**
@@ -742,190 +918,6 @@ struct ti_sci_msg_psil_unpair {
 	u32 nav_id;
 	u32 src_thread;
 	u32 dst_thread;
-} __packed;
-
-/**
- * struct ti_sci_msg_udmap_tx_ch_alloc -  UDMAP transmit channel allocation
- *					  message
- * @hdr: Generic Header
- * @nav_id: SoC Navigator Subsystem device ID from which the transmit channel is
- *	allocated
- * @index: UDMAP transmit channel index.
- * @tx_pause_on_err: UDMAP transmit channel pause on error configuration
- * @tx_filt_einfo: UDMAP transmit channel extended packet information passing
- *	configuration.
- * @tx_filt_pswords: UDMAP transmit channel protocol specific word passing
- *	configuration.
- * @tx_atype: UDMAP transmit channel non Ring Accelerator access pointer
- *	interpretation. Valid values are TI_SCI_RM_UDMAP_ATYPE_*
- * @tx_chan_type: UDMAP transmit channel functional channel type and work
- *	passing mechanism configuration.  Valid types are
- *	TI_SCI_RM_UDMAP_CHAN_TYPE_*
- * @tx_supr_tdpkt: UDMAP transmit channel teardown packet generation suppression
- *	configuration.
- * @tx_fetch_size: UDMAP transmit channel number of 32-bit descriptor words to
- *	fetch configuration.
- * @tx_credit_count: UDMAP transmit channel transfer request credit count
- *	configuration.
- * @txcq_qnum: UDMAP transmit channel completion queue number.
- * @tx_priority: UDMAP transmit channel transmit priority value. Can be either
- *	NULL parameter or valid priority number.
- * @tx_qos: DMAP transmit channel transmit qos value. Can be either NULL
- *	parameter or valid QoS number.
- * @tx_orderid: UDMAP transmit channel bus order id value. Can be either NULL
- *	parameter or valid orderid number.
- * @fdepth: UDMAP transmit channel FIFO depth configuration.
- * @tx_sched_priority: UDMAP transmit channel tx scheduling priority
- *	configuration. Valid values are TI_SCI_RM_UDMAP_SCHED_PRIOR_*
- * @share: Not supported, set it to 0.
- * @type: Not supported, set it to NULL parameter.
- * @secondary_host: Specifies a host ID for which the TISCI header host ID
- *	is proxying the request for.
- *
- * For detailed information on the settings, see the UDMAP section of the TRM.
- */
-struct ti_sci_msg_udmap_tx_ch_alloc {
-	struct ti_sci_msg_hdr hdr;
-	u32 nav_id;
-	u32 index;
-	u8 tx_pause_on_err;
-	u8 tx_filt_einfo;
-	u8 tx_filt_pswords;
-	u8 tx_atype;
-	u8 tx_chan_type;
-	u8 tx_supr_tdpkt;
-	u16 tx_fetch_size;
-	u8 tx_credit_count;
-	u16 txcq_qnum;
-	u8 tx_priority;
-	u8 tx_qos;
-	u8 tx_orderid;
-	u16 fdepth;
-	u8 tx_sched_priority;
-	u8 share;
-	u8 type;
-	u8 secondary_host;
-} __packed;
-
-/**
- * struct ti_sci_msg_udmap_tx_ch_alloc_resp -  UDMAP transmit channel allocate
- *					       response
- * @hdr: Generic Header
- * @index: UDMAP transmit channel index.
- */
-struct ti_sci_msg_udmap_tx_ch_alloc_resp {
-	struct ti_sci_msg_hdr hdr;
-	u32 index;
-} __packed;
-
-/**
- * struct ti_sci_msg_udmap_tx_ch_free -  UDMAP transmit channel free message
- * @hdr: Generic Header
- * @nav_id: SoC Navigator Subsystem device ID from which the transmit channel
- *	was allocated
- * @index: UDMAP transmit channel index.
- * @secondary_host: Specifies a host ID for which the TISCI header host ID
- *	is proxying the request for.
- */
-struct ti_sci_msg_udmap_tx_ch_free {
-	struct ti_sci_msg_hdr hdr;
-	u32 nav_id;
-	u32 index;
-	s8 secondary_host;
-} __packed;
-
-/**
- * struct ti_sci_msg_udmap_rx_ch_alloc -  parameters for UDMAP receive channel
- *					  allocation
- * @hdr: Generic Header
- * @nav_id: SoC Navigator Subsystem device ID from which the receive channel is
- *	allocated
- * @index: UDMAP receive channel index.
- * @rx_fetch_size: UDMAP receive channel number of 32-bit descriptor words to
- *	fetch configuration.
- * @rxcq_qnum: UDMAP receive channel completion queue number.
- * @rx_priority: UDMAP receive channel receive priority value. Can be either
- *	NULL parameter or valid priority number.
- * @rx_qos: DMAP receive channel receive qos value. Can be either NULL
- *	parameter or valid QoS number.
- * @rx_orderid: UDMAP receive channel bus order id value. Can be either NULL
- *	parameter or valid orderid number.
- * @rx_sched_priority: UDMAP receive channel tx scheduling priority
- *	configuration. Valid values are TI_SCI_RM_UDMAP_SCHED_PRIOR_*
- * @flowid_start: UDMAP receive channel additional flows starting index.
- * @flowid_cnt: UDMAP receive channel additional flows count.
- *	flowid_start is only valid when flowid_cnt is not 0. in that case if
- *	flowid_start is NULL parameter, dynamic allocation is requested. If
- *	flowid_start is not NULL and it is valid, a range of flows from the
- *	given index is going to be requested.
- * @rx_pause_on_err: UDMAP receive channel pause on error configuration
- * @rx_atype: UDMAP receive channel non Ring Accelerator access pointer
- *	interpretation. Valid values are TI_SCI_RM_UDMAP_ATYPE_*
- * @rx_chan_type: UDMAP receive channel functional channel type and work
- *	passing mechanism configuration.  Valid types are
- *	TI_SCI_RM_UDMAP_CHAN_TYPE_*
- * @rx_ignore_short: UDMAP receive channel short packet treatment configuration.
- * @rx_ignore_long: UDMAP receive channel long packet treatment configuration.
- * @share: Not supported, set it to 0.
- * @type: Not supported, set it to NULL parameter.
- * @secondary_host: Specifies a host ID for which the TISCI header host ID
- *	is proxying the request for.
- *
- * For detailed information on the settings, see the UDMAP section of the TRM.
- */
-struct ti_sci_msg_udmap_rx_ch_alloc {
-	struct ti_sci_msg_hdr hdr;
-	u32 nav_id;
-	u32 index;
-	u16 rx_fetch_size;
-	u16 rxcq_qnum;
-	u8 rx_priority;
-	u8 rx_qos;
-	u8 rx_orderid;
-	u8 rx_sched_priority;
-	u16 flowid_start;
-	u16 flowid_cnt;
-	u8 rx_pause_on_err;
-	u8 rx_atype;
-	u8 rx_chan_type;
-	u8 rx_ignore_short;
-	u8 rx_ignore_long;
-	u8 share;
-	u8 type;
-	u8 secondary_host;
-} __packed;
-
-/**
- * struct ti_sci_msg_udmap_rx_ch_alloc_resp -  UDMAP receive channel allocate
- *					       response
- * @hdr: Generic Header
- * @index: UDMAP receive channel index.
- * @def_flow_index: Index of the defaule receive flow for the channel
- * @rng_flow_start_index: Start index of the allocated extra receive flows
- * @rng_flow_cnt: Number of allocated extra receive flows
- */
-struct ti_sci_msg_udmap_rx_ch_alloc_resp {
-	struct ti_sci_msg_hdr hdr;
-	u32 index;
-	u32 def_flow_index;
-	u32 rng_flow_start_index;
-	u32 rng_flow_cnt;
-} __packed;
-
-/**
- * struct ti_sci_msg_udmap_rx_ch_free -  UDMAP receive channel free message
- * @hdr: Generic Header
- * @nav_id: SoC Navigator Subsystem device ID from which the receive channel
- *	was allocated
- * @index: UDMAP receive channel index.
- * @secondary_host: Specifies a host ID for which the TISCI header host ID
- *	is proxying the request for.
- */
-struct ti_sci_msg_udmap_rx_ch_free {
-	struct ti_sci_msg_hdr hdr;
-	u32 nav_id;
-	u32 index;
-	s8 secondary_host;
 } __packed;
 
 /**
@@ -1134,6 +1126,7 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
 	u8 tx_orderid;
 	u16 fdepth;
 	u8 tx_sched_priority;
+	u8 tx_burst_size;
 } __packed;
 
 /**
@@ -1257,6 +1250,8 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg_req {
 	u8 rx_chan_type;
 	u8 rx_ignore_short;
 	u8 rx_ignore_long;
+	u8 rx_burst_size;
+
 } __packed;
 
 /**

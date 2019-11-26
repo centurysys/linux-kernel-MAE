@@ -6,7 +6,7 @@
 
 /dts-v1/;
 
-#include "dra76x.dtsi"
+#include "dra74x-p.dtsi"
 #include "dra7-mmc-iodelay.dtsi"
 #include "dra76x-mmc-iodelay.dtsi"
 #include "am572x-idk-common.dtsi"
@@ -38,4 +38,10 @@
 
 &emif1 {
 	status = "okay";
+};
+
+&pruss2_mdio {
+	reset-gpios = <&gpio5 8 GPIO_ACTIVE_LOW>,
+		      <&gpio5 9 GPIO_ACTIVE_LOW>;
+	reset-delay-us = <2>;   /* PHY datasheet states 1uS min */
 };

@@ -97,7 +97,10 @@ struct ti_sci_core_ops {
  */
 struct ti_sci_dev_ops {
 	int (*get_device)(const struct ti_sci_handle *handle, u32 id);
+	int (*get_device_exclusive)(const struct ti_sci_handle *handle, u32 id);
 	int (*idle_device)(const struct ti_sci_handle *handle, u32 id);
+	int (*idle_device_exclusive)(const struct ti_sci_handle *handle,
+				     u32 id);
 	int (*put_device)(const struct ti_sci_handle *handle, u32 id);
 	int (*is_valid)(const struct ti_sci_handle *handle, u32 id);
 	int (*get_context_loss_count)(const struct ti_sci_handle *handle,
@@ -166,29 +169,29 @@ struct ti_sci_dev_ops {
  * managed by driver for that purpose.
  */
 struct ti_sci_clk_ops {
-	int (*get_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*get_clock)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 			 bool needs_ssc, bool can_change_freq,
 			 bool enable_input_term);
-	int (*idle_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid);
-	int (*put_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid);
-	int (*is_auto)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*idle_clock)(const struct ti_sci_handle *handle, u32 did, u32 cid);
+	int (*put_clock)(const struct ti_sci_handle *handle, u32 did, u32 cid);
+	int (*is_auto)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 		       bool *req_state);
-	int (*is_on)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*is_on)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 		     bool *req_state, bool *current_state);
-	int (*is_off)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*is_off)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 		      bool *req_state, bool *current_state);
-	int (*set_parent)(const struct ti_sci_handle *handle, u32 did, u8 cid,
-			  u8 parent_id);
-	int (*get_parent)(const struct ti_sci_handle *handle, u32 did, u8 cid,
-			  u8 *parent_id);
+	int (*set_parent)(const struct ti_sci_handle *handle, u32 did, u32 cid,
+			  u32 parent_id);
+	int (*get_parent)(const struct ti_sci_handle *handle, u32 did, u32 cid,
+			  u32 *parent_id);
 	int (*get_num_parents)(const struct ti_sci_handle *handle, u32 did,
-			       u8 cid, u8 *num_parents);
+			       u32 cid, u32 *num_parents);
 	int (*get_best_match_freq)(const struct ti_sci_handle *handle, u32 did,
-				   u8 cid, u64 min_freq, u64 target_freq,
+				   u32 cid, u64 min_freq, u64 target_freq,
 				   u64 max_freq, u64 *match_freq);
-	int (*set_freq)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*set_freq)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 			u64 min_freq, u64 target_freq, u64 max_freq);
-	int (*get_freq)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*get_freq)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 			u64 *current_freq);
 };
 
@@ -292,6 +295,35 @@ struct ti_sci_rm_irq_ops {
 				      u8 vint_status_bit);
 };
 
+/**
+ * struct ti_sci_proc_ops - Processor Control operations
+ * @request:	Request to control a physical processor. The requesting host
+ *		should be in the processor access list
+ * @release:	Relinquish a physical processor control
+ * @handover:	Handover a physical processor control to another host
+ *		in the permitted list
+ * @set_config:	Set base configuration of a processor
+ * @set_control: Setup limited control flags in specific cases
+ * @get_status: Get the state of physical processor
+ *
+ * NOTE: The following paramteres are generic in nature for all these ops,
+ * -handle:	Pointer to TI SCI handle as retrieved by *ti_sci_get_handle
+ * -pid:	Processor ID
+ * -hid:	Host ID
+ */
+struct ti_sci_proc_ops {
+	int (*request)(const struct ti_sci_handle *handle, u8 pid);
+	int (*release)(const struct ti_sci_handle *handle, u8 pid);
+	int (*handover)(const struct ti_sci_handle *handle, u8 pid, u8 hid);
+	int (*set_config)(const struct ti_sci_handle *handle, u8 pid,
+			  u64 boot_vector, u32 cfg_set, u32 cfg_clr);
+	int (*set_control)(const struct ti_sci_handle *handle, u8 pid,
+			   u32 ctrl_set, u32 ctrl_clr);
+	int (*get_status)(const struct ti_sci_handle *handle, u8 pid,
+			  u64 *boot_vector, u32 *cfg_flags, u32 *ctrl_flags,
+			  u32 *status_flags);
+};
+
 /* RA config.addr_lo parameter is valid for RM ring configure TI_SCI message */
 #define TI_SCI_MSG_VALUE_RM_RING_ADDR_LO_VALID	BIT(0)
 /* RA config.addr_hi parameter is valid for RM ring configure TI_SCI message */
@@ -361,6 +393,10 @@ struct ti_sci_rm_psil_ops {
 #define TI_SCI_RM_UDMAP_RX_FLOW_DESC_HOST		0
 #define TI_SCI_RM_UDMAP_RX_FLOW_DESC_MONO		2
 
+#define TI_SCI_RM_UDMAP_CHAN_BURST_SIZE_64_BYTES	1
+#define TI_SCI_RM_UDMAP_CHAN_BURST_SIZE_128_BYTES	2
+#define TI_SCI_RM_UDMAP_CHAN_BURST_SIZE_256_BYTES	3
+
 /* UDMAP TX/RX channel valid_params common declarations */
 #define TI_SCI_MSG_VALUE_RM_UDMAP_CH_PAUSE_ON_ERR_VALID		BIT(0)
 #define TI_SCI_MSG_VALUE_RM_UDMAP_CH_ATYPE_VALID                BIT(1)
@@ -371,6 +407,7 @@ struct ti_sci_rm_psil_ops {
 #define TI_SCI_MSG_VALUE_RM_UDMAP_CH_QOS_VALID                  BIT(6)
 #define TI_SCI_MSG_VALUE_RM_UDMAP_CH_ORDER_ID_VALID             BIT(7)
 #define TI_SCI_MSG_VALUE_RM_UDMAP_CH_SCHED_PRIORITY_VALID       BIT(8)
+#define TI_SCI_MSG_VALUE_RM_UDMAP_CH_BURST_SIZE_VALID		BIT(14)
 
 /**
  * Configures a Navigator Subsystem UDMAP transmit channel
@@ -401,6 +438,7 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg {
 	u8 tx_orderid;
 	u16 fdepth;
 	u8 tx_sched_priority;
+	u8 tx_burst_size;
 };
 
 /**
@@ -430,6 +468,7 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg {
 	u8 rx_chan_type;
 	u8 rx_ignore_short;
 	u8 rx_ignore_long;
+	u8 rx_burst_size;
 };
 
 /**
@@ -503,6 +542,7 @@ struct ti_sci_rm_udmap_ops {
  * @clk_ops:	Clock specific operations
  * @rm_core_ops:	Resource management core operations.
  * @rm_irq_ops:		IRQ management specific operations
+ * @proc_ops:	Processor Control specific operations
  */
 struct ti_sci_ops {
 	struct ti_sci_core_ops core_ops;
@@ -510,6 +550,7 @@ struct ti_sci_ops {
 	struct ti_sci_clk_ops clk_ops;
 	struct ti_sci_rm_core_ops rm_core_ops;
 	struct ti_sci_rm_irq_ops rm_irq_ops;
+	struct ti_sci_proc_ops proc_ops;
 	struct ti_sci_rm_ringacc_ops rm_ring_ops;
 	struct ti_sci_rm_psil_ops rm_psil_ops;
 	struct ti_sci_rm_udmap_ops rm_udmap_ops;

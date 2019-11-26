@@ -35,6 +35,25 @@ config DRM_CDNS_DSI
 	  Support Cadence DPI to DSI bridge. This is an internal
 	  bridge and is meant to be directly embedded in a SoC.
 
+config DRM_CDNS_MHDP
+	tristate "Cadence DPI/DP bridge"
+	select DRM_KMS_HELPER
+	select DRM_PANEL_BRIDGE
+	depends on OF
+	help
+	  Support Cadence DPI to DP bridge. This is an internal
+	  bridge and is meant to be directly embedded in a SoC.
+
+if DRM_CDNS_MHDP
+
+config DRM_CDNS_MHDP_J721E
+	bool "J721E Cadence DPI/DP wrapper support"
+	default y
+	help
+	  Support J721E Cadence DPI/DP wrapper
+
+endif
+
 config DRM_DUMB_VGA_DAC
 	tristate "Dumb VGA DAC Bridge support"
 	depends on OF
@@ -96,6 +115,7 @@ config DRM_SII902X
 	depends on OF
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
+	select I2C_MUX
 	---help---
 	  Silicon Image sii902x bridge chip driver.
 
@@ -121,6 +141,16 @@ config DRM_TOSHIBA_TC358767
 	select DRM_PANEL
 	---help---
 	  Toshiba TC358767 eDP bridge chip driver.
+
+config DRM_TOSHIBA_TC358768
+	tristate "Toshiba TC358768 MIPI DSI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	---help---
+	  Toshiba TC358768AXBG/TC358778XBG DSI bridge chip driver.
 
 config DRM_TI_TFP410
 	tristate "TI TFP410 DVI/HDMI bridge"

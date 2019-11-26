@@ -206,8 +206,8 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 
 	VERB("irqs: %08x", irqstatus);
 
-	for (id = 0; id < priv->num_crtcs; id++) {
-		struct drm_crtc *crtc = priv->crtcs[id];
+	for (id = 0; id < priv->num_pipes; id++) {
+		struct drm_crtc *crtc = priv->pipes[id].crtc;
 		enum omap_channel channel = omap_crtc_channel(crtc);
 
 		if (irqstatus & priv->dispc_ops->mgr_get_vsync_irq(priv->dispc, channel)) {
@@ -221,6 +221,7 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 
 	omap_irq_ocp_error_handler(dev, irqstatus);
 	omap_irq_fifo_underflow(priv, irqstatus);
+	omap_wb_irq(priv->wb_private, irqstatus);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
 	list_for_each_entry_safe(wait, n, &priv->wait_list, node) {
@@ -268,6 +269,9 @@ int omap_drm_irq_install(struct drm_device *dev)
 
 	for (i = 0; i < num_mgrs; ++i)
 		priv->irq_mask |= priv->dispc_ops->mgr_get_sync_lost_irq(priv->dispc, i);
+
+	if (priv->dispc_ops->has_writeback(priv->dispc))
+		priv->irq_mask |= OMAP_WB_IRQ_MASK;
 
 	priv->dispc_ops->runtime_get(priv->dispc);
 	priv->dispc_ops->clear_irqstatus(priv->dispc, 0xffffffff);

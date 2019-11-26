@@ -22,7 +22,9 @@
 #include <linux/rpmsg.h>
 
 #define MSG		"hello world!"
-#define MSG_LIMIT	100
+
+static int count = 100;
+module_param(count, int, 0644);
 
 struct instance_data {
 	int rx_count;
@@ -37,11 +39,11 @@ static int rpmsg_sample_cb(struct rpmsg_device *rpdev, void *data, int len,
 	dev_info(&rpdev->dev, "incoming msg %d (src: 0x%x)\n",
 		 ++idata->rx_count, src);
 
-	print_hex_dump(KERN_DEBUG, __func__, DUMP_PREFIX_NONE, 16, 1,
-		       data, len,  true);
+	print_hex_dump_debug(__func__, DUMP_PREFIX_NONE, 16, 1, data, len,
+			     true);
 
 	/* samples should not live forever */
-	if (idata->rx_count >= MSG_LIMIT) {
+	if (idata->rx_count >= count) {
 		dev_info(&rpdev->dev, "goodbye!\n");
 		return 0;
 	}
@@ -85,6 +87,7 @@ static void rpmsg_sample_remove(struct rpmsg_device *rpdev)
 
 static struct rpmsg_device_id rpmsg_driver_sample_id_table[] = {
 	{ .name	= "rpmsg-client-sample" },
+	{ .name	= "ti.ipc4.ping-pong" },
 	{ },
 };
 MODULE_DEVICE_TABLE(rpmsg, rpmsg_driver_sample_id_table);

@@ -89,7 +89,7 @@
 		};
 
 	lcd0: display {
-		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
+		compatible = "osddisplays,osd070t1718-19ts", "panel-dpi";
 		label = "lcd";
 
 		backlight = <&lcd_bl>;
@@ -164,6 +164,12 @@
 		pinctrl-0 = <&beeper_pins_default>;
 		pinctrl-1 = <&beeper_pins_sleep>;
 		gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+	};
+
+	audio_mstrclk: mclk_osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
 	};
 };
 
@@ -715,7 +721,7 @@
 		compatible = "ovti,ov2659";
 		reg = <0x30>;
 
-		clocks = <&refclk 0>;
+		clocks = <&audio_mstrclk>;
 		clock-names = "xvclk";
 
 		port {
@@ -756,7 +762,7 @@
 		compatible = "ovti,ov2659";
 		reg = <0x30>;
 
-		clocks = <&refclk 0>;
+		clocks = <&audio_mstrclk>;
 		clock-names = "xvclk";
 
 		port {
@@ -1137,4 +1143,20 @@
 &wkup_m3_ipc {
 	ti,set-io-isolation;
 	ti,scale-data-fw = "am43x-evm-scale-data.bin";
+};
+
+&sgx {
+	status = "okay";
+};
+
+&pruss_soc_bus {
+	status = "okay";
+
+	pruss1: pruss@54400000 {
+		status = "okay";
+	};
+
+	pruss0: pruss@54440000 {
+		status = "okay";
+	};
 };

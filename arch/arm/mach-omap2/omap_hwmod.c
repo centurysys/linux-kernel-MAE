@@ -139,6 +139,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/cpu_pm.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/suspend.h>
@@ -189,16 +190,16 @@
 
 /**
  * struct clkctrl_provider - clkctrl provider mapping data
- * @addr: base address for the provider
- * @size: size of the provider address space
- * @offset: offset of the provider from PRCM instance base
+ * @num_addrs: number of base address ranges for the provider
+ * @addr: base address(es) for the provider
+ * @size: size(s) of the provider address space(s)
  * @node: device node associated with the provider
  * @link: list link
  */
 struct clkctrl_provider {
-	u32			addr;
-	u32			size;
-	u16			offset;
+	int			num_addrs;
+	u32			*addr;
+	u32			*size;
 	struct device_node	*node;
 	struct list_head	link;
 };
@@ -728,23 +729,34 @@ static int __init _setup_clkctrl_provider(struct device_node *np)
 	const __be32 *addrp;
 	struct clkctrl_provider *provider;
 	u64 size;
+	int i;
 
 	provider = memblock_virt_alloc(sizeof(*provider), 0);
 	if (!provider)
 		return -ENOMEM;
 
-	addrp = of_get_address(np, 0, &size, NULL);
-	provider->addr = (u32)of_translate_address(np, addrp);
-	addrp = of_get_address(np->parent, 0, NULL, NULL);
-	provider->offset = provider->addr -
-			   (u32)of_translate_address(np->parent, addrp);
-	provider->addr &= ~0xff;
-	provider->size = size | 0xff;
 	provider->node = np;
 
-	pr_debug("%s: %s: %x...%x [+%x]\n", __func__, np->parent->name,
-		 provider->addr, provider->addr + provider->size,
-		 provider->offset);
+	provider->num_addrs =
+		of_property_count_elems_of_size(np, "reg", sizeof(u32)) / 2;
+
+	provider->addr =
+		memblock_virt_alloc(sizeof(void *) * provider->num_addrs, 0);
+	if (!provider->addr)
+		return -ENOMEM;
+
+	provider->size =
+		memblock_virt_alloc(sizeof(u32) * provider->num_addrs, 0);
+	if (!provider->size)
+		return -ENOMEM;
+
+	for (i = 0; i < provider->num_addrs; i++) {
+		addrp = of_get_address(np, i, &size, NULL);
+		provider->addr[i] = (u32)of_translate_address(np, addrp);
+		provider->size[i] = size;
+		pr_debug("%s: %pOF: %x...%x\n", __func__, np, provider->addr[i],
+			 provider->addr[i] + provider->size[i]);
+	}
 
 	list_add(&provider->link, &clkctrl_providers);
 
@@ -791,23 +803,26 @@ static struct clk *_lookup_clkctrl_clk(struct omap_hwmod *oh)
 	pr_debug("%s: %s: addr=%x\n", __func__, oh->name, addr);
 
 	list_for_each_entry(provider, &clkctrl_providers, link) {
-		if (provider->addr <= addr &&
-		    provider->addr + provider->size >= addr) {
-			struct of_phandle_args clkspec;
+		int i;
 
-			clkspec.np = provider->node;
-			clkspec.args_count = 2;
-			clkspec.args[0] = addr - provider->addr -
-					  provider->offset;
-			clkspec.args[1] = 0;
+		for (i = 0; i < provider->num_addrs; i++) {
+			if (provider->addr[i] <= addr &&
+			    provider->addr[i] + provider->size[i] > addr) {
+				struct of_phandle_args clkspec;
 
-			clk = of_clk_get_from_provider(&clkspec);
+				clkspec.np = provider->node;
+				clkspec.args_count = 2;
+				clkspec.args[0] = addr - provider->addr[0];
+				clkspec.args[1] = 0;
 
-			pr_debug("%s: %s got %p (offset=%x, provider=%s)\n",
-				 __func__, oh->name, clk, clkspec.args[0],
-				 provider->node->parent->name);
+				clk = of_clk_get_from_provider(&clkspec);
 
-			return clk;
+				pr_debug("%s: %s got %p (offset=%x, provider=%pOF)\n",
+					 __func__, oh->name, clk,
+					 clkspec.args[0], provider->node);
+
+				return clk;
+			}
 		}
 	}
 
@@ -2456,7 +2471,7 @@ static void _setup_iclk_autoidle(struct omap_hwmod *oh)
  */
 static int _setup_reset(struct omap_hwmod *oh)
 {
-	int r;
+	int r = 0;
 
 	if (oh->_state != _HWMOD_STATE_INITIALIZED)
 		return -EINVAL;
@@ -3483,6 +3498,7 @@ int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	struct omap_hwmod_class *class;
 	void __iomem *regs = NULL;
 	unsigned long flags;
+	int ret = 0;
 
 	sysc = kzalloc(sizeof(*sysc), GFP_KERNEL);
 	if (!sysc)
@@ -3499,8 +3515,10 @@ int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	if (!oh->_mpu_rt_va) {
 		regs = ioremap(data->module_pa,
 			       data->module_size);
-		if (!regs)
-			return -ENOMEM;
+		if (!regs) {
+			ret = -ENOMEM;
+			goto err;
+		}
 	}
 
 	/*
@@ -3508,8 +3526,10 @@ int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	 * may not yet have ioremapped their registers.
 	 */
 	class = kmemdup(oh->class, sizeof(*oh->class), GFP_KERNEL);
-	if (!class)
-		return -ENOMEM;
+	if (!class) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	class->sysc = sysc;
 
@@ -3522,6 +3542,9 @@ int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
+err:
+	kfree(sysc);
+	return ret;
 }
 
 /**
@@ -3774,6 +3797,7 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 	struct omap_hwmod_ocp_if *oi;
 	struct clockdomain *clkdm;
 	struct clk_hw_omap *clk;
+	struct clk_hw *hw;
 
 	if (!oh)
 		return NULL;
@@ -3790,7 +3814,14 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 		c = oi->_clk;
 	}
 
-	clk = to_clk_hw_omap(__clk_get_hw(c));
+	hw = __clk_get_hw(c);
+	if (!hw)
+		return NULL;
+
+	clk = to_clk_hw_omap(hw);
+	if (!clk)
+		return NULL;
+
 	clkdm = clk->clkdm;
 	if (!clkdm)
 		return NULL;
@@ -4053,6 +4084,22 @@ int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
 	return ret;
 }
 
+static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+{
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		if (enable_off_mode)
+			omap_hwmods_rst_save_context();
+		break;
+	case CPU_CLUSTER_PM_EXIT:
+		if (enable_off_mode)
+			omap_hwmods_rst_restore_context();
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 /**
  * omap_hwmod_init - initialize the hwmod code
  *
@@ -4062,6 +4109,8 @@ int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
  */
 void __init omap_hwmod_init(void)
 {
+	static struct notifier_block nb;
+
 	if (cpu_is_omap24xx()) {
 		soc_ops.wait_target_ready = _omap2xxx_3xxx_wait_target_ready;
 		soc_ops.assert_hardreset = _omap2_assert_hardreset;
@@ -4102,6 +4151,12 @@ void __init omap_hwmod_init(void)
 
 	_init_clkctrl_providers();
 
+	/* Only AM43XX can lose prm context during rtc-ddr suspend */
+	if (soc_is_am43xx()) {
+		nb.notifier_call = cpu_notifier;
+		cpu_pm_register_notifier(&nb);
+	}
+
 	inited = true;
 }
 
@@ -4136,13 +4191,13 @@ const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh)
 }
 
 /**
- * omap_hwmod_save_context - Saves the HW reset line state of submodules
+ * omap_hwmod_rst_save_context - Saves the HW reset line state of submodules
  * @oh: struct omap_hwmod *
  * @unused: (unused, caller should pass NULL)
  *
  * Saves the HW reset line state of all the submodules in the hwmod
  */
-static int omap_hwmod_save_context(struct omap_hwmod *oh, void *unused)
+static int omap_hwmod_rst_save_context(struct omap_hwmod *oh, void *unused)
 {
 	int i;
 
@@ -4153,13 +4208,14 @@ static int omap_hwmod_save_context(struct omap_hwmod *oh, void *unused)
 }
 
 /**
- * omap_hwmod_restore_context - Restores the HW reset line state of submodules
+ * omap_hwmod_rst_restore_context - Restores the HW reset line state of
+ *					submodules
  * @oh: struct omap_hwmod *
  * @unused: (unused, caller should pass NULL)
  *
  * Restores the HW reset line state of all the submodules in the hwmod
  */
-static int omap_hwmod_restore_context(struct omap_hwmod *oh, void *unused)
+static int omap_hwmod_rst_restore_context(struct omap_hwmod *oh, void *unused)
 {
 	int i;
 
@@ -4169,35 +4225,25 @@ static int omap_hwmod_restore_context(struct omap_hwmod *oh, void *unused)
 		else
 			_deassert_hardreset(oh, oh->rst_lines[i].name);
 
-	if (oh->_state == _HWMOD_STATE_ENABLED) {
-		if (soc_ops.enable_module)
-			soc_ops.enable_module(oh);
-	} else {
-		if (oh->flags & HWMOD_NEEDS_REIDLE)
-			_reidle(oh);
-		else if (soc_ops.disable_module)
-			soc_ops.disable_module(oh);
-	}
-
 	return 0;
 }
 
 /**
- * omap_hwmods_save_context - Saves the HW reset line state for all hwmods
+ * omap_hwmods_rst_save_context - Saves the HW reset line state for all hwmods
  *
  * Saves the HW reset line state of all the registered hwmods
  */
-void omap_hwmods_save_context(void)
+void omap_hwmods_rst_save_context(void)
 {
-	omap_hwmod_for_each(omap_hwmod_save_context, NULL);
+	omap_hwmod_for_each(omap_hwmod_rst_save_context, NULL);
 }
 
 /**
- * omap_hwmods_restore_context - Restores the HW reset line state for all hwmods
+ * omap_hwmods_rst_restore_context - Restores the HW reset line state for all hwmods
  *
  * Restores the HW reset line state of all the registered hwmods
  */
-void omap_hwmods_restore_context(void)
+void omap_hwmods_rst_restore_context(void)
 {
-	omap_hwmod_for_each(omap_hwmod_restore_context, NULL);
+	omap_hwmod_for_each(omap_hwmod_rst_restore_context, NULL);
 }

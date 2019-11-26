@@ -69,6 +69,8 @@ struct omap_iommu {
 	 * but share it globally for each iommu.
 	 */
 	u32		*iopgd;
+	u32		iopgd_pa;
+	u32		late_attach;
 	spinlock_t	page_table_lock; /* protect iopgd */
 	dma_addr_t	pd_dma;
 
@@ -76,11 +78,16 @@ struct omap_iommu {
 
 	void *ctx; /* iommu context: registres saved area */
 
+	struct cr_regs *cr_ctx;
+	u32 num_cr_ctx;
+
 	int has_bus_err_back;
 	u32 id;
 
 	struct iommu_device iommu;
 	struct iommu_group *group;
+
+	u8 pwrst;
 };
 
 /**
@@ -265,6 +272,14 @@ static inline int iotlb_cr_valid(struct cr_regs *cr)
 		return -EINVAL;
 
 	return cr->cam & MMU_CAM_V;
+}
+
+static inline u32 *iopte_get(struct omap_iommu *obj, u32 *iopgd, u32 da)
+{
+	if (obj->late_attach)
+		return iopte_offset_lateattach(obj, iopgd, da);
+	else
+		return iopte_offset(iopgd, da);
 }
 
 #endif /* _OMAP_IOMMU_H */

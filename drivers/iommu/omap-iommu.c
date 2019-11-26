@@ -44,6 +44,12 @@ static const struct iommu_ops omap_iommu_ops;
 /* bitmap of the page sizes currently supported */
 #define OMAP_IOMMU_PGSIZES	(SZ_4K | SZ_64K | SZ_1M | SZ_16M)
 
+/*
+ * total size of L1 and L2 page tables reserved/used by bootloader per rproc
+ * for early boot usecases, must match the value used in bootloader
+ */
+#define EARLY_PAGE_TABLES_SIZE	SZ_256K
+
 #define MMU_LOCK_BASE_SHIFT	10
 #define MMU_LOCK_BASE_MASK	(0x1f << MMU_LOCK_BASE_SHIFT)
 #define MMU_LOCK_BASE(x)	\
@@ -69,6 +75,9 @@ static struct omap_iommu_domain *to_omap_domain(struct iommu_domain *dom)
 /**
  * omap_iommu_save_ctx - Save registers for pm off-mode support
  * @dev:	client device
+ *
+ * This should be treated as an deprecated API. It is preserved only
+ * to maintain existing functionality for OMAP3 ISP driver.
  **/
 void omap_iommu_save_ctx(struct device *dev)
 {
@@ -96,6 +105,9 @@ EXPORT_SYMBOL_GPL(omap_iommu_save_ctx);
 /**
  * omap_iommu_restore_ctx - Restore registers for pm off-mode support
  * @dev:	client device
+ *
+ * This should be treated as an deprecated API. It is preserved only
+ * to maintain existing functionality for OMAP3 ISP driver.
  **/
 void omap_iommu_restore_ctx(struct device *dev)
 {
@@ -157,7 +169,7 @@ static int omap2_iommu_enable(struct omap_iommu *obj)
 	if (!obj->iopgd || !IS_ALIGNED((u32)obj->iopgd,  SZ_16K))
 		return -EINVAL;
 
-	pa = virt_to_phys(obj->iopgd);
+	pa = obj->iopgd_pa;
 	if (!IS_ALIGNED(pa, SZ_16K))
 		return -EINVAL;
 
@@ -190,36 +202,27 @@ static void omap2_iommu_disable(struct omap_iommu *obj)
 
 static int iommu_enable(struct omap_iommu *obj)
 {
-	int err;
-	struct platform_device *pdev = to_platform_device(obj->dev);
-	struct iommu_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	int ret;
 
-	if (pdata && pdata->deassert_reset) {
-		err = pdata->deassert_reset(pdev, pdata->reset_name);
-		if (err) {
-			dev_err(obj->dev, "deassert_reset failed: %d\n", err);
-			return err;
-		}
-	}
+	/*
+	 * now that the threat of idling has passed, decrement the
+	 * device usage count to balance the increment done in probe,
+	 * the pm runtime device usage count will be managed normally
+	 * from here on
+	 */
+	if (obj->late_attach)
+		pm_runtime_put_noidle(obj->dev);
 
-	pm_runtime_get_sync(obj->dev);
+	ret = pm_runtime_get_sync(obj->dev);
+	if (ret < 0)
+		pm_runtime_put_noidle(obj->dev);
 
-	err = omap2_iommu_enable(obj);
-
-	return err;
+	return ret < 0 ? ret : 0;
 }
 
 static void iommu_disable(struct omap_iommu *obj)
 {
-	struct platform_device *pdev = to_platform_device(obj->dev);
-	struct iommu_platform_data *pdata = dev_get_platdata(&pdev->dev);
-
-	omap2_iommu_disable(obj);
-
 	pm_runtime_put_sync(obj->dev);
-
-	if (pdata && pdata->assert_reset)
-		pdata->assert_reset(pdev, pdata->reset_name);
 }
 
 /*
@@ -549,7 +552,7 @@ static u32 *iopte_alloc(struct omap_iommu *obj, u32 *iopgd,
 	}
 
 pte_ready:
-	iopte = iopte_offset(iopgd, da);
+	iopte = iopte_get(obj, iopgd, da);
 	*pt_dma = iopgd_page_paddr(iopgd);
 	dev_vdbg(obj->dev,
 		 "%s: da:%08x pgd:%p *pgd:%08x pte:%p *pte:%08x\n",
@@ -708,7 +711,7 @@ iopgtable_lookup_entry(struct omap_iommu *obj, u32 da, u32 **ppgd, u32 **ppte)
 		goto out;
 
 	if (iopgd_is_table(*iopgd))
-		iopte = iopte_offset(iopgd, da);
+		iopte = iopte_get(obj, iopgd, da);
 out:
 	*ppgd = iopgd;
 	*ppte = iopte;
@@ -728,13 +731,13 @@ static size_t iopgtable_clear_entry_core(struct omap_iommu *obj, u32 da)
 
 	if (iopgd_is_table(*iopgd)) {
 		int i;
-		u32 *iopte = iopte_offset(iopgd, da);
+		u32 *iopte = iopte_get(obj, iopgd, da);
 
 		bytes = IOPTE_SIZE;
 		if (*iopte & IOPTE_LARGE) {
 			nent *= 16;
 			/* rewind to the 1st entry */
-			iopte = iopte_offset(iopgd, (da & IOLARGE_MASK));
+			iopte = iopte_get(obj, iopgd, (da & IOLARGE_MASK));
 		}
 		bytes *= nent;
 		memset(iopte, 0, nent * sizeof(*iopte));
@@ -744,7 +747,8 @@ static size_t iopgtable_clear_entry_core(struct omap_iommu *obj, u32 da)
 		/*
 		 * do table walk to check if this table is necessary or not
 		 */
-		iopte = iopte_offset(iopgd, 0);
+		iopte = iopte_get(obj, iopgd, 0);
+
 		for (i = 0; i < PTRS_PER_IOPTE; i++)
 			if (iopte[i])
 				goto out;
@@ -803,8 +807,15 @@ static void iopgtable_clear_entry_all(struct omap_iommu *obj)
 		if (!*iopgd)
 			continue;
 
-		if (iopgd_is_table(*iopgd))
-			iopte_free(obj, iopte_offset(iopgd, 0), true);
+		if (iopgd_is_table(*iopgd)) {
+			if (obj->late_attach)
+				iopte_free(obj, iopte_offset_lateattach(obj,
+									iopgd,
+									0),
+					   true);
+			else
+				iopte_free(obj, iopte_offset(iopgd, 0), true);
+		}
 
 		*iopgd = 0;
 		flush_iopte_range(obj->dev, obj->pd_dma, offset, 1);
@@ -847,7 +858,7 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	iopte = iopte_offset(iopgd, da);
+	iopte = iopte_get(obj, iopgd, da);
 
 	dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:0x%08x pte:0x%p *pte:0x%08x\n",
 		obj->name, errs, da, iopgd, *iopgd, iopte, *iopte);
@@ -863,6 +874,16 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 static int omap_iommu_attach(struct omap_iommu *obj, u32 *iopgd)
 {
 	int err;
+	u32 iopgd_pa;
+
+	if (obj->late_attach) {
+		iopgd_pa = iommu_read_reg(obj, MMU_TTB);
+		iopgd = ioremap(iopgd_pa, EARLY_PAGE_TABLES_SIZE);
+		if (!iopgd)
+			return -ENOMEM;
+	} else {
+		iopgd_pa = virt_to_phys(iopgd);
+	}
 
 	spin_lock(&obj->iommu_lock);
 
@@ -874,11 +895,14 @@ static int omap_iommu_attach(struct omap_iommu *obj, u32 *iopgd)
 		goto out_err;
 	}
 
+	obj->iopgd_pa = iopgd_pa;
 	obj->iopgd = iopgd;
 	err = iommu_enable(obj);
 	if (err)
 		goto out_err;
-	flush_iotlb_all(obj);
+
+	if (!obj->late_attach)
+		flush_iotlb_all(obj);
 
 	spin_unlock(&obj->iommu_lock);
 
@@ -901,17 +925,229 @@ static void omap_iommu_detach(struct omap_iommu *obj)
 	if (!obj || IS_ERR(obj))
 		return;
 
+	if (obj->late_attach && obj->iopgd)
+		iounmap(obj->iopgd);
+
 	spin_lock(&obj->iommu_lock);
 
 	dma_unmap_single(obj->dev, obj->pd_dma, IOPGD_TABLE_SIZE,
 			 DMA_TO_DEVICE);
-	iommu_disable(obj);
 	obj->pd_dma = 0;
+
+	obj->iopgd_pa = 0;
 	obj->iopgd = NULL;
+	iommu_disable(obj);
+	obj->late_attach = 0;
 
 	spin_unlock(&obj->iommu_lock);
 
 	dev_dbg(obj->dev, "%s: %s\n", __func__, obj->name);
+}
+
+static void omap_iommu_save_tlb_entries(struct omap_iommu *obj)
+{
+	struct iotlb_lock lock;
+	struct cr_regs cr;
+	struct cr_regs *tmp;
+	int i;
+
+	/* check if there are any locked tlbs to save */
+	iotlb_lock_get(obj, &lock);
+	obj->num_cr_ctx = lock.base;
+	if (!obj->num_cr_ctx)
+		return;
+
+	tmp = obj->cr_ctx;
+	for_each_iotlb_cr(obj, obj->num_cr_ctx, i, cr)
+		*tmp++ = cr;
+}
+
+static void omap_iommu_restore_tlb_entries(struct omap_iommu *obj)
+{
+	struct iotlb_lock l;
+	struct cr_regs *tmp;
+	int i;
+
+	/* no locked tlbs to restore */
+	if (!obj->num_cr_ctx)
+		return;
+
+	l.base = 0;
+	tmp = obj->cr_ctx;
+	for (i = 0; i < obj->num_cr_ctx; i++, tmp++) {
+		l.vict = i;
+		iotlb_lock_set(obj, &l);
+		iotlb_load_cr(obj, tmp);
+	}
+	l.base = obj->num_cr_ctx;
+	l.vict = i;
+	iotlb_lock_set(obj, &l);
+}
+
+/**
+ * omap_iommu_domain_deactivate - deactivate attached iommu devices
+ * @domain: iommu domain attached to the target iommu device
+ *
+ * This API allows the client devices of IOMMU devices to suspend
+ * the IOMMUs they control at runtime, after they are idled and
+ * suspended all activity. System Suspend will leverage the PM
+ * driver late callbacks.
+ **/
+int omap_iommu_domain_deactivate(struct iommu_domain *domain)
+{
+	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
+	struct omap_iommu_device *iommu;
+	struct omap_iommu *oiommu;
+	int i;
+
+	if (!omap_domain->dev)
+		return 0;
+
+	iommu = omap_domain->iommus;
+	iommu += (omap_domain->num_iommus - 1);
+	for (i = 0; i < omap_domain->num_iommus; i++, iommu--) {
+		oiommu = iommu->iommu_dev;
+		pm_runtime_put_sync(oiommu->dev);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(omap_iommu_domain_deactivate);
+
+/**
+ * omap_iommu_domain_activate - activate attached iommu devices
+ * @domain: iommu domain attached to the target iommu device
+ *
+ * This API allows the client devices of IOMMU devices to resume the
+ * IOMMUs they control at runtime, before they can resume operations.
+ * System Resume will leverage the PM driver late callbacks.
+ **/
+int omap_iommu_domain_activate(struct iommu_domain *domain)
+{
+	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
+	struct omap_iommu_device *iommu;
+	struct omap_iommu *oiommu;
+	int i;
+
+	if (!omap_domain->dev)
+		return 0;
+
+	iommu = omap_domain->iommus;
+	for (i = 0; i < omap_domain->num_iommus; i++, iommu++) {
+		oiommu = iommu->iommu_dev;
+		pm_runtime_get_sync(oiommu->dev);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(omap_iommu_domain_activate);
+
+/**
+ * omap_iommu_runtime_suspend - disable an iommu device
+ * @dev:	iommu device
+ *
+ * This function performs all that is necessary to disable an
+ * IOMMU device, either during final detachment from a client
+ * device, or during system/runtime suspend of the device. This
+ * includes programming all the appropriate IOMMU registers, and
+ * managing the associated omap_hwmod's state and the device's
+ * reset line. This function also saves the context of any
+ * locked TLBs if suspending.
+ **/
+static int omap_iommu_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iommu_platform_data *pdata = dev_get_platdata(dev);
+	struct omap_iommu *obj = to_iommu(dev);
+	int ret;
+
+	/* save the TLBs only during suspend, and not for power down */
+	if (obj->domain && obj->iopgd)
+		omap_iommu_save_tlb_entries(obj);
+
+	omap2_iommu_disable(obj);
+
+	if (pdata && pdata->device_idle)
+		pdata->device_idle(pdev);
+
+	if (pdata && pdata->assert_reset)
+		pdata->assert_reset(pdev, pdata->reset_name);
+
+	if (pdata && pdata->set_pwrdm_constraint) {
+		ret = pdata->set_pwrdm_constraint(pdev, false, &obj->pwrst);
+		if (ret) {
+			dev_warn(obj->dev, "pwrdm_constraint failed to be reset, status = %d\n",
+				 ret);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * omap_iommu_runtime_resume - enable an iommu device
+ * @dev:	iommu device
+ *
+ * This function performs all that is necessary to enable an
+ * IOMMU device, either during initial attachment to a client
+ * device, or during system/runtime resume of the device. This
+ * includes programming all the appropriate IOMMU registers, and
+ * managing the associated omap_hwmod's state and the device's
+ * reset line. The function also restores any locked TLBs if
+ * resuming after a suspend.
+ **/
+static int omap_iommu_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iommu_platform_data *pdata = dev_get_platdata(dev);
+	struct omap_iommu *obj = to_iommu(dev);
+	int ret = 0;
+
+	if (pdata && pdata->set_pwrdm_constraint) {
+		ret = pdata->set_pwrdm_constraint(pdev, true, &obj->pwrst);
+		if (ret) {
+			dev_warn(obj->dev, "pwrdm_constraint failed to be set, status = %d\n",
+				 ret);
+		}
+	}
+
+	/* do not deassert reset only during initial boot for late attach */
+	if ((!obj->late_attach || obj->domain) &&
+	    pdata && pdata->deassert_reset) {
+		ret = pdata->deassert_reset(pdev, pdata->reset_name);
+		if (ret) {
+			dev_err(dev, "deassert_reset failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (pdata && pdata->device_enable)
+		pdata->device_enable(pdev);
+
+	/* restore the TLBs only during resume, and not for power up */
+	if (obj->domain)
+		omap_iommu_restore_tlb_entries(obj);
+
+	ret = omap2_iommu_enable(obj);
+
+	return ret;
+}
+
+/**
+ * omap_iommu_suspend_prepare - prepare() dev_pm_ops implementation
+ * @dev:	iommu device
+ *
+ * This function performs the necessary checks to determine if the IOMMU
+ * device needs suspending or not. The function checks if the runtime_pm
+ * status of the device is suspended, and returns 1 in that case. This
+ * results in the PM core to skip invoking any of the Sleep PM callbacks
+ * (suspend, suspend_late, resume, resume_early etc).
+ */
+static int omap_iommu_prepare(struct device *dev)
+{
+	if (pm_runtime_status_suspended(dev))
+		return 1;
+	return 0;
 }
 
 static bool omap_iommu_can_register(struct platform_device *pdev)
@@ -978,6 +1214,7 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	struct omap_iommu *obj;
 	struct resource *res;
 	struct device_node *of = pdev->dev.of_node;
+	struct iommu_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (!of) {
 		pr_err("%s: only DT-based devices are supported\n", __func__);
@@ -988,9 +1225,19 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	if (!obj)
 		return -ENOMEM;
 
+	/*
+	 * self-manage the ordering dependencies between omap_device_enable/idle
+	 * and omap_device_assert/deassert_hardreset API
+	 */
+	if (pdev->dev.pm_domain) {
+		dev_dbg(&pdev->dev, "device pm_domain is being reset\n");
+		pdev->dev.pm_domain = NULL;
+	}
+
 	obj->name = dev_name(&pdev->dev);
 	obj->nr_tlb_entries = 32;
 	err = of_property_read_u32(of, "ti,#tlb-entries", &obj->nr_tlb_entries);
+
 	if (err && err != -EINVAL)
 		return err;
 	if (obj->nr_tlb_entries != 32 && obj->nr_tlb_entries != 8)
@@ -998,8 +1245,17 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	if (of_find_property(of, "ti,iommu-bus-err-back", NULL))
 		obj->has_bus_err_back = MMU_GP_REG_BUS_ERR_BACK_EN;
 
+	if (pdata && pdata->device_is_enabled &&
+	    pdata->device_is_enabled(pdev))
+		obj->late_attach = 1;
+
 	obj->dev = &pdev->dev;
 	obj->ctx = (void *)obj + sizeof(*obj);
+	obj->cr_ctx = devm_kzalloc(&pdev->dev,
+				   sizeof(*obj->cr_ctx) * obj->nr_tlb_entries,
+				   GFP_KERNEL);
+	if (!obj->cr_ctx)
+		return -ENOMEM;
 
 	spin_lock_init(&obj->iommu_lock);
 	spin_lock_init(&obj->page_table_lock);
@@ -1041,6 +1297,15 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_irq_safe(obj->dev);
+
+	/*
+	 * increment the device usage count so that runtime_suspend is not
+	 * invoked immediately after the probe (due to the ti,no-idle-on-init)
+	 * and before any remoteproc has attached to the iommu
+	 */
+	if (obj->late_attach)
+		pm_runtime_get_noresume(obj->dev);
+
 	pm_runtime_enable(obj->dev);
 
 	omap_iommu_debugfs_add(obj);
@@ -1076,6 +1341,14 @@ static int omap_iommu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops omap_iommu_pm_ops = {
+	.prepare = omap_iommu_prepare,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(omap_iommu_runtime_suspend,
+			   omap_iommu_runtime_resume, NULL)
+};
+
 static const struct of_device_id omap_iommu_of_match[] = {
 	{ .compatible = "ti,omap2-iommu" },
 	{ .compatible = "ti,omap4-iommu" },
@@ -1089,6 +1362,7 @@ static struct platform_driver omap_iommu_driver = {
 	.remove	= omap_iommu_remove,
 	.driver	= {
 		.name	= "omap-iommu",
+		.pm	= &omap_iommu_pm_ops,
 		.of_match_table = of_match_ptr(omap_iommu_of_match),
 	},
 };
@@ -1213,6 +1487,11 @@ static int omap_iommu_attach_init(struct device *dev,
 
 	iommu = odomain->iommus;
 	for (i = 0; i < odomain->num_iommus; i++, iommu++) {
+		/*
+		 * not necessary for late attach, the page table would be setup
+		 * by the boot loader. Leaving the below code in place, it does
+		 * not have any side effects during late attach.
+		 */
 		iommu->pgtable = kzalloc(IOPGD_TABLE_SIZE, GFP_ATOMIC);
 		if (!iommu->pgtable)
 			return -ENOMEM;
@@ -1334,7 +1613,8 @@ static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
 	arch_data += (omap_domain->num_iommus - 1);
 	for (i = 0; i < omap_domain->num_iommus; i++, iommu--, arch_data--) {
 		oiommu = iommu->iommu_dev;
-		iopgtable_clear_entry_all(oiommu);
+		if (!oiommu->late_attach)
+			iopgtable_clear_entry_all(oiommu);
 
 		omap_iommu_detach(oiommu);
 		iommu->iommu_dev = NULL;
@@ -1558,7 +1838,7 @@ static const struct iommu_ops omap_iommu_ops = {
 static int __init omap_iommu_init(void)
 {
 	struct kmem_cache *p;
-	const unsigned long flags = SLAB_HWCACHE_ALIGN;
+	const slab_flags_t flags = SLAB_HWCACHE_ALIGN;
 	size_t align = 1 << 10; /* L2 pagetable alignement */
 	struct device_node *np;
 	int ret;
