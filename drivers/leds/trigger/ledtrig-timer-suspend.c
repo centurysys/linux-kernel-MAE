@@ -70,38 +70,27 @@ static ssize_t led_delay_off_store(struct device *dev,
 static DEVICE_ATTR(delay_on, 0644, led_delay_on_show, led_delay_on_store);
 static DEVICE_ATTR(delay_off, 0644, led_delay_off_show, led_delay_off_store);
 
-static void timer_suspend_trig_activate(struct led_classdev *led_cdev)
+static struct attribute *timer_suspend_trig_attrs[] = {
+	&dev_attr_delay_on.attr,
+	&dev_attr_delay_off.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(timer_suspend_trig);
+
+static int timer_suspend_trig_activate(struct led_classdev *led_cdev)
 {
-	int rc;
-
 	led_cdev->trigger_data = NULL;
-
-	rc = device_create_file(led_cdev->dev, &dev_attr_delay_on);
-	if (rc)
-		return;
-	rc = device_create_file(led_cdev->dev, &dev_attr_delay_off);
-	if (rc)
-		goto err_out_delayon;
 
 	led_cdev->blink_delay_on = 500;
 	led_cdev->blink_delay_off = 500;
 
 	led_cdev->activated = true;
 
-	return;
-
-err_out_delayon:
-	device_remove_file(led_cdev->dev, &dev_attr_delay_on);
+	return 0;
 }
 
 static void timer_suspend_trig_deactivate(struct led_classdev *led_cdev)
 {
-	if (led_cdev->activated) {
-		device_remove_file(led_cdev->dev, &dev_attr_delay_on);
-		device_remove_file(led_cdev->dev, &dev_attr_delay_off);
-		led_cdev->activated = false;
-	}
-
 	/* Stop blinking */
 	led_set_brightness(led_cdev, LED_OFF);
 }
@@ -110,6 +99,7 @@ static struct led_trigger timer_suspend_led_trigger = {
 	.name     = "timer-suspend",
 	.activate = timer_suspend_trig_activate,
 	.deactivate = timer_suspend_trig_deactivate,
+	.groups = timer_suspend_trig_groups,
 };
 
 static int timer_suspend_pm_notifier(struct notifier_block *nb,
