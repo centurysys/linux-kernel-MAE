@@ -1062,7 +1062,7 @@
 		xio_0f = &xio_0f_10;
 		xio_10 = &xio_0f_10;
 
-		xio_12 = &xio_12;
+		xio_12 = &xio_12_30;
 		xio_13 = &xio_13_14;
 		xio_14 = &xio_13_14;
 		xio_15 = &xio_15;
@@ -1087,6 +1087,7 @@
 		xio_2d = &xio_2d;
 		xio_2e = &xio_2e_2f;
 		xio_2f = &xio_2e_2f;
+		xio_30 = &xio_12_30;
 		xio_32 = &xio_32;
 		xio_33 = &xio_33;
 		xio_34 = &xio_13_14;
@@ -1189,8 +1190,8 @@
 			   &leds_foma &leds_foma_ctrl>;
 	};
 
-	/* XIO: (id: 0x12) KYM_WLAN (Atheros) */
-	xio_12: xio@0x12 {
+	/* XIO: (id: 0x12/0x30) KYM_WLAN (Atheros) */
+	xio_12_30: xio@0x12_30 {
 		#size-cells = <0>;
 		devices = <&xio_hub_ctrl
 			   &gpiox_0x00 &gpiox_0x04_kym11
