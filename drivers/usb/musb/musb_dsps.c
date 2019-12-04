@@ -690,7 +690,7 @@ static void dsps_dma_controller_resume(struct dsps_glue *glue) {}
 #endif /* CONFIG_USB_TI_CPPI41_DMA */
 
 static struct musb_platform_ops dsps_ops = {
-	.quirks		= MUSB_DMA_CPPI41 | MUSB_INDEXED_EP,
+	.quirks		= MUSB_DMA_CPPI41 | MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION,
 	.init		= dsps_musb_init,
 	.exit		= dsps_musb_exit,
 
