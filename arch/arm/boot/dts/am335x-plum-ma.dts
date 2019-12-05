@@ -161,6 +161,34 @@
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
+
+		led@eth0_100M {
+			label = "eth0_100M";
+			gpios = <&gpio2 14 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "4a101000.mdio:02:100Mbps";
+		};
+
+		led@eth0_1G {
+			label = "eth0_1G";
+			gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "4a101000.mdio:02:1Gbps";
+		};
+
+		led@eth1_100M {
+			label = "eth1_100M";
+			gpios = <&gpio2 16 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "4a101000.mdio:03:100Mbps";
+		};
+
+		led@eth1_1G {
+			label = "eth1_1G";
+			gpios = <&gpio2 17 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "4a101000.mdio:03:1Gbps";
+		};
 	};
 
 	leds_foma: leds_foma {
