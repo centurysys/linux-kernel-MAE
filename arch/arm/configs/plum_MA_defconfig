@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 4.19.79 Kernel Configuration
+# Linux/arm 4.19.82 Kernel Configuration
 #
 
 #
@@ -1620,7 +1620,7 @@ CONFIG_TI_DAVINCI_CPDMA=y
 CONFIG_TI_CPSW_PHY_SEL=y
 CONFIG_TI_CPSW_ALE=y
 CONFIG_TI_CPSW=y
-CONFIG_CPSW_LED_GPIO=y
+# CONFIG_CPSW_LED_GPIO is not set
 # CONFIG_TI_CPTS is not set
 # CONFIG_NET_VENDOR_VIA is not set
 # CONFIG_NET_VENDOR_WIZNET is not set
@@ -2785,7 +2785,6 @@ CONFIG_USB_SERIAL_OPTION=m
 # CONFIG_USB_EMI26 is not set
 # CONFIG_USB_ADUTUX is not set
 # CONFIG_USB_SEVSEG is not set
-# CONFIG_USB_RIO500 is not set
 # CONFIG_USB_LEGOTOWER is not set
 # CONFIG_USB_LCD is not set
 # CONFIG_USB_CYPRESS_CY7C63 is not set
