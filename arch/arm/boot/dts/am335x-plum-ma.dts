@@ -1123,6 +1123,7 @@
 		xio_36 = &xio_36;
 		xio_38 = &xio_38;
 		xio_3c = &xio_3c;
+		xio_3f = &xio_3f;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1447,6 +1448,20 @@
 			   &gpiox_0x16_GNSS &gpiox_0x18_GNSS
 			   &leds_foma &leds_amp_ctrl
 			   &leds_gnss>;
+	};
+
+	/* XIO: (id: 0x3f) AMM_AD (/LAD rev2) */
+	xio_3f: xio@0x3f {
+		#size-cells = <0>;
+		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
+			   &spi1
+			   &uartx2_0x20
+			   &gpiox_0x00 &gpiox_0x08
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x18
+			   &gpiox_0x40_counter &gpiox_0x80
+			   &gpiox_0x04_lisa
+			   &leds_foma &leds_telit_ctrl &leds_do>;
 	};
 };
 
@@ -2776,6 +2791,68 @@
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 		interrupt-controller;
 
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		din@0 {
+			label = "DI_00";
+			reg = <0>;
+		};
+
+		din@1 {
+			label = "DI_01";
+			reg = <1>;
+		};
+
+		din@2 {
+			label = "DI_02";
+			reg = <2>;
+		};
+
+		din@3 {
+			label = "DI_03";
+			reg = <3>;
+		};
+
+		din@4 {
+			label = "DI_04";
+			reg = <4>;
+		};
+
+		din@5 {
+			label = "DI_05";
+			reg = <5>;
+		};
+
+		din@6 {
+			label = "DI_06";
+			reg = <6>;
+		};
+
+		din@7 {
+			label = "DI_07";
+			reg = <7>;
+		};
+	};
+
+	/* DIO DIN (hwcounter) */
+	gpiox_0x40_counter: gpio@2,0x40_counter {
+		reg = <2 0x00000040 0x0000002a>;
+		#gpio-cells = <2>;
+		compatible = "plum,ext-DI";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		interrupt-controller;
+
+		num-counters = <4>;
 		reg-names = "dat";
 
 		status = "disabled";
