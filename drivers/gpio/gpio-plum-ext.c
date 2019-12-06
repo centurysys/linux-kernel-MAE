@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/spinlock.h>
 
 /* register offset */
 #define GPIO_STATUS		0x00
@@ -29,6 +30,12 @@
 #define GPIO_INT_ENABLE	0x08
 #define GPIO_EDGE_SEL		0x0c
 #define GPIO_FILTER		0x10
+#define GPIO_COUNTER_CTRL	0x12
+#define GPIO_MATCH_STATUS	0x14
+#define GPIO_MATCH_ENABLE	0x16
+#define GPIO_OVERFLOW		0x18
+#define GPIO_COUNTER(x)	(0x1a + x * 2)
+#define GPIO_COMPARE(x)	(0x22 + x * 2)
 
 #define EDGE_RISING(x)		(0 << (x))
 #define EDGE_FALLING(x)	(1 << (x))
@@ -51,31 +58,44 @@ struct plum_gpio {
 	struct device *dev;
 	struct gpio_chip gc;
 	void __iomem *base;
+	u8 irq_enable;
+#ifdef CONFIG_GPIO_HWCOUNTER
+	int num_counters;
+	raw_spinlock_t lock;
+	u8 wakeup_mask;
+#endif
 	int irq;
 	u32 both_edges;
 	resource_size_t size;
 };
 
+static void plum_gpio_sync_irq(struct plum_gpio *port)
+{
+	u8 reg;
+
+	reg = port->irq_enable;
+#ifdef CONFIG_GPIO_HWCOUNTER
+	reg &= ~port->wakeup_mask;
+#endif
+	writeb(reg, port->base + GPIO_INT_ENABLE);
+}
+
 static void plum_gpio_mask_irq(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct plum_gpio *port = gpiochip_get_data(gc);
-	u8 reg;
 
-	reg = readb(port->base + GPIO_INT_ENABLE);
-	reg &= ~(1 << (d->hwirq));
-	writeb(reg, port->base + GPIO_INT_ENABLE);
+	port->irq_enable &= ~(1 << (d->hwirq));
+	plum_gpio_sync_irq(port);
 }
 
 static void plum_gpio_unmask_irq(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct plum_gpio *port = gpiochip_get_data(gc);
-	u8 reg;
 
-	reg = readb(port->base + GPIO_INT_ENABLE);
-	reg |= 1 << (d->hwirq);
-	writeb(reg, port->base + GPIO_INT_ENABLE);
+	port->irq_enable |= 1 << (d->hwirq);
+	plum_gpio_sync_irq(port);
 }
 
 static int plum_gpio_set_irq_type(struct irq_data *d, unsigned int type)
@@ -238,6 +258,143 @@ static unsigned plum_gpio_get_debounce(struct gpio_chip *gc, unsigned offset)
 }
 #endif
 
+#ifdef CONFIG_GPIO_HWCOUNTER
+static int plum_gpio_clear_overflow(struct plum_gpio *port, unsigned offset)
+{
+	u8 reg;
+
+	if (offset >= port->num_counters)
+		return -EINVAL;
+
+	reg = 1 << offset;
+	writeb(reg, port->base + GPIO_OVERFLOW);
+
+	return 0;
+}
+
+static int plum_gpio_is_overflow(struct plum_gpio *port, unsigned offset)
+{
+	u8 reg;
+	int overflow = 0;
+
+	if (offset >= port->num_counters)
+		return -EINVAL;
+
+	reg = readb(port->base + GPIO_OVERFLOW);
+
+	if (reg & (1 << offset)) {
+		overflow = 1;
+	}
+
+	return overflow;
+}
+
+static int plum_gpio_set_hwcounter(struct gpio_chip *gc, unsigned offset, unsigned counter)
+{
+	struct plum_gpio *port = gpiochip_get_data(gc);
+	u8 reg;
+
+	if (offset >= port->num_counters)
+		return -EINVAL;
+
+	plum_gpio_clear_overflow(port, offset);
+
+	reg = (u8) (counter & 0xff);
+	writeb(reg, port->base + GPIO_COUNTER(offset));
+
+	return 0;
+}
+
+static unsigned plum_gpio_get_hwcounter(struct gpio_chip *gc, unsigned offset)
+{
+	struct plum_gpio *port = gpiochip_get_data(gc);
+	unsigned counter;
+	unsigned long flags;
+	int overflow;
+
+	if (offset >= port->num_counters)
+		return 0;
+
+	raw_spin_lock_irqsave(&port->lock, flags);
+
+	counter = (u32) readb(port->base + GPIO_COUNTER(offset));
+	overflow = plum_gpio_is_overflow(port, offset);
+
+	if (overflow && counter != 0xff) {
+		plum_gpio_clear_overflow(port, offset);
+		counter |= 0x100;
+	}
+
+	raw_spin_unlock_irqrestore(&port->lock, flags);
+
+	return counter;
+}
+
+static int plum_gpio_set_hwcounter_enable(struct gpio_chip *gc, unsigned offset, int enable)
+{
+	struct plum_gpio *port = gpiochip_get_data(gc);
+	u8 reg;
+
+	if (offset >= port->num_counters)
+		return -EINVAL;
+
+	enable = !!enable;
+
+	reg = readb(port->base + GPIO_COUNTER_CTRL);
+	reg &= ~(enable << offset);
+	reg |= enable << offset;
+	writeb(reg, port->base + GPIO_COUNTER_CTRL);
+
+	return 0;
+}
+
+static unsigned plum_gpio_get_hwcounter_enable(struct gpio_chip *gc, unsigned offset)
+{
+	struct plum_gpio *port = gpiochip_get_data(gc);
+	unsigned enable;
+
+	if (offset >= port->num_counters)
+		return 0;
+
+	enable = (unsigned) readb(port->base + GPIO_COUNTER_CTRL);
+	enable &= (1 << offset);
+	enable = !!enable;
+
+	return enable;
+}
+
+static int plum_gpio_set_wakeup_enable(struct gpio_chip *gc, unsigned offset, int enable)
+{
+	struct plum_gpio *port = gpiochip_get_data(gc);
+
+	if (offset >= port->num_counters)
+		return -EINVAL;
+
+	enable = !!enable;
+
+	if (enable)
+		port->wakeup_mask &= ~(1 << offset);
+	else
+		port->wakeup_mask |= (1 << offset);
+
+	plum_gpio_sync_irq(port);
+	return 0;
+}
+
+static unsigned plum_gpio_get_wakeup_enable(struct gpio_chip *gc, unsigned offset)
+{
+	struct plum_gpio *port = gpiochip_get_data(gc);
+	unsigned enable;
+
+	if (offset >= port->num_counters)
+		return 0;
+
+	enable = !(port->wakeup_mask & (1 << offset));
+
+	return enable;
+}
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
 
@@ -256,6 +413,34 @@ static void plum_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 		   readb_relaxed(port->base + GPIO_EDGE_SEL));
 	seq_printf(s, " DIN Filter select:      %02x\n",
 		   readb_relaxed(port->base + GPIO_FILTER));
+
+#ifdef CONFIG_GPIO_HWCOUNTER
+	seq_printf(s, " Counter Control:        %02x\n",
+		   readb_relaxed(port->base + GPIO_COUNTER_CTRL));
+	seq_printf(s, " Match IRQ Status:       %02x\n",
+		   readb_relaxed(port->base + GPIO_MATCH_STATUS));
+	seq_printf(s, " Match IRQ Enable:       %02x\n",
+		   readb_relaxed(port->base + GPIO_MATCH_ENABLE));
+	seq_printf(s, " Overflow Flag:          %02x\n",
+		   readb_relaxed(port->base + GPIO_OVERFLOW));
+
+	if (port->num_counters > 0) {
+		int i;
+
+		for (i = 0; i < port->num_counters; i++) {
+			seq_printf(s, " Counter(%d):             %02x\n", i,
+				   readb_relaxed(port->base + GPIO_COUNTER(i)));
+			seq_printf(s, " Compare(%d):             %02x\n", i,
+				   readb_relaxed(port->base + GPIO_COMPARE(i)));
+		}
+	}
+
+	seq_printf(s, " Overflow Flag:          %02x\n",
+		   readb_relaxed(port->base + GPIO_OVERFLOW));
+	seq_printf(s, " num_counters:           %02x\n", port->num_counters);
+	seq_printf(s, " irq_enable:             %02x\n", port->irq_enable);
+	seq_printf(s, " wakeup_mask:            %02x\n", port->wakeup_mask);
+#endif
 	seq_printf(s, "-----------------------------\n");
 }
 #else
@@ -268,6 +453,7 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct plum_gpio *port;
+	u32 num_counters;
 	int ret;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
@@ -303,6 +489,22 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	port->gc.get_debounce = plum_gpio_get_debounce;
 #endif
 	port->gc.dbg_show = plum_gpio_dbg_show;
+
+#ifdef CONFIG_GPIO_HWCOUNTER
+	ret = of_property_read_u32(np, "num-counters", &num_counters);
+	if (!ret) {
+		dev_info(dev, "num-counters: %u\n", num_counters);
+		port->num_counters = num_counters;
+		port->wakeup_mask = (1 << (port->num_counters)) - 1;
+		port->gc.set_hwcounter = plum_gpio_set_hwcounter;
+		port->gc.get_hwcounter = plum_gpio_get_hwcounter;
+		port->gc.set_hwcounter_enable = plum_gpio_set_hwcounter_enable;
+		port->gc.get_hwcounter_enable = plum_gpio_get_hwcounter_enable;
+		port->gc.set_wakeup_enable = plum_gpio_set_wakeup_enable;
+		port->gc.get_wakeup_enable = plum_gpio_get_wakeup_enable;
+	}
+	raw_spin_lock_init(&port->lock);
+#endif
 
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
 	port->gc.bgpio_names = devm_kzalloc(dev, sizeof(char *) * port->gc.ngpio, GFP_KERNEL);

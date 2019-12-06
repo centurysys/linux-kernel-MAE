@@ -196,6 +196,177 @@ static ssize_t counter_store(struct device *dev,
 static DEVICE_ATTR_RW(counter);
 #endif /* CONFIG_GPIO_COUNTER */
 
+#ifdef CONFIG_GPIO_HWCOUNTER
+static ssize_t hwcounter_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+	unsigned		debounce;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->get_hwcounter) {
+		return -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		debounce = chip->get_hwcounter(chip, offset);
+		status = sprintf(buf, "%lu\n", (unsigned long) debounce);
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t hwcounter_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->set_hwcounter) {
+		return -ENOTSUPP;
+	} else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			offset = gpio_chip_hwgpio(desc);
+			chip->set_hwcounter(chip, offset, value);
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+static DEVICE_ATTR_RW(hwcounter);
+
+static ssize_t hwcounter_enable_show(struct device *dev,
+									 struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset, enable;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->get_hwcounter_enable) {
+		return -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		enable = chip->get_hwcounter_enable(chip, offset);
+		status = sprintf(buf, "%d\n", enable);
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t hwcounter_enable_store(struct device *dev,
+									  struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->set_hwcounter_enable) {
+		return -ENOTSUPP;
+	} else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			offset = gpio_chip_hwgpio(desc);
+			chip->set_hwcounter_enable(chip, offset, value);
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+static DEVICE_ATTR_RW(hwcounter_enable);
+
+static ssize_t wakeup_enable_show(struct device *dev,
+								  struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset, enable;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->get_hwcounter_enable) {
+		return -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		enable = chip->get_wakeup_enable(chip, offset);
+		status = sprintf(buf, "%d\n", enable);
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t wakeup_enable_store(struct device *dev,
+								   struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->set_wakeup_enable) {
+		return -ENOTSUPP;
+	} else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			offset = gpio_chip_hwgpio(desc);
+			chip->set_wakeup_enable(chip, offset, value);
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+static DEVICE_ATTR_RW(wakeup_enable);
+#endif /* CONFIG_GPIO_HWCOUNTER */
+
 #ifdef CONFIG_GPIO_FILTER
 static ssize_t debounce_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
@@ -512,6 +683,11 @@ static struct attribute *gpio_attrs[] = {
 #endif
 #ifdef CONFIG_GPIO_FILTER
 	&dev_attr_debounce.attr,
+#endif
+#ifdef CONFIG_GPIO_HWCOUNTER
+	&dev_attr_hwcounter.attr,
+	&dev_attr_hwcounter_enable.attr,
+	&dev_attr_wakeup_enable.attr,
 #endif
 	NULL,
 };

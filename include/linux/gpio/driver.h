@@ -265,6 +265,23 @@ struct gpio_chip {
 	unsigned		(*get_debounce)(struct gpio_chip *chip,
 						unsigned offset);
 #endif
+#ifdef CONFIG_GPIO_HWCOUNTER
+	int			(*set_hwcounter)(struct gpio_chip *chip,
+						 unsigned offset,
+						 unsigned counter);
+	unsigned		(*get_hwcounter)(struct gpio_chip *chip,
+						 unsigned offset);
+	int			(*set_hwcounter_enable)(struct gpio_chip *chip,
+							unsigned offset,
+							int enable);
+	unsigned		(*get_hwcounter_enable)(struct gpio_chip *chip,
+							unsigned offset);
+	int			(*set_wakeup_enable)(struct gpio_chip *chip,
+						     unsigned offset,
+						     int enable);
+	unsigned		(*get_wakeup_enable)(struct gpio_chip *chip,
+						     unsigned offset);
+#endif
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
 

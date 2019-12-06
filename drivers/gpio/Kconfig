@@ -79,6 +79,12 @@ config GPIO_COUNTER
 	help
 	  Say Y here to add a counter node on sysfs interface.
 
+config GPIO_HWCOUNTER
+	bool "GPIO hardware counter support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a hardware counter node on sysfs interface.
+
 config GPIO_FILTER
 	bool "GPIO filter (debounce) support"
 	depends on GPIO_SYSFS
