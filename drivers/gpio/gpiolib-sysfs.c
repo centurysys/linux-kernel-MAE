@@ -212,7 +212,7 @@ static ssize_t hwcounter_show(struct device *dev,
 	chip = desc->gdev->chip;
 
 	if (!chip->get_hwcounter) {
-		return -ENOTSUPP;
+		status = -ENOTSUPP;
 	} else {
 		offset = gpio_chip_hwgpio(desc);
 		debounce = chip->get_hwcounter(chip, offset);
@@ -237,7 +237,7 @@ static ssize_t hwcounter_store(struct device *dev,
 	chip = desc->gdev->chip;
 
 	if (!chip->set_hwcounter) {
-		return -ENOTSUPP;
+		status = -ENOTSUPP;
 	} else {
 		unsigned long		value;
 
@@ -268,7 +268,7 @@ static ssize_t hwcounter_enable_show(struct device *dev,
 	chip = desc->gdev->chip;
 
 	if (!chip->get_hwcounter_enable) {
-		return -ENOTSUPP;
+		status = -ENOTSUPP;
 	} else {
 		offset = gpio_chip_hwgpio(desc);
 		enable = chip->get_hwcounter_enable(chip, offset);
@@ -293,7 +293,7 @@ static ssize_t hwcounter_enable_store(struct device *dev,
 	chip = desc->gdev->chip;
 
 	if (!chip->set_hwcounter_enable) {
-		return -ENOTSUPP;
+		status = -ENOTSUPP;
 	} else {
 		unsigned long		value;
 
@@ -324,7 +324,7 @@ static ssize_t wakeup_enable_show(struct device *dev,
 	chip = desc->gdev->chip;
 
 	if (!chip->get_hwcounter_enable) {
-		return -ENOTSUPP;
+		status = -ENOTSUPP;
 	} else {
 		offset = gpio_chip_hwgpio(desc);
 		enable = chip->get_wakeup_enable(chip, offset);
@@ -349,7 +349,7 @@ static ssize_t wakeup_enable_store(struct device *dev,
 	chip = desc->gdev->chip;
 
 	if (!chip->set_wakeup_enable) {
-		return -ENOTSUPP;
+		status = -ENOTSUPP;
 	} else {
 		unsigned long		value;
 
@@ -383,7 +383,7 @@ static ssize_t debounce_show(struct device *dev,
 	chip = desc->gdev->chip;
 
 	if (!chip->get_debounce) {
-		return -ENOTSUPP;
+		status = -ENOTSUPP;
 	} else {
 		offset = gpio_chip_hwgpio(desc);
 		debounce = chip->get_debounce(chip, offset);
@@ -408,7 +408,7 @@ static ssize_t debounce_store(struct device *dev,
 	chip = desc->gdev->chip;
 
 	if (!chip->set_debounce) {
-		return -ENOTSUPP;
+		status = -ENOTSUPP;
 	} else {
 		unsigned long		value;
 

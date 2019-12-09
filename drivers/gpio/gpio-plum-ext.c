@@ -431,6 +431,8 @@ static void plum_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 		seq_printf(s, " wakeup_mask:            %02x\n", port->wakeup_mask);
 
 		for (i = 0; i < port->num_counters; i++) {
+			seq_printf(s, " Enable  (%d):             %d\n", i,
+				   !!(readb_relaxed(port->base + GPIO_COUNTER_CTRL) & (1 << i)));
 			seq_printf(s, " Counter (%d):            %02x\n", i,
 				   readb_relaxed(port->base + GPIO_COUNTER(i)));
 			seq_printf(s, " Compare (%d):            %02x\n", i,
