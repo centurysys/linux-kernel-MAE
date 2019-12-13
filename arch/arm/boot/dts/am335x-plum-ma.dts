@@ -1461,7 +1461,7 @@
 			   &gpiox_0x18
 			   &gpiox_0x40_counter &gpiox_0x80
 			   &gpiox_0x04_lisa
-			   &leds_foma &leds_telit_ctrl &leds_do>;
+			   &leds_foma &leds_amp_ctrl &leds_do>;
 	};
 };
 
