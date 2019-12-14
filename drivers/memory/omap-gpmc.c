@@ -996,10 +996,12 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 		return -ENOMEM;
 
 	spin_lock(&gpmc_mem_lock);
+#ifndef CONFIG_OMAP_GPMC_MULTIDEVICE_IN_ONE_CS
 	if (gpmc_cs_reserved(cs)) {
 		r = -EBUSY;
 		goto out;
 	}
+#endif
 	if (gpmc_cs_mem_enabled(cs))
 		r = adjust_resource(res, res->start & ~(size - 1), size);
 	if (r < 0)
@@ -2081,10 +2083,16 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 * REVISIT: Add timing support from slls644g.pdf.
 	 */
 	if (!gpmc_t.cs_rd_off) {
+#if 0
 		WARN(1, "enable GPMC debug to configure .dts timings for CS%i\n",
 			cs);
 		gpmc_cs_show_timings(cs,
 				     "please add GPMC bootloader timings to .dts");
+#else
+		dev_warn(&pdev->dev,
+			 "%s using bootloader timings on CS%d\n",
+			 child->name, cs);
+#endif
 		goto no_timings;
 	}
 
