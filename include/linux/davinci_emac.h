@@ -16,6 +16,9 @@
 
 struct mdio_platform_data {
 	unsigned long		bus_freq;
+#ifdef CONFIG_DAVINCI_MDIO_PHYRESET
+	int phy_reset_gpio[2];
+#endif
 };
 
 struct emac_platform_data {
