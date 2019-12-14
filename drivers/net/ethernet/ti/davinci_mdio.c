@@ -23,6 +23,10 @@
 #include <linux/pm_runtime.h>
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
+#ifdef CONFIG_DAVINCI_MDIO_PHYRESET
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+#endif
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
 #include <linux/pinctrl/consumer.h>
@@ -95,7 +99,10 @@ struct davinci_mdio_data {
 static void davinci_mdio_init_clk(struct davinci_mdio_data *data)
 {
 	u32 mdio_in, div, mdio_out_khz, access_time;
-
+#ifdef CONFIG_DAVINCI_MDIO_PHYRESET
+	struct mdio_platform_data *pdata = &data->pdata;
+	int i;
+#endif
 	mdio_in = clk_get_rate(data->clk);
 	div = (mdio_in / data->pdata.bus_freq) - 1;
 	if (div > CONTROL_MAX_DIV)
@@ -120,6 +127,13 @@ static void davinci_mdio_init_clk(struct davinci_mdio_data *data)
 	data->access_time = usecs_to_jiffies(access_time * 4);
 	if (!data->access_time)
 		data->access_time = 1;
+
+#ifdef CONFIG_DAVINCI_MDIO_PHYRESET
+	for (i = 0; i < 2; i++) {
+		if (gpio_is_valid(pdata->phy_reset_gpio[i]))
+			gpio_direction_output(pdata->phy_reset_gpio[i], 1);
+	}
+#endif
 }
 
 static void davinci_mdio_enable(struct davinci_mdio_data *data)
@@ -311,10 +325,26 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 {
 	struct device_node *node = pdev->dev.of_node;
 	u32 prop;
-
+#ifdef CONFIG_DAVINCI_MDIO_PHYRESET
+	int i, phy_reset_gpio[2];
+#endif
 	if (!node)
 		return -EINVAL;
 
+#ifdef CONFIG_DAVINCI_MDIO_PHYRESET
+	phy_reset_gpio[0] = of_get_named_gpio(node, "phy0-reset-gpio", 0);
+	phy_reset_gpio[1] = of_get_named_gpio(node, "phy1-reset-gpio", 0);
+
+	if (phy_reset_gpio[0] == -EPROBE_DEFER || phy_reset_gpio[1] == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	for (i = 0; i < 2; i++) {
+		if (gpio_is_valid(phy_reset_gpio[i])) {
+			gpio_request(phy_reset_gpio[i], "PHY-Reset");
+			data->phy_reset_gpio[i] = phy_reset_gpio[i];
+		}
+	}
+#endif
 	if (of_property_read_u32(node, "bus_freq", &prop)) {
 		dev_err(&pdev->dev, "Missing bus_freq property in the DT.\n");
 		return -EINVAL;

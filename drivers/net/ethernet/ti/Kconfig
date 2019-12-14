@@ -45,6 +45,10 @@ config TI_CPSW_PHY_SEL
 	  This driver supports configuring of the phy mode connected to
 	  the CPSW. DEPRECATED: use PHY_TI_GMII_SEL.
 
+config DAVINCI_MDIO_PHYRESET
+       bool "TI DaVinci Reset PHY before probe"
+       depends on TI_DAVINCI_MDIO
+
 config TI_CPSW
 	tristate "TI CPSW Switch Support"
 	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || COMPILE_TEST
