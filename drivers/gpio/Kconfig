@@ -69,6 +69,24 @@ config GPIO_SYSFS
 	  ioctl() operations instead. The character device is always
 	  available.
 
+config GPIO_COUNTER
+	bool "GPIO counter support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a counter node on sysfs interface.
+
+config GPIO_HWCOUNTER
+	bool "GPIO hardware counter support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a hardware counter node on sysfs interface.
+
+config GPIO_FILTER
+	bool "GPIO filter (debounce) support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a filter (debounce) node on sysfs interface.
+
 config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
 	tristate
@@ -240,6 +258,10 @@ config GPIO_GENERIC_PLATFORM
 	select GPIO_GENERIC
 	help
 	  Say yes here to support basic platform_device memory-mapped GPIO controllers.
+
+config GPIO_GENERIC_EXPORT_BY_DT
+	bool "Export GPIO by device-tree"
+	depends on GPIO_GENERIC_PLATFORM
 
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"
@@ -667,6 +689,17 @@ config GPIO_AMD_FCH
 	  Note: This driver doesn't registers itself automatically, as it
 	  needs to be provided with platform specific configuration.
 	  (See eg. CONFIG_PCENGINES_APU2.)
+
+config GPIO_XIOIRQ
+	tristate "MA-E3xx eXternal I/O (XIO) GPIO support"
+	depends on OF
+	select OF_GPIO
+
+config GPIO_PLUM_DI
+	tristate "MA-E3xx external DI GPIO support"
+	depends on OF
+	select OF_GPIO
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"

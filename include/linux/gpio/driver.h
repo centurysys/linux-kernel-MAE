@@ -366,6 +366,30 @@ struct gpio_chip {
 	int			(*set_config)(struct gpio_chip *chip,
 					      unsigned offset,
 					      unsigned long config);
+#ifdef CONFIG_GPIO_FILTER
+	int			(*set_debounce)(struct gpio_chip *chip,
+						unsigned offset,
+						unsigned debounce);
+	unsigned		(*get_debounce)(struct gpio_chip *chip,
+						unsigned offset);
+#endif
+#ifdef CONFIG_GPIO_HWCOUNTER
+	int			(*set_hwcounter)(struct gpio_chip *chip,
+						 unsigned offset,
+						 unsigned counter);
+	unsigned		(*get_hwcounter)(struct gpio_chip *chip,
+						 unsigned offset);
+	int			(*set_hwcounter_enable)(struct gpio_chip *chip,
+							unsigned offset,
+							int enable);
+	unsigned		(*get_hwcounter_enable)(struct gpio_chip *chip,
+							unsigned offset);
+	int			(*set_wakeup_enable)(struct gpio_chip *chip,
+						     unsigned offset,
+						     int enable);
+	unsigned		(*get_wakeup_enable)(struct gpio_chip *chip,
+						     unsigned offset);
+#endif
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
 
@@ -395,6 +419,9 @@ struct gpio_chip {
 	spinlock_t bgpio_lock;
 	unsigned long bgpio_data;
 	unsigned long bgpio_dir;
+# ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	const char **bgpio_names;
+# endif
 #endif /* CONFIG_GPIO_GENERIC */
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
