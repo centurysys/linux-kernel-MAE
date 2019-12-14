@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/sched/loadavg.h>
@@ -20,6 +21,9 @@
 #include "../leds.h"
 
 static int panic_heartbeats;
+
+/* Flag to suspend/resume heartbeat */
+static int suspend_heartbeats;
 
 struct heartbeat_trig_data {
 	struct led_classdev *led_cdev;
@@ -86,7 +90,8 @@ static void led_heartbeat_function(struct timer_list *t)
 		break;
 	}
 
-	led_set_brightness_nosleep(led_cdev, brightness);
+	if (likely(!suspend_heartbeats))
+		led_set_brightness_nosleep(led_cdev, brightness);
 	mod_timer(&heartbeat_data->timer, jiffies + delay);
 }
 
@@ -176,12 +181,29 @@ static int heartbeat_panic_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static int heartbeat_pm_notifier(struct notifier_block *nb,
+				 unsigned long code, void *unused)
+{
+	if (code == PM_SUSPEND_PREPARE) {
+		suspend_heartbeats = 1;
+		led_trigger_event(&heartbeat_led_trigger, LED_OFF);
+	} else if (code == PM_POST_SUSPEND) {
+		suspend_heartbeats = 0;
+	}
+
+	return NOTIFY_OK;
+}
+
 static struct notifier_block heartbeat_reboot_nb = {
 	.notifier_call = heartbeat_reboot_notifier,
 };
 
 static struct notifier_block heartbeat_panic_nb = {
 	.notifier_call = heartbeat_panic_notifier,
+};
+
+static struct notifier_block heartbeat_pm_nb = {
+	.notifier_call = heartbeat_pm_notifier,
 };
 
 static int __init heartbeat_trig_init(void)
@@ -192,12 +214,14 @@ static int __init heartbeat_trig_init(void)
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &heartbeat_panic_nb);
 		register_reboot_notifier(&heartbeat_reboot_nb);
+		register_pm_notifier(&heartbeat_pm_nb);
 	}
 	return rc;
 }
 
 static void __exit heartbeat_trig_exit(void)
 {
+	unregister_pm_notifier(&heartbeat_pm_nb);
 	unregister_reboot_notifier(&heartbeat_reboot_nb);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &heartbeat_panic_nb);
