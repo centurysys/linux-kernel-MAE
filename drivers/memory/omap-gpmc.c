@@ -866,7 +866,10 @@ static void gpmc_cs_set_reserved(int cs, int reserved)
 {
 	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
 
-	gpmc->flags |= GPMC_CS_RESERVED;
+	if (reserved)
+		gpmc->flags |= GPMC_CS_RESERVED;
+	else
+		gpmc->flags &= ~GPMC_CS_RESERVED;
 }
 
 static bool gpmc_cs_reserved(int cs)
