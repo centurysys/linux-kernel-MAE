@@ -13,6 +13,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#ifdef CONFIG_SERIAL_RS485_GPIO
+#include <linux/of_gpio.h>
+#endif
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
@@ -48,6 +51,29 @@ static inline void tegra_serial_handle_break(struct uart_port *port)
 }
 #endif
 
+#ifdef CONFIG_SERIAL_RS485_GPIO
+/* Enable or disable the rs485 support */
+static int serial8250_config_rs485(struct uart_port *p, struct serial_rs485 *rs485conf)
+{
+	struct uart_8250_port *port = container_of(p, struct uart_8250_port, port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&p->lock, flags);
+
+	port->rs485 = *rs485conf;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		printk("Setting UART to RS-485\n");
+	} else {
+		printk("Setting UART to RS-422\n");
+	}
+
+	spin_unlock_irqrestore(&p->lock, flags);
+
+	return 0;
+}
+#endif
+
 /*
  * Fill a struct uart_port for a given device node
  */
@@ -59,11 +85,51 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	struct device_node *np = ofdev->dev.of_node;
 	u32 clk, spd, prop;
 	int ret, irq;
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	enum of_gpio_flags flags;
+	int gpio;
+#endif
 
 	memset(port, 0, sizeof *port);
 
 	pm_runtime_enable(&ofdev->dev);
 	pm_runtime_get_sync(&ofdev->dev);
+
+#ifdef CONFIG_SERIAL_RS485_GPIO
+	gpio = of_get_named_gpio_flags(np, "txen_gpio", 0, &flags);
+	if (gpio == -EPROBE_DEFER)
+		return gpio;
+
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_txen");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->txen_gpio = gpio;
+	}
+
+	gpio = of_get_named_gpio_flags(np, "rxen_gpio", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_rxen");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->rxen_gpio = gpio;
+	}
+
+	gpio = of_get_named_gpio_flags(np, "type_gpio", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+		ret = gpio_request(gpio, "of_serial_type");
+		if (ret < 0)
+			goto out_gpio;
+
+		port->type_gpio = gpio;
+	}
+
+	port->rs485_config = serial8250_config_rs485;
+
+out_gpio:
+#endif
 
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 
