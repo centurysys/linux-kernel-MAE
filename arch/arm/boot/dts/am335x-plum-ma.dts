@@ -83,7 +83,7 @@
 			label = "AI_Power";
 			gpios = <&gpiox_0x00 4 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
-			retain-state-suspended;
+			/* retain-state-suspended;*/
 		};
 
 		led@Supply1 {
