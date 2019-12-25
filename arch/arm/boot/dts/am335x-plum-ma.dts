@@ -149,6 +149,25 @@
 		};
 	};
 
+	xio_711_ctrl: xio_711_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@Ctrl0 {
+			label = "USB_Hub_Reset";
+			gpios = <&gpiox_0x00 5 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "oneshot";
+		};
+
+		led@Supply1 {
+			label = "DI_Power";
+			gpios = <&gpiox_0x00 6 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-state-suspended;
+		};
+	};
+
 	leds_onboard: leds_onboard {
 		pinctrl-names = "default";
 		pinctrl-0 = <&power_led_pins>;
@@ -1069,6 +1088,23 @@
 		};
 	};
 
+	leds_711_aux_ctrl: leds_711_aux_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@AUX_LED_G1 {
+			label = "AUX_G1";
+			gpios = <&gpiox_0x16_711 6 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led@AUX_LED_R1 {
+			label = "AUX_R1";
+			gpios = <&gpiox_0x16_711 7 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
 	aliases {
 		xio_02 = &xio_02;
 		xio_03 = &xio_03_1f;
@@ -1123,6 +1159,7 @@
 		xio_36 = &xio_36;
 		xio_38 = &xio_38;
 		xio_3c = &xio_3c;
+		xio_3e = &xio_3e;
 		xio_3f = &xio_3f;
 	};
 
@@ -1448,6 +1485,18 @@
 			   &gpiox_0x16_GNSS &gpiox_0x18_GNSS
 			   &leds_foma &leds_amp_ctrl
 			   &leds_gnss>;
+	};
+
+	/* XIO: (id: 0x3e) KCCS 7/11 */
+	xio_3e: xio@0x3e {
+		#size-cells = <0>;
+		devices = <&xio_711_ctrl &xio_di_supply
+			   &uartx2_0x20 &uartx2_0x30
+			   &gpiox_0x00 &gpiox_0x08
+			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14 &gpiox_0x16_711
+			   &gpiox_0x18 &gpiox_0x1a
+			   &gpiox_0x40
+			   &leds_foma &leds_amp_ctrl &leds_711_aux_ctrl>;
 	};
 
 	/* XIO: (id: 0x3f) AMM_AD (/LAD rev2) */
@@ -2652,6 +2701,17 @@
 
 	/* GNSS LED */
 	gpiox_0x16_GNSS: gpio@2,0x16_GNSS {
+		reg = <2 0x00000016 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* KCCS 711 LED */
+	gpiox_0x16_711: gpio@2,0x16_711 {
 		reg = <2 0x00000016 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
