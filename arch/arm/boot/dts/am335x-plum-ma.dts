@@ -303,7 +303,7 @@
 		status = "disabled";
 
 		led@RESETN {
-			label = "Mobile_RESETN";
+			label = "Lora_RESETN";
 			gpios = <&gpiox_0x92 0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "oneshot";
 		};
@@ -1159,6 +1159,7 @@
 		xio_36 = &xio_36;
 		xio_38 = &xio_38;
 		xio_3c = &xio_3c;
+		xio_3d = &xio_3d;
 		xio_3e = &xio_3e;
 		xio_3f = &xio_3f;
 	};
@@ -1344,6 +1345,7 @@
 	xio_27: xio@0x27 {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20_WiSUN &uartx2_0x30_WiSUN
+			   &gpiox_0x04_llo
 			   &gpiox_0x10 &gpiox_0x12_WiSUN
 			   &gpiox_0x14 &gpiox_0x16_WiSUN
 			   &gpiox_0x18_WiSUN
@@ -1486,6 +1488,19 @@
 			   &leds_foma &leds_amp_ctrl
 			   &leds_gnss>;
 	};
+
+	/* XIO: (id: 0x3d) MA-E360/LLO */
+	xio_3d: xio@0x3d {
+		#size-cells = <0>;
+		devices = <&uartx2_0xa0_locad
+			   &gpiox_0x04_llo
+			   &gpiox_0x10 &gpiox_0x12_llo
+			   &gpiox_0x14
+			   &gpiox_0x90_locad &gpiox_0x92
+			   &leds_foma &leds_amp_ctrl
+			   &leds_lora &leds_lora_ctrl>;
+	};
+
 
 	/* XIO: (id: 0x3e) KCCS 7/11 */
 	xio_3e: xio@0x3e {
@@ -2463,6 +2478,40 @@
 		};
 	};
 
+	/* LLO Status */
+	gpiox_0x12_llo: gpio@2,0x12_LLO {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@2 {
+			label = "ModuleAvailable";
+			reg = <2>;
+		};
+
+		stat@3 {
+			label = "RI";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "BootUp";
+			reg = <4>;
+		};
+	};
+
 	/* SIM7100 Mobile Status */
 	gpiox_0x12_SIM7100: gpio@2,0x12_SIM7100 {
 		reg = <2 0x00000012 0x00000001>;
@@ -3287,6 +3336,30 @@
 			reg = <7>;
 		};
 	};
+
+	/* XIO Interrupt Enable/Status (LLO) */
+	gpiox_0x04_llo: gpio@2,0x04_LLO {
+		reg = <2 0x00000004 0x00000004>;
+		#gpio-cells = <2>;
+		compatible = "plum,xioirq-gpio";
+		gpio-controller;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@1 {
+			label = "xio_RI";
+			reg = <1>;
+		};
+	};
+
 
 	/* XIO Interrupt Enable/Status (KYM-11) */
 	gpiox_0x04_kym11: gpio@2,0x04_KYM {
