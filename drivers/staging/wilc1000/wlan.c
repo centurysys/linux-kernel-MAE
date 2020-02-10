@@ -269,18 +269,16 @@ static void wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 {
-	u8 *bssid, *bssid1;
 	struct net_device *mon_netdev = NULL;
 	struct wilc_vif *vif;
+	struct ieee80211_hdr *h = (struct ieee80211_hdr *)mac_header;
 
-	bssid = mac_header + 10;
-	bssid1 = mac_header + 4;
 	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
 		if (vif->iftype == WILC_STATION_MODE)
-			if (ether_addr_equal_unaligned(bssid, vif->bssid))
+			if (ether_addr_equal_unaligned(h->addr2, vif->bssid))
 				return vif->ndev;
 		if (vif->iftype == WILC_AP_MODE)
-			if (ether_addr_equal_unaligned(bssid1, vif->bssid))
+			if (ether_addr_equal_unaligned(h->addr1, vif->bssid))
 				return vif->ndev;
 		if (vif->iftype == WILC_MONITOR_MODE)
 			mon_netdev = vif->ndev;
