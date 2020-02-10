@@ -47,6 +47,7 @@
 		#size-cells = <0>;
 		cpu@0 {
 			compatible = "arm,cortex-a8";
+			enable-method = "ti,am3352";
 			device_type = "cpu";
 			reg = <0>;
 
@@ -56,6 +57,17 @@
 			clock-names = "cpu";
 
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+			cpu-idle-states = <&mpu_gate>;
+		};
+
+		idle-states {
+			mpu_gate: mpu_gate {
+				compatible = "arm,idle-state";
+				entry-latency-us = <40>;
+				exit-latency-us = <90>;
+				min-residency-us = <300>;
+				ti,idle-wkup-m3;
+			};
 		};
 	};
 
@@ -459,6 +471,25 @@
 			dmas = <&edma 6 0>,
 			       <&edma 5 0>;
 			dma-names = "tx", "rx";
+		};
+
+		target-module@56000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			clocks = <&gfx_l3_clkctrl AM3_GFX_L3_GFX_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_gfx 0>;
+			reset-names = "rstctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x56000000 0x10000>;
+
+			gpu: gpu@0 {
+				compatible = "ti,am3352-sgx530", "img,sgx530";
+				reg = <0x0 0x10000>;
+				interrupts = <37>;
+				clocks = <&gfx_fck_div_ck>;
+				clock-names = "fclk";
+			};
 		};
 	};
 };

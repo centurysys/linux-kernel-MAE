@@ -42,6 +42,8 @@
 #define ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS	0x9C
 #define ALE_VLAN_MASK_MUX(reg)			(0xc0 + (0x4 * (reg)))
 
+#define AM65_CPSW_ALE_THREAD_DEF_REG 0x134
+
 #define ALE_TABLE_WRITE		BIT(31)
 
 #define ALE_TYPE_FREE			0
@@ -119,6 +121,8 @@ DEFINE_ALE_FIELD(mcast,			40,	1)
 /* ALE NetCP nu switch specific */
 DEFINE_ALE_FIELD(vlan_unreg_mcast_idx,	20,	3)
 DEFINE_ALE_FIELD(vlan_reg_mcast_idx,	44,	3)
+
+#define NU_VLAN_UNREG_MCAST_IDX	1
 
 /* The MAC address field in the ALE entry cannot be macroized as above */
 static inline void cpsw_ale_get_addr(u32 *ale_entry, u8 *addr)
@@ -435,6 +439,8 @@ int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
 		cpsw_ale_set_vlan_unreg_mcast(ale_entry, unreg_mcast,
 					      ale->vlan_field_bits);
 	} else {
+		cpsw_ale_set_vlan_unreg_mcast_idx(ale_entry,
+						  NU_VLAN_UNREG_MCAST_IDX);
 		cpsw_ale_set_vlan_mcast(ale, ale_entry, reg_mcast, unreg_mcast);
 	}
 	cpsw_ale_set_vlan_member_list(ale_entry, port, ale->vlan_field_bits);
@@ -648,6 +654,22 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.port_shift	= 0,
 		.bits		= 1,
 	},
+	[ALE_PORT_MACONLY]	= {
+		.name		= "mac_only_port_mode",
+		.offset		= ALE_PORTCTL,
+		.port_offset	= 4,
+		.shift		= 11,
+		.port_shift	= 0,
+		.bits		= 1,
+	},
+	[ALE_PORT_MACONLY_CAF]	= {
+		.name		= "mac_only_port_caf",
+		.offset		= ALE_PORTCTL,
+		.port_offset	= 4,
+		.shift		= 13,
+		.port_shift	= 0,
+		.bits		= 1,
+	},
 	[ALE_PORT_MCAST_LIMIT]	= {
 		.name		= "mcast_limit",
 		.offset		= ALE_PORTCTL,
@@ -695,6 +717,22 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.shift		= 24,
 		.port_shift	= 0,
 		.bits		= 6,
+	},
+	[ALE_DEFAULT_THREAD_ID] = {
+		.name		= "default_thread_id",
+		.offset		= AM65_CPSW_ALE_THREAD_DEF_REG,
+		.port_offset	= 0,
+		.shift		= 0,
+		.port_shift	= 0,
+		.bits		= 6,
+	},
+	[ALE_DEFAULT_THREAD_ENABLE] = {
+		.name		= "default_thread_id",
+		.offset		= AM65_CPSW_ALE_THREAD_DEF_REG,
+		.port_offset	= 0,
+		.shift		= 15,
+		.port_shift	= 0,
+		.bits		= 1,
 	},
 };
 
@@ -752,6 +790,55 @@ int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control)
 	return tmp & BITMASK(info->bits);
 }
 
+int cpsw_ale_set_ratelimit(struct cpsw_ale *ale, unsigned long freq, int port,
+			   unsigned int bcast_rate_limit,
+			   unsigned int mcast_rate_limit,
+			   bool direction)
+
+{
+	unsigned int rate_limit;
+	unsigned long ale_prescale;
+	int val;
+
+	if (!bcast_rate_limit && !mcast_rate_limit) {
+		/* disable rate limit */
+		cpsw_ale_control_set(ale, 0, ALE_RATE_LIMIT, 0);
+		cpsw_ale_control_set(ale, port, ALE_PORT_BCAST_LIMIT, 0);
+		cpsw_ale_control_set(ale, port, ALE_PORT_MCAST_LIMIT, 0);
+		writel(0, ale->params.ale_regs + ALE_PRESCALE);
+		return 0;
+	}
+
+	/* configure Broadcast and Multicast Rate Limit
+	 * number_of_packets = (Fclk / ALE_PRESCALE) * port.BCASTMCAST/_LIMIT
+	 * ALE_PRESCALE width is 19bit and min value 0x10
+	 * with Fclk = 125MHz and port.BCASTMCAST/_LIMIT = 1
+	 *
+	 * max number_of_packets = (125MHz / 0x10) * 1 = 7812500
+	 * min number_of_packets = (125MHz / 0xFFFFF) * 1 = 119
+	 *
+	 * above values are more than enough (with higher Fclk they will be
+	 * just better), so port.BCASTMCAST/_LIMIT can be selected to be 1
+	 * while ALE_PRESCALE is calculated as:
+	 *  ALE_PRESCALE = Fclk / number_of_packets
+	 */
+	rate_limit = max_t(unsigned int, bcast_rate_limit, mcast_rate_limit);
+	ale_prescale = freq / rate_limit;
+	if (ale_prescale & (~0xfffff))
+		return -EINVAL;
+
+	cpsw_ale_control_set(ale, 0, ALE_RATE_LIMIT_TX, direction);
+	val = bcast_rate_limit ? 1 : 0;
+	cpsw_ale_control_set(ale, port, ALE_PORT_BCAST_LIMIT, val);
+	val = mcast_rate_limit ? 1 : 0;
+	cpsw_ale_control_set(ale, port, ALE_PORT_MCAST_LIMIT, val);
+	writel((u32)ale_prescale, ale->params.ale_regs + ALE_PRESCALE);
+	cpsw_ale_control_set(ale, 0, ALE_RATE_LIMIT, 1);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cpsw_ale_set_ratelimit);
+
 static void cpsw_ale_timer(struct timer_list *t)
 {
 	struct cpsw_ale *ale = from_timer(ale, t, timer);
@@ -779,6 +866,7 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 void cpsw_ale_stop(struct cpsw_ale *ale)
 {
 	del_timer_sync(&ale->timer);
+	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 0);
 }
 
@@ -862,6 +950,7 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 					ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS;
 	}
 
+	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
 	return ale;
 }
 

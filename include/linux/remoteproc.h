@@ -86,7 +86,13 @@ struct resource_table {
  * this header, and it should be parsed according to the resource type.
  */
 struct fw_rsc_hdr {
-	u32 type;
+	union {
+		u32 type;
+		struct {
+			u16 t;
+			u16 v;
+		} st;
+	};
 	u8 data[0];
 } __packed;
 
@@ -100,6 +106,10 @@ struct fw_rsc_hdr {
  *		    the remote processor will be writing logs.
  * @RSC_VDEV:       declare support for a virtio device, and serve as its
  *		    virtio header.
+ * @RSC_PRELOAD_VENDOR: a vendor resource type that needs to be handled by
+ *		    remoteproc implementations before loading
+ * @RSC_POSTLOAD_VENDOR: a vendor resource type that needs to be handled by
+ *		    remoteproc implementations after loading
  * @RSC_LAST:       just keep this one at the end of standard resources
  * @RSC_VENDOR_START:	start of the vendor specific resource types range
  * @RSC_VENDOR_END:	end of the vendor specific resource types range
@@ -117,7 +127,9 @@ enum fw_resource_type {
 	RSC_DEVMEM		= 1,
 	RSC_TRACE		= 2,
 	RSC_VDEV		= 3,
-	RSC_LAST		= 4,
+	RSC_PRELOAD_VENDOR	= 4,
+	RSC_POSTLOAD_VENDOR	= 5,
+	RSC_LAST		= 6,
 	RSC_VENDOR_START	= 128,
 	RSC_VENDOR_END		= 512,
 };
@@ -238,6 +250,32 @@ struct fw_rsc_trace {
 } __packed;
 
 /**
+ * struct fw_rsc_trace2 - trace buffer declaration supporting 64-bits
+ * @padding: initial padding after type field for aligned 64-bit access
+ * @da: device address (64-bit)
+ * @len: length (in bytes)
+ * @reserved: reserved (must be zero)
+ * @name: human-readable name of the trace buffer
+ *
+ * This resource entry is an enhanced version of the fw_rsc_trace resourec entry
+ * and the provides equivalent functionality but designed for 64-bit remote
+ * processors.
+ *
+ * @da specifies the device address of the buffer, @len specifies
+ * its size, and @name may contain a human readable name of the trace buffer.
+ *
+ * After booting the remote processor, the trace buffers are exposed to the
+ * user via debugfs entries (called trace0, trace1, etc..).
+ */
+struct fw_rsc_trace2 {
+	u32 padding;
+	u64 da;
+	u32 len;
+	u32 reserved;
+	u8 name[32];
+} __packed;
+
+/**
  * struct fw_rsc_vdev_vring - vring descriptor entry
  * @da: device address
  * @align: the alignment between the consumer and producer parts of the vring
@@ -312,6 +350,24 @@ struct fw_rsc_vdev {
 struct rproc;
 
 /**
+ * struct fw_rsc_vendor - vendor resource definition
+ * @sub_type: implementation specific type including version field
+ * @size: size of the vendor custom resource
+ * @data: label for the start of the resource
+ */
+struct fw_rsc_vendor {
+	union {
+		u32 sub_type;
+		struct {
+			u16 st_type;
+			u16 st_ver;
+		} st;
+	} u;
+	u32 size;
+	u8 data[0];
+} __packed;
+
+/**
  * struct rproc_mem_entry - memory entry descriptor
  * @va:	virtual address
  * @dma: dma address
@@ -355,6 +411,8 @@ enum rsc_handling_status {
 
 /**
  * struct rproc_ops - platform-specific device handlers
+ * @prepare:	prepare device for code loading
+ * @unprepare:	unprepare device after stop
  * @start:	power on the device and boot it
  * @stop:	power off the device
  * @kick:	kick a virtqueue (virtqueue id given as a parameter)
@@ -365,12 +423,15 @@ enum rsc_handling_status {
  * negative value on error
  * @load_rsc_table:	load resource table from firmware image
  * @find_loaded_rsc_table: find the loaded resouce table
+ * @handle_vendor_rsc:	hook to handle device specific resource table entries
  * @load:		load firmware to memory, where the remote processor
  *			expects to find it
  * @sanity_check:	sanity check the fw image
  * @get_boot_addr:	get boot address to entry point specified in firmware
  */
 struct rproc_ops {
+	int (*prepare)(struct rproc *rproc);
+	int (*unprepare)(struct rproc *rproc);
 	int (*start)(struct rproc *rproc);
 	int (*stop)(struct rproc *rproc);
 	void (*kick)(struct rproc *rproc, int vqid);
@@ -380,6 +441,8 @@ struct rproc_ops {
 			  int offset, int avail);
 	struct resource_table *(*find_loaded_rsc_table)(
 				struct rproc *rproc, const struct firmware *fw);
+	int (*handle_vendor_rsc)(struct rproc *rproc,
+				 struct fw_rsc_vendor *rsc);
 	int (*load)(struct rproc *rproc, const struct firmware *fw);
 	int (*sanity_check)(struct rproc *rproc, const struct firmware *fw);
 	u32 (*get_boot_addr)(struct rproc *rproc, const struct firmware *fw);
@@ -479,13 +542,16 @@ struct rproc_dump_segment {
  * @table_sz: size of @cached_table
  * @has_iommu: flag to indicate if remote processor is behind an MMU
  * @auto_boot: flag to indicate if remote processor should be auto-started
+ * @deny_sysfs_ops: flag to not permit sysfs operations on state and firmware
+ * @skip_firmware_request: flag to skip requesting the firmware
+ * @skip_load: flag to skip the loading of firmware segments
  * @dump_segments: list of segments in the firmware
  * @nb_vdev: number of vdev currently handled by rproc
  */
 struct rproc {
 	struct list_head node;
 	struct iommu_domain *domain;
-	const char *name;
+	char *name;
 	char *firmware;
 	void *priv;
 	struct rproc_ops *ops;
@@ -512,6 +578,9 @@ struct rproc {
 	size_t table_sz;
 	bool has_iommu;
 	bool auto_boot;
+	unsigned int deny_sysfs_ops		: 1;
+	unsigned int skip_firmware_request	: 1;
+	unsigned int skip_load			: 1;
 	struct list_head dump_segments;
 	int nb_vdev;
 };
@@ -610,7 +679,9 @@ rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, int len,
 
 int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);
+int rproc_set_firmware(struct rproc *rproc, const char *fw_name);
 void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type);
+void *rproc_da_to_va(struct rproc *rproc, u64 da, int len);
 int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size);
 int rproc_coredump_add_custom_segment(struct rproc *rproc,
 				      dma_addr_t da, size_t size,
@@ -618,6 +689,8 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 						     struct rproc_dump_segment *segment,
 						     void *dest),
 				      void *priv);
+int rproc_get_id(struct rproc *rproc);
+int rproc_pa_to_da(struct rproc *rproc, phys_addr_t pa, u64 *da);
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {

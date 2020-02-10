@@ -143,7 +143,7 @@
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
-	ocp {
+	ocp: ocp {
 		compatible = "ti,dra7-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -184,6 +184,7 @@
 				device_type = "pci";
 				ranges = <0x81000000 0 0          0x03000 0 0x00010000
 					  0x82000000 0 0x20013000 0x13000 0 0xffed000>;
+				dma-ranges = <0x02000000 0x0 0x00000000 0x00000000 0x1 0x00000000>;
 				bus-range = <0x00 0xff>;
 				#interrupt-cells = <1>;
 				num-lanes = <1>;
@@ -238,6 +239,7 @@
 				device_type = "pci";
 				ranges = <0x81000000 0 0          0x03000 0 0x00010000
 					  0x82000000 0 0x30013000 0x13000 0 0xffed000>;
+				dma-ranges = <0x02000000 0x0 0x00000000 0x00000000 0x1 0x00000000>;
 				bus-range = <0x00 0xff>;
 				#interrupt-cells = <1>;
 				num-lanes = <1>;
@@ -611,6 +613,19 @@
 			ti,irqs-safe-map = <0>;
 		};
 
+		gpu: gpu@56000000 {
+			compatible = "ti,dra7-sgx544", "img,sgx544";
+			ti,hwmods = "gpu";
+			reg = <0x56000000 0x10000>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l3_iclk_div>,
+				 <&gpu_core_gclk_mux>,
+				 <&gpu_hyd_gclk_mux>;
+			clock-names = "iclk",
+				      "fclk1",
+				      "fclk2";
+		};
+
 		dss: dss@58000000 {
 			compatible = "ti,dra7-dss";
 			/* 'reg' defined in dra72x.dtsi and dra74x.dtsi */
@@ -761,6 +776,7 @@
 	temperature = <120000>; /* milli Celsius */
 };
 
+#include "dra7-pruss.dtsi"
 #include "dra7-l4.dtsi"
 #include "dra7xx-clocks.dtsi"
 

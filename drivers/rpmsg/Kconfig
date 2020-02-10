@@ -21,7 +21,7 @@ config RPMSG_QCOM_GLINK_NATIVE
 
 config RPMSG_QCOM_GLINK_RPM
 	tristate "Qualcomm RPM Glink driver"
-        select RPMSG_QCOM_GLINK_NATIVE
+	select RPMSG_QCOM_GLINK_NATIVE
 	depends on HAS_IOMEM
 	depends on MAILBOX
 	help
@@ -54,5 +54,31 @@ config RPMSG_VIRTIO
 	depends on HAS_DMA
 	select RPMSG
 	select VIRTIO
+
+config RPMSG_RPC
+	tristate "rpmsg Remote Procedure Call driver"
+	default n
+	depends on RPMSG_VIRTIO
+	depends on REMOTEPROC
+	depends on OMAP_REMOTEPROC
+	select DMA_SHARED_BUFFER
+	help
+	  An rpmsg driver that exposes the Remote Procedure Call API to
+	  user space, in order to allow applications to distribute
+	  remote calls to more power-efficient remote processors. This is
+	  currently available only on OMAP4+ systems.
+
+config RPMSG_PRU
+	tristate "PRU RPMsg Communication driver"
+	depends on RPMSG_VIRTIO
+	depends on REMOTEPROC
+	depends on PRU_REMOTEPROC
+	help
+	  An rpmsg driver that exposes interfaces to user space, to allow
+	  applications to communicate with the PRU processors on available
+	  TI SoCs. This is restricted to SoCs that have the PRUSS remoteproc
+	  support.
+
+	  If unsure, say N.
 
 endmenu

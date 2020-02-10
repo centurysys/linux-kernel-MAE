@@ -78,12 +78,27 @@ config DA8XX_REMOTEPROC
 config KEYSTONE_REMOTEPROC
 	tristate "Keystone Remoteproc support"
 	depends on ARCH_KEYSTONE
+	depends on UIO
 	help
 	  Say Y here here to support Keystone remote processors (DSP)
 	  via the remote processor framework.
 
 	  It's safe to say N here if you're not interested in the Keystone
 	  DSPs or just want to use a bare minimum kernel.
+
+config PRU_REMOTEPROC
+	tristate "TI PRU remoteproc support"
+	depends on TI_PRUSS
+	default TI_PRUSS
+	select MAILBOX
+	select OMAP2PLUS_MBOX if ARCH_OMAP2PLUS || ARCH_K3
+	help
+	  Support for TI PRU remote processors present within a PRU-ICSS
+	  subsystem via the remote processor framework.
+
+	  Say Y or M here to support the Programmable Realtime Unit (PRU)
+	  processors on various TI SoCs. It's safe to say N here if you're
+	  not interested in the PRU or if you are unsure.
 
 config QCOM_RPROC_COMMON
 	tristate
@@ -213,6 +228,38 @@ config STM32_RPROC
 	  offloaded to remote MCU processors using this framework).
 
 	  This can be either built-in or a loadable module.
+
+config TI_K3_R5_REMOTEPROC
+	tristate "TI K3 R5 remoteproc support"
+	depends on ARCH_K3
+	select MAILBOX
+	select OMAP2PLUS_MBOX
+	help
+	  Say y here to support TI's R5F remote processor subsystems
+	  on various TI K3 family of SoCs through the remote processor
+	  framework.
+
+	  You want to say y here in order to offload some processing
+	  tasks to these processors
+
+	  It's safe to say N here if you're not interested in utilizing
+	  a slave processor
+
+config TI_K3_DSP_REMOTEPROC
+	tristate "TI K3 DSP remoteproc support"
+	depends on ARCH_K3
+	select MAILBOX
+	select OMAP2PLUS_MBOX
+	help
+	  Say y here to support TI's C66x and C71x DSP remote processor
+	  subsystems on various TI K3 family of SoCs through the remote
+	  processor framework.
+
+	  You want to say m here in order to offload some processing
+	  tasks to these processors.
+
+	  It's safe to say N here if you're not interested in utilizing
+	  the DSP slave processors.
 
 endif # REMOTEPROC
 
