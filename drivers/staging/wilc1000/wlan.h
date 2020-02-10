@@ -224,6 +224,8 @@ static inline bool is_wilc3000(u32 id)
 #define IS_MGMT_STATUS_SUCCES	0x040
 #define IS_MON_PKT		0x020
 
+#define WILC_WID_TYPE          GENMASK(15, 12)
+
 /********************************************
  *
  *      Tx/Rx Queue Structure
