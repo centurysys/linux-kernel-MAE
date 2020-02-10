@@ -8,10 +8,9 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 
-#include "wilc_wfi_netdevice.h"
-#include "wilc_wlan_cfg.h"
-#include "wilc_netdev.h"
-#include "wilc_wfi_cfgoperations.h"
+#include "netdev.h"
+#include "wlan_cfg.h"
+#include "cfg80211.h"
 
 #define WAKUP_TRAILS_TIMEOUT		(10000)
 
@@ -1125,7 +1124,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 					break;
 				}
 				if (reg == 0) {
-					// Get the entries
+					/* Get the entries */
 
 					ret = func->hif_read_reg(wilc,
 							      WILC_HOST_VMM_CTL,

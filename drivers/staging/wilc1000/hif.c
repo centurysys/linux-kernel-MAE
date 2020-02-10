@@ -6,9 +6,8 @@
 
 #include <linux/etherdevice.h>
 
-#include "wilc_wfi_netdevice.h"
-#include "wilc_netdev.h"
-#include "wilc_wfi_cfgoperations.h"
+#include "netdev.h"
+#include "cfg80211.h"
 
 #define WILC_HIF_SCAN_TIMEOUT_MS                    5000
 #define WILC_HIF_CONNECT_TIMEOUT_MS                 9500
@@ -113,7 +112,7 @@ struct wilc_op_mode {
 };
 
 struct wilc_reg_frame {
-	bool reg;
+	u8 reg;
 	u8 reg_id;
 	__le16 frame_type;
 } __packed;
@@ -756,7 +755,7 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 
 		param->mode_802_11i = 2;
 		param->rsn_found = true;
-		//extract RSN capabilities
+		/* extract RSN capabilities */
 		offset += (rsn_ie[offset] * 4) + 2;
 		offset += (rsn_ie[offset] * 4) + 2;
 		memcpy(param->rsn_cap, &rsn_ie[offset], 2);
@@ -1844,7 +1843,6 @@ int wilc_set_operation_mode(struct wilc_vif *vif, int index, u8 mode,
 	int result;
 	struct wilc_drv_handler drv;
 
-
 	wid.id = WID_SET_OPERATION_MODE;
 	wid.type = WID_STR;
 	wid.size = sizeof(drv);
@@ -2248,7 +2246,9 @@ void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 	wid.val = (u8 *)&reg_frame;
 
 	memset(&reg_frame, 0x0, sizeof(reg_frame));
-	reg_frame.reg = reg;
+
+	if (reg)
+		reg_frame.reg = 1;
 
 	switch (frame_type) {
 	case IEEE80211_STYPE_ACTION:

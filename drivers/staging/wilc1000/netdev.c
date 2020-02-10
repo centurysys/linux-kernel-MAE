@@ -14,8 +14,8 @@
 #include <net/ip.h>
 #include <linux/module.h>
 
-#include "wilc_netdev.h"
-#include "wilc_wfi_cfgoperations.h"
+#include "netdev.h"
+#include "cfg80211.h"
 
 #define WILC_MULTICAST_TABLE_SIZE	8
 
@@ -69,7 +69,7 @@ static int debug_thread(void *arg)
 
 		srcu_idx = srcu_read_lock(&wl->srcu);
 		list_for_each_entry_rcu(vif, &wl->vif_list, list) {
-			//close the interface only if it was open
+			/* close the interface only if it was open */
 			if (vif->mac_opened) {
 				wilc_mac_close(vif->ndev);
 				vif->restart = 1;
@@ -80,7 +80,7 @@ static int debug_thread(void *arg)
 		list_for_each_entry_rcu(vif, &wl->vif_list, list) {
 			struct wilc_conn_info *info;
 
-			// Only open the interface manually closed earlier
+			/* Only open the interface manually closed earlier */
 			if (!vif->restart)
 				continue;
 			i++;

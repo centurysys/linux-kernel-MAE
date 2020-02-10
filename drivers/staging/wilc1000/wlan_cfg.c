@@ -4,11 +4,11 @@
  * All rights reserved.
  */
 
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
-#include "wilc_wlan_cfg.h"
-#include "wilc_wfi_netdevice.h"
-#include "wilc_wfi_cfgoperations.h"
+#include "wlan_if.h"
+#include "wlan.h"
+#include "wlan_cfg.h"
+#include "netdev.h"
+#include "cfg80211.h"
 
 enum cfg_cmd_type {
 	CFG_BYTE_CMD	= 0,
@@ -51,6 +51,11 @@ static struct wilc_cfg_bin g_cfg_bin[] = {
 	{WID_ANTENNA_SELECTION, NULL},
 	{WID_NIL, NULL}
 };
+
+#define WILC_RESP_MSG_TYPE_CONFIG_REPLY     'R'
+#define WILC_RESP_MSG_TYPE_STATUS_INFO      'I'
+#define WILC_RESP_MSG_TYPE_NETWORK_INFO     'N'
+#define WILC_RESP_MSG_TYPE_SCAN_COMPLETE    'S'
 
 /********************************************
  *
@@ -428,34 +433,27 @@ void cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 	size -= 4;
 	rsp->type = 0;
 
-	/*
-	 * The valid types of response messages are
-	 * 'R' (Response),
-	 * 'I' (Information), and
-	 * 'N' (Network Information)
-	 */
-
 	switch (msg_type) {
-	case 'R':
+	case WILC_RESP_MSG_TYPE_CONFIG_REPLY:
 		wilc_wlan_parse_response_frame(wilc, frame, size);
 		rsp->type = WILC_CFG_RSP;
 		rsp->seq_no = msg_id;
 		break;
 
-	case 'I':
+	case WILC_RESP_MSG_TYPE_STATUS_INFO:
 		wilc_wlan_parse_info_frame(wilc, frame);
 		rsp->type = WILC_CFG_RSP_STATUS;
 		rsp->seq_no = msg_id;
-		/*call host interface info parse as well*/
+		/* call host interface info parse as well */
 		pr_info("%s: Info message received\n", __func__);
 		wilc_gnrl_async_info_received(wilc, frame - 4, size + 4);
 		break;
 
-	case 'N':
+	case WILC_RESP_MSG_TYPE_NETWORK_INFO:
 		wilc_network_info_received(wilc, frame - 4, size + 4);
 		break;
 
-	case 'S':
+	case WILC_RESP_MSG_TYPE_SCAN_COMPLETE:
 		pr_info("%s: Scan Notification Received\n", __func__);
 		wilc_scan_complete_received(wilc, frame - 4, size + 4);
 		break;

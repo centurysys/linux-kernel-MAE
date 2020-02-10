@@ -11,10 +11,9 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 
-#include "wilc_wfi_netdevice.h"
-#include "wilc_wlan.h"
-#include "wilc_wfi_cfgoperations.h"
-#include "wilc_netdev.h"
+#include "netdev.h"
+#include "wlan.h"
+#include "cfg80211.h"
 
 enum sdio_host_lock {
 	WILC_SDIO_HOST_NO_TAKEN = 0,

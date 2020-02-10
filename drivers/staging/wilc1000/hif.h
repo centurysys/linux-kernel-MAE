@@ -4,10 +4,10 @@
  * All rights reserved.
  */
 
-#ifndef HOST_INT_H
-#define HOST_INT_H
+#ifndef WILC_HIF_H
+#define WILC_HIF_H
 #include <linux/ieee80211.h>
-#include "wilc_wlan_if.h"
+#include "wlan_if.h"
 
 enum {
 	WILC_IDLE_MODE = 0x0,
@@ -240,7 +240,7 @@ int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats);
 int wilc_get_vif_idx(struct wilc_vif *vif);
 int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power);
 int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power);
-/*0 select antenna 1 , 2 select antenna mode , 2 allow the firmware to choose
+/* 0 select antenna 1 , 2 select antenna mode , 2 allow the firmware to choose
  * the best antenna
  */
 int wilc_set_antenna(struct wilc_vif *vif, u8 mode);

@@ -6,8 +6,8 @@
 
 #include <linux/etherdevice.h>
 
-#include "wilc_wfi_cfgoperations.h"
-#include "wilc_netdev.h"
+#include "cfg80211.h"
+#include "netdev.h"
 
 #define ACTION_CAT_ID			24
 #define ACTION_SUBTYPE_ID		25
@@ -2177,7 +2177,7 @@ static int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	/* update the vif list */
 	mutex_lock(&wl->vif_mutex);
-	//delete the interface from rcu list
+	/* delete the interface from rcu list */
 	list_del_rcu(&vif->list);
 	wl->vif_num--;
 	mutex_unlock(&wl->vif_mutex);

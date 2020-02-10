@@ -8,9 +8,8 @@
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 
-#include "wilc_wfi_netdevice.h"
-#include "wilc_wfi_cfgoperations.h"
-#include "wilc_netdev.h"
+#include "netdev.h"
+#include "cfg80211.h"
 
 struct wilc_spi {
 	int crc_off;
@@ -183,7 +182,7 @@ static int wilc_spi_suspend(struct device *dev)
 	if (mutex_is_locked(&wilc->hif_cs))
 		mutex_unlock(&wilc->hif_cs);
 
-	/*notify the chip that host will sleep*/
+	/* notify the chip that host will sleep */
 	host_sleep_notify(wilc, 0);
 	chip_allow_sleep(wilc, 0);
 	mutex_lock(&wilc->hif_cs);
@@ -198,7 +197,7 @@ static int wilc_spi_resume(struct device *dev)
 
 	dev_info(&spi->dev, "\n\n  <<RESUME>>\n\n");
 
-	/*wake the chip to compelete the re-intialization*/
+	/* wake the chip to compelete the re-intialization */
 	chip_wakeup(wilc, 0);
 
 	if (mutex_is_locked(&wilc->hif_cs))

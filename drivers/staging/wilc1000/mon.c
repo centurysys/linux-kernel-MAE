@@ -6,8 +6,8 @@
 
 #include <linux/etherdevice.h>
 
-#include "wilc_netdev.h"
-#include "wilc_wfi_cfgoperations.h"
+#include "netdev.h"
+#include "cfg80211.h"
 
 struct wfi_rtap_hdr {
 	struct ieee80211_radiotap_header hdr;
@@ -280,7 +280,7 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 {
 	struct wilc_wfi_mon_priv *priv;
 
-	/*If monitor interface is already initialized, return it*/
+	/* If monitor interface is already initialized, return it */
 	if (wl->monitor_dev)
 		return wl->monitor_dev;
 

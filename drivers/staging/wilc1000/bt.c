@@ -18,7 +18,7 @@
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/host.h>
 
-#include "wilc_wfi_netdevice.h"
+#include "netdev.h"
 
 static struct wilc *wilc_bt;
 static dev_t chc_dev_no; /* Global variable for the first device number */
@@ -109,7 +109,7 @@ static ssize_t wilc_bt_dev_write(struct file *f, const char __user *buff,
 		return -EIO;
 
 	pr_debug("received %s, len %d\n", usr_str, len);
-	// call the appropriate command handler
+	/* call the appropriate command handler */
 	cmd = (struct cmd_entry *)cmd_table;
 	while (cmd->wilc_handle_cmd != NULL) {
 		if (strncmp(cmd->str, usr_str, strlen(cmd->str)) == 0) {
@@ -281,7 +281,7 @@ int wilc_bt_power_down(struct wilc *wilc, int source)
 			release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP, DEV_BT);
 			return ret;
 		}
-		// Disable BT wakeup
+		/* Disable BT wakeup */
 		ret = hif_func->hif_read_reg(wilc, PWR_SEQ_MISC_CTRL,
 					     &reg);
 		if (!ret) {
@@ -439,7 +439,7 @@ int wilc_bt_power_up(struct wilc *wilc, int source)
 			release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP, DEV_BT);
 		}
 
-		// Enable BT wakeup
+		/* Enable BT wakeup */
 		acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP, DEV_BT);
 
 		ret = hif_func->hif_read_reg(wilc, PWR_SEQ_MISC_CTRL,

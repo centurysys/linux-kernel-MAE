@@ -5,7 +5,7 @@
  */
 
 #include <linux/kobject.h>
-#include "wilc_wfi_cfgoperations.h"
+#include "cfg80211.h"
 
 static struct kobject *wilc_kobj;
 static int device_created;

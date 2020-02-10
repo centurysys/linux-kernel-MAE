@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/debugfs.h>
 
-#include "wilc_debugfs.h"
+#include "debugfs.h"
 
 atomic_t WILC_DEBUG_REGION = ATOMIC_INIT(INIT_DBG | GENERIC_DBG |
 					 CFG80211_DBG | HOSTAPD_DBG |

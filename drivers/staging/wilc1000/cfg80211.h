@@ -4,9 +4,9 @@
  * All rights reserved.
  */
 
-#ifndef NM_WFI_CFGOPERATIONS
-#define NM_WFI_CFGOPERATIONS
-#include "wilc_wfi_netdevice.h"
+#ifndef WILC_CFG80211_H
+#define WILC_CFG80211_H
+#include "netdev.h"
 
 struct wilc *wilc_create_wiphy(struct device *dev);
 void wilc_free_wiphy(struct net_device *net);

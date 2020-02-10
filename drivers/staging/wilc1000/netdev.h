@@ -4,8 +4,8 @@
  * All rights reserved.
  */
 
-#ifndef WILC_WFI_NETDEVICE
-#define WILC_WFI_NETDEVICE
+#ifndef WILC_NETDEV_H
+#define WILC_NETDEV_H
 
 #include <linux/tcp.h>
 #include <linux/ieee80211.h>
@@ -20,9 +20,41 @@
 #include <linux/gpio.h>
 #endif
 
-#include "wilc_hif.h"
-#include "wilc_wlan.h"
-#include "wilc_wlan_cfg.h"
+#include "hif.h"
+#include "wlan.h"
+#include "wlan_cfg.h"
+
+extern int wait_for_recovery;
+
+#if KERNEL_VERSION(3, 14, 0) > LINUX_VERSION_CODE
+static inline void ether_addr_copy(u8 *dst, const u8 *src)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	*(u32 *)dst = *(const u32 *)src;
+	*(u16 *)(dst + 4) = *(const u16 *)(src + 4);
+#else
+	u16 *a = (u16 *)dst;
+	const u16 *b = (const u16 *)src;
+
+	a[0] = b[0];
+	a[1] = b[1];
+	a[2] = b[2];
+#endif
+}
+
+static inline bool ether_addr_equal_unaligned(const u8 *addr1, const u8 *addr2)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	return ether_addr_equal(addr1, addr2);
+#else
+	return memcmp(addr1, addr2, ETH_ALEN) == 0;
+#endif
+}
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0) */
+
+#if KERNEL_VERSION(3, 12, 0) > LINUX_VERSION_CODE
+#define PTR_ERR_OR_ZERO(ptr) PTR_RET(ptr)
+#endif
 
 #define FLOW_CTRL_LOW_THRESHLD		128
 #define FLOW_CTRL_UP_THRESHLD		256
@@ -69,7 +101,7 @@ struct sta_info {
 	u8 sta_associated_bss[WILC_MAX_NUM_STA][ETH_ALEN];
 };
 
-/*Parameters needed for host interface for  remaining on channel*/
+/* Parameters needed for host interface for remaining on channel */
 struct wilc_wfi_p2p_listen_params {
 	struct ieee80211_channel *listen_ch;
 	u32 listen_duration;
@@ -169,6 +201,7 @@ struct wilc_priv {
 	struct wilc_pmkid_attr pmkid_list;
 	u8 wep_key[4][WLAN_KEY_LEN_WEP104];
 	u8 wep_key_len[4];
+
 	/* The real interface that the monitor is on */
 	struct net_device *real_ndev;
 	struct wilc_wfi_key *wilc_gtk[WILC_MAX_NUM_STA];
@@ -263,15 +296,20 @@ struct wilc {
 	u8 vif_num;
 	struct list_head vif_list;
 	struct srcu_struct srcu;
-	/*protect vif list queue*/
+
+	/* protect vif list queue */
 	struct mutex vif_mutex;
 	u8 open_ifcs;
-	/*protect head of transmit queue*/
+
+	/* protect head of transmit queue */
 	struct mutex txq_add_to_head_cs;
-	/*protect txq_entry_t transmit queue*/
+
+	/* protect txq_entry_t transmit queue */
 	spinlock_t txq_spinlock;
-	/*protect rxq_entry_t receiver queue*/
+
+	/* protect rxq_entry_t receiver queue */
 	struct mutex rxq_cs;
+
 	/* lock to protect hif access */
 	struct mutex hif_cs;
 
@@ -284,6 +322,7 @@ struct wilc {
 	struct task_struct *debug_thread;
 
 	int quit;
+
 	/* lock to protect issue of wid command to fw */
 	struct mutex cfg_cmd_lock;
 	struct wilc_cfg_frame cfg_frame;
@@ -314,6 +353,7 @@ struct wilc {
 	struct wilc_cfg cfg;
 	void *bus_data;
 	struct net_device *monitor_dev;
+
 	/* deinit lock */
 	struct mutex deinit_lock;
 	u8 sta_ch;
@@ -335,5 +375,10 @@ void wilc_mac_indicate(struct wilc *wilc);
 void wilc_netdev_cleanup(struct wilc *wilc);
 void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
+struct wilc_vif *
+wilc_netdev_ifc_init(struct wilc *wl, const char *name, int iftype,
+		     enum nl80211_iftype type, bool rtnl_locked);
+int wilc_bt_power_up(struct wilc *wilc, int source);
+int wilc_bt_power_down(struct wilc *wilc, int source);
 
 #endif
