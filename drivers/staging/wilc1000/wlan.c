@@ -951,7 +951,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	}
 
 	if (wilc->quit)
-		goto out;
+		goto out_update_cnt;
 	if (ac_balance(ac_fw_count, ac_desired_ratio))
 		return -1;
 
@@ -1028,7 +1028,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	} while (!max_size_over && ac_exist);
 
 	if (i == 0)
-		goto out;
+		goto out_unlock;
 	vmm_table[i] = 0x0;
 
 	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP, DEV_WIFI);
@@ -1253,9 +1253,10 @@ out_release_bus:
 	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP, DEV_WIFI);
 	schedule();
 
-out:
+out_unlock:
 	mutex_unlock(&wilc->txq_add_to_head_cs);
 
+out_update_cnt:
 	*txq_count = wilc->txq_entries;
 	return ret;
 }
