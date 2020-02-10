@@ -179,7 +179,7 @@ static int init_irq(struct net_device *dev)
 		wl->gpio_irq = gpio_to_desc(GPIO_NUM);
 		if (!wl->gpio_irq) {
 			dev_warn(wl->dev, "failed to load default irq\r\n");
-			return -1;
+			return -EINVAL;
 		}
 	} else {
 		dev_info(wl->dev, "got gpio_irq successfully\r\n");
@@ -188,7 +188,7 @@ static int init_irq(struct net_device *dev)
 	ret = gpiod_direction_input(wl->gpio_irq);
 	if (ret) {
 		PRINT_ER(dev, "could not obtain gpio for WILC_INTR\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	wl->dev_irq_num = gpiod_to_irq(wl->gpio_irq);
@@ -210,7 +210,7 @@ static int init_irq(struct net_device *dev)
 	} else {
 		dev_err(wl->dev, "could not obtain gpio for WILC_INTR\n");
 		wl->gpio_irq = 0;
-		return -1;
+		return -EINVAL;
 	}
 
 #endif
@@ -238,7 +238,7 @@ static int init_irq(struct net_device *dev)
 	PRINT_INFO(dev, GENERIC_DBG, "IRQ request succeeded IRQ-NUM= %d\n",
 		   wl->dev_irq_num);
 	enable_irq_wake(wl->dev_irq_num);
-	return ret;
+	return 0;
 
 free_gpio:
 #if KERNEL_VERSION(3, 13, 0) < LINUX_VERSION_CODE
@@ -248,7 +248,7 @@ free_gpio:
 	gpio_free(wl->gpio_irq);
 	wl->gpio_irq = 0;
 #endif
-	return -1;
+	return -EINVAL;
 }
 
 static void deinit_irq(struct net_device *dev)
@@ -488,7 +488,7 @@ static int wilc_txq_task(void *vp)
 
 			}
 
-			if (ret == -ENOBUFS) {
+			if (ret == WILC_VMM_ENTRY_FULL_RETRY) {
 				timeout = msecs_to_jiffies(TX_BCKOFF_WGHT_MS <<
 							   backoff_weight);
 				do {
@@ -510,7 +510,7 @@ static int wilc_txq_task(void *vp)
 				if (backoff_weight < TX_BACKOFF_WEIGHT_MIN)
 					backoff_weight = TX_BACKOFF_WEIGHT_MIN;
 			}
-		} while (ret == -ENOBUFS && !wl->close);
+		} while (ret == WILC_VMM_ENTRY_FULL_RETRY && !wl->close);
 	}
 	return 0;
 }
@@ -519,7 +519,6 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
-	int ret = 0;
 	const struct firmware *wilc_firmware;
 	char *firmware;
 
@@ -530,27 +529,24 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 		PRINT_INFO(dev, INIT_DBG, "Detect chip WILC1000\n");
 		firmware = FW_WILC1000_WIFi;
 	} else {
-		return -1;
+		return -EINVAL;
 	}
 
 	PRINT_INFO(dev, INIT_DBG, "loading firmware %s\n", firmware);
 
 	if (!(&vif->ndev->dev)) {
 		PRINT_ER(dev, "Dev  is NULL\n");
-		goto fail;
+		return -EINVAL;
 	}
 
 	PRINT_INFO(vif->ndev, INIT_DBG, "WLAN firmware: %s\n", firmware);
 	if (request_firmware(&wilc_firmware, firmware, wilc->dev) != 0) {
 		PRINT_ER(dev, "%s - firmware not available\n", firmware);
-		ret = -1;
-		goto fail;
+		return -EINVAL;
 	}
 	wilc->firmware = wilc_firmware;
 
-fail:
-
-	return ret;
+	return 0;
 }
 
 static int wilc_start_firmware(struct net_device *dev)
@@ -776,7 +772,7 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 	return 0;
 
 fail:
-	return -1;
+	return -EINVAL;
 }
 
 static void wlan_deinitialize_threads(struct net_device *dev)
@@ -901,24 +897,22 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 		wl->initialized = 0;
 
 		ret = wilc_wlan_init(dev);
-		if (ret < 0) {
+		if (ret) {
 			PRINT_ER(dev, "Initializing WILC_Wlan FAILED\n");
-			return -EIO;
+			return ret;
 		}
 		PRINT_INFO(vif->ndev, GENERIC_DBG,
 			   "WILC Initialization done\n");
 
 		ret = wlan_initialize_threads(dev);
-		if (ret < 0) {
+		if (ret) {
 			PRINT_ER(dev, "Initializing Threads FAILED\n");
-			ret = -EIO;
 			goto fail_wilc_wlan;
 		}
 
-		if (init_irq(dev)) {
-			ret = -EIO;
+		ret = init_irq(dev);
+		if (ret)
 			goto fail_threads;
-		}
 
 		if (wl->io_type == WILC_HIF_SDIO &&
 		    wl->hif_func->enable_interrupt(wl)) {
@@ -927,23 +921,21 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			goto fail_irq_init;
 		}
 
-		if (wilc_wlan_get_firmware(dev)) {
+		ret = wilc_wlan_get_firmware(dev);
+		if (ret) {
 			PRINT_ER(dev, "Can't get firmware\n");
-			ret = -EIO;
 			goto fail_irq_enable;
 		}
 
 		ret = wilc_firmware_download(dev);
-		if (ret < 0) {
+		if (ret) {
 			PRINT_ER(dev, "Failed to download firmware\n");
-			ret = -EIO;
 			goto fail_irq_enable;
 		}
 
 		ret = wilc_start_firmware(dev);
-		if (ret < 0) {
+		if (ret) {
 			PRINT_ER(dev, "Failed to start firmware\n");
-			ret = -EIO;
 			goto fail_irq_enable;
 		}
 
@@ -1025,7 +1017,7 @@ static int wilc_mac_open(struct net_device *ndev)
 
 	PRINT_INFO(vif->ndev, INIT_DBG, "*** re-init ***\n");
 	ret = wilc_wlan_initialize(ndev, vif);
-	if (ret < 0) {
+	if (ret) {
 		PRINT_ER(ndev, "Failed to initialize wilc\n");
 		if (!recovery_on)
 			wilc_deinit_host_int(ndev);

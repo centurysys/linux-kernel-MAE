@@ -29,7 +29,6 @@ module_param(enable_oob_interrupt, bool, 0644);
 MODULE_PARM_DESC(enable_oob_interrupt,
 		 "enables sdio out-of-band interrupt support");
 
-
 #define SDIO_MODALIAS "wilc_sdio"
 
 #define SDIO_VENDOR_ID_WILC 0x0296
@@ -315,7 +314,7 @@ static int wilc_sdio_set_func0_csa_address(struct wilc *wilc, u32 adr)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Failed cmd52, set 0x10c data...\n");
-		goto fail;
+		return ret;
 	}
 
 	cmd.address = 0x10d;
@@ -323,7 +322,7 @@ static int wilc_sdio_set_func0_csa_address(struct wilc *wilc, u32 adr)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Failed cmd52, set 0x10d data...\n");
-		goto fail;
+		return ret;
 	}
 
 	cmd.address = 0x10e;
@@ -331,11 +330,9 @@ static int wilc_sdio_set_func0_csa_address(struct wilc *wilc, u32 adr)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Failed cmd52, set 0x10e data...\n");
-		goto fail;
+		return ret;
 	}
 
-	return 1;
-fail:
 	return 0;
 }
 
@@ -353,7 +350,7 @@ static int wilc_sdio_set_func0_block_size(struct wilc *wilc, u32 block_size)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Failed cmd52, set 0x10 data...\n");
-		goto fail;
+		return ret;
 	}
 
 	cmd.address = 0x11;
@@ -361,11 +358,9 @@ static int wilc_sdio_set_func0_block_size(struct wilc *wilc, u32 block_size)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Failed cmd52, set 0x11 data...\n");
-		goto fail;
+		return ret;
 	}
 
-	return 1;
-fail:
 	return 0;
 }
 
@@ -379,7 +374,7 @@ static int wilc_sdio_set_func1_block_size(struct wilc *wilc, u32 block_size)
 {
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	struct sdio_cmd52 cmd;
-	int ret;
+	int ret = 0;
 
 	cmd.read_write = 1;
 	cmd.function = 0;
@@ -389,18 +384,16 @@ static int wilc_sdio_set_func1_block_size(struct wilc *wilc, u32 block_size)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Failed cmd52, set 0x110 data...\n");
-		goto fail;
+		return ret;
 	}
 	cmd.address = 0x111;
 	cmd.data = (u8)(block_size >> 8);
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Failed cmd52, set 0x111 data...\n");
-		goto fail;
+		return ret;
 	}
 
-	return 1;
-fail:
 	return 0;
 }
 
@@ -429,7 +422,7 @@ static int wilc_sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd 52, write reg %08x ...\n", addr);
-			goto fail;
+			return ret;
 		}
 	} else {
 		struct sdio_cmd53 cmd;
@@ -437,8 +430,9 @@ static int wilc_sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 		/**
 		 *      set the AHB address
 		 **/
-		if (!wilc_sdio_set_func0_csa_address(wilc, addr))
-			goto fail;
+		ret = wilc_sdio_set_func0_csa_address(wilc, addr);
+		if (ret)
+			return ret;
 
 		cmd.read_write = 1;
 		cmd.function = 0;
@@ -452,13 +446,9 @@ static int wilc_sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd53, write reg (%08x)...\n", addr);
-			goto fail;
+			return ret;
 		}
 	}
-
-	return 1;
-
-fail:
 
 	return 0;
 }
@@ -512,14 +502,15 @@ static int wilc_sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		cmd.buffer = buf;
 		cmd.block_size = block_size;
 		if (addr > 0) {
-			if (!wilc_sdio_set_func0_csa_address(wilc, addr))
-				goto fail;
+			ret = wilc_sdio_set_func0_csa_address(wilc, addr);
+			if (ret)
+				return ret;
 		}
 		ret = wilc_sdio_cmd53(wilc, &cmd);
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd53 [%x], block send...\n", addr);
-			goto fail;
+			return ret;
 		}
 		if (addr > 0)
 			addr += nblk * block_size;
@@ -535,20 +526,17 @@ static int wilc_sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		cmd.block_size = block_size;
 
 		if (addr > 0) {
-			if (!wilc_sdio_set_func0_csa_address(wilc, addr))
-				goto fail;
+			ret = wilc_sdio_set_func0_csa_address(wilc, addr);
+			if (ret)
+				return ret;
 		}
 		ret = wilc_sdio_cmd53(wilc, &cmd);
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd53 [%x], bytes send...\n", addr);
-			goto fail;
+			return ret;
 		}
 	}
-
-	return 1;
-
-fail:
 
 	return 0;
 }
@@ -570,14 +558,15 @@ static int wilc_sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd 52, read reg (%08x) ...\n", addr);
-			goto fail;
+			return ret;
 		}
 		*data = cmd.data;
 	} else {
 		struct sdio_cmd53 cmd;
 
-		if (!wilc_sdio_set_func0_csa_address(wilc, addr))
-			goto fail;
+		ret = wilc_sdio_set_func0_csa_address(wilc, addr);
+		if (ret)
+			return ret;
 
 		cmd.read_write = 0;
 		cmd.function = 0;
@@ -592,16 +581,11 @@ static int wilc_sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd53, read reg (%08x)...\n", addr);
-			goto fail;
+			return ret;
 		}
 	}
 
 	le32_to_cpus(data);
-
-	return 1;
-
-fail:
-
 	return 0;
 }
 
@@ -654,14 +638,15 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		cmd.buffer = buf;
 		cmd.block_size = block_size;
 		if (addr > 0) {
-			if (!wilc_sdio_set_func0_csa_address(wilc, addr))
-				goto fail;
+			ret = wilc_sdio_set_func0_csa_address(wilc, addr);
+			if (ret)
+				return ret;
 		}
 		ret = wilc_sdio_cmd53(wilc, &cmd);
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd53 [%x], block read...\n", addr);
-			goto fail;
+			return ret;
 		}
 		if (addr > 0)
 			addr += nblk * block_size;
@@ -677,20 +662,17 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		cmd.block_size = block_size;
 
 		if (addr > 0) {
-			if (!wilc_sdio_set_func0_csa_address(wilc, addr))
-				goto fail;
+			ret = wilc_sdio_set_func0_csa_address(wilc, addr);
+			if (ret)
+				return ret;
 		}
 		ret = wilc_sdio_cmd53(wilc, &cmd);
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd53 [%x], bytes read...\n", addr);
-			goto fail;
+			return ret;
 		}
 	}
-
-	return 1;
-
-fail:
 
 	return 0;
 }
@@ -707,7 +689,7 @@ static int wilc_sdio_deinit(struct wilc *wilc)
 
 	sdio_priv->is_init = false;
 
-	return 1;
+	return 0;
 }
 
 static int wilc_sdio_init(struct wilc *wilc, bool resume)
@@ -738,15 +720,16 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, enable csa...\n");
-		goto fail;
+		return ret;
 	}
 
 	/**
 	 *      function 0 block size
 	 **/
-	if (!wilc_sdio_set_func0_block_size(wilc, WILC_SDIO_BLOCK_SIZE)) {
+	ret = wilc_sdio_set_func0_block_size(wilc, WILC_SDIO_BLOCK_SIZE);
+	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, set func 0 block size...\n");
-		goto fail;
+		return ret;
 	}
 	sdio_priv->block_size = WILC_SDIO_BLOCK_SIZE;
 
@@ -762,7 +745,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	if (ret) {
 		dev_err(&func->dev,
 			"Fail cmd 52, set IOE register...\n");
-		goto fail;
+		return ret;
 	}
 
 	/**
@@ -779,7 +762,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 		if (ret) {
 			dev_err(&func->dev,
 				"Fail cmd 52, get IOR register...\n");
-			goto fail;
+			return ret;
 		}
 		if (cmd.data == 0x2)
 			break;
@@ -787,15 +770,16 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 
 	if (loop <= 0) {
 		dev_err(&func->dev, "Fail func 1 is not ready...\n");
-		goto fail;
+		return ret;
 	}
 
 	/**
 	 *      func 1 is ready, set func 1 block size
 	 **/
-	if (!wilc_sdio_set_func1_block_size(wilc, WILC_SDIO_BLOCK_SIZE)) {
+	ret = wilc_sdio_set_func1_block_size(wilc, WILC_SDIO_BLOCK_SIZE);
+	if (ret) {
 		dev_err(&func->dev, "Fail set func 1 block size...\n");
-		goto fail;
+		return ret;
 	}
 
 	/**
@@ -809,7 +793,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, set IEN register...\n");
-		goto fail;
+		return ret;
 	}
 
 	/**
@@ -823,16 +807,12 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 			wilc->chip = WILC_1000;
 		} else {
 			dev_err(&func->dev, "Unsupported chipid: %x\n", chipid);
-			goto fail;
+			return -EINVAL;
 		}
 		dev_info(&func->dev, "chipid %08x\n", chipid);
 	}
 
 	sdio_priv->is_init = true;
-
-	return 1;
-
-fail:
 
 	return 0;
 }
@@ -859,7 +839,7 @@ static int wilc_sdio_read_size(struct wilc *wilc, u32 *size)
 	tmp |= (cmd.data << 8);
 
 	*size = tmp;
-	return 1;
+	return 0;
 }
 
 static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
@@ -919,10 +899,9 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 		}
 
 		*int_status = tmp;
-
 	}
 
-	return 1;
+	return 0;
 }
 
 static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
@@ -959,7 +938,7 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 				dev_err(&func->dev,
 					"Failed cmd52, set 0xf8 data (%d) ...\n",
 					__LINE__);
-				goto fail;
+				return ret;
 			}
 		}
 	} else {
@@ -979,7 +958,7 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 					dev_err(&func->dev,
 						"Failed cmd52, set 0xf8 data (%d) ...\n",
 						__LINE__);
-					goto fail;
+					return ret;
 				}
 			}
 		}
@@ -1007,13 +986,11 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 				dev_err(&func->dev,
 					"Failed cmd52, set 0xf6 data (%d) ...\n",
 					__LINE__);
-				goto fail;
+				return ret;
 			}
 		}
 	}
 
-	return 1;
-fail:
 	return 0;
 }
 
@@ -1026,7 +1003,7 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 
 	if (nint > MAX_NUM_INT) {
 		dev_err(&func->dev, "Too many interrupts %d\n", nint);
-		return 0;
+		return -EINVAL;
 	}
 
 	sdio_priv->nint = nint;
@@ -1038,14 +1015,14 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 		/**
 		 *      Disable power sequencer
 		 **/
-		if (!wilc_sdio_read_reg(wilc, WILC_MISC, &reg)) {
+		if (wilc_sdio_read_reg(wilc, WILC_MISC, &reg)) {
 			dev_err(&func->dev, "Failed read misc reg\n");
-			return 0;
+			return -EINVAL;
 		}
 		reg &= ~BIT(8);
-		if (!wilc_sdio_write_reg(wilc, WILC_MISC, reg)) {
+		if (wilc_sdio_write_reg(wilc, WILC_MISC, reg)) {
 			dev_err(&func->dev, "Failed write misc reg\n");
-			return 0;
+			return -EINVAL;
 		}
 	}
 
@@ -1054,59 +1031,59 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 		 *      interrupt pin mux select
 		 **/
 		ret = wilc_sdio_read_reg(wilc, WILC_PIN_MUX_0, &reg);
-		if (!ret) {
+		if (ret) {
 			dev_err(&func->dev, "Failed read reg (%08x)...\n",
 				WILC_PIN_MUX_0);
-			return 0;
+			return ret;
 		}
 		reg |= BIT(8);
 		ret = wilc_sdio_write_reg(wilc, WILC_PIN_MUX_0, reg);
-		if (!ret) {
+		if (ret) {
 			dev_err(&func->dev, "Failed write reg (%08x)...\n",
 				WILC_PIN_MUX_0);
-			return 0;
+			return ret;
 		}
 
 		/**
 		 *      interrupt enable
 		 **/
 		ret = wilc_sdio_read_reg(wilc, WILC_INTR_ENABLE, &reg);
-		if (!ret) {
+		if (ret) {
 			dev_err(&func->dev, "Failed read reg (%08x)...\n",
 				WILC_INTR_ENABLE);
-			return 0;
+			return ret;
 		}
 
 		for (i = 0; (i < 5) && (nint > 0); i++, nint--)
 			reg |= BIT((27 + i));
 		ret = wilc_sdio_write_reg(wilc, WILC_INTR_ENABLE, reg);
-		if (!ret) {
+		if (ret) {
 			dev_err(&func->dev, "Failed write reg (%08x)...\n",
 				WILC_INTR_ENABLE);
-			return 0;
+			return ret;
 		}
 		if (nint) {
 			ret = wilc_sdio_read_reg(wilc, WILC_INTR2_ENABLE, &reg);
-			if (!ret) {
+			if (ret) {
 				dev_err(&func->dev,
 					"Failed read reg (%08x)...\n",
 					WILC_INTR2_ENABLE);
-				return 0;
+				return ret;
 			}
 
 			for (i = 0; (i < 3) && (nint > 0); i++, nint--)
 				reg |= BIT(i);
 
 			ret = wilc_sdio_write_reg(wilc, WILC_INTR2_ENABLE, reg);
-			if (!ret) {
+			if (ret) {
 				dev_err(&func->dev,
 					"Failed write reg (%08x)...\n",
 					WILC_INTR2_ENABLE);
-				return 0;
+				return ret;
 			}
 		}
 	}
-	return 1;
+	return 0;
 }
 
 /* Global sdio HIF function table */

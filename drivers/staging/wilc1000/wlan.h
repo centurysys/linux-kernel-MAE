@@ -225,7 +225,7 @@ static inline bool is_wilc3000(u32 id)
 #define IS_MON_PKT		0x020
 
 #define WILC_WID_TYPE          GENMASK(15, 12)
-
+#define WILC_VMM_ENTRY_FULL_RETRY	1
 /********************************************
  *
  *      Tx/Rx Queue Structure
