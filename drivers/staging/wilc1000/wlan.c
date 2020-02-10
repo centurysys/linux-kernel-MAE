@@ -792,7 +792,7 @@ void chip_wakeup_wilc1000(struct wilc *wilc, int source)
 	if (!ret)
 		goto _fail_;
 
-	do {
+	while (trials < WAKUP_TRAILS_TIMEOUT) {
 		ret = hif_func->hif_read_reg(wilc, clk_status_reg,
 					     &clk_status_val);
 		if (!ret) {
@@ -804,12 +804,12 @@ void chip_wakeup_wilc1000(struct wilc *wilc, int source)
 
 		//nm_bsp_sleep(2);
 		trials++;
-		if (trials > WAKUP_TRAILS_TIMEOUT) {
-			pr_err("Failed to wakup the chip\n");
-			ret = -1;
-			goto _fail_;
-		}
-	} while (1);
+	}
+	if (trials >= WAKUP_TRAILS_TIMEOUT) {
+		pr_err("Failed to wakup the chip\n");
+		ret = -1;
+		goto _fail_;
+	}
 
 	if (wilc_get_chipid(wilc, false) < 0x1002b0) {
 		uint32_t val32;
@@ -1160,12 +1160,9 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 			if (!ret) {
 				PRINT_ER(vif->ndev,
 					  "fail write reg WILC_HOST_TX_CTRL..\n");
-				break;
 			}
-			break;
 		}
-		break;
-	} while (1);
+	} while (0);
 
 	if (!ret)
 		goto out_release_bus;
@@ -1322,9 +1319,7 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 		}
 
 		offset += tp_len;
-		if (offset >= size)
-			break;
-	} while (1);
+	} while (offset < size);
 }
 
 static void wilc_wlan_handle_rxq(struct wilc *wilc)
@@ -1333,13 +1328,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 	u8 *buffer;
 	struct rxq_entry_t *rqe;
 
-	do {
-		if (wilc->quit) {
-			pr_info("%s Quitting. Exit handle RX queue\n",
-				__func__);
-			complete(&wilc->cfg_event);
-			break;
-		}
+	while (!wilc->quit) {
 		rqe = rxq_remove(wilc);
 		if (!rqe)
 			break;
@@ -1350,7 +1339,13 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 		wilc_wlan_handle_rx_buff(wilc, buffer, size);
 
 		kfree(rqe);
-	} while (1);
+	}
+	if (wilc->quit) {
+		pr_info("%s Quitting. Exit handle RX queue\n",
+			__func__);
+		complete(&wilc->cfg_event);
+	}
+
 }
 
 static void wilc_unknown_isr_ext(struct wilc *wilc)
@@ -1631,22 +1626,15 @@ void wilc_wlan_cleanup(struct net_device *dev)
 
 	wilc->quit = 1;
 	for (ac = 0; ac < NQUEUES; ac++) {
-		do {
-			tqe = wilc_wlan_txq_remove_from_head(wilc, ac);
-			if (!tqe)
-				break;
+		while ((tqe = wilc_wlan_txq_remove_from_head(wilc, ac))) {
 			if (tqe->tx_complete_func)
 				tqe->tx_complete_func(tqe->priv, 0);
 			kfree(tqe);
-		} while (1);
+		}
 	}
 
-	do {
-		rqe = rxq_remove(wilc);
-		if (!rqe)
-			break;
+	while ((rqe = rxq_remove(wilc)))
 		kfree(rqe);
-	} while (1);
 
 	kfree(wilc->rx_buffer);
 	wilc->rx_buffer = NULL;

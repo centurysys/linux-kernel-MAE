@@ -1292,7 +1292,7 @@ static const struct net_device_ops wilc_netdev_ops = {
 void wilc_netdev_cleanup(struct wilc *wilc)
 {
 	struct wilc_vif *vif;
-	int srcu_idx;
+	int srcu_idx, ifc_cnt = 0;
 
 	if (!wilc)
 		return;
@@ -1321,7 +1321,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	destroy_workqueue(wilc->hif_workqueue);
 	wilc->hif_workqueue = NULL;
 	/* update the list */
-	do {
+	while (ifc_cnt < WILC_NUM_CONCURRENT_IFC) {
 		mutex_lock(&wilc->vif_mutex);
 		if (wilc->vif_num <= 0) {
 			mutex_unlock(&wilc->vif_mutex);
@@ -1333,8 +1333,8 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 		wilc->vif_num--;
 		mutex_unlock(&wilc->vif_mutex);
 		synchronize_srcu(&wilc->srcu);
-	} while (1);
-
+		ifc_cnt++;
+	}
 	cfg_deinit(wilc);
 #ifdef WILC_DEBUGFS
 	wilc_debugfs_remove();

@@ -142,11 +142,11 @@ static int wilc_wlan_cfg_set_bin(u8 *frame, u32 offset, u16 id, u8 *b, u32 size)
  *
  ********************************************/
 
-static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info,
-					   int size)
+static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info, int size)
 {
 	u16 wid;
 	u32 len = 0, i = 0;
+	struct wilc_cfg *cfg = &wl->cfg;
 
 	while (size > 0) {
 		i = 0;
@@ -154,78 +154,54 @@ static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info,
 
 		switch (FIELD_GET(WILC_WID_TYPE, wid)) {
 		case WID_CHAR:
-			do {
-				if (wl->cfg.b[i].id == WID_NIL)
-					break;
-
-				if (wl->cfg.b[i].id == wid) {
-					wl->cfg.b[i].val = info[4];
-					break;
-				}
+			while (cfg->b[i].id != WID_NIL && cfg->b[i].id != wid)
 				i++;
-			} while (1);
+
+			if (cfg->b[i].id == wid)
+				cfg->b[i].val = info[4];
+
 			len = 3;
 			break;
 
 		case WID_SHORT:
-			do {
-				struct wilc_cfg_hword *hw = &wl->cfg.hw[i];
-
-				if (hw->id == WID_NIL)
-					break;
-
-				if (hw->id == wid) {
-					hw->val = get_unaligned_le16(&info[4]);
-					break;
-				}
+			while (cfg->hw[i].id != WID_NIL && cfg->hw[i].id != wid)
 				i++;
-			} while (1);
+
+			if (cfg->hw[i].id == wid)
+				cfg->hw[i].val = get_unaligned_le16(&info[4]);
+
 			len = 4;
 			break;
 
 		case WID_INT:
-			do {
-				struct wilc_cfg_word *w = &wl->cfg.w[i];
-
-				if (w->id == WID_NIL)
-					break;
-
-				if (w->id == wid) {
-					w->val = get_unaligned_le32(&info[4]);
-					break;
-				}
+			while (cfg->w[i].id != WID_NIL && cfg->w[i].id != wid)
 				i++;
-			} while (1);
+
+			if (cfg->w[i].id == wid)
+				cfg->w[i].val = get_unaligned_le32(&info[4]);
+
 			len = 6;
 			break;
 
 		case WID_STR:
-			do {
-				if (wl->cfg.s[i].id == WID_NIL)
-					break;
-
-				if (wl->cfg.s[i].id == wid) {
-					memcpy(wl->cfg.s[i].str, &info[2],
-					       (2+((info[3] << 8) | info[2])));
-					break;
-				}
+			while (cfg->s[i].id != WID_NIL && cfg->s[i].id != wid)
 				i++;
-			} while (1);
-			len = 2+((info[3] << 8) | info[2]);
+
+			if (cfg->s[i].id == wid)
+				memcpy(cfg->s[i].str, &info[2],
+				       (2 + ((info[3] << 8) | info[2])));
+
+			len = 2 + ((info[3] << 8) | info[2]);
 			break;
 		case WID_BIN_DATA:
-			do {
+			while (cfg->bin[i].id != WID_NIL &&
+			       cfg->bin[i].id != wid)
+				i++;
+
+			if (cfg->bin[i].id == wid) {
 				u16 length = (info[3] << 8) | info[2];
 				u8 checksum = 0;
 				int j = 0;
-
-				if (wl->cfg.bin[i].id == WID_NIL)
-					break;
-
-				if (wl->cfg.bin[i].id != wid) {
-					i++;
-					continue;
-				}
 
 				/*
 				 * Compute the Checksum of received
@@ -243,15 +219,13 @@ static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info,
 					return;
 				}
 
-				memcpy(wl->cfg.bin[i].bin, &info[2], length+2);
+				memcpy(cfg->bin[i].bin, &info[2], length + 2);
 				/*
 				 * value length + data length +
 				 * checksum
 				 */
 				len = 2 + length + 1;
-				break;
-
-			} while (1);
+			}
 			break;
 		default:
 			break;
@@ -272,16 +246,12 @@ static void wilc_wlan_parse_info_frame(struct wilc *wl, u8 *info)
 	if (len == 1 && wid == WID_STATUS) {
 		int i = 0;
 
-		do {
-			if (wl->cfg.b[i].id == WID_NIL)
-				break;
-
-			if (wl->cfg.b[i].id == wid) {
-				wl->cfg.b[i].val = info[3];
-				break;
-			}
+		while (wl->cfg.b[i].id != WID_NIL &&
+		       wl->cfg.b[i].id != wid)
 			i++;
-		} while (1);
+
+		if (wl->cfg.b[i].id == wid)
+			wl->cfg.b[i].val = info[3];
 	}
 }
 
@@ -342,80 +312,58 @@ int cfg_get_val(struct wilc *wl, u16 wid, u8 *buffer, u32 buffer_size)
 {
 	u8 type = FIELD_GET(WILC_WID_TYPE, wid);
 	int i, ret = 0;
+	struct wilc_cfg *cfg = &wl->cfg;
 
 	i = 0;
 	if (type == CFG_BYTE_CMD) {
-		do {
-			if (wl->cfg.b[i].id == WID_NIL)
-				break;
-
-			if (wl->cfg.b[i].id == wid) {
-				memcpy(buffer,  &wl->cfg.b[i].val, 1);
-				ret = 1;
-				break;
-			}
+		while (cfg->b[i].id != WID_NIL && cfg->b[i].id != wid)
 			i++;
-		} while (1);
+
+		if (wl->cfg.b[i].id == wid) {
+			memcpy(buffer, &wl->cfg.b[i].val, 1);
+			ret = 1;
+		}
 	} else if (type == CFG_HWORD_CMD) {
-		do {
-			if (wl->cfg.hw[i].id == WID_NIL)
-				break;
-
-			if (wl->cfg.hw[i].id == wid) {
-				memcpy(buffer,  &wl->cfg.hw[i].val, 2);
-				ret = 2;
-				break;
-			}
+		while (cfg->hw[i].id != WID_NIL && cfg->hw[i].id != wid)
 			i++;
-		} while (1);
+
+		if (wl->cfg.hw[i].id == wid) {
+			memcpy(buffer,  &wl->cfg.hw[i].val, 2);
+			ret = 2;
+		}
 	} else if (type == CFG_WORD_CMD) {
-		do {
-			if (wl->cfg.w[i].id == WID_NIL)
-				break;
-
-			if (wl->cfg.w[i].id == wid) {
-				memcpy(buffer,  &wl->cfg.w[i].val, 4);
-				ret = 4;
-				break;
-			}
+		while (cfg->w[i].id != WID_NIL && cfg->w[i].id != wid)
 			i++;
-		} while (1);
+
+		if (wl->cfg.w[i].id == wid) {
+			memcpy(buffer, &wl->cfg.w[i].val, 4);
+			ret = 4;
+		}
 	} else if (type == CFG_STR_CMD) {
-		do {
-			u32 id = wl->cfg.s[i].id;
-
-			if (id == WID_NIL)
-				break;
-
-			if (id == wid) {
-				u16 size = get_unaligned_le16(wl->cfg.s[i].str);
-
-				if (buffer_size >= size) {
-					memcpy(buffer,  &wl->cfg.s[i].str[2],
-					       size);
-					ret = size;
-				}
-				break;
-			}
+		while (cfg->s[i].id != WID_NIL && cfg->s[i].id != wid)
 			i++;
-		} while (1);
+
+		if (cfg->s[i].id == wid) {
+			u16 size = get_unaligned_le16(wl->cfg.s[i].str);
+
+			if (buffer_size >= size) {
+				memcpy(buffer, &wl->cfg.s[i].str[2], size);
+				ret = size;
+			}
+		}
 	} else if (type == CFG_BIN_CMD) { /* binary command */
-		do {
-			if (wl->cfg.bin[i].id == WID_NIL)
-				break;
-
-			if (wl->cfg.bin[i].id == wid) {
-				uint32_t size = wl->cfg.bin[i].bin[0] |
-					     (wl->cfg.bin[i].bin[1]<<8);
-				if (buffer_size >= size) {
-					memcpy(buffer, &wl->cfg.bin[i].bin[2],
-					       size);
-					ret = size;
-				}
-				break;
-			}
+		while (cfg->bin[i].id != WID_NIL && cfg->bin[i].id != wid)
 			i++;
-		} while (1);
+
+		if (cfg->bin[i].id == wid) {
+			u32 size = cfg->bin[i].bin[0] |
+				(cfg->bin[i].bin[1] << 8);
+
+			if (buffer_size >= size) {
+				memcpy(buffer, &cfg->bin[i].bin[2], size);
+				ret = size;
+			}
+		}
 	} else {
 		pr_err("[CFG]: illegal type (%08x)\n", wid);
 	}
