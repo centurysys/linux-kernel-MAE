@@ -138,7 +138,6 @@ static inline bool ether_addr_equal_unaligned(const u8 *addr1, const u8 *addr2)
 #define FLOW_CTRL_LOW_THRESHLD		128
 #define FLOW_CTRL_UP_THRESHLD		256
 
-#define WILC_MAX_NUM_PMKIDS			16
 #define PMKID_FOUND				1
 #define NUM_STA_ASSOCIATED			8
 

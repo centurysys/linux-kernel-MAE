@@ -9,6 +9,7 @@
 
 #include <linux/netdevice.h>
 #include "debugfs.h"
+#include "fw.h"
 
 /********************************************
  *
