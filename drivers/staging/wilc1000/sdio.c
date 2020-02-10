@@ -24,6 +24,12 @@ enum sdio_host_lock {
 static enum sdio_host_lock	sdio_intr_lock = WILC_SDIO_HOST_NO_TAKEN;
 static wait_queue_head_t sdio_intr_waitqueue;
 
+static bool enable_oob_interrupt;
+module_param(enable_oob_interrupt, bool, 0644);
+MODULE_PARM_DESC(enable_oob_interrupt,
+		 "enables sdio out-of-band interrupt support");
+
+
 #define SDIO_MODALIAS "wilc_sdio"
 
 #define SDIO_VENDOR_ID_WILC 0x0296
@@ -148,7 +154,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	if (!sdio_priv)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_WILC_HW_OOB_INTR))
+	if (enable_oob_interrupt)
 		io_type = WILC_HIF_SDIO_GPIO_IRQ;
 	else
 		io_type = WILC_HIF_SDIO;
