@@ -668,7 +668,7 @@ static int chip_allow_sleep_wilc1000(struct wilc *wilc, int source)
 		wakeup_bit = BIT(1);
 		from_host_to_fw_reg = 0x0b;
 		from_host_to_fw_bit = BIT(0);
-		to_host_from_fw_reg = 0xfc;
+		to_host_from_fw_reg = 0x10;
 		to_host_from_fw_bit = BIT(0);
 	}
 
@@ -775,7 +775,7 @@ void chip_wakeup_wilc1000(struct wilc *wilc, int source)
 		clk_status_bit = BIT(2);
 		from_host_to_fw_reg = 0x0b;
 		from_host_to_fw_bit = BIT(0);
-		to_host_from_fw_reg = 0xfc;
+		to_host_from_fw_reg = 0x10;
 		to_host_from_fw_bit = BIT(0);
 	}
 
