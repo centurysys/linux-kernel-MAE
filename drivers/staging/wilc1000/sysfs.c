@@ -94,7 +94,7 @@ void wilc_sysfs_init(struct wilc *wilc)
 	device_created = 1;
 	wl = wilc;
 	/* By default p2p mode is Group Owner */
-	wl->attr_sysfs.p2p_mode = 1;
+	wl->attr_sysfs.p2p_mode = WILC_P2P_ROLE_GO;
 	wl->attr_sysfs.ant_swtch_mode = ANT_SWTCH_INVALID_GPIO_CTRL;
 	wl->attr_sysfs.antenna1 = 0xFF;
 	wl->attr_sysfs.antenna2 = 0xFF;

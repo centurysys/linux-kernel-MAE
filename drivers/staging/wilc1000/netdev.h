@@ -327,6 +327,9 @@ struct tcp_ack_filter {
 	bool enabled;
 };
 
+#define WILC_P2P_ROLE_GO	1
+#define WILC_P2P_ROLE_CLIENT	0
+
 struct sysfs_attr_group {
 	bool p2p_mode;
 	u8 ant_swtch_mode;
