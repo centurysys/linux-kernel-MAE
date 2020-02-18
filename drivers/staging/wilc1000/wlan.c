@@ -994,8 +994,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 				PRINT_INFO(vif->ndev, TX_DBG,
 					   "VMM Size before alignment = %d\n",
 					   vmm_sz);
-				if (vmm_sz & 0x3)
-					vmm_sz = (vmm_sz + 4) & ~0x3;
+				vmm_sz = ALIGN(vmm_sz, 4);
 
 				if ((sum + vmm_sz) > WILC_TX_BUFF_SIZE) {
 					max_size_over = 1;

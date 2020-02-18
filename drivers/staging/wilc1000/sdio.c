@@ -463,27 +463,11 @@ static int wilc_sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	cmd.read_write = 1;
 	if (addr > 0) {
 		/**
-		 *      has to be word aligned...
-		 **/
-		if (size & 0x3) {
-			size += 4;
-			size &= ~0x3;
-		}
-
-		/**
 		 *      func 0 access
 		 **/
 		cmd.function = 0;
 		cmd.address = 0x10f;
 	} else {
-		/**
-		 *      has to be word aligned...
-		 **/
-		if (size & 0x3) {
-			size += 4;
-			size &= ~0x3;
-		}
-
 		/**
 		 *      func 1 access
 		 **/
@@ -491,6 +475,7 @@ static int wilc_sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		cmd.address = 0;
 	}
 
+	size = ALIGN(size, 4);
 	nblk = size / block_size;
 	nleft = size % block_size;
 
@@ -599,27 +584,11 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	cmd.read_write = 0;
 	if (addr > 0) {
 		/**
-		 *      has to be word aligned...
-		 **/
-		if (size & 0x3) {
-			size += 4;
-			size &= ~0x3;
-		}
-
-		/**
 		 *      func 0 access
 		 **/
 		cmd.function = 0;
 		cmd.address = 0x10f;
 	} else {
-		/**
-		 *      has to be word aligned...
-		 **/
-		if (size & 0x3) {
-			size += 4;
-			size &= ~0x3;
-		}
-
 		/**
 		 *      func 1 access
 		 **/
@@ -627,6 +596,7 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		cmd.address = 0;
 	}
 
+	size = ALIGN(size, 4);
 	nblk = size / block_size;
 	nleft = size % block_size;
 
@@ -848,7 +818,6 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 	u32 tmp;
 	struct sdio_cmd52 cmd;
 	u32 irq_flags;
-	int i;
 
 	if (sdio_priv->irq_gpio) {
 		wilc_sdio_read_size(wilc, &tmp);
