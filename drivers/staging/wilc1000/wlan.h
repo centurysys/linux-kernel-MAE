@@ -10,6 +10,10 @@
 #include <linux/types.h>
 #include <linux/version.h>
 
+#if KERNEL_VERSION(4, 9, 0) <= LINUX_VERSION_CODE
+#include <linux/bitfield.h>
+#endif
+
 static inline bool is_wilc1000(u32 id)
 {
 	return (id & 0xfffff000) == 0x100000;
@@ -162,6 +166,22 @@ static inline bool is_wilc3000(u32 id)
 #define BK_AC_COUNT_POS		2
 #define BK_AC_ACM_STAT_POS	1
 #define AC_BUFFER_SIZE		1000
+
+#define WILC_PKT_HDR_CONFIG_FIELD	BIT(31)
+#define WILC_PKT_HDR_OFFSET_FIELD	GENMASK(30, 22)
+#define WILC_PKT_HDR_TOTAL_LEN_FIELD	GENMASK(21, 11)
+#define WILC_PKT_HDR_LEN_FIELD		GENMASK(10, 0)
+
+#define WILC_INTERRUPT_DATA_SIZE	GENMASK(14, 0)
+
+#define WILC_VMM_BUFFER_SIZE		GENMASK(9, 0)
+#define WILC_VMM_HDR_TYPE		BIT(31)
+#define WILC_VMM_HDR_MGMT_FIELD		BIT(30)
+#define WILC_VMM_HDR_PKT_SIZE		GENMASK(29, 15)
+#define WILC_VMM_HDR_BUFF_SIZE		GENMASK(14, 0)
+
+#define WILC_VMM_ENTRY_AVAILABLE	BIT(2)
+#define WILC_VMM_ENTRY_CNT		GENMASK(8, 3)
 /*******************************************/
 /*        E0 and later Interrupt flags.    */
 /*******************************************/
@@ -177,13 +197,15 @@ static inline bool is_wilc3000(u32 id)
 /* 21: INT5 flag                           */
 /*******************************************/
 #define IRG_FLAGS_OFFSET	16
-#define IRQ_DMA_WD_CNT_MASK	((1ul << IRG_FLAGS_OFFSET) - 1)
+#define IRQ_DMA_WD_CNT_MASK	GENMASK(IRG_FLAGS_OFFSET - 1, 0)
 #define INT_0			BIT(IRG_FLAGS_OFFSET)
 #define INT_1			BIT(IRG_FLAGS_OFFSET + 1)
 #define INT_2			BIT(IRG_FLAGS_OFFSET + 2)
 #define INT_3			BIT(IRG_FLAGS_OFFSET + 3)
 #define INT_4			BIT(IRG_FLAGS_OFFSET + 4)
 #define MAX_NUM_INT		5
+#define IRG_FLAGS_MASK		GENMASK(IRG_FLAGS_OFFSET + MAX_NUM_INT, \
+					IRG_FLAGS_OFFSET)
 
 /*******************************************/
 /*        E0 and later Interrupt flags.    */
@@ -211,6 +233,7 @@ static inline bool is_wilc3000(u32 id)
 #define DATA_INT_EXT		INT_0
 #define ALL_INT_EXT		(DATA_INT_EXT)
 #define NUM_INT_EXT		1
+#define UNHANDLED_IRQ_MASK	GENMASK(MAX_NUM_INT - 1, NUM_INT_EXT)
 
 #define DATA_INT_CLR		CLR_INT0
 

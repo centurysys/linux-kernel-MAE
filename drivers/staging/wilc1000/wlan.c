@@ -1088,8 +1088,9 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 						      &reg);
 				if (ret)
 					break;
-				if ((reg >> 2) & 0x1) {
-					entries = ((reg >> 3) & 0x3f);
+				if (FIELD_GET(WILC_VMM_ENTRY_AVAILABLE, reg)) {
+					entries = FIELD_GET(WILC_VMM_ENTRY_CNT,
+							    reg);
 					break;
 				}
 			} while (--timeout);
@@ -1132,7 +1133,8 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 							  "fail read reg host_vmm_ctl..\n");
 						break;
 					}
-					entries = ((reg >> 3) & 0x3f);
+					entries = FIELD_GET(WILC_VMM_ENTRY_CNT,
+							    reg);
 					break;
 				}
 			} while (--timeout);
@@ -1182,6 +1184,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	do {
 		struct txq_entry_t *tqe;
 		u32 header, buffer_offset;
+		u8 mgmt_ptk = 0;
 
 		tqe = wilc_wlan_txq_remove_from_head(wilc, vmm_entries_ac[i]);
 		ac_pkt_num_to_chip[vmm_entries_ac[i]]++;
@@ -1193,15 +1196,15 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 
 		vif = tqe->vif;
 		le32_to_cpus(&vmm_table[i]);
-		vmm_sz = (vmm_table[i] & 0x3ff);
+		vmm_sz = FIELD_GET(WILC_VMM_BUFFER_SIZE, vmm_table[i]);
 		vmm_sz *= 4;
-		header = (tqe->type << 31) |
-			 (tqe->buffer_size << 15) |
-			 vmm_sz;
 		if (tqe->type == WILC_MGMT_PKT)
-			header |= BIT(30);
-		else
-			header &= ~BIT(30);
+			mgmt_ptk = 1;
+
+		header = (FIELD_PREP(WILC_VMM_HDR_TYPE, tqe->type) |
+			FIELD_PREP(WILC_VMM_HDR_MGMT_FIELD, mgmt_ptk) |
+			FIELD_PREP(WILC_VMM_HDR_PKT_SIZE, tqe->buffer_size) |
+			FIELD_PREP(WILC_VMM_HDR_BUFF_SIZE, vmm_sz));
 
 		cpu_to_le32s(&header);
 		memcpy(&txb[offset], &header, 4);
@@ -1273,10 +1276,10 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 		buff_ptr = buffer + offset;
 		header = get_unaligned_le32(buff_ptr);
 
-		is_cfg_packet = (header >> 31) & 0x1;
-		pkt_offset = (header >> 22) & 0x1ff;
-		tp_len = (header >> 11) & 0x7ff;
-		pkt_len = header & 0x7ff;
+		is_cfg_packet = FIELD_GET(WILC_PKT_HDR_CONFIG_FIELD, header);
+		pkt_offset = FIELD_GET(WILC_PKT_HDR_OFFSET_FIELD, header);
+		tp_len = FIELD_GET(WILC_PKT_HDR_TOTAL_LEN_FIELD, header);
+		pkt_len = FIELD_GET(WILC_PKT_HDR_LEN_FIELD, header);
 
 		if (pkt_len == 0 || tp_len == 0) {
 			pr_err("%s: Data corrupted %d, %d\n", __func__,
@@ -1366,13 +1369,13 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 	int ret = 0;
 	struct rxq_entry_t *rqe;
 
-	size = (int_status & 0x7fff) << 2;
+	size = FIELD_GET(WILC_INTERRUPT_DATA_SIZE, int_status) << 2;
 
 	while (!size && retries < 10) {
 		pr_err("%s: RX Size equal zero Trying to read it again\n",
 		       __func__);
 		wilc->hif_func->hif_read_size(wilc, &size);
-		size = (size & 0x7fff) << 2;
+		size = FIELD_GET(WILC_INTERRUPT_DATA_SIZE, size) << 2;
 		retries++;
 	}
 

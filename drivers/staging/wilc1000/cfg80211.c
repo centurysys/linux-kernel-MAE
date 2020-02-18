@@ -1222,7 +1222,7 @@ bool wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size)
 	int ret;
 
 	header = get_unaligned_le32(buff - HOST_HDR_OFFSET);
-	pkt_offset = GET_PKT_OFFSET(header);
+	pkt_offset = FIELD_GET(WILC_PKT_HDR_OFFSET_FIELD, header);
 
 	if (pkt_offset & IS_MANAGMEMENT_CALLBACK) {
 		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)buff;

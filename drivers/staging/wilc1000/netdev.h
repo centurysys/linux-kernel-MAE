@@ -133,6 +133,20 @@ static inline bool ether_addr_equal_unaligned(const u8 *addr1, const u8 *addr2)
 		__BF_FIELD_CHECK(_mask, _reg, 0U, "FIELD_GET: ");	\
 		(typeof(_mask))(((_reg) & (_mask)) >> __bf_shf(_mask));	\
 	})
+
+/**
+ * FIELD_PREP() - prepare a bitfield element
+ * @_mask: shifted mask defining the field's length and position
+ * @_val:  value to put in the field
+ *
+ * FIELD_PREP() masks and shifts up the value.  The result should
+ * be combined with other fields of the bitfield using logical OR.
+ */
+#define FIELD_PREP(_mask, _val)						\
+	({								\
+		__BF_FIELD_CHECK(_mask, 0ULL, _val, "FIELD_PREP: ");	\
+		((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask);	\
+	})
 #endif
 
 #define FLOW_CTRL_LOW_THRESHLD		128
@@ -145,8 +159,6 @@ static inline bool ether_addr_equal_unaligned(const u8 *addr1, const u8 *addr2)
 
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
-
-#define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
 
 #define ANT_SWTCH_INVALID_GPIO_CTRL		0
 #define ANT_SWTCH_SNGL_GPIO_CTRL		1
