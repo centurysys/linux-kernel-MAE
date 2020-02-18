@@ -44,7 +44,6 @@ static const struct sdio_device_id wilc_sdio_ids[] = {
 struct wilc_sdio {
 	bool irq_gpio;
 	u32 block_size;
-	int nint;
 	bool is_init;
 	struct wilc *wl;
 };
@@ -867,7 +866,7 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 			wilc_sdio_cmd52(wilc, &cmd);
 			irq_flags = cmd.data & 0x0f;
 		}
-		tmp |= ((irq_flags >> 0) << IRG_FLAGS_OFFSET);
+		tmp |= FIELD_PREP(IRG_FLAGS_MASK, cmd.data);
 
 		*int_status = tmp;
 	} else {
@@ -878,24 +877,12 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 		cmd.data = 0;
 		wilc_sdio_cmd52(wilc, &cmd);
 
-		if (cmd.data & BIT(0))
-			tmp |= INT_0;
-		if (cmd.data & BIT(2))
-			tmp |= INT_1;
-		if (cmd.data & BIT(3))
-			tmp |= INT_2;
-		if (cmd.data & BIT(4))
-			tmp |= INT_3;
-		if (cmd.data & BIT(5))
-			tmp |= INT_4;
+		irq_flags = cmd.data;
+		tmp |= FIELD_PREP(IRG_FLAGS_MASK, cmd.data);
 
-		for (i = sdio_priv->nint; i < MAX_NUM_INT; i++) {
-			if ((tmp >> (IRG_FLAGS_OFFSET + i)) & 0x1) {
-				dev_err(&func->dev,
-					"Unexpected interrupt (1) : tmp=%x, data=%x\n",
-					tmp, cmd.data);
-				break;
-			}
+		if (FIELD_GET(UNHANDLED_IRQ_MASK, irq_flags)) {
+			dev_err(&func->dev, "Unexpected interrupt (1) int=%lx\n",
+				FIELD_GET(UNHANDLED_IRQ_MASK, irq_flags));
 		}
 
 		*int_status = tmp;
@@ -1005,8 +992,6 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 		dev_err(&func->dev, "Too many interrupts %d\n", nint);
 		return -EINVAL;
 	}
-
-	sdio_priv->nint = nint;
 
 /* WILC3000 only. Was removed in WILC1000 on revision 6200.
  * Might be related to suspend/resume
