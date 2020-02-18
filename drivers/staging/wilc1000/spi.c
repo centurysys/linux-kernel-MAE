@@ -896,7 +896,7 @@ static int wilc_spi_write_reg(struct wilc *wilc, u32 addr, u32 data)
 	u8 clockless = 0;
 
 _RETRY_:
-	if (addr <= 0x30) {
+	if (addr <= WILC_SPI_CLOCKLESS_ADDR_LIMIT) {
 		/* Clockless register */
 		cmd = CMD_INTERNAL_WRITE;
 		clockless = 1;
@@ -985,7 +985,7 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 	u8 clockless = 0;
 
 retry:
-	if (addr <= 0x30) {
+	if (addr <= WILC_SPI_CLOCKLESS_ADDR_LIMIT) {
 		/* Clockless register */
 		cmd = CMD_INTERNAL_READ;
 		clockless = 1;
@@ -1091,7 +1091,7 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	int ret;
 
 	if (spi_priv->is_init) {
-		ret = wilc_spi_read_reg(wilc, 0x1000, &chipid);
+		ret = wilc_spi_read_reg(wilc, WILC_CHIPID, &chipid);
 		if (ret)
 			dev_err(&spi->dev, "Fail cmd read chip id...\n");
 
@@ -1143,7 +1143,7 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	/*
 	 * make sure can read back chip id correctly
 	 */
-	ret = wilc_spi_read_reg(wilc, 0x1000, &chipid);
+	ret = wilc_spi_read_reg(wilc, WILC_CHIPID, &chipid);
 	if (ret) {
 		dev_err(&spi->dev, "Fail cmd read chip id...\n");
 		return ret;
@@ -1170,7 +1170,7 @@ static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 {
 	int ret;
 
-	ret = spi_internal_read(wilc, 0xe840 - WILC_SPI_REG_BASE,
+	ret = spi_internal_read(wilc, WILC_SPI_INT_STATUS - WILC_SPI_REG_BASE,
 				size);
 	*size = FIELD_GET(IRQ_DMA_WD_CNT_MASK, *size);
 
@@ -1179,13 +1179,14 @@ static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 
 static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 {
-	return spi_internal_read(wilc, 0xe840 - WILC_SPI_REG_BASE,
+	return spi_internal_read(wilc, WILC_SPI_INT_STATUS - WILC_SPI_REG_BASE,
 				int_status);
 }
 
 static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 {
-	return spi_internal_write(wilc, 0xe844 - WILC_SPI_REG_BASE, val);
+	return spi_internal_write(wilc,
+				  WILC_SPI_INT_CLEAR - WILC_SPI_REG_BASE, val);
 }
 
 static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
