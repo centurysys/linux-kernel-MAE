@@ -361,8 +361,8 @@ init_err:
 		mac->id, phy_modes(state->interface), err);
 }
 
-static int mtk_mac_link_state(struct phylink_config *config,
-			      struct phylink_link_state *state)
+static void mtk_mac_pcs_get_state(struct phylink_config *config,
+				  struct phylink_link_state *state)
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
@@ -391,8 +391,6 @@ static int mtk_mac_link_state(struct phylink_config *config,
 		state->pause |= MLO_PAUSE_RX;
 	if (pmsr & MAC_MSR_TX_FC)
 		state->pause |= MLO_PAUSE_TX;
-
-	return 1;
 }
 
 static void mtk_mac_an_restart(struct phylink_config *config)
@@ -514,7 +512,7 @@ static void mtk_validate(struct phylink_config *config,
 
 static const struct phylink_mac_ops mtk_phylink_ops = {
 	.validate = mtk_validate,
-	.mac_link_state = mtk_mac_link_state,
+	.mac_pcs_get_state = mtk_mac_pcs_get_state,
 	.mac_an_restart = mtk_mac_an_restart,
 	.mac_config = mtk_mac_config,
 	.mac_link_down = mtk_mac_link_down,
@@ -2758,9 +2756,10 @@ static const struct net_device_ops mtk_netdev_ops = {
 static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 {
 	const __be32 *_id = of_get_property(np, "reg", NULL);
+	phy_interface_t phy_mode;
 	struct phylink *phylink;
-	int phy_mode, id, err;
 	struct mtk_mac *mac;
+	int id, err;
 
 	if (!_id) {
 		dev_err(eth->dev, "missing mac id\n");
@@ -2805,10 +2804,9 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->hw_stats->reg_offset = id * MTK_STAT_OFFSET;
 
 	/* phylink create */
-	phy_mode = of_get_phy_mode(np);
-	if (phy_mode < 0) {
+	err = of_get_phy_mode(np, &phy_mode);
+	if (err) {
 		dev_err(eth->dev, "incorrect phy-mode\n");
-		err = -EINVAL;
 		goto free_netdev;
 	}
 
