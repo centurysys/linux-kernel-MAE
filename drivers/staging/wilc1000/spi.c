@@ -117,27 +117,27 @@ struct wilc_spi_cmd {
 	union {
 		struct {
 			u8 addr[3];
-			u8 crc[0];
+			u8 crc[];
 		} __packed simple_cmd;
 		struct {
 			u8 addr[3];
 			u8 size[2];
-			u8 crc[0];
+			u8 crc[];
 		} __packed dma_cmd;
 		struct {
 			u8 addr[3];
 			u8 size[3];
-			u8 crc[0];
+			u8 crc[];
 		} __packed dma_cmd_ext;
 		struct {
 			u8 addr[2];
 			__be32 data;
-			u8 crc[0];
+			u8 crc[];
 		} __packed internal_w_cmd;
 		struct {
 			u8 addr[3];
 			__be32 data;
-			u8 crc[0];
+			u8 crc[];
 		} __packed w_cmd;
 	} u;
 } __packed;
@@ -147,7 +147,7 @@ struct wilc_spi_read_rsp_data {
 	u8 status;
 	u8 resp_header;
 	u8 resp_data[4];
-	u8 crc[0];
+	u8 crc[];
 } __packed;
 
 struct wilc_spi_rsp_data {
