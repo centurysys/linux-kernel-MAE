@@ -381,13 +381,27 @@ static void dw_dphy_pwr_down(struct dw_dphy_rx *dphy)
 
 static void dw_dphy_pwr_up(struct dw_dphy_rx *dphy)
 {
+	u32 state = 0, wait = 0;
+
 	dw_dphy_write_msk(dphy, R_CSI2_DPHY_TST_CTRL0, 1, PHY_TESTCLK, 1);
 	if (dphy->lanes_config == CTRL_8_LANES)
 		dw_dphy_write_msk(dphy, R_CSI2_DPHY2_TST_CTRL0, 1, PHY_TESTCLK,
 				  1);
 	dev_vdbg(&dphy->phy->dev, "DPHY power up.\n");
 	dw_dphy_write(dphy, R_CSI2_DPHY_SHUTDOWNZ, 1);
+	usleep_range(100, 500);
 	dw_dphy_write(dphy, R_CSI2_DPHY_RSTZ, 1);
+
+	while (state != 0x10003) {
+		state = dw_dphy_read(dphy, R_CSI2_DPHY_STOPSTATE);
+		usleep_range(100, 500);
+		wait++;
+		if (wait > 10)
+			break;
+	}
+	if (state != 0x10003)
+		dev_warn(&dphy->phy->dev, "PHY Stop state not reached %x\n",
+			 state);
 }
 
 static int dw_dphy_gen3_12bit_configure(struct dw_dphy_rx *dphy)
