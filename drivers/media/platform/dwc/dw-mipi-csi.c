@@ -201,6 +201,7 @@ void dw_mipi_csi_set_ipi_fmt(struct dw_csi *csi_dev)
 		break;
 		/* RAW 10 */
 		case MEDIA_BUS_FMT_SBGGR10_1X10:
+		case MEDIA_BUS_FMT_SRGGB10_1X10:
 		case MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_BE:
 		csi_dev->ipi_dt = CSI_2_RAW10;
 		break;
