@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR X11)
 /*
- * at91-sama5d2_icp.dts - Device Tree file for SAMA5D27-ICP board
+ * at91-sama5d2_icp.dts - Device Tree file for SAMA5D2-ICP board
  *
  *  Copyright (c) 2019, Microchip Technology Inc.
  *		  2019 Razvan Stefanescu <razvan.stefanescu@microchip.com>
