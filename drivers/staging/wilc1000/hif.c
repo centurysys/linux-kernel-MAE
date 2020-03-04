@@ -1067,7 +1067,7 @@ static void wilc_hif_pack_sta_param(struct wilc_vif *vif, u8 *cur_byte,
 
 	if (params->ht_capa) {
 		*cur_byte++ = true;
-		memcpy(cur_byte, &params->ht_capa,
+		memcpy(cur_byte, params->ht_capa,
 		       sizeof(struct ieee80211_ht_cap));
 	} else {
 		*cur_byte++ = false;
