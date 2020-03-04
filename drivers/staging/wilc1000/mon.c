@@ -26,7 +26,7 @@ struct wfi_rtap_cb_hdr {
 
 void wilc_wfi_handle_monitor_rx(struct wilc *wilc, u8 *buff, u32 size)
 {
-	struct wilc_vif *vif = 0;
+	struct wilc_vif *vif = NULL;
 	struct sk_buff *skb = NULL;
 	struct wfi_rtap_hdr *hdr;
 

@@ -1070,7 +1070,7 @@ fail:
  *
  ********************************************/
 
-int wilc_spi_reset(struct wilc *wilc)
+static int wilc_spi_reset(struct wilc *wilc)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	int result;

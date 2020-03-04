@@ -1834,7 +1834,7 @@ int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level)
 	return result;
 }
 
-int wilc_get_stats_async(struct wilc_vif *vif, struct rf_info *stats)
+static int wilc_get_stats_async(struct wilc_vif *vif, struct rf_info *stats)
 {
 	int result;
 	struct host_if_msg *msg;
@@ -2455,7 +2455,7 @@ int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
 	return wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1);
 }
 
-bool is_valid_gpio(struct wilc_vif *vif, u8 gpio)
+static bool is_valid_gpio(struct wilc_vif *vif, u8 gpio)
 {
 	switch (vif->wilc->chip) {
 	case WILC_1000:

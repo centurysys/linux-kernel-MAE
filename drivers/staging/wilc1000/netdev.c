@@ -22,8 +22,8 @@
 static int wilc_mac_open(struct net_device *ndev);
 static int wilc_mac_close(struct net_device *ndev);
 
-int debug_running;
-int recovery_on;
+static int debug_running;
+static int recovery_on;
 int wait_for_recovery;
 static int debug_thread(void *arg)
 {
@@ -124,7 +124,7 @@ static int debug_thread(void *arg)
 	return 0;
 }
 
-void wilc_disable_irq(struct wilc *wilc, int wait)
+static void wilc_disable_irq(struct wilc *wilc, int wait)
 {
 	if (wait) {
 		pr_info("%s Disabling IRQ ...\n", __func__);
@@ -367,7 +367,7 @@ void wilc_frmw_to_host(struct wilc_vif *vif, u8 *buff, u32 size,
 	PRINT_D(vif->ndev, RX_DBG, "netif_rx ret value: %d\n", stats);
 }
 
-void free_eap_buff_params(void *vp)
+static void free_eap_buff_params(void *vp)
 {
 	struct wilc_priv *priv;
 

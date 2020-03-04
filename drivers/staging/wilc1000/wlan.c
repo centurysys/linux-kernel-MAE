@@ -33,9 +33,9 @@ void release_bus(struct wilc *wilc, enum bus_release release, int source)
 	mutex_unlock(&wilc->hif_cs);
 }
 
-uint8_t reset_bus(struct wilc *wilc)
+static u8 reset_bus(struct wilc *wilc)
 {
-	uint8_t ret = 0;
+	u8 ret = 0;
 
 	if (wilc->io_type == WILC_HIF_SPI)
 		return wilc->hif_func->hif_reset(wilc);
@@ -752,7 +752,7 @@ void chip_allow_sleep(struct wilc *wilc, int source)
 		wilc->keep_awake[source] = false;
 }
 
-void chip_wakeup_wilc1000(struct wilc *wilc, int source)
+static void chip_wakeup_wilc1000(struct wilc *wilc, int source)
 {
 	u32 ret = 0;
 	u32 clk_status_val = 0, trials = 0;
@@ -835,7 +835,7 @@ _fail_:
 	return;
 }
 
-void chip_wakeup_wilc3000(struct wilc *wilc, int source)
+static void chip_wakeup_wilc3000(struct wilc *wilc, int source)
 {
 	u32 wakeup_reg_val, clk_status_reg_val, trials = 0;
 	u32 wakeup_reg, wakeup_bit;

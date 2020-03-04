@@ -23,10 +23,10 @@
 static struct wilc *wilc_bt;
 static dev_t chc_dev_no; /* Global variable for the first device number */
 static struct cdev str_chc_dev; /* Global variable for the character */
-struct device *dev;
+static struct device *dev;
 static struct class *chc_dev_class; /* Global variable for the device class */
 static bool device_created;
-int bt_init_done;
+static int bt_init_done;
 
 typedef void (wilc_cmd_handler)(char *);
 
