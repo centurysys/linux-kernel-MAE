@@ -232,6 +232,7 @@ struct dw_csi {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	struct device *dev;
+	struct clk *perclk, *phyclk;
 	struct media_pad pads[CSI_PADS_NUM];
 	struct mipi_fmt *fmt;
 	struct v4l2_mbus_framefmt format;
