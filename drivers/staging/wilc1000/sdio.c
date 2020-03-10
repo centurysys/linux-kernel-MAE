@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/mmc/sdio.h>
+#include <linux/of_irq.h>
 
 #include "netdev.h"
 #include "wlan.h"
@@ -148,6 +149,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	int ret, io_type;
 	static bool init_power;
 	struct wilc_sdio *sdio_priv;
+	int irq_num;
 
 	sdio_priv = kzalloc(sizeof(*sdio_priv), GFP_KERNEL);
 	if (!sdio_priv)
@@ -170,7 +172,11 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	wilc->dt_dev = &func->card->dev;
 	sdio_priv->wl = wilc;
 
-	wilc->rtc_clk = devm_clk_get(&func->card->dev, "rtc_clk");
+	irq_num = of_irq_get(func->card->dev.of_node, 0);
+	if (irq_num > 0)
+		wilc->dev_irq_num = irq_num;
+
+	wilc->rtc_clk = devm_clk_get(&func->card->dev, "rtc");
 	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	else if (!IS_ERR(wilc->rtc_clk))

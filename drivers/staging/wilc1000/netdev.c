@@ -167,53 +167,8 @@ static irqreturn_t isr_bh_routine(int irq, void *userdata)
 
 static int init_irq(struct net_device *dev)
 {
-	int ret = 0;
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
-
-#if KERNEL_VERSION(3, 13, 0) < LINUX_VERSION_CODE
-
-	wl->gpio_irq = gpiod_get(wl->dt_dev, "irq", GPIOD_IN);
-	if (IS_ERR(wl->gpio_irq)) {
-		dev_warn(wl->dev, "failed to get IRQ GPIO, load default\r\n");
-		wl->gpio_irq = gpio_to_desc(GPIO_NUM);
-		if (!wl->gpio_irq) {
-			dev_warn(wl->dev, "failed to load default irq\r\n");
-			return -EINVAL;
-		}
-	} else {
-		dev_info(wl->dev, "got gpio_irq successfully\r\n");
-	}
-
-	ret = gpiod_direction_input(wl->gpio_irq);
-	if (ret) {
-		PRINT_ER(dev, "could not obtain gpio for WILC_INTR\n");
-		return -EINVAL;
-	}
-
-	wl->dev_irq_num = gpiod_to_irq(wl->gpio_irq);
-	if (wl->dev_irq_num < 0) {
-		PRINT_ER(dev, "could not the IRQ\n");
-		goto free_gpio;
-	}
-#else
-	wl->gpio_irq = of_get_named_gpio_flags(wl->dt_dev->of_node,
-					       "irq-gpios", 0, NULL);
-	if (wl->gpio_irq < 0) {
-		wl->gpio_irq = GPIO_NUM;
-		dev_warn(wl->dev, "failed to get IRQ GPIO, load default\r\n");
-	}
-
-	if ((gpio_request(wl->gpio_irq, "WILC_INTR") == 0) &&
-	    (gpio_direction_input(wl->gpio_irq) == 0)) {
-		wl->dev_irq_num = gpio_to_irq(wl->gpio_irq);
-	} else {
-		dev_err(wl->dev, "could not obtain gpio for WILC_INTR\n");
-		wl->gpio_irq = 0;
-		return -EINVAL;
-	}
-
-#endif
 
 	if (wl->io_type == WILC_HIF_SPI ||
 		wl->io_type == WILC_HIF_SDIO_GPIO_IRQ) {
@@ -222,16 +177,18 @@ static int init_irq(struct net_device *dev)
 							IRQF_ONESHOT |
 							IRQF_NO_SUSPEND,
 					 "WILC_IRQ", wl) < 0) {
-			PRINT_ER(dev, "Failed to request IRQ\n");
-			goto free_gpio;
+			PRINT_ER(dev, "Failed to request IRQ [%d]\n",
+				 wl->dev_irq_num);
+			return -EINVAL;
 		}
 	} else {
 		if (request_irq(wl->dev_irq_num, host_wakeup_isr,
 					     IRQF_TRIGGER_FALLING |
 					     IRQF_NO_SUSPEND,
 					     "WILC_IRQ", wl) < 0) {
-			PRINT_ER(dev, "Failed to request IRQ\n");
-			goto free_gpio;
+			PRINT_ER(dev, "Failed to request IRQ [%d]\n",
+				 wl->dev_irq_num);
+			return -EINVAL;
 		}
 	}
 
@@ -239,16 +196,6 @@ static int init_irq(struct net_device *dev)
 		   wl->dev_irq_num);
 	enable_irq_wake(wl->dev_irq_num);
 	return 0;
-
-free_gpio:
-#if KERNEL_VERSION(3, 13, 0) < LINUX_VERSION_CODE
-	gpiod_put(wl->gpio_irq);
-	wl->gpio_irq = NULL;
-#else
-	gpio_free(wl->gpio_irq);
-	wl->gpio_irq = 0;
-#endif
-	return -EINVAL;
 }
 
 static void deinit_irq(struct net_device *dev)
@@ -257,24 +204,8 @@ static void deinit_irq(struct net_device *dev)
 	struct wilc *wilc = vif->wilc;
 
 	/* Deinitialize IRQ */
-	if (wilc->dev_irq_num > 0) {
+	if (wilc->dev_irq_num)
 		free_irq(wilc->dev_irq_num, wilc);
-		wilc->dev_irq_num = -1;
-	}
-
-#if KERNEL_VERSION(3, 13, 0) < LINUX_VERSION_CODE
-	if (wilc->gpio_irq) {
-		gpiod_put(wilc->gpio_irq);
-		wilc->gpio_irq = NULL;
-	}
-#else
-	if (wilc->gpio_irq > 0) {
-		gpio_free(wilc->gpio_irq);
-		wilc->gpio_irq = 0;
-	}
-
-#endif
-
 }
 
 void wilc_mac_indicate(struct wilc *wilc)

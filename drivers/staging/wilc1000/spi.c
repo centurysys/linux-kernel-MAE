@@ -134,8 +134,9 @@ static int wilc_bus_probe(struct spi_device *spi)
 	wilc->dev = &spi->dev;
 	wilc->bus_data = spi_priv;
 	wilc->dt_dev = &spi->dev;
+	wilc->dev_irq_num = spi->irq;
 
-	wilc->rtc_clk = devm_clk_get(&spi->dev, "rtc_clk");
+	wilc->rtc_clk = devm_clk_get(&spi->dev, "rtc");
 	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	else if (!IS_ERR(wilc->rtc_clk))

@@ -241,7 +241,6 @@ static inline bool is_wilc3000(u32 id)
 #define WILC_TX_BUFF_SIZE	(64 * 1024)
 
 #define MODALIAS		"WILC_SPI"
-#define GPIO_NUM		0x5B
 #define GPIO_NUM_CHIP_EN	94
 #define GPIO_NUM_RESET		60
 

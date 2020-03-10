@@ -377,11 +377,6 @@ struct wilc {
 	const struct wilc_hif_func *hif_func;
 	int io_type;
 	s8 mac_status;
-#if KERNEL_VERSION(3, 13, 0) < LINUX_VERSION_CODE
-	struct gpio_desc *gpio_irq;
-#else
-	int gpio_irq;
-#endif
 	struct clk *rtc_clk;
 	bool initialized;
 	int dev_irq_num;
