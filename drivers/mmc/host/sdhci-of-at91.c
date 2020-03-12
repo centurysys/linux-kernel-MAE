@@ -184,6 +184,18 @@ static int sdhci_at91_set_clks_presets(struct device *dev)
 	caps0 = readl(host->ioaddr + SDHCI_CAPABILITIES);
 	caps1 = readl(host->ioaddr + SDHCI_CAPABILITIES_1);
 
+	/*
+	* We experience some issues with SDR104. If the SD clock is higher
+	* than 100 MHz, we can get data corruption. With a 100 MHz clock,
+	* the tuning procedure may fail. For those reasons, it is useless to
+	* advertise that we can use SDR104 mode, so remove it from
+	* the capabilities.
+	*/
+	writel(SDMMC_CACR_KEY | SDMMC_CACR_CAPWREN, host->ioaddr + SDMMC_CACR);
+	caps1 &= (~SDHCI_SUPPORT_SDR104);
+	writel(caps1, host->ioaddr + SDHCI_CAPABILITIES_1);
+	writel(0, host->ioaddr + SDMMC_CACR);
+
 	gck_rate = clk_get_rate(priv->gck);
 	if (priv->soc_data->baseclk_is_generated_internally)
 		clk_base_rate = gck_rate / priv->soc_data->divider_for_baseclk;
@@ -204,8 +216,8 @@ static int sdhci_at91_set_clks_presets(struct device *dev)
 	/* Set capabilities in ro mode. */
 	writel(0, host->ioaddr + SDMMC_CACR);
 
-	dev_info(dev, "update clk mul to %u as gck rate is %u Hz and clk base is %u Hz\n",
-		 clk_mul, gck_rate, clk_base_rate);
+	dev_dbg(dev, "update clk mul to %u as gck rate is %u Hz and clk base is %u Hz\n",
+		clk_mul, gck_rate, clk_base_rate);
 
 	/*
 	 * We have to set preset values because it depends on the clk_mul
