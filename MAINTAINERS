@@ -2788,6 +2788,51 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/input/atmel,maxtouch.txt
 F:	drivers/input/touchscreen/atmel_mxt_ts.c
 
+ATMEL PTC SUBSYSTEM DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+L:	linux-input@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/input/atmel,ptc.txt
+F:	drivers/input/misc/atmel_ptc.c
+
+ATMEL SAMA5D2 ADC DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	drivers/iio/adc/at91-sama5d2_adc.c
+
+ATMEL SDMMC DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+L:	linux-mmc@vger.kernel.org
+S:	Supported
+F:	drivers/mmc/host/sdhci-of-at91.c
+
+ATMEL SPI DRIVER
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+S:	Supported
+F:	drivers/spi/spi-atmel.*
+
+ATMEL SSC DRIVER
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/misc/atmel-ssc.c
+F:	include/linux/atmel-ssc.h
+
+ATMEL Timer Counter (TC) AND CLOCKSOURCE DRIVERS
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/misc/atmel_tclib.c
+F:	drivers/clocksource/tcb_clksrc.c
+
+ATMEL USBA UDC DRIVER
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/usb/gadget/udc/atmel_usba_udc.*
+
+>>>>>>> 592c16d6d0d3... MAINTAINERS: add Atmel PTC entries
 ATMEL WIRELESS DRIVER
 M:	Simon Kelley <simon@thekelleys.org.uk>
 L:	linux-wireless@vger.kernel.org
