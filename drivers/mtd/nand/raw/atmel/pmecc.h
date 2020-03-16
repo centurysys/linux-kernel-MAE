@@ -50,6 +50,29 @@ struct atmel_pmecc_user_req {
 	} ecc;
 };
 
+struct atmel_pmecc_suspend_ctx {
+       u32 setup;
+       u32 pulse;
+       u32 cycle;
+       u32 timings;
+       u32 mode;
+};
+
+struct atmel_pmecc {
+       struct device *dev;
+       const struct atmel_pmecc_caps *caps;
+
+       struct {
+               void __iomem *base;
+               void __iomem *errloc;
+               void __iomem *timing;
+       } regs;
+
+       struct mutex lock;
+
+       struct atmel_pmecc_suspend_ctx suspend;
+};
+
 struct atmel_pmecc *devm_atmel_pmecc_get(struct device *dev);
 
 struct atmel_pmecc_user *
