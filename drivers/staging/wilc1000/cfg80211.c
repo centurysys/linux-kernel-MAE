@@ -1419,7 +1419,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 		return -ENOMEM;
 	}
 
-	mgmt_tx->buff = kmalloc(len, GFP_KERNEL);
+	mgmt_tx->buff = kmemdup(buf, len, GFP_KERNEL);
 	if (!mgmt_tx->buff) {
 		ret = -ENOMEM;
 		PRINT_ER(vif->ndev,
@@ -1428,7 +1428,6 @@ static int mgmt_tx(struct wiphy *wiphy,
 		goto out;
 	}
 
-	memcpy(mgmt_tx->buff, buf, len);
 	mgmt_tx->size = len;
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
