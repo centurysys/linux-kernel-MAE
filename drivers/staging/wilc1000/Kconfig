@@ -30,6 +30,7 @@ config WILC_SPI
 	tristate "WILC SPI"
 	depends on CFG80211 && INET && SPI
 	select WILC
+	select CRC7
 	help
 	  This module adds support for the SPI interface of adapters using
 	  WILC1000 & WILC3000 chipset. The Atmel WILC1000 has a Serial Peripheral
