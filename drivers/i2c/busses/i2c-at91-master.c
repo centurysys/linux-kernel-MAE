@@ -884,6 +884,10 @@ static int at91_init_twi_recovery_info(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+	/* workaround to mux the pins back to I2C */
+	pinctrl_select_state(dev->pinctrl, dev->pinctrl_pins_gpio);
+	pinctrl_select_state(dev->pinctrl, dev->pinctrl_pins_default);
+
 	dev_info(&pdev->dev, "using scl, sda for recovery\n");
 
 	rinfo->prepare_recovery = at91_prepare_twi_recovery;
