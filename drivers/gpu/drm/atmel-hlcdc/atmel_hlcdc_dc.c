@@ -18,6 +18,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -27,7 +28,14 @@
 #include <drm/drm_vblank.h>
 
 #include "atmel_hlcdc_dc.h"
+#include "gfx2d/gfx2d_gpu.h"
 #include <drm/atmel_drm.h>
+#include <drm/drm_of.h>
+#include <linux/component.h>
+
+struct gfx2d_gpu *gfx2d_load_gpu(struct drm_device *dev);
+void __init gfx2d_register(void);
+void __exit gfx2d_unregister(void);
 
 #define ATMEL_HLCDC_LAYER_IRQS_OFFSET		8
 
@@ -558,6 +566,12 @@ static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static struct drm_framebuffer *atmel_hlcdc_fb_create(struct drm_device *dev,
+		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
+}
+
 struct atmel_hlcdc_dc_commit {
 	struct work_struct work;
 	struct drm_device *dev;
@@ -652,7 +666,7 @@ error:
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
-	.fb_create = drm_gem_fb_create,
+	.fb_create = atmel_hlcdc_fb_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = atmel_hlcdc_dc_atomic_commit,
 };
@@ -722,10 +736,18 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	dc->hlcdc = dev_get_drvdata(dev->dev->parent);
 	dev->dev_private = dc;
 
+	if (dc->desc->fixed_clksrc) {
+		ret = clk_prepare_enable(dc->hlcdc->sys_clk);
+		if (ret) {
+			dev_err(dev->dev, "failed to enable sys_clk\n");
+			goto err_destroy_wq;
+		}
+	}
+
 	ret = clk_prepare_enable(dc->hlcdc->periph_clk);
 	if (ret) {
 		dev_err(dev->dev, "failed to enable periph_clk\n");
-		goto err_destroy_wq;
+		goto err_sys_clk_disable;
 	}
 
 	pm_runtime_enable(dev->dev);
@@ -761,6 +783,9 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 err_periph_clk_disable:
 	pm_runtime_disable(dev->dev);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
+err_sys_clk_disable:
+	if (dc->desc->fixed_clksrc)
+		clk_disable_unprepare(dc->hlcdc->sys_clk);
 
 err_destroy_wq:
 	destroy_workqueue(dc->wq);
@@ -785,6 +810,8 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 
 	pm_runtime_disable(dev->dev);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
+	if (dc->desc->fixed_clksrc)
+		clk_disable_unprepare(dc->hlcdc->sys_clk);
 	destroy_workqueue(dc->wq);
 }
 
@@ -841,16 +868,131 @@ int atmel_drm_gem_get_ioctl(struct drm_device *drm, void *data,
 	cma_obj = to_drm_gem_cma_obj(gem_obj);
 	args->offset = (__u64)cma_obj->paddr;
 
-	drm_gem_object_put_unlocked(gem_obj);
+	drm_gem_object_put(gem_obj);
 
 	mutex_unlock(&drm->struct_mutex);
 
 	return 0;
 }
+
+static int gfx2d_ioctl_submit(struct drm_device *dev, void *data,
+			      struct drm_file *file)
+{
+	struct atmel_hlcdc_dc *priv = dev->dev_private;
+	struct gfx2d_gpu *gpu = priv->gpu;
+	struct drm_gfx2d_submit *args = data;
+
+	if (!gpu)
+		return -ENXIO;
+
+	return gfx2d_submit(gpu, (uint32_t *)args->buf, args->size);
+}
+
+static int gfx2d_ioctl_flush(struct drm_device *dev, void *data,
+			     struct drm_file *file)
+{
+	struct atmel_hlcdc_dc *priv = dev->dev_private;
+	struct gfx2d_gpu *gpu = priv->gpu;
+	return gfx2d_flush(gpu);
+}
+
+static int gfx2d_ioctl_gem_addr(struct drm_device *dev, void *data,
+				struct drm_file *file_priv)
+{
+	struct drm_gfx2d_gem_addr *args = data;
+	struct drm_gem_object *obj;
+
+	if (!drm_core_check_feature(dev, DRIVER_GEM))
+		return -ENODEV;
+
+	mutex_lock(&dev->object_name_lock);
+	obj = idr_find(&dev->object_name_idr, (int) args->name);
+	if (!obj) {
+		mutex_unlock(&dev->object_name_lock);
+		return -ENOENT;
+	}
+
+	args->paddr = to_drm_gem_cma_obj(obj)->paddr;
+	args->size = obj->size;
+
+	mutex_unlock(&dev->object_name_lock);
+
+	return 0;
+}
+
 static const struct drm_ioctl_desc atmel_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ATMEL_GEM_GET, atmel_drm_gem_get_ioctl, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(GFX2D_SUBMIT, gfx2d_ioctl_submit, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(GFX2D_FLUSH, gfx2d_ioctl_flush, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(GFX2D_GEM_ADDR, gfx2d_ioctl_gem_addr, DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
+#ifdef CONFIG_DEBUG_FS
+static int atmel_hlcdc_dc_gpu_show(struct drm_device *dev, struct seq_file *m)
+{
+	struct atmel_hlcdc_dc *priv = dev->dev_private;
+	struct gfx2d_gpu *gpu = priv->gpu;
+
+	if (gpu) {
+		gfx2d_show(gpu, m);
+	}
+
+	return 0;
+}
+
+static int show_locked(struct seq_file *m, void *arg)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	int (*show)(struct drm_device *dev, struct seq_file *m) =
+		node->info_ent->data;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	ret = show(dev, m);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
+static struct drm_info_list atmel_hlcdc_dc_debugfs_list[] = {
+	{"gpu", show_locked, 0, atmel_hlcdc_dc_gpu_show},
+};
+
+int atmel_hlcdc_dc_debugfs_init(struct drm_minor *minor)
+{
+	struct drm_device *dev = minor->dev;
+	int ret;
+
+	ret = drm_debugfs_create_files(atmel_hlcdc_dc_debugfs_list,
+				       ARRAY_SIZE(atmel_hlcdc_dc_debugfs_list),
+				       minor->debugfs_root, minor);
+
+	if (ret) {
+		dev_err(dev->dev, "could not install atmel_hlcdc_dc_debugfs_list\n");
+		return ret;
+	}
+
+	return ret;
+}
+#endif
+
+static void load_gpu(struct drm_device *dev)
+{
+	static DEFINE_MUTEX(init_lock);
+	struct atmel_hlcdc_dc *priv = dev->dev_private;
+
+	mutex_lock(&init_lock);
+
+	if (!priv->gpu)
+		priv->gpu = gfx2d_load_gpu(dev);
+
+	mutex_unlock(&init_lock);
+}
 
 static struct drm_driver atmel_hlcdc_dc_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
@@ -868,6 +1010,9 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
 	.dumb_create = drm_gem_cma_dumb_create,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_init       = atmel_hlcdc_dc_debugfs_init,
+#endif
 	.ioctls	= atmel_ioctls,
 	.num_ioctls= ARRAY_SIZE(atmel_ioctls),
 	.fops = &fops,
@@ -878,12 +1023,17 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.minor = 0,
 };
 
-static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
+static int compare_of(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
+static int atmel_hlcdc_dc_bind(struct device *dev)
 {
 	struct drm_device *ddev;
 	int ret;
 
-	ddev = drm_dev_alloc(&atmel_hlcdc_dc_driver, &pdev->dev);
+	ddev = drm_dev_alloc(&atmel_hlcdc_dc_driver, dev);
 	if (IS_ERR(ddev))
 		return PTR_ERR(ddev);
 
@@ -891,23 +1041,61 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_put;
 
+	dev_set_drvdata(dev, ddev);
+
+	ret = component_bind_all(dev, ddev);
+	if (ret < 0)
+		goto out_bind;
+
+	load_gpu(ddev);
+
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
-		goto err_unload;
+		goto out_register;
 
 	drm_fbdev_generic_setup(ddev, 24);
 
-	dev_info(ddev->dev, "DRM device successfully registered\n");
-
 	return 0;
 
-err_unload:
+out_register:
+	component_unbind_all(dev, ddev);
+out_bind:
 	atmel_hlcdc_dc_unload(ddev);
 
 err_put:
 	drm_dev_put(ddev);
 
 	return ret;
+}
+
+static void atmel_hlcdc_dc_unbind(struct device *dev)
+{
+	/* TODO */
+}
+
+static const struct component_master_ops atmel_hlcdc_dc_master_ops = {
+	.bind = atmel_hlcdc_dc_bind,
+	.unbind = atmel_hlcdc_dc_unbind,
+};
+
+static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
+{
+	struct component_match *match = NULL;
+	struct device_node *core_node;
+
+	for_each_compatible_node(core_node, NULL, "microchip,sam9x60-gfx2d") {
+		if (!of_device_is_available(core_node))
+				continue;
+
+		component_match_add(&pdev->dev, &match,
+				    compare_of, core_node);
+	}
+
+	if (!match)
+		return -ENODEV;
+
+	return component_master_add_with_match(&pdev->dev,
+					       &atmel_hlcdc_dc_master_ops, match);
 }
 
 static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
@@ -938,6 +1126,8 @@ static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
 	regmap_read(regmap, ATMEL_HLCDC_IMR, &dc->suspend.imr);
 	regmap_write(regmap, ATMEL_HLCDC_IDR, dc->suspend.imr);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
+	if (dc->desc->fixed_clksrc)
+		clk_disable_unprepare(dc->hlcdc->sys_clk);
 
 	return 0;
 }
@@ -947,6 +1137,8 @@ static int atmel_hlcdc_dc_drm_resume(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct atmel_hlcdc_dc *dc = drm_dev->dev_private;
 
+	if (dc->desc->fixed_clksrc)
+		clk_prepare_enable(dc->hlcdc->sys_clk);
 	clk_prepare_enable(dc->hlcdc->periph_clk);
 	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, dc->suspend.imr);
 
@@ -971,7 +1163,20 @@ static struct platform_driver atmel_hlcdc_dc_platform_driver = {
 		.of_match_table = atmel_hlcdc_dc_of_match,
 	},
 };
-module_platform_driver(atmel_hlcdc_dc_platform_driver);
+
+static int __init atmel_hlcdc_dc_drm_init(void)
+{
+	gfx2d_register();
+	return platform_driver_register(&atmel_hlcdc_dc_platform_driver);
+}
+module_init(atmel_hlcdc_dc_drm_init);
+
+static void __exit atmel_hlcdc_dc_drm_exit(void)
+{
+	gfx2d_unregister();
+	platform_driver_unregister(&atmel_hlcdc_dc_platform_driver);
+}
+module_exit(atmel_hlcdc_dc_drm_exit);
 
 MODULE_AUTHOR("Jean-Jacques Hiblot <jjhiblot@traphandler.com>");
 MODULE_AUTHOR("Boris Brezillon <boris.brezillon@free-electrons.com>");
