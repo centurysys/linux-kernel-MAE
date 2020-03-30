@@ -844,9 +844,13 @@ static struct atmel_pmecc *atmel_pmecc_create(struct platform_device *pdev,
 		return ERR_CAST(pmecc->regs.errloc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, timing_res_idx);
-	pmecc->regs.timing = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pmecc->regs.timing))
-		return ERR_CAST(pmecc->regs.timing);
+	if (!res) {
+		pmecc->regs.timing = NULL;
+	} else {
+		pmecc->regs.timing = devm_ioremap_resource(dev, res);
+		if (IS_ERR(pmecc->regs.timing))
+			return ERR_CAST(pmecc->regs.timing);
+	}
 
 	/* Disable all interrupts before registering the PMECC handler. */
 	writel(0xffffffff, pmecc->regs.base + ATMEL_PMECC_IDR);
