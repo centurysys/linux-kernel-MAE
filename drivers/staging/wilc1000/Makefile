@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0
-obj-$(CONFIG_WILC1000) += wilc1000.o
+ccflags-y += -I$(src)/ -DWILC_ASIC_A0 -DWILC_DEBUGFS
+ccflags-y += -DDISABLE_PWRSAVE_AND_SCAN_DURING_IP
 
-ccflags-y += -DFIRMWARE_1002=\"atmel/wilc1002_firmware.bin\" \
-		-DFIRMWARE_1003=\"atmel/wilc1003_firmware.bin\"
+wilc-objs := wilc_wfi_cfgoperations.o linux_wlan.o linux_mon.o \
+			host_interface.o wilc_wlan_cfg.o wilc_debugfs.o \
+			wilc_wlan.o sysfs.o wilc_bt.o
 
-wilc1000-objs := wilc_wfi_cfgoperations.o wilc_netdev.o wilc_mon.o \
-			wilc_hif.o wilc_wlan_cfg.o wilc_wlan.o
+obj-$(CONFIG_WILC_SDIO) += wilc-sdio.o
+wilc-sdio-objs += $(wilc-objs)
+wilc-sdio-objs += wilc_sdio.o
 
-obj-$(CONFIG_WILC1000_SDIO) += wilc1000-sdio.o
-wilc1000-sdio-objs += wilc_sdio.o
-
-obj-$(CONFIG_WILC1000_SPI) += wilc1000-spi.o
-wilc1000-spi-objs += wilc_spi.o
+obj-$(CONFIG_WILC_SPI) += wilc-spi.o
+wilc-spi-objs += $(wilc-objs)
+wilc-spi-objs += wilc_spi.o 
