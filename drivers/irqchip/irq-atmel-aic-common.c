@@ -169,21 +169,29 @@ void __init aic_common_rtt_irq_fixup(void)
 {
 	struct device_node *np;
 	void __iomem *regs;
+	static const  struct of_device_id aic_rtt_fixup_ids[] = {
+		{ .compatible = "atmel,at91sam9260-rtt", },
+		{ .compatible = "microchip,sam9x60-rtt", },
+	};
+	int i;
 
 	/*
 	 * The at91sam9263 SoC has 2 instances of the RTT block, hence we
 	 * iterate over the DT to find each occurrence.
 	 */
-	for_each_compatible_node(np, NULL, "atmel,at91sam9260-rtt") {
-		regs = of_iomap(np, 0);
-		if (!regs)
-			continue;
+	for (i = 0; i < ARRAY_SIZE(aic_rtt_fixup_ids); i++) {
+		for_each_compatible_node(np, NULL,
+					 aic_rtt_fixup_ids[i].compatible) {
+			regs = of_iomap(np, 0);
+			if (!regs)
+				continue;
 
-		writel(readl(regs + AT91_RTT_MR) &
-		       ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN),
-		       regs + AT91_RTT_MR);
+			writel(readl(regs + AT91_RTT_MR) &
+			       ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN),
+			       regs + AT91_RTT_MR);
 
-		iounmap(regs);
+			iounmap(regs);
+		}
 	}
 }
 
