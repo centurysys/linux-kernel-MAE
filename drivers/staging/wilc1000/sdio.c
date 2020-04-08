@@ -794,7 +794,7 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 		wilc_sdio_read_size(wilc, &tmp);
 
 		cmd.read_write = 0;
-		cmd.function = 1;
+		cmd.function = 0;
 		cmd.raw = 0;
 		cmd.data = 0;
 		if (wilc->chip == WILC_1000) {
@@ -889,6 +889,7 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 				}
 			}
 		}
+		reg = 0;
 		/* select VMM table 0 */
 		if (val & SEL_VMM_TBL0)
 			reg |= BIT(0);
