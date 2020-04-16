@@ -8,12 +8,18 @@
 #define WILC_WLAN_IF_H
 
 #include <linux/netdevice.h>
+#include "debugfs.h"
+#include "fw.h"
 
 /********************************************
  *
- *      Wlan Configuration ID
+ *      Host Interface Defines
  *
  ********************************************/
+
+#define	FW_WILC1000_WIFi		"mchp/wilc1000_wifi_firmware.bin"
+#define	FW_WILC3000_WIFI		"mchp/wilc3000_wifi_firmware.bin"
+#define	FW_WILC3000_BLE		"mchp/wilc3000_ble_firmware.bin"
 
 enum bss_types {
 	WILC_FW_BSS_TYPE_INFRA = 0,
@@ -34,6 +40,10 @@ enum {
 	WILC_FW_PREAMBLE_AUTO = 2,	/* Auto Preamble Selection */
 };
 
+#define DEV_WIFI	0
+#define DEV_BT		1
+#define DEV_MAX		2
+
 enum {
 	WILC_FW_PASSIVE_SCAN = 0,
 	WILC_FW_ACTIVE_SCAN = 1,
@@ -45,12 +55,6 @@ enum {
 	WILC_FW_MAX_FAST_PS = 2,
 	WILC_FW_MIN_PSPOLL_PS = 3,
 	WILC_FW_MAX_PSPOLL_PS = 4
-};
-
-enum chip_ps_states {
-	WILC_CHIP_WAKEDUP = 0,
-	WILC_CHIP_SLEEPING_AUTO = 1,
-	WILC_CHIP_SLEEPING_MANUAL = 2
 };
 
 enum bus_acquire {
@@ -191,6 +195,13 @@ enum wid_type {
 	WID_STR			= 3,
 	WID_BIN_DATA		= 4,
 	WID_BIN			= 5,
+};
+
+enum {
+	ANTENNA1		= 0,
+	ANTENNA2		= 1,
+	DIVERSITY		= 2,
+	NUM_ANT_MODE
 };
 
 struct wid {
@@ -661,6 +672,7 @@ enum {
 
 	WID_LOG_TERMINAL_SWITCH		= 0x00CD,
 	WID_TX_POWER			= 0x00CE,
+	WID_WOWLAN_TRIGGER		= 0X00CF,
 	/*  EMAC Short WID list */
 	/*  RTS Threshold */
 	/*
@@ -750,10 +762,10 @@ enum {
 	WID_REMOVE_KEY			= 0x301E,
 	WID_ASSOC_REQ_INFO		= 0x301F,
 	WID_ASSOC_RES_INFO		= 0x3020,
-	WID_MANUFACTURER		= 0x3026, /*Added for CAPI tool */
-	WID_MODEL_NAME			= 0x3027, /*Added for CAPI tool */
-	WID_MODEL_NUM			= 0x3028, /*Added for CAPI tool */
-	WID_DEVICE_NAME			= 0x3029, /*Added for CAPI tool */
+	WID_MANUFACTURER		= 0x3026, /* Added for CAPI tool */
+	WID_MODEL_NAME			= 0x3027, /* Added for CAPI tool */
+	WID_MODEL_NUM			= 0x3028, /* Added for CAPI tool */
+	WID_DEVICE_NAME			= 0x3029, /* Added for CAPI tool */
 
 	/* NMAC String WID list */
 	WID_SET_OPERATION_MODE		= 0x3079,
@@ -794,9 +806,12 @@ enum {
 
 	WID_SETUP_MULTICAST_FILTER	= 0x408b,
 
+	WID_ANTENNA_SELECTION		= 0x408c,
 	/* Miscellaneous WIDs */
 	WID_ALL				= 0x7FFE,
 	WID_MAX				= 0xFFFF
 };
+
+struct wilc;
 
 #endif
