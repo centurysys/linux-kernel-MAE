@@ -182,7 +182,8 @@ static int init_irq(struct net_device *dev)
 			return -EINVAL;
 		}
 	} else {
-		if (request_irq(wl->dev_irq_num, host_wakeup_isr,
+		if (wl->dev_irq_num &&
+		    request_irq(wl->dev_irq_num, host_wakeup_isr,
 					     IRQF_TRIGGER_FALLING |
 					     IRQF_NO_SUSPEND,
 					     "WILC_IRQ", wl) < 0) {
