@@ -367,7 +367,7 @@
 		pinctrl-0 = <&pinctrl_wilc_default>;
 		irq-gpios = <&pioA PIN_PB25 GPIO_ACTIVE_LOW>;
 		clocks = <&pmc PMC_TYPE_SYSTEM 9>;
-		clock-names = "rtc_clk";
+		clock-names = "rtc";
 		assigned-clocks = <&pmc PMC_TYPE_SYSTEM 9>;
 		assigned-clock-rates = <32768>;
 		status = "okay";
