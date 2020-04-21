@@ -46,10 +46,6 @@ struct dispc_features_scaling {
 	u32 xinc_max;
 };
 
-struct dispc_errata {
-	bool i2000; /* DSS Does Not Support YUV Pixel Data Formats */
-};
-
 enum dispc_vp_bus_type {
 	DISPC_VP_DPI,		/* DPI output */
 	DISPC_VP_OLDI,		/* OLDI (LVDS) output */
@@ -86,8 +82,6 @@ struct dispc_features {
 
 	bool has_writeback;
 	const char *wb_name; /* Should match dt reg names */
-
-	struct dispc_errata errata;
 };
 
 extern const struct dispc_features dispc_k2g_feats;
@@ -96,6 +90,11 @@ extern const struct dispc_features dispc_j721e_feats;
 
 void dispc_set_irqenable(struct dispc_device *dispc, dispc_irq_t mask);
 dispc_irq_t dispc_read_and_clear_irqstatus(struct dispc_device *dispc);
+
+void dispc_ovr_set_plane(struct dispc_device *dispc, u32 hw_plane,
+			 u32 hw_videoport, u32 x, u32 y, u32 layer);
+void dispc_ovr_enable_layer(struct dispc_device *dispc,
+			    u32 hw_videoport, u32 layer, bool enable);
 
 void dispc_vp_prepare(struct dispc_device *dispc, u32 hw_videoport,
 		      const struct drm_crtc_state *state);
