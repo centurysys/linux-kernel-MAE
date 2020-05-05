@@ -125,10 +125,8 @@ static int wilc_bus_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ret = wilc_cfg80211_init(&wilc, dev, WILC_HIF_SPI, &wilc_hif_spi);
-	if (ret) {
-		kfree(spi_priv);
-		return ret;
-	}
+	if (ret)
+		goto free;
 
 	spi_set_drvdata(spi, wilc);
 	wilc->dev = &spi->dev;
@@ -144,11 +142,8 @@ static int wilc_bus_probe(struct spi_device *spi)
 
 	if (!init_power) {
 		ret = wilc_wlan_power_on_sequence(wilc);
-		if (ret) {
-			wilc_netdev_cleanup(wilc);
-			kfree(spi_priv);
-			return ret;
-		}
+		if (ret)
+			goto netdev_cleanup;
 		init_power = 1;
 	}
 
@@ -156,6 +151,11 @@ static int wilc_bus_probe(struct spi_device *spi)
 
 	dev_info(dev, "WILC SPI probe success\n");
 	return 0;
+netdev_cleanup:
+	wilc_netdev_cleanup(wilc);
+free:
+	kfree(spi_priv);
+	return ret;
 }
 
 static int wilc_bus_remove(struct spi_device *spi)

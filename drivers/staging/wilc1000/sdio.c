@@ -163,8 +163,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	ret = wilc_cfg80211_init(&wilc, &func->dev, io_type, &wilc_hif_sdio);
 	if (ret) {
 		dev_err(&func->dev, "Couldn't initialize netdev\n");
-		kfree(sdio_priv);
-		return ret;
+		goto free;
 	}
 	sdio_set_drvdata(func, wilc);
 	wilc->bus_data = sdio_priv;
@@ -184,11 +183,8 @@ static int wilc_sdio_probe(struct sdio_func *func,
 
 	if (!init_power) {
 		ret = wilc_wlan_power_on_sequence(wilc);
-		if (ret) {
-			wilc_netdev_cleanup(wilc);
-			kfree(sdio_priv);
-			return ret;
-		}
+		if (ret)
+			goto netdev_cleanup;
 		init_power = 1;
 	}
 
@@ -196,6 +192,11 @@ static int wilc_sdio_probe(struct sdio_func *func,
 
 	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;
+netdev_cleanup:
+	wilc_netdev_cleanup(wilc);
+free:
+	kfree(sdio_priv);
+	return ret;
 }
 
 static void wilc_sdio_remove(struct sdio_func *func)
