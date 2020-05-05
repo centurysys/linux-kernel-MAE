@@ -462,9 +462,6 @@ void chip_allow_sleep(struct wilc *wilc, int source);
 void chip_wakeup(struct wilc *wilc, int source);
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count);
-int wilc_wlan_power_on_sequence(struct wilc *wilc);
-int wilc_wlan_power_off_sequence(struct wilc *wilc);
-
 void wilc_bt_init(struct wilc *wilc);
 void wilc_bt_deinit(void);
 #if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE

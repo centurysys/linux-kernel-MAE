@@ -149,6 +149,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	int ret, io_type;
 	static bool init_power;
 	struct wilc_sdio *sdio_priv;
+	struct device_node *np;
 	int irq_num;
 
 	sdio_priv = kzalloc(sizeof(*sdio_priv), GFP_KERNEL);
@@ -183,10 +184,29 @@ static int wilc_sdio_probe(struct sdio_func *func,
 		clk_prepare_enable(wilc->rtc_clk);
 	}
 
-	if (!init_power) {
-		ret = wilc_wlan_power_on_sequence(wilc);
+	/*
+	 * Some WILC SDIO setups needs a SD power sequence driver to be able
+	 * to power the WILC devices before reaching this function. For those
+	 * devices the power sequence driver already provides reset-gpios
+	 * and chip_en-gpios.
+	 */
+	np = of_parse_phandle(func->card->host->parent->of_node, "mmc-pwrseq",
+			      0);
+	if (!np) {
+		ret = wilc_of_parse_power_pins(wilc);
 		if (ret)
-			goto dispose_irq;
+			goto disable_rtc_clk;
+	} else {
+		init_power = 1;
+		of_node_put(np);
+	}
+
+
+	if (!init_power) {
+		/* This could be removed and let hif_init do its job. Also
+		 * doing insert/remove module for many times should lead
+		 * to calling this only the 1st time. */
+		wilc_wlan_power(wilc, true);
 		init_power = 1;
 	}
 
@@ -194,6 +214,10 @@ static int wilc_sdio_probe(struct sdio_func *func,
 
 	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;
+
+disable_rtc_clk:
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_disable_unprepare(wilc->rtc_clk);
 dispose_irq:
 	irq_dispose_mapping(wilc->dev_irq_num);
 	wilc_netdev_cleanup(wilc);
@@ -635,9 +659,13 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 static int wilc_sdio_deinit(struct wilc *wilc)
 {
+	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	struct wilc_sdio *sdio_priv = wilc->bus_data;
 
 	sdio_priv->is_init = false;
+
+	pm_runtime_put_sync_autosuspend(mmc_dev(func->card->host));
+	wilc_wlan_power(wilc, false);
 
 	return 0;
 }

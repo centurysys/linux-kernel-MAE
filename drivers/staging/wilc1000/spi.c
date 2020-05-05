@@ -136,14 +136,18 @@ static int wilc_bus_probe(struct spi_device *spi)
 
 	wilc->rtc_clk = devm_clk_get(&spi->dev, "rtc");
 	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER)
+		goto netdev_cleanup;
 		return -EPROBE_DEFER;
-	else if (!IS_ERR(wilc->rtc_clk))
+	} else if (!IS_ERR(wilc->rtc_clk)) {
 		clk_prepare_enable(wilc->rtc_clk);
+	}
+
+	ret = wilc_of_parse_power_pins(wilc);
+	if (ret)
+		goto disable_rtc_clk;
 
 	if (!init_power) {
-		ret = wilc_wlan_power_on_sequence(wilc);
-		if (ret)
-			goto netdev_cleanup;
+		wilc_wlan_power(wilc, true);
 		init_power = 1;
 	}
 
@@ -151,6 +155,10 @@ static int wilc_bus_probe(struct spi_device *spi)
 
 	dev_info(dev, "WILC SPI probe success\n");
 	return 0;
+
+disable_rtc_clk:
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_disable_unprepare(wilc->rtc_clk);
 netdev_cleanup:
 	wilc_netdev_cleanup(wilc);
 free:
@@ -1046,6 +1054,7 @@ static int wilc_spi_deinit(struct wilc *wilc)
 	 * TODO:
 	 */
 	spi_priv->is_init = false;
+	wilc_wlan_power(wilc, false);
 
 	return 0;
 }
