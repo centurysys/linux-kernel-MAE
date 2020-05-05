@@ -654,7 +654,11 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 		func->card->host->ios.clock);
 
 	/* Patch for sdio interrupt latency issue */
-	pm_runtime_get_sync(mmc_dev(func->card->host));
+	ret = pm_runtime_get_sync(mmc_dev(func->card->host));
+	if (ret) {
+		pm_runtime_put_noidle(mmc_dev(func->card->host));
+		return ret;
+	}
 
 	init_waitqueue_head(&sdio_intr_waitqueue);
 	sdio_priv->irq_gpio = (wilc->io_type == WILC_HIF_SDIO_GPIO_IRQ);
