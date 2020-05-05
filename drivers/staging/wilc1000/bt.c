@@ -309,16 +309,16 @@ int wilc_bt_power_down(struct wilc *wilc, int source)
 
 	pr_info("source: %s, current bus status Wifi: %d, BT: %d\n",
 		 (source == DEV_WIFI ? "Wifi" : "BT"),
-		 wilc->power_status[DEV_WIFI],
-		 wilc->power_status[DEV_BT]);
+		 wilc->power.status[DEV_WIFI],
+		 wilc->power.status[DEV_BT]);
 
-	if (wilc->power_status[source] == false) {
+	if (wilc->power.status[source] == false) {
 		pr_err("power down request for already powered down source %s\n",
 		       (source == DEV_WIFI ? "Wifi" : "BT"));
 	} else if (((source == DEV_WIFI) &&
-		  (wilc->power_status[DEV_BT] == true)) ||
+		  (wilc->power.status[DEV_BT] == true)) ||
 		  ((source == DEV_BT) &&
-		  (wilc->power_status[DEV_WIFI] == true))) {
+		  (wilc->power.status[DEV_WIFI] == true))) {
 		pr_warn("Another device is preventing power down. request source is %s\n",
 			(source == DEV_WIFI ? "Wifi" : "BT"));
 	} else {
@@ -328,7 +328,7 @@ int wilc_bt_power_down(struct wilc *wilc, int source)
 			return ret;
 		}
 	}
-	wilc->power_status[source] = false;
+	wilc->power.status[source] = false;
 
 	mutex_unlock(&wilc->cs);
 
@@ -346,16 +346,16 @@ int wilc_bt_power_up(struct wilc *wilc, int source)
 
 	pr_debug("source: %s, current bus status Wifi: %d, BT: %d\n",
 		 (source == DEV_WIFI ? "Wifi" : "BT"),
-		 wilc->power_status[DEV_WIFI],
-		 wilc->power_status[DEV_BT]);
+		 wilc->power.status[DEV_WIFI],
+		 wilc->power.status[DEV_BT]);
 
-	if (wilc->power_status[source] == true) {
+	if (wilc->power.status[source] == true) {
 		pr_err("power up request for already powered up source %s\n",
 			 (source == DEV_WIFI ? "Wifi" : "BT"));
 	} else {
 		/*Bug 215*/
 		/*Avoid overlapping between BT and Wifi intialization*/
-		if (wilc->power_status[DEV_WIFI] == true) {
+		if (wilc->power.status[DEV_WIFI] == true) {
 			while (!wilc->initialized) {
 				msleep(100);
 				if (++count > 20) {
@@ -363,7 +363,7 @@ int wilc_bt_power_up(struct wilc *wilc, int source)
 					break;
 				}
 			}
-		} else if (wilc->power_status[DEV_BT] == true) {
+		} else if (wilc->power.status[DEV_BT] == true) {
 			while (!bt_init_done) {
 				msleep(200);
 				if (++count > 30) {
@@ -380,20 +380,20 @@ int wilc_bt_power_up(struct wilc *wilc, int source)
 		}
 	}
 
-	if ((wilc->power_status[DEV_WIFI] == true) ||
-		   (wilc->power_status[DEV_BT] == true)) {
+	if ((wilc->power.status[DEV_WIFI] == true) ||
+		   (wilc->power.status[DEV_BT] == true)) {
 		pr_info("Device already up. request source is %s\n",
 			 (source == DEV_WIFI ? "Wifi" : "BT"));
 	} else {
 		pr_info("WILC POWER UP\n");
 	}
-	wilc->power_status[source] = true;
+	wilc->power.status[source] = true;
 	mutex_unlock(&wilc->cs);
 
 	if (source == DEV_BT) {
 		/*TicketId1092*/
 		/*If WiFi is off, force BT*/
-		if (wilc->power_status[DEV_WIFI] == false) {
+		if (wilc->power.status[DEV_WIFI] == false) {
 			acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP, DEV_BT);
 
 			/*TicketId1115*/

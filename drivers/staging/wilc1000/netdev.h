@@ -372,6 +372,10 @@ struct wilc_vif {
 	struct cfg80211_bss *bss;
 };
 
+struct wilc_power {
+	u8 status[DEV_MAX];
+};
+
 struct wilc {
 	struct wiphy *wiphy;
 	const struct wilc_hif_func *hif_func;
@@ -433,7 +437,7 @@ struct wilc {
 
 	enum wilc_chip_type chip;
 
-	uint8_t power_status[DEV_MAX];
+	struct wilc_power power;
 	uint8_t keep_awake[DEV_MAX];
 	struct mutex cs;
 	struct workqueue_struct *hif_workqueue;
