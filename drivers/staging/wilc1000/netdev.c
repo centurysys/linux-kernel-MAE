@@ -170,6 +170,9 @@ static int init_irq(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
 
+	if (wl->dev_irq_num <= 0)
+		return 0;
+
 	if (wl->io_type == WILC_HIF_SPI ||
 		wl->io_type == WILC_HIF_SDIO_GPIO_IRQ) {
 		if (request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
@@ -182,8 +185,7 @@ static int init_irq(struct net_device *dev)
 			return -EINVAL;
 		}
 	} else {
-		if (wl->dev_irq_num &&
-		    request_irq(wl->dev_irq_num, host_wakeup_isr,
+		if (request_irq(wl->dev_irq_num, host_wakeup_isr,
 					     IRQF_TRIGGER_FALLING |
 					     IRQF_NO_SUSPEND,
 					     "WILC_IRQ", wl) < 0) {
