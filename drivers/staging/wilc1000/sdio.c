@@ -674,7 +674,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, enable csa...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -683,7 +683,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_set_block_size(wilc, 0, WILC_SDIO_BLOCK_SIZE);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, set func 0 block size...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 	sdio_priv->block_size = WILC_SDIO_BLOCK_SIZE;
 
@@ -699,7 +699,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	if (ret) {
 		dev_err(&func->dev,
 			"Fail cmd 52, set IOE register...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -716,7 +716,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 		if (ret) {
 			dev_err(&func->dev,
 				"Fail cmd 52, get IOR register...\n");
-			return ret;
+			goto pm_runtime_put;
 		}
 		if (cmd.data == WILC_SDIO_CCCR_IO_EN_FUNC1)
 			break;
@@ -724,7 +724,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 
 	if (loop <= 0) {
 		dev_err(&func->dev, "Fail func 1 is not ready...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -733,7 +733,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_set_block_size(wilc, 1, WILC_SDIO_BLOCK_SIZE);
 	if (ret) {
 		dev_err(&func->dev, "Fail set func 1 block size...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -747,7 +747,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, set IEN register...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -761,7 +761,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 			wilc->chip = WILC_1000;
 		} else {
 			dev_err(&func->dev, "Unsupported chipid: %x\n", chipid);
-			return -EINVAL;
+			goto pm_runtime_put;
 		}
 		dev_info(&func->dev, "chipid %08x\n", chipid);
 	}
@@ -769,6 +769,10 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	sdio_priv->is_init = true;
 
 	return 0;
+
+pm_runtime_put:
+	pm_runtime_put_sync_autosuspend(mmc_dev(func->card->host));
+	return ret;
 }
 
 static int wilc_sdio_read_size(struct wilc *wilc, u32 *size)
