@@ -137,10 +137,8 @@ static int wilc_bus_probe(struct spi_device *spi)
 	wilc->rtc_clk = devm_clk_get(&spi->dev, "rtc");
 	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER)
 		goto netdev_cleanup;
-		return -EPROBE_DEFER;
-	} else if (!IS_ERR(wilc->rtc_clk)) {
+	else if (!IS_ERR(wilc->rtc_clk))
 		clk_prepare_enable(wilc->rtc_clk);
-	}
 
 	ret = wilc_of_parse_power_pins(wilc);
 	if (ret)
