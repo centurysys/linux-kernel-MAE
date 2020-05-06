@@ -13,12 +13,6 @@
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
 #include <linux/version.h>
-#if KERNEL_VERSION(3, 13, 0) < LINUX_VERSION_CODE
-#include <linux/gpio/consumer.h>
-#else
-#include <linux/of_gpio.h>
-#include <linux/gpio.h>
-#endif
 
 #include "hif.h"
 #include "wlan.h"
@@ -372,6 +366,16 @@ struct wilc_vif {
 	struct cfg80211_bss *bss;
 };
 
+struct wilc_power_gpios {
+	int reset;
+	int chip_en;
+};
+
+struct wilc_power {
+	struct wilc_power_gpios gpios;
+	u8 status[DEV_MAX];
+};
+
 struct wilc {
 	struct wiphy *wiphy;
 	const struct wilc_hif_func *hif_func;
@@ -433,7 +437,7 @@ struct wilc {
 
 	enum wilc_chip_type chip;
 
-	uint8_t power_status[DEV_MAX];
+	struct wilc_power power;
 	uint8_t keep_awake[DEV_MAX];
 	struct mutex cs;
 	struct workqueue_struct *hif_workqueue;

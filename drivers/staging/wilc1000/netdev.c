@@ -170,6 +170,9 @@ static int init_irq(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
 
+	if (wl->dev_irq_num <= 0)
+		return 0;
+
 	if (wl->io_type == WILC_HIF_SPI ||
 		wl->io_type == WILC_HIF_SDIO_GPIO_IRQ) {
 		if (request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
@@ -182,8 +185,7 @@ static int init_irq(struct net_device *dev)
 			return -EINVAL;
 		}
 	} else {
-		if (wl->dev_irq_num &&
-		    request_irq(wl->dev_irq_num, host_wakeup_isr,
+		if (request_irq(wl->dev_irq_num, host_wakeup_isr,
 					     IRQF_TRIGGER_FALLING |
 					     IRQF_NO_SUSPEND,
 					     "WILC_IRQ", wl) < 0) {
@@ -1343,154 +1345,6 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	synchronize_srcu(&wl->srcu);
 
 	return vif;
-}
-
-#if KERNEL_VERSION(3, 13, 0) < LINUX_VERSION_CODE
-static int wilc_wlan_power(struct wilc *wilc, int power)
-{
-	struct gpio_desc *gpio_reset;
-	struct gpio_desc *gpio_chip_en;
-	int ret = 0;
-
-	pr_info("wifi_pm : %d\n", power);
-
-	gpio_reset = gpiod_get(wilc->dt_dev, "reset", GPIOD_ASIS);
-	if (IS_ERR(gpio_reset)) {
-		dev_warn(wilc->dev, "failed to get Reset GPIO, try default\r\n");
-		gpio_reset = gpio_to_desc(GPIO_NUM_RESET);
-		if (!gpio_reset) {
-			dev_warn(wilc->dev,
-				 "failed to get default Reset GPIO\r\n");
-			return -EIO;
-		}
-	} else {
-		dev_info(wilc->dev, "succesfully got gpio_reset\r\n");
-	}
-
-	gpio_chip_en = gpiod_get(wilc->dt_dev, "chip_en", GPIOD_ASIS);
-	if (IS_ERR(gpio_chip_en)) {
-		gpio_chip_en = gpio_to_desc(GPIO_NUM_CHIP_EN);
-		if (!gpio_chip_en) {
-			dev_warn(wilc->dev,
-				 "failed to get default chip_en GPIO\r\n");
-			gpiod_put(gpio_reset);
-			return -EIO;
-		}
-	} else {
-		dev_info(wilc->dev, "succesfully got gpio_chip_en\r\n");
-	}
-
-	if (power) {
-		ret = gpiod_direction_output(gpio_chip_en, 1);
-		if (ret < 0) {
-			dev_warn(wilc->dev,
-				 "failed to set chip_en GPIO direction\r\n");
-			goto out;
-			ret = -EIO;
-		}
-		mdelay(5);
-		ret = gpiod_direction_output(gpio_reset, 1);
-		if (ret) {
-			dev_warn(wilc->dev,
-				 "failed to set reset GPIO direction\r\n");
-			goto out;
-			ret = -EIO;
-		}
-	} else {
-		ret = gpiod_direction_output(gpio_reset, 0);
-		if (ret) {
-			dev_warn(wilc->dev,
-				 "failed to set chip_en GPIO direction\r\n");
-			goto out;
-			ret = -EIO;
-		}
-		ret = gpiod_direction_output(gpio_chip_en, 0);
-		if (ret) {
-			dev_warn(wilc->dev,
-				 "failed to set reset GPIO direction\r\n");
-			goto out;
-			ret = -EIO;
-		}
-	}
-
-out:
-	gpiod_put(gpio_chip_en);
-	gpiod_put(gpio_reset);
-
-	return ret;
-}
-#else
-static int wilc_wlan_power(struct wilc *wilc, int power)
-{
-	int gpio_reset;
-	int gpio_chip_en;
-	struct device_node *of_node = wilc->dt_dev->of_node;
-
-	pr_info("wifi_pm : %d\n", power);
-
-	gpio_reset = of_get_named_gpio_flags(of_node, "reset-gpios", 0, NULL);
-
-	if (gpio_reset < 0) {
-		gpio_reset = GPIO_NUM_RESET;
-		pr_info("wifi_pm : load default reset GPIO %d\n", gpio_reset);
-	}
-
-	gpio_chip_en = of_get_named_gpio_flags(of_node, "chip_en-gpios", 0,
-					       NULL);
-
-	if (gpio_chip_en < 0) {
-		gpio_chip_en = GPIO_NUM_CHIP_EN;
-		pr_info("wifi_pm : load default chip_en GPIO %d\n",
-			gpio_chip_en);
-	}
-
-	if (gpio_request(gpio_chip_en, "CHIP_EN") == 0 &&
-	    gpio_request(gpio_reset, "RESET") == 0) {
-		gpio_direction_output(gpio_chip_en, 0);
-		gpio_direction_output(gpio_reset, 0);
-		if (power) {
-			gpio_set_value(gpio_chip_en, 1);
-			mdelay(5);
-			gpio_set_value(gpio_reset, 1);
-		} else {
-			gpio_set_value(gpio_reset, 0);
-			gpio_set_value(gpio_chip_en, 0);
-		}
-		gpio_free(gpio_chip_en);
-		gpio_free(gpio_reset);
-	} else {
-		dev_err(wilc->dev,
-			"Error requesting GPIOs for CHIP_EN and RESET");
-		return -EIO;
-	}
-
-	return 0;
-}
-#endif
-
-int wilc_wlan_power_on_sequence(struct wilc *wilc)
-{
-	int ret;
-
-	ret = wilc_wlan_power(wilc, 0);
-	if (ret)
-		return ret;
-	ret = wilc_wlan_power(wilc, 1);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-int wilc_wlan_power_off_sequence(struct wilc *wilc)
-{
-	int ret;
-
-	ret = wilc_wlan_power(wilc, 0);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 MODULE_LICENSE("GPL");

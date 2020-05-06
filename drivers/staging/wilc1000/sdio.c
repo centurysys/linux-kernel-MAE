@@ -149,6 +149,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	int ret, io_type;
 	static bool init_power;
 	struct wilc_sdio *sdio_priv;
+	struct device_node *np;
 	int irq_num;
 
 	sdio_priv = kzalloc(sizeof(*sdio_priv), GFP_KERNEL);
@@ -163,8 +164,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	ret = wilc_cfg80211_init(&wilc, &func->dev, io_type, &wilc_hif_sdio);
 	if (ret) {
 		dev_err(&func->dev, "Couldn't initialize netdev\n");
-		kfree(sdio_priv);
-		return ret;
+		goto free;
 	}
 	sdio_set_drvdata(func, wilc);
 	wilc->bus_data = sdio_priv;
@@ -177,18 +177,36 @@ static int wilc_sdio_probe(struct sdio_func *func,
 		wilc->dev_irq_num = irq_num;
 
 	wilc->rtc_clk = devm_clk_get(&func->card->dev, "rtc");
-	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	else if (!IS_ERR(wilc->rtc_clk))
+	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto dispose_irq;
+	} else if (!IS_ERR(wilc->rtc_clk)) {
 		clk_prepare_enable(wilc->rtc_clk);
+	}
+
+	/*
+	 * Some WILC SDIO setups needs a SD power sequence driver to be able
+	 * to power the WILC devices before reaching this function. For those
+	 * devices the power sequence driver already provides reset-gpios
+	 * and chip_en-gpios.
+	 */
+	np = of_parse_phandle(func->card->host->parent->of_node, "mmc-pwrseq",
+			      0);
+	if (!np) {
+		ret = wilc_of_parse_power_pins(wilc);
+		if (ret)
+			goto disable_rtc_clk;
+	} else {
+		init_power = 1;
+		of_node_put(np);
+	}
+
 
 	if (!init_power) {
-		ret = wilc_wlan_power_on_sequence(wilc);
-		if (ret) {
-			wilc_netdev_cleanup(wilc);
-			kfree(sdio_priv);
-			return ret;
-		}
+		/* This could be removed and let hif_init do its job. Also
+		 * doing insert/remove module for many times should lead
+		 * to calling this only the 1st time. */
+		wilc_wlan_power(wilc, true);
 		init_power = 1;
 	}
 
@@ -196,6 +214,16 @@ static int wilc_sdio_probe(struct sdio_func *func,
 
 	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;
+
+disable_rtc_clk:
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_disable_unprepare(wilc->rtc_clk);
+dispose_irq:
+	irq_dispose_mapping(wilc->dev_irq_num);
+	wilc_netdev_cleanup(wilc);
+free:
+	kfree(sdio_priv);
+	return ret;
 }
 
 static void wilc_sdio_remove(struct sdio_func *func)
@@ -631,9 +659,13 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 static int wilc_sdio_deinit(struct wilc *wilc)
 {
+	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	struct wilc_sdio *sdio_priv = wilc->bus_data;
 
 	sdio_priv->is_init = false;
+
+	pm_runtime_put_sync_autosuspend(mmc_dev(func->card->host));
+	wilc_wlan_power(wilc, false);
 
 	return 0;
 }
@@ -650,7 +682,11 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 		func->card->host->ios.clock);
 
 	/* Patch for sdio interrupt latency issue */
-	pm_runtime_get_sync(mmc_dev(func->card->host));
+	ret = pm_runtime_get_sync(mmc_dev(func->card->host));
+	if (ret) {
+		pm_runtime_put_noidle(mmc_dev(func->card->host));
+		return ret;
+	}
 
 	init_waitqueue_head(&sdio_intr_waitqueue);
 	sdio_priv->irq_gpio = (wilc->io_type == WILC_HIF_SDIO_GPIO_IRQ);
@@ -666,7 +702,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, enable csa...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -675,7 +711,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_set_block_size(wilc, 0, WILC_SDIO_BLOCK_SIZE);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, set func 0 block size...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 	sdio_priv->block_size = WILC_SDIO_BLOCK_SIZE;
 
@@ -691,7 +727,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	if (ret) {
 		dev_err(&func->dev,
 			"Fail cmd 52, set IOE register...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -708,7 +744,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 		if (ret) {
 			dev_err(&func->dev,
 				"Fail cmd 52, get IOR register...\n");
-			return ret;
+			goto pm_runtime_put;
 		}
 		if (cmd.data == WILC_SDIO_CCCR_IO_EN_FUNC1)
 			break;
@@ -716,7 +752,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 
 	if (loop <= 0) {
 		dev_err(&func->dev, "Fail func 1 is not ready...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -725,7 +761,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_set_block_size(wilc, 1, WILC_SDIO_BLOCK_SIZE);
 	if (ret) {
 		dev_err(&func->dev, "Fail set func 1 block size...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -739,7 +775,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, set IEN register...\n");
-		return ret;
+		goto pm_runtime_put;
 	}
 
 	/**
@@ -753,7 +789,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 			wilc->chip = WILC_1000;
 		} else {
 			dev_err(&func->dev, "Unsupported chipid: %x\n", chipid);
-			return -EINVAL;
+			goto pm_runtime_put;
 		}
 		dev_info(&func->dev, "chipid %08x\n", chipid);
 	}
@@ -761,6 +797,10 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	sdio_priv->is_init = true;
 
 	return 0;
+
+pm_runtime_put:
+	pm_runtime_put_sync_autosuspend(mmc_dev(func->card->host));
+	return ret;
 }
 
 static int wilc_sdio_read_size(struct wilc *wilc, u32 *size)
