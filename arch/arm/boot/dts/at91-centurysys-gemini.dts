@@ -455,9 +455,21 @@
 					bias-disable;
 				};
 
+				pinctrl_flx3_default: flx3_default {
+					pinmux = <PIN_PC20__FLEXCOM3_IO0>,
+						 <PIN_PC19__FLEXCOM3_IO1>,
+						 <PIN_PC18__FLEXCOM3_IO2>,
+						 <PIN_PC21__FLEXCOM3_IO3>,
+						 <PIN_PC22__FLEXCOM3_IO4>;
+					bias-disable;
+				};
+
 				pinctrl_flx4_default: flx4_default {
-					pinmux = <PIN_PD12__FLEXCOM4_IO0>,
-						 <PIN_PD13__FLEXCOM4_IO1>;
+					pinmux = <PIN_PC28__FLEXCOM4_IO0>,
+						 <PIN_PC29__FLEXCOM4_IO1>,
+						 <PIN_PC30__FLEXCOM4_IO2>,
+						 <PIN_PC31__FLEXCOM4_IO3>,
+						 <PIN_PD0__FLEXCOM4_IO4>;
 					bias-disable;
 				};
 
@@ -568,6 +580,61 @@
 					pinmux = <PIN_PB10__GPIO>;
 					bias-disable;
 				};
+
+				gpio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					gpio@pb1 {
+						label = "DIPSW0";
+						reg = <33>;
+					};
+
+					gpio@pb2 {
+					label = "DIPSW1";
+						reg = <34>;
+					};
+
+					gpio@pb3 {
+						label = "DIPSW2";
+						reg = <35>;
+					};
+
+					gpio@pb4 {
+						label = "DIPSW3";
+						reg = <36>;
+					};
+
+					gpio@pc26 {
+						label = "Mobile_READY_N";
+						reg = <90>;
+					};
+
+					gpio@pc27 {
+						label = "Mobile_WAKEUP_N";
+						reg = <91>;
+					};
+
+					gpio@pd6 {
+						label = "DI0";
+						reg = <102>;
+					};
+
+					gpio@pd7 {
+						label = "DI1";
+						reg = <103>;
+					};
+
+					gpio@pd8 {
+						label = "DI2";
+						reg = <104>;
+					};
+
+					gpio@pd9 {
+						label = "DI3";
+						reg = <105>;
+					};
+				};
 			};
 		};
 	};
@@ -642,6 +709,26 @@
 		mobile_sleep {
 			label = "Mobile_SLEEP";
 			gpios = <&pioA PIN_PC25 GPIO_ACTIVE_HIGH>;
+		};
+
+		do_0 {
+			label = "DO0";
+			gpios = <&pioA PIN_PD10 GPIO_ACTIVE_LOW>;
+		};
+
+		do_1 {
+			label = "DO1";
+			gpios = <&pioA PIN_PD11 GPIO_ACTIVE_LOW>;
+		};
+
+		msp430_reset {
+			label = "MSP430_RST";
+			gpios = <&pioA PIN_PD12 GPIO_ACTIVE_HIGH>;
+		};
+
+		msp430_test {
+			label = "MSP430_TEST";
+			gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
