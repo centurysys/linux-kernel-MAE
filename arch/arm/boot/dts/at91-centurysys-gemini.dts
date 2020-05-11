@@ -33,9 +33,9 @@
 	ahb {
 		usb1: ohci@400000 {
 			num-ports = <3>;
-			atmel,vbus-gpio = <0
-					   &pioA PIN_PA31 GPIO_ACTIVE_HIGH
+			atmel,vbus-gpio = <&pioA PIN_PA31 GPIO_ACTIVE_HIGH
 					   &pioA PIN_PC15 GPIO_ACTIVE_HIGH
+					   0
 					  >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb_default>;
@@ -577,7 +577,8 @@
 				};
 
 				pinctrl_usb_default: usb_default {
-					pinmux = <PIN_PB10__GPIO>;
+					pinmux = <PIN_PA31__GPIO>,
+						 <PIN_PC15__GPIO>;
 					bias-disable;
 				};
 
