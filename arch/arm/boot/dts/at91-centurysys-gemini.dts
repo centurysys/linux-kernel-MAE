@@ -307,7 +307,6 @@
 			/* XIO SPI */
 			flx4: flexcom@fc018000 {
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
-				status = "okay";
 
 				spi2: spi@600 {
 					compatible = "atmel,at91rm9200-spi";
@@ -661,11 +660,11 @@
 		};
 	};
 
-	leds {
+	leds: leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_led_gpio_default>;
-		status = "okay"; /* conflict with pwm0 */
+		status = "okay";
 
 		led_g1 {
 			label = "MobileLED_G1";

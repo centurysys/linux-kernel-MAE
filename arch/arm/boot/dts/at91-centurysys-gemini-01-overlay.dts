@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-01-overlay.dtso - Device Tree Overlay file (xio_id: 0x01)
+ *                                            for Century Systems Gemini board
+ *
+ *  Copyright (C) 2020 Century Systems
+ *                     Takeyoshi Kikuchi <kikuchi@centurysys.co.jp>
+ */
+
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/regulator/active-semi,8945a-regulator.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+
+	fgagment@0 {
+		target = <&spi2>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			m25p80@0 {
+				compatible = "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <50000000>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&flx4>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* WLAN/BLE Option (xio_id: 1) */
+			tca9538: tca9538@70 {
+				compatible = "nxp,pca9538";
+				reg = <0x70>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#gpio-cells = <2>;
+
+				gpio5 {
+					label = "USB_VBUS";
+					reg = <5>;
+				};
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&leds>;
+		__overlay__ {
+			tca953x_wlan_red {
+				label = "WLAN_R";
+				gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
+			};
+
+			tca953x_wlan_green {
+				label = "WLAN_G";
+				gpios = <&tca9538 1 GPIO_ACTIVE_LOW>;
+			};
+
+			tca953x_ulp_wakeup {
+				label = "ULP_WAKEUP";
+				gpios = <&tca9538 6 GPIO_ACTIVE_HIGH>;
+			};
+
+			tca953x_WL_RESET_N {
+				label = "WL_RESET";
+				gpios = <&tca9538 7 GPIO_ACTIVE_LOW>;
+				linux,default-trigger = "oneshot";
+				led-pattern = <500 100>;
+			};
+		};
+	};
+};
