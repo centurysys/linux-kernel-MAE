@@ -769,6 +769,7 @@ static int wilc_spi_special_cmd(struct wilc *wilc, u8 cmd)
 		memset(c->u.simple_cmd.addr, 0xFF, 3);
 
 	cmd_len = offsetof(struct wilc_spi_cmd, u.simple_cmd.crc);
+	resp_len = sizeof(*r);
 
 	if (!spi_priv->crc_off) {
 		c->u.simple_cmd.crc[0] = wilc_get_crc7(wb, cmd_len);
