@@ -416,7 +416,7 @@
 				 * state when the pin is not muxed to the adc.
 				 */
 				pinctrl_adc_default: adc_default {
-					pinmux = <PIN_PD23__GPIO>;
+					pinmux = <PIN_PD19__GPIO>;
 					bias-disable;
 				};
 
