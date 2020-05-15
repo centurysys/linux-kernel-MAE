@@ -251,7 +251,7 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 			status = gpio_request(gpio, gc->bgpio_names[reg]);
 
 			if (status == 0) {
-				status = gpio_export(gpio, true);
+				status = gpio_export(gpio, false);
 
 				if (status < 0)
 					gpio_free(gpio);
