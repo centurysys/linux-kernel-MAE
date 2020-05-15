@@ -289,6 +289,11 @@
 					reg = <0>;
 					atmel,wakeup-type = "low";
 				};
+
+				opt_switch@4 {
+					reg = <6>;
+					atmel,wakeup-type = "low";
+				};
 			};
 
 			watchdog@f8048040 {
@@ -659,6 +664,11 @@
 				pio@bu3 {
 					label = "BU_DI3";
 					reg = <3>;
+				};
+
+				pio@bu4 {
+					label = "BU_SW_OPT";
+					reg = <4>;
 				};
 
 				pio@bu5 {
