@@ -636,6 +636,46 @@
 					};
 				};
 			};
+
+			secumod@fc040000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pio@bu0 {
+					label = "BU_DI0";
+					reg = <0>;
+				};
+
+				pio@bu1 {
+					label = "BU_DI1";
+					reg = <1>;
+				};
+
+				pio@bu2 {
+					label = "BU_DI2";
+					reg = <2>;
+				};
+
+				pio@bu3 {
+					label = "BU_DI3";
+					reg = <3>;
+				};
+
+				pio@bu5 {
+					label = "BU_MSP430_IRQ";
+					reg = <5>;
+				};
+
+				pio@bu6 {
+					label = "BU_EXT_RTC_ALARM";
+					reg = <6>;
+				};
+
+				pio@bu7 {
+					label = "BU_XIO_WAKEUP";
+					reg = <7>;
+				};
+			};
 		};
 	};
 
