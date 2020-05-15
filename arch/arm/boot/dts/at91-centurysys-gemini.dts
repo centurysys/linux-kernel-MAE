@@ -260,6 +260,10 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx0_default>;
 					atmel,fifo-size = <32>;
+					dtr-gpios = <&pioA PIN_PC10 GPIO_ACTIVE_LOW>;
+					dsr-gpios = <&pioA PIN_PC11 GPIO_ACTIVE_LOW>;
+					dcd-gpios = <&pioA PIN_PC12 GPIO_ACTIVE_LOW>;
+					rng-gpios = <&pioA PIN_PC13 GPIO_ACTIVE_LOW>;
 					status = "okay";
 				};
 			};
@@ -277,6 +281,8 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx2_default>;
 					atmel,fifo-size = <32>;
+					linux,rs485-enabled-at-boot-time;
+					dtr-gpios = <&pioA PIN_PD29 GPIO_ACTIVE_LOW>;
 					status = "okay";
 				};
 			};
@@ -447,14 +453,18 @@
 					pinmux = <PIN_PB28__FLEXCOM0_IO0>,
 						 <PIN_PB29__FLEXCOM0_IO1>,
 						 <PIN_PB31__FLEXCOM0_IO3>,
-						 <PIN_PC0__FLEXCOM0_IO4>;
+						 <PIN_PC0__FLEXCOM0_IO4>,
+						 <PIN_PC10__GPIO>,
+						 <PIN_PC11__GPIO>,
+						 <PIN_PC12__GPIO>,
+						 <PIN_PC13__GPIO>;
 					bias-disable;
 				};
 
 				pinctrl_flx2_default: flx2_default {
 					pinmux = <PIN_PD26__FLEXCOM2_IO0>,
 						 <PIN_PD27__FLEXCOM2_IO1>,
-						 <PIN_PD29__FLEXCOM2_IO3>,
+						 <PIN_PD29__GPIO>,
 						 <PIN_PD30__FLEXCOM2_IO4>;
 					bias-disable;
 				};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * at91-centurysys-gemini-01-overlay.dtso - Device Tree Overlay file (xio_id: 0x01)
- *                                            for Century Systems Gemini board
+ * at91-centurysys-gemini-01-overlay.dts - Device Tree Overlay file (xio_id: 0x01)
+ *                                           for Century Systems Gemini board
  *
  *  Copyright (C) 2020 Century Systems
  *                     Takeyoshi Kikuchi <kikuchi@centurysys.co.jp>
