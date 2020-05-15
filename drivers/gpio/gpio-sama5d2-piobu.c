@@ -16,6 +16,10 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#endif
 
 #define PIOBU_NUM 8
 #define PIOBU_REG_SIZE 4
@@ -184,6 +188,10 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 {
 	struct sama5d2_piobu *piobu;
 	int ret, i;
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	struct device_node *np = pdev->dev.of_node, *child;
+	struct gpio_chip *gc;
+#endif
 
 	piobu = devm_kzalloc(&pdev->dev, sizeof(*piobu), GFP_KERNEL);
 	if (!piobu)
@@ -223,6 +231,34 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	gc = &piobu->chip;
+	gc->bgpio_names = devm_kzalloc(&pdev->dev, sizeof(char *) * gc->ngpio, GFP_KERNEL);
+
+	for_each_child_of_node(np, child) {
+		const char *name;
+		u32 reg;
+		int ret, status, gpio;
+
+		name = of_get_property(child, "label", NULL);
+		ret = of_property_read_u32(child, "reg", &reg);
+
+		if (name && ret == 0 && reg >= 0 && reg < gc->ngpio) {
+			gc->bgpio_names[reg] = name;
+
+			gpio = gc->base + reg;
+			status = gpio_request(gpio, gc->bgpio_names[reg]);
+
+			if (status == 0) {
+				status = gpio_export(gpio, true);
+
+				if (status < 0)
+					gpio_free(gpio);
+			}
+		}
+	}
+#endif
 
 	return 0;
 }
