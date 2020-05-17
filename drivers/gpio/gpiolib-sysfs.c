@@ -151,10 +151,58 @@ static ssize_t value_store(struct device *dev,
 }
 static DEVICE_ATTR_PREALLOC(value, S_IWUSR | S_IRUGO, value_show, value_store);
 
+#ifdef CONFIG_GPIO_COUNTER
+static ssize_t counter_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	ssize_t status;
+
+	mutex_lock(&data->mutex);
+
+	status = sprintf(buf, "%lu\n", desc->counter);
+
+	mutex_unlock(&data->mutex);
+
+	return status;
+}
+
+static ssize_t counter_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	ssize_t status;
+
+	mutex_lock(&data->mutex);
+
+	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
+		status = -EPERM;
+	} else {
+		long counter;
+
+		status = kstrtol(buf, 0, &counter);
+		if (status == 0) {
+			desc->counter = counter;
+			status = size;
+		}
+	}
+
+	mutex_unlock(&data->mutex);
+
+	return status;
+}
+static DEVICE_ATTR_RW(counter);
+#endif /* CONFIG_GPIO_COUNTER */
+
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
 	struct gpiod_data *data = priv;
 
+#ifdef CONFIG_GPIO_COUNTER
+	data->desc->counter++;
+#endif
 	sysfs_notify_dirent(data->value_kn);
 
 	return IRQ_HANDLED;
@@ -379,6 +427,11 @@ static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 			mode = 0;
 		if (!show_direction && test_bit(FLAG_IS_OUT, &desc->flags))
 			mode = 0;
+#ifdef CONFIG_GPIO_COUNTER
+	} else if (attr == &dev_attr_counter.attr) {
+		if (gpiod_to_irq(desc) < 0)
+			mode = 0;
+#endif
 	}
 
 	return mode;
@@ -389,6 +442,9 @@ static struct attribute *gpio_attrs[] = {
 	&dev_attr_edge.attr,
 	&dev_attr_value.attr,
 	&dev_attr_active_low.attr,
+#ifdef CONFIG_GPIO_COUNTER
+	&dev_attr_counter.attr,
+#endif
 	NULL,
 };
 

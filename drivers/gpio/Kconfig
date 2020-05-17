@@ -69,6 +69,12 @@ config GPIO_SYSFS
 	  ioctl() operations instead. The character device is always
 	  available.
 
+config GPIO_COUNTER
+	bool "GPIO counter support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a counter node on sysfs interface.
+
 config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
 	tristate
