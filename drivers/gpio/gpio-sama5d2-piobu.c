@@ -20,6 +20,9 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #endif
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+#include <linux/power/at91-sama5d2_shdwc.h>
+#endif
 
 #define PIOBU_NUM 8
 #define PIOBU_REG_SIZE 4
@@ -184,6 +187,34 @@ static void sama5d2_piobu_set(struct gpio_chip *chip, unsigned int pin,
 	sama5d2_piobu_write_value(chip, pin, PIOBU_SOD, value);
 }
 
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+/**
+ * sama5d2_piobu_get_wakeup() - gpio get wakeup
+ */
+static unsigned int sama5d2_piobu_get_wakeup(struct gpio_chip *chip, unsigned int pin)
+{
+	unsigned int type = IRQ_TYPE_NONE;
+	int ret;
+
+	ret = at91_shdwc_get_wakeup(pin, &type);
+
+	return type;
+}
+
+/**
+ * sama5d2_piobu_set_wakeup() - gpio set wakeup
+ */
+static int sama5d2_piobu_set_wakeup(struct gpio_chip *chip, unsigned int pin,
+				    unsigned int config)
+{
+	int ret;
+
+	ret = at91_shdwc_set_wakeup(pin, config);
+
+	return ret;
+}
+#endif
+
 static int sama5d2_piobu_probe(struct platform_device *pdev)
 {
 	struct sama5d2_piobu *piobu;
@@ -201,15 +232,19 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 	piobu->chip.label = pdev->name;
 	piobu->chip.parent = &pdev->dev;
 	piobu->chip.of_node = pdev->dev.of_node;
-	piobu->chip.owner = THIS_MODULE,
-	piobu->chip.get_direction = sama5d2_piobu_get_direction,
-	piobu->chip.direction_input = sama5d2_piobu_direction_input,
-	piobu->chip.direction_output = sama5d2_piobu_direction_output,
-	piobu->chip.get = sama5d2_piobu_get,
-	piobu->chip.set = sama5d2_piobu_set,
-	piobu->chip.base = -1,
-	piobu->chip.ngpio = PIOBU_NUM,
-	piobu->chip.can_sleep = 0,
+	piobu->chip.owner = THIS_MODULE;
+	piobu->chip.get_direction = sama5d2_piobu_get_direction;
+	piobu->chip.direction_input = sama5d2_piobu_direction_input;
+	piobu->chip.direction_output = sama5d2_piobu_direction_output;
+	piobu->chip.get = sama5d2_piobu_get;
+	piobu->chip.set = sama5d2_piobu_set;
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+	piobu->chip.get_wakeup = sama5d2_piobu_get_wakeup;
+	piobu->chip.set_wakeup = sama5d2_piobu_set_wakeup;
+#endif
+	piobu->chip.base = -1;
+	piobu->chip.ngpio = PIOBU_NUM;
+	piobu->chip.can_sleep = 0;
 
 	piobu->regmap = syscon_node_to_regmap(pdev->dev.of_node);
 	if (IS_ERR(piobu->regmap)) {

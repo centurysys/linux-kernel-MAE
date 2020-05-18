@@ -75,6 +75,12 @@ config GPIO_COUNTER
 	help
 	  Say Y here to add a counter node on sysfs interface.
 
+config GPIO_WAKEUP_POLARITY
+	bool "GPIO wakeup support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a wakeup node on sysfs interface.
+
 config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
 	tristate
