@@ -369,6 +369,13 @@ struct gpio_chip {
 	int			(*set_config)(struct gpio_chip *chip,
 					      unsigned offset,
 					      unsigned long config);
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+	int			(*set_wakeup)(struct gpio_chip *chip,
+					      unsigned offset,
+					      unsigned config);
+	unsigned		(*get_wakeup)(struct gpio_chip *chip,
+					      unsigned offset);
+#endif
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
 
