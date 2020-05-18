@@ -288,13 +288,8 @@
 			};
 
 			shdwc@f8048010 {
-				atmel,shdwc-debouncer = <976>;
+				debounce-delay-us = <976>;
 				atmel,wakeup-rtc-timer;
-
-				input@0 {
-					reg = <0>;
-					atmel,wakeup-type = "low";
-				};
 
 				opt_switch@4 {
 					reg = <6>;
@@ -674,11 +669,6 @@
 				pio@bu3 {
 					label = "BU_DI3";
 					reg = <3>;
-				};
-
-				pio@bu4 {
-					label = "BU_SW_OPT";
-					reg = <4>;
 				};
 
 				pio@bu5 {
