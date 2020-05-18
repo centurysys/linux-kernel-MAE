@@ -26,6 +26,9 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
+#ifdef CONFIG_POWER_RESET_AT91_SAMA5D2_SHDWC_CONFIGURABLE
+#include <linux/irq.h>
+#endif
 
 #include <soc/at91/at91sam9_ddrsdr.h>
 
@@ -276,6 +279,74 @@ static const struct reg_config sam9x60_reg_config = {
 		.mckr		= 0x28,
 	},
 };
+
+#ifdef CONFIG_POWER_RESET_AT91_SAMA5D2_SHDWC_CONFIGURABLE
+int at91_shdwc_get_wakeup(unsigned int pin, unsigned *type)
+{
+	u32 reg, mask_pol, mask_enable;
+
+	if (!at91_shdwc || !type) {
+		return -EFAULT;
+	}
+
+	if (pin > 7) {
+		return -EINVAL;
+	}
+
+	mask_pol = 1 << (pin + AT91_SHDW_WKUPT_SHIFT + 2);
+	mask_enable = 1 << (pin + 2);
+
+	reg = readl(at91_shdwc->shdwc_base + AT91_SHDW_WUIR);
+
+	if (!(reg & mask_enable))
+		*type = IRQ_TYPE_NONE;
+	else if (reg & mask_pol)
+		*type = IRQ_TYPE_EDGE_RISING;
+	else
+		*type = IRQ_TYPE_EDGE_FALLING;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(at91_shdwc_get_wakeup);
+
+int at91_shdwc_set_wakeup(unsigned int pin, unsigned type)
+{
+	u32 reg, mask_pol, mask_enable;
+
+	if (!at91_shdwc) {
+		return -EFAULT;
+	}
+
+	if (pin > 7) {
+		return -EINVAL;
+	}
+
+	mask_pol = 1 << (pin + AT91_SHDW_WKUPT_SHIFT + 2);
+	mask_enable = 1 << (pin + 2);
+
+	reg = readl(at91_shdwc->shdwc_base + AT91_SHDW_WUIR);
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+		reg |= mask_pol | mask_enable;
+		break;
+
+	case IRQ_TYPE_EDGE_FALLING:
+		reg &= ~mask_pol;
+		reg |= mask_enable;
+		break;
+
+	default:
+		reg &= ~mask_enable;
+		break;
+	}
+
+	writel(reg, at91_shdwc->shdwc_base + AT91_SHDW_WUIR);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(at91_shdwc_set_wakeup);
+#endif
 
 static const struct of_device_id at91_shdwc_of_match[] = {
 	{

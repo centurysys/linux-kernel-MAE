@@ -39,6 +39,12 @@ config POWER_RESET_AT91_SAMA5D2_SHDWC
 	  This driver supports the alternate shutdown controller for some Atmel
 	  SAMA5 SoCs. It is present for example on SAMA5D2 SoC.
 
+config POWER_RESET_AT91_SAMA5D2_SHDWC_CONFIGURABLE
+	bool "Configurable shutdown controller Wakeup inputs"
+	depends on POWER_RESET_AT91_SAMA5D2_SHDWC
+	select GPIO_WAKEUP_POLARITY
+	default y
+
 config POWER_RESET_AXXIA
 	bool "LSI Axxia reset driver"
 	depends on ARCH_AXXIA
