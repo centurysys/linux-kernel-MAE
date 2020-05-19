@@ -326,6 +326,7 @@ static int dsk324sr_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, rtc);
 
 	rtc->uie_unsupported = 1;
+	device_init_wakeup(&client->dev, 1);
 
 	data = DSK324SR_SEL_TCS_30S | DSK324SR_SEL_AS;
 	err = i2c_smbus_write_byte_data(client, DSK324SR_REG_SEL, data);
