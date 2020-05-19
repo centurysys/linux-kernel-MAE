@@ -293,7 +293,15 @@
 
 				opt_switch@4 {
 					reg = <6>;
-					atmel,wakeup-type = "low";
+				};
+
+				mcuc@5 {
+					reg = <7>;
+					atmel,wakeup-active-high;
+				};
+
+				ext_rtc@6 {
+					reg = <8>;
 				};
 			};
 
@@ -394,6 +402,11 @@
 						label = "system-status3:g";
 						reg = <0x6>;
 					};
+				};
+
+				tmp75@49 {
+					compatible = "ti,tmp75";
+					reg = <0x49>;
 				};
 			};
 
