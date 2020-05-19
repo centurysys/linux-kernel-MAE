@@ -1,7 +1,7 @@
 /*
  * An I2C driver for the DAISHINKU DSK324SR RTC
  *
- * Copyright (c) 2015 Century Systems
+ * Copyright (c) 2015,2020 Century Systems
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,7 +16,7 @@
 #include <linux/rtc.h>
 #include <linux/log2.h>
 
-#define DRV_VERSION "1.0"
+#define DRV_VERSION "2.0"
 
 #define DSK324SR_REG_SC	0x00 /* Second in BCD */
 #define DSK324SR_REG_MN	0x01 /* Minute in BCD */
@@ -42,6 +42,7 @@
 #define DSK324SR_SEL_TCS_10S	(DSK324SR_SEL_TCS1 | 0)
 #define DSK324SR_SEL_TCS_2S	(                0 | DSK324SR_SEL_TCS0)
 #define DSK324SR_SEL_TCS_0_5S	(                0 | 0)
+#define DSK324SR_SEL_AS	0x02 /* Alarm Select */
 
 /* Flag Register bit definitions */
 #define DSK324SR_FLAG_VDHF	0x20 /* Voltage Detect High */
@@ -63,12 +64,9 @@
 
 static struct i2c_driver dsk324sr_driver;
 
-/*
- * In the routines that deal directly with the dsk324sr hardware, we use
- * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
- */
-static int dsk324sr_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int dsk324sr_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char date[7];
 	int data, err;
 
@@ -129,8 +127,9 @@ static int dsk324sr_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return err;
 }
 
-static int dsk324sr_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int dsk324sr_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int data, err;
 	unsigned char buf[7];
 
@@ -197,19 +196,112 @@ static int dsk324sr_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
-static int dsk324sr_rtc_read_time(struct device *dev, struct rtc_time *tm)
+static int dsk324sr_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	return dsk324sr_get_datetime(to_i2c_client(dev), tm);
+	struct i2c_client *client = to_i2c_client(dev);
+	unsigned char alarm[7];
+	int ret;
+
+	ret = i2c_smbus_read_i2c_block_data(client, DSK324SR_REG_AMN,
+					    7, alarm);
+
+	if (ret != 7) {
+		dev_err(&client->dev, "Unable to read rtc registers.\n");
+		return ret < 0 ? ret : -EIO;
+	}
+
+	alrm->time.tm_sec  = 0;
+	alrm->time.tm_min  = bcd2bin(alarm[0] & 0x7f);
+	alrm->time.tm_hour = bcd2bin(alarm[1] & 0x3f);
+	alrm->time.tm_mday = bcd2bin(alarm[2] & 0x3f);
+
+	alrm->enabled = !!(alarm[6] & DSK324SR_CTRL_AIE);
+	alrm->pending = alrm->enabled && !!(alarm[5] & DSK324SR_FLAG_AF);
+
+	return 0;
 }
 
-static int dsk324sr_rtc_set_time(struct device *dev, struct rtc_time *tm)
+static int dsk324sr_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	return dsk324sr_set_datetime(to_i2c_client(dev), tm);
+	struct i2c_client *client = to_i2c_client(dev);
+	unsigned char alarm[7];
+	int ret;
+
+	/* Clear AF and AIE flags */
+	ret = i2c_smbus_read_i2c_block_data(client, DSK324SR_REG_FLAG, 2, &alarm[5]);
+
+	if (ret != 2) {
+		dev_err(&client->dev, "Unable to read rtc registers.\n");
+		return -EIO;
+	}
+
+	alarm[5] &= ~DSK324SR_FLAG_AF;
+	alarm[6] &= ~DSK324SR_CTRL_AIE;
+
+	ret = i2c_smbus_write_i2c_block_data(client, DSK324SR_REG_FLAG, 2, &alarm[5]);
+
+	if (ret) {
+		dev_err(&client->dev, "Unable to clear AF/AIF bits.\n");
+		return ret;
+	}
+
+	alarm[0] = bin2bcd(alrm->time.tm_min);
+	alarm[1] = bin2bcd(alrm->time.tm_hour);
+	alarm[2] = bin2bcd(alrm->time.tm_mday);
+
+	/* Write the alarm */
+	ret = i2c_smbus_write_i2c_block_data(client, DSK324SR_REG_AMN, 3, alarm);
+
+	if (ret) {
+		dev_err(&client->dev, "Unable to set Alarm registers.\n");
+		return ret;
+	}
+
+	/* Enable the alarm interrupt */
+	if (alrm->enabled) {
+		alarm[6] |= DSK324SR_CTRL_AIE;
+		ret = i2c_smbus_write_byte_data(client, DSK324SR_REG_CTRL, alarm[6]);
+
+		if (ret) {
+			dev_err(&client->dev, "Unable to enble alarm interrupt.\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int dsk324sr_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	int ctrl, ret;
+
+	ctrl = i2c_smbus_read_byte_data(client, DSK324SR_REG_CTRL);
+
+	if (ctrl < 0)
+		return ctrl;
+
+	if (enabled)
+		ctrl |= DSK324SR_CTRL_AIE;
+	else
+		ctrl &= ~DSK324SR_CTRL_AIE;
+
+	ret = i2c_smbus_write_byte_data(client, DSK324SR_REG_CTRL, ctrl);
+
+	if (ret < 0) {
+		dev_err(dev, "Unable to enable alarm IRQ %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static const struct rtc_class_ops dsk324sr_rtc_ops = {
-	.read_time	= dsk324sr_rtc_read_time,
-	.set_time	= dsk324sr_rtc_set_time,
+	.read_time	= dsk324sr_read_time,
+	.set_time	= dsk324sr_set_time,
+	.read_alarm	= dsk324sr_read_alarm,
+	.set_alarm	= dsk324sr_set_alarm,
+	.alarm_irq_enable = dsk324sr_alarm_irq_enable,
 };
 
 static int dsk324sr_probe(struct i2c_client *client,
@@ -233,20 +325,15 @@ static int dsk324sr_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, rtc);
 
-	data = i2c_smbus_read_byte_data(client, DSK324SR_REG_SEL);
+	rtc->uie_unsupported = 1;
 
-	if (data >= 0 &&
-	    (data & DSK324SR_SEL_TCS_MASK) != DSK324SR_SEL_TCS_30S) {
-		data = data | DSK324SR_SEL_TCS_30S;
-		err = i2c_smbus_write_byte_data(client, DSK324SR_REG_SEL,
-						data);
+	data = DSK324SR_SEL_TCS_30S | DSK324SR_SEL_AS;
+	err = i2c_smbus_write_byte_data(client, DSK324SR_REG_SEL, data);
 
-		if (err == 0) {
-			dev_info(&client->dev, "SEL Register updated to 30s.\n");
-		} else {
-			dev_info(&client->dev, "SEL Register update failed.\n");
-		}
-	}
+	if (err == 0)
+		dev_info(&client->dev, "SEL Register updated to 30s.\n");
+	else
+		dev_info(&client->dev, "SEL Register update failed.\n");
 	
 	return 0;
 }
@@ -260,14 +347,14 @@ MODULE_DEVICE_TABLE(i2c, dsk324sr_id);
 #ifdef CONFIG_OF
 static const struct of_device_id dsk324sr_of_match[] = {
 	{
-		.compatible = "dsk,dsk324sr",
+		.compatible = "rtc,dsk324sr",
 	},
 };
 MODULE_DEVICE_TABLE(of, dsk324sr_of_match);
 #endif
 
 static struct i2c_driver dsk324sr_driver = {
-	.driver		= {
+	.driver = {
 		.name	= "rtc-dsk324sr",
 		.of_match_table = of_match_ptr(dsk324sr_of_match),
 	},
