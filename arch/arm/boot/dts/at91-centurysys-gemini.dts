@@ -347,6 +347,11 @@
 					pagesize = <16>;
 				};
 
+				dsk324sr@32 {
+					compatible = "rtc,dsk324sr";
+					reg = <0x32>;
+				};
+
 				tca6507@45 {
 					compatible = "ti,tca6507";
 					#address-cells = <1>;
