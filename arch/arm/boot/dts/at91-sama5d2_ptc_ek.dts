@@ -19,9 +19,9 @@
 	compatible = "atmel,sama5d2-ptc_ek", "atmel,sama5d2", "atmel,sama5";
 
 	aliases {
-		serial0 = &uart0;
-		i2c0	= &i2c0;
-		i2c1	= &i2c1;
+		serial0 = &uart0;	/* DBGU */
+		i2c0	= &i2c0;	/* mikroBUS 1 */
+		i2c1	= &i2c1;	/* XPRO EXT1 */
 		i2c2	= &i2c2;
 	};
 
@@ -183,7 +183,7 @@
 				pinctrl-0 = <&pinctrl_i2c0_default>;
 				pinctrl-1 = <&pinctrl_i2c0_gpio>;
 				sda-gpios = <&pioA PIN_PD21 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioA PIN_PD22 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioA PIN_PD22 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				status = "okay";
 			};
 
@@ -204,7 +204,7 @@
 					pinctrl-0 = <&pinctrl_flx0_default>;
 					pinctrl-1 = <&pinctrl_flx0_gpio>;
 					sda-gpios = <&pioA PIN_PB28 GPIO_ACTIVE_HIGH>;
-					scl-gpios = <&pioA PIN_PB29 GPIO_ACTIVE_HIGH>;
+					scl-gpios = <&pioA PIN_PB29 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 					atmel,fifo-size = <16>;
 					status = "okay";
 				};
@@ -235,7 +235,7 @@
 				pinctrl-0 = <&pinctrl_i2c1_default>;
 				pinctrl-1 = <&pinctrl_i2c1_gpio>;
 				sda-gpios = <&pioA PIN_PC6 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioA PIN_PC7 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioA PIN_PC7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				status = "okay";
 
 				at24@50 {
