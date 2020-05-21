@@ -81,6 +81,9 @@ config GPIO_WAKEUP_POLARITY
 	help
 	  Say Y here to add a wakeup node on sysfs interface.
 
+config GPIO_GENERIC_EXPORT_BY_DT
+	bool "Export GPIO by device-tree"
+
 config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
 	tristate

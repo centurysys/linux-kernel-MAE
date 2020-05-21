@@ -19,6 +19,7 @@
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include "gpiolib.h"
 #endif
 #ifdef CONFIG_GPIO_WAKEUP_POLARITY
 #include <linux/power/at91-sama5d2_shdwc.h>
@@ -222,6 +223,7 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
 	struct device_node *np = pdev->dev.of_node, *child;
 	struct gpio_chip *gc;
+	struct gpio_device *gpiodev;
 #endif
 
 	piobu = devm_kzalloc(&pdev->dev, sizeof(*piobu), GFP_KERNEL);
@@ -270,21 +272,17 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
 	gc = &piobu->chip;
-	gc->bgpio_names = devm_kzalloc(&pdev->dev, sizeof(char *) * gc->ngpio, GFP_KERNEL);
+	gpiodev = gc->gpiodev;
 
 	for_each_child_of_node(np, child) {
-		const char *name;
 		u32 reg;
 		int ret, status, gpio;
 
-		name = of_get_property(child, "label", NULL);
 		ret = of_property_read_u32(child, "reg", &reg);
 
-		if (name && ret == 0 && reg >= 0 && reg < gc->ngpio) {
-			gc->bgpio_names[reg] = name;
-
+		if (ret == 0 && reg >= 0 && reg < gc->ngpio) {
 			gpio = gc->base + reg;
-			status = gpio_request(gpio, gc->bgpio_names[reg]);
+			status = gpio_request(gpio, gpiodev->descs[reg].name);
 
 			if (status == 0) {
 				status = gpio_export(gpio, false);

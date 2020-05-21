@@ -672,6 +672,34 @@
 						  "BU_MSP430_IRQ",
 						  "BU_EXT_RTC_ALARM",
 						  "BU_XIO_WAKEUP";
+
+				pio@bu0 {
+					reg = <0>;
+				};
+
+				pio@bu1 {
+					reg = <1>;
+				};
+
+				pio@bu2 {
+					reg = <2>;
+				};
+
+				pio@bu3 {
+					reg = <3>;
+				};
+
+				pio@bu5 {
+					reg = <5>;
+				};
+
+				pio@bu6 {
+					reg = <6>;
+				};
+
+				pio@bu7 {
+					reg = <7>;
+				};
 			};
 		};
 	};
