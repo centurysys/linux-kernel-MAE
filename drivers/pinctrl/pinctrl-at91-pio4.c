@@ -19,10 +19,6 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/slab.h>
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
-#endif
 #include "core.h"
 #include "pinconf.h"
 #include "pinctrl-utils.h"
@@ -1022,10 +1018,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	struct resource	*res;
 	struct atmel_pioctrl *atmel_pioctrl;
 	const struct atmel_pioctrl_data *atmel_pioctrl_data;
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-	struct device_node *np = pdev->dev.of_node, *np_gpio, *child;
-	struct gpio_chip *gc;
-#endif
 
 	atmel_pioctrl = devm_kzalloc(dev, sizeof(*atmel_pioctrl), GFP_KERNEL);
 	if (!atmel_pioctrl)
@@ -1184,26 +1176,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		goto clk_unprep;
 	}
 
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-	gc = &atmel_gpio_chip;
-	gc->bgpio_names = devm_kzalloc(dev, sizeof(char *) * gc->ngpio, GFP_KERNEL);
-
-	np_gpio = of_get_child_by_name(np, "gpio");
-
-	for_each_child_of_node(np_gpio, child) {
-		const char *name;
-		u32 reg;
-		int ret;
-
-		name = of_get_property(child, "label", NULL);
-		ret = of_property_read_u32(child, "reg", &reg);
-
-		if (name && ret == 0 && reg >= 0 && reg < gc->ngpio) {
-			gc->bgpio_names[reg] = name;
-		}
-	}
-#endif
-
 	ret = gpiochip_add_data(atmel_pioctrl->gpio_chip, atmel_pioctrl);
 	if (ret) {
 		dev_err(dev, "failed to add gpiochip\n");
@@ -1216,27 +1188,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to add gpio pin range\n");
 		goto gpiochip_add_pin_range_error;
 	}
-
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-	if (ret == 0) {
-		int i, status, gpio;
-
-		for (i = 0; i < gc->ngpio; i++) {
-			if (gc->bgpio_names[i] != NULL) {
-				gpio = gc->base + i;
-
-				status = gpio_request(gpio, gc->bgpio_names[i]);
-
-				if (status == 0) {
-					status = gpio_export(gpio, true);
-
-					if (status < 0)
-						gpio_free(gpio);
-				}
-			}
-		}
-	}
-#endif
 
 	dev_info(&pdev->dev, "atmel pinctrl initialized\n");
 
