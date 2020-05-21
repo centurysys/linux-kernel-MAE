@@ -1012,12 +1012,13 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc	*pin_desc;
-	const char **group_names;
+	const char **group_names, **names;
 	const struct of_device_id *match;
-	int i, ret;
+	int i, ret, count;
 	struct resource	*res;
 	struct atmel_pioctrl *atmel_pioctrl;
 	const struct atmel_pioctrl_data *atmel_pioctrl_data;
+	const struct fwnode_handle *fwnode;
 
 	atmel_pioctrl = devm_kzalloc(dev, sizeof(*atmel_pioctrl), GFP_KERNEL);
 	if (!atmel_pioctrl)
@@ -1074,6 +1075,19 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 	if (!atmel_pioctrl->groups)
 		return -ENOMEM;
+
+	fwnode = of_fwnode_handle(dev->of_node);
+	count = fwnode_property_read_string_array(fwnode, "gpio-line-names",
+						  NULL, 0);
+	if (count > 0) {
+		names = kcalloc(count, sizeof(*names), GFP_KERNEL);
+
+		if (names) {
+			ret = fwnode_property_read_string_array(fwnode, "gpio-line-names",
+								names, count);
+		}
+	}
+
 	for (i = 0 ; i < atmel_pioctrl->npins; i++) {
 		struct atmel_group *group = atmel_pioctrl->groups + i;
 		unsigned bank = ATMEL_PIO_BANK(i);
@@ -1089,15 +1103,22 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		atmel_pioctrl->pins[i]->line = line;
 
 		pin_desc[i].number = i;
-		/* Pin naming convention: P(bank_name)(bank_pin_number). */
-		pin_desc[i].name = kasprintf(GFP_KERNEL, "P%c%d",
-					     bank + 'A', line);
+
+		if (i < count && strlen(names[i]) > 0)
+			pin_desc[i].name = kasprintf(GFP_KERNEL, "%s", names[i]);
+		else
+			/* Pin naming convention: P(bank_name)(bank_pin_number). */
+			pin_desc[i].name = kasprintf(GFP_KERNEL, "P%c%d",
+						     bank + 'A', line);
 
 		group->name = group_names[i] = pin_desc[i].name;
 		group->pin = pin_desc[i].number;
 
 		dev_dbg(dev, "pin_id=%u, bank=%u, line=%u", i, bank, line);
 	}
+
+	if (names)
+		kfree(names);
 
 	atmel_pioctrl->gpio_chip = &atmel_gpio_chip;
 	atmel_pioctrl->gpio_chip->of_node = dev->of_node;
