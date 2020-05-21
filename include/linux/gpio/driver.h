@@ -406,9 +406,6 @@ struct gpio_chip {
 	unsigned long bgpio_data;
 	unsigned long bgpio_dir;
 #endif /* CONFIG_GPIO_GENERIC */
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-	const char **bgpio_names;
-#endif
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 	/*

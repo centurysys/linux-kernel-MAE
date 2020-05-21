@@ -780,11 +780,6 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 		data->direction_can_change = false;
 
 	offset = gpio_chip_hwgpio(desc);
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-	if (chip->bgpio_names && chip->bgpio_names[offset])
-		ioname = chip->bgpio_names[offset];
-	else
-#endif
 	if (chip->names && chip->names[offset])
 		ioname = chip->names[offset];
 

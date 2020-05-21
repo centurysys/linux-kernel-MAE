@@ -21,10 +21,6 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
-#endif
 
 #include <asm/unaligned.h>
 
@@ -904,10 +900,6 @@ static int pca953x_probe(struct i2c_client *client,
 	int ret;
 	u32 invert = 0;
 	struct regulator *reg;
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-	struct device_node *np = client->dev.of_node, *child;
-	struct gpio_chip *gc;
-#endif
 
 	chip = devm_kzalloc(&client->dev,
 			sizeof(struct pca953x_chip), GFP_KERNEL);
@@ -1004,24 +996,6 @@ static int pca953x_probe(struct i2c_client *client,
 	 */
 	pca953x_setup_gpio(chip, chip->driver_data & PCA_GPIO_MASK);
 
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-	gc = &chip->gpio_chip;
-	gc->bgpio_names = devm_kzalloc(&client->dev, sizeof(char *) * gc->ngpio, GFP_KERNEL);
-
-	for_each_child_of_node(np, child) {
-		const char *name;
-		u32 reg;
-		int ret;
-
-		name = of_get_property(child, "label", NULL);
-		ret = of_property_read_u32(child, "reg", &reg);
-
-		if (name && ret == 0 && reg >= 0 && reg < gc->ngpio) {
-			gc->bgpio_names[reg] = name;
-		}
-	}
-#endif
-
 	if (PCA_CHIP_TYPE(chip->driver_data) == PCA953X_TYPE) {
 		chip->regs = &pca953x_regs;
 		ret = device_pca95xx_init(chip, invert);
@@ -1046,27 +1020,6 @@ static int pca953x_probe(struct i2c_client *client,
 		if (ret < 0)
 			dev_warn(&client->dev, "setup failed, %d\n", ret);
 	}
-
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
-	if (ret == 0) {
-		int i, status, gpio;
-
-		for (i = 0; i < gc->ngpio; i++) {
-			if (gc->bgpio_names[i] != NULL) {
-				gpio = gc->base + i;
-
-				status = gpio_request(gpio, gc->bgpio_names[i]);
-
-				if (status == 0) {
-					status = gpio_export(gpio, true);
-
-					if (status < 0)
-						gpio_free(gpio);
-				}
-			}
-		}
-	}
-#endif
 
 	return 0;
 

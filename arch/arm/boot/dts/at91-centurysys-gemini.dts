@@ -4,12 +4,15 @@
  *
  *  Copyright (C) 2015 Atmel,
  *                2015 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *                2020 Century Systems <kikuchi@centurysys.co.jp>
  */
 /dts-v1/;
 #include "sama5d2.dtsi"
 #include "sama5d2-pinfunc.h"
 #include <dt-bindings/mfd/atmel-flexcom.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/regulator/active-semi,8945a-regulator.h>
 
 / {
@@ -419,6 +422,26 @@
 			};
 
 			pinctrl@fc038000 {
+				gpio-line-names = "", "", "", "", "", "", "", "", /* PA0  ..  7 */
+						  "", "", "", "", "", "", "", "", /* PA8  .. 15 */
+						  "", "", "", "", "", "", "", "", /* PA16 .. 23 */
+						  "", "", "", "", "", "", "", "", /* PA24 .. 31 */
+						  "", "DIPSW0", "DIPSW1", "DIPSW2", "DIPSW3", "", "", "",
+						  "", "", "", "", "", "", "", "", /* PB8  .. 15 */
+						  "", "", "", "", "", "", "", "", /* PB16 .. 23 */
+						  "SW_INIT_N", "SW_OPT", "", "", "", "", "", "",
+						  "", "MobileLED_G0", "MobileLED_R0", "MobileLED_G1",
+						  "MobileLED_R1", "PowerLED_G", "", "PHY_RESET_N",
+						  "", "", "DB9_DTR", "DB9_DSR", "DB9_DCD", "DB9_RI",
+						  "DB9_FORCEOFF_N", "XIOUSB_ENABLE",
+						  "", "", "", "", "", "", "", "Mobile_PWRKEY",
+						  "Mobile_RESET_N", "Mobile_SLEEP_N", "Mobile_READY",
+						  "Mobile_WAKEUP_N", "", "", "", "",
+						  "", "", "", "", "", "", "DI0", "DI1",
+						  "DI2", "DI3", "DO0", "DO1", "MSP430_RST",
+						  "MSP430_TEST", "", "",
+						  "", "", "", "", "", "", "", "", /* PD16 .. 23 */
+						  "", "", "", "", "", "", "", ""; /* PD24 .. 31 */
 				/*
 				 * There is no real pinmux for ADC, if the pin
 				 * is not requested by another peripheral then
@@ -515,6 +538,8 @@
 				pinctrl_key_gpio_default: key_gpio_default {
 					pinmux = <PIN_PB24__GPIO>,
 					         <PIN_PB25__GPIO>;
+					bias-disable;
+					input-schmitt-enable = <1>;
 				};
 
 				pinctrl_led_gpio_default: led_gpio_default {
@@ -525,8 +550,18 @@
 						 <PIN_PC5__GPIO>,
 						 <PIN_PC23__GPIO>,
 						 <PIN_PC24__GPIO>,
-						 <PIN_PC25__GPIO>;
-					bias-pull-up;
+						 <PIN_PC25__GPIO>,
+						 <PIN_PD12__GPIO>,
+						 <PIN_PD13__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_douts_gpio_default: douts_gpio_default {
+					pinmux = <PIN_PD10__GPIO>,
+						 <PIN_PD11__GPIO>;
+					bias-disable;
+					drive-push-pull = <1>;
+					atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
 				};
 
 				pinctrl_macb0_default: macb0_default {
@@ -609,59 +644,19 @@
 					bias-disable;
 				};
 
-				gpio {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					gpio@pb1 {
-						label = "DIPSW0";
-						reg = <33>;
-					};
-
-					gpio@pb2 {
-					label = "DIPSW1";
-						reg = <34>;
-					};
-
-					gpio@pb3 {
-						label = "DIPSW2";
-						reg = <35>;
-					};
-
-					gpio@pb4 {
-						label = "DIPSW3";
-						reg = <36>;
-					};
-
-					gpio@pc26 {
-						label = "Mobile_READY_N";
-						reg = <90>;
-					};
-
-					gpio@pc27 {
-						label = "Mobile_WAKEUP_N";
-						reg = <91>;
-					};
-
-					gpio@pd6 {
-						label = "DI0";
-						reg = <102>;
-					};
-
-					gpio@pd7 {
-						label = "DI1";
-						reg = <103>;
-					};
-
-					gpio@pd8 {
-						label = "DI2";
-						reg = <104>;
-					};
-
-					gpio@pd9 {
-						label = "DI3";
-						reg = <105>;
-					};
+				pinctrl_gpio_in_default: gpio_in_default {
+					pinmux = <PIN_PB1__GPIO>,
+						 <PIN_PB2__GPIO>,
+						 <PIN_PB3__GPIO>,
+						 <PIN_PB4__GPIO>,
+						 <PIN_PC23__GPIO>,
+						 <PIN_PC27__GPIO>,
+						 <PIN_PD6__GPIO>,
+						 <PIN_PD7__GPIO>,
+						 <PIN_PD8__GPIO>,
+						 <PIN_PD9__GPIO>;
+					input-schmitt-enable;
+					input-debounce;
 				};
 			};
 
@@ -669,40 +664,14 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				pio@bu0 {
-					label = "BU_DI0";
-					reg = <0>;
-				};
-
-				pio@bu1 {
-					label = "BU_DI1";
-					reg = <1>;
-				};
-
-				pio@bu2 {
-					label = "BU_DI2";
-					reg = <2>;
-				};
-
-				pio@bu3 {
-					label = "BU_DI3";
-					reg = <3>;
-				};
-
-				pio@bu5 {
-					label = "BU_MSP430_IRQ";
-					reg = <5>;
-				};
-
-				pio@bu6 {
-					label = "BU_EXT_RTC_ALARM";
-					reg = <6>;
-				};
-
-				pio@bu7 {
-					label = "BU_XIO_WAKEUP";
-					reg = <7>;
-				};
+				gpio-line-names = "BU_DI0",
+						  "BU_DI1",
+						  "BU_D12",
+						  "BU_DI3",
+						  "BU_OPT_SW",
+						  "BU_MSP430_IRQ",
+						  "BU_EXT_RTC_ALARM",
+						  "BU_XIO_WAKEUP";
 			};
 		};
 	};
@@ -731,26 +700,26 @@
 	leds: leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_led_gpio_default>;
+		pinctrl-0 = <&pinctrl_led_gpio_default &pinctrl_douts_gpio_default>;
 		status = "okay";
 
 		led_g1 {
-			label = "MobileLED_G1";
+			label = "MobileLED_G0";
 			gpios = <&pioA PIN_PC1 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r1 {
-			label = "MobileLED_R1";
+			label = "MobileLED_R0";
 			gpios = <&pioA PIN_PC2 GPIO_ACTIVE_LOW>;
 		};
 
 		led_g2 {
-			label = "MobileLED_G2";
+			label = "MobileLED_G1";
 			gpios = <&pioA PIN_PC3 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r2 {
-			label = "MobileLED_R2";
+			label = "MobileLED_R1";
 			gpios = <&pioA PIN_PC4 GPIO_ACTIVE_LOW>;
 		};
 
