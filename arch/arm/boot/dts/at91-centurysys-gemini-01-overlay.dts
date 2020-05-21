@@ -52,10 +52,14 @@
 				#size-cells = <0>;
 				#gpio-cells = <2>;
 
-				gpio5 {
-					label = "USB_VBUS";
-					reg = <5>;
-				};
+				gpio-line-names = "WLAN_LED_R",
+						  "WLAN_LED_G",
+						  "Reserved2",
+						  "Reserved3",
+						  "Reserved4",
+						  "USB_VBUS_STAT",
+						  "ULP_WAKEUP",
+						  "WL_RESET_N";
 			};
 		};
 	};
