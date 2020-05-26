@@ -2506,19 +2506,25 @@ static int macb_open(struct net_device *dev)
 
 	err = macb_phylink_connect(bp);
 	if (err)
-		goto pm_exit;
+		goto reset_hw;
 
 	netif_tx_start_all_queues(dev);
 
 	if (bp->ptp_info)
 		bp->ptp_info->ptp_init(dev);
 
-pm_exit:
-	if (err) {
-		pm_runtime_put_sync(&bp->pdev->dev);
-		return err;
-	}
 	return 0;
+
+reset_hw:
+	macb_reset_hw(bp);
+	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue)
+		napi_disable(&queue->napi);
+	macb_free_consistent(bp);
+
+pm_exit:
+	pm_runtime_put_sync(&bp->pdev->dev);
+
+	return err;
 }
 
 static int macb_close(struct net_device *dev)
