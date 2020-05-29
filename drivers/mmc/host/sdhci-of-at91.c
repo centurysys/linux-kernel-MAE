@@ -18,6 +18,9 @@
 #include <linux/of_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#ifdef CONFIG_MMC_SDHCI_OF_AT91_ENABLE_CD
+#include <linux/gpio/consumer.h>
+#endif
 
 #include "sdhci-pltfm.h"
 
@@ -46,6 +49,9 @@ struct sdhci_at91_priv {
 	struct clk *mainck;
 	bool restore_needed;
 	bool cal_always_on;
+#ifdef CONFIG_MMC_SDHCI_OF_AT91_ENABLE_CD
+	struct gpio_desc *enable_cd_pin;
+#endif
 };
 
 static void sdhci_at91_set_force_card_detect(struct sdhci_host *host)
@@ -351,6 +357,14 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	priv = sdhci_pltfm_priv(pltfm_host);
 	priv->soc_data = soc_data;
+
+#ifdef CONFIG_MMC_SDHCI_OF_AT91_ENABLE_CD
+	if (!priv->enable_cd_pin) {
+		priv->enable_cd_pin =
+			devm_gpiod_get_optional(&pdev->dev, "enable_cd",
+						GPIOD_OUT_HIGH);
+	}
+#endif
 
 	priv->mainck = devm_clk_get(&pdev->dev, "baseclk");
 	if (IS_ERR(priv->mainck)) {
