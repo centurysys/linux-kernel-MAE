@@ -63,9 +63,10 @@
 			bus-width = <4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sdmmc1_default>;
-			status = "okay"; /* conflict with qspi0 */
+			status = "okay";
 			vqmmc-supply = <&vdd_3v3_reg>;
 			vmmc-supply = <&vdd_3v3_reg>;
+			enable_cd-gpio = <&pioA PIN_PA27 GPIO_ACTIVE_HIGH>;
 		};
 
 		apb {
@@ -607,7 +608,8 @@
 							 <PIN_PA18__SDMMC1_DAT0>,
 							 <PIN_PA19__SDMMC1_DAT1>,
 							 <PIN_PA20__SDMMC1_DAT2>,
-							 <PIN_PA21__SDMMC1_DAT3>;
+							 <PIN_PA21__SDMMC1_DAT3>,
+							 <PIN_PA27__GPIO>;
 						bias-disable;
 					};
 
