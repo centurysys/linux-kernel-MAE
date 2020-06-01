@@ -677,7 +677,7 @@
 
 				gpio-line-names = "BU_DI0",
 						  "BU_DI1",
-						  "BU_D12",
+						  "BU_DI2",
 						  "BU_DI3",
 						  "BU_OPT_SW",
 						  "BU_MSP430_IRQ",
