@@ -319,6 +319,12 @@ static int cdns_sierra_phy_on(struct phy *gphy)
 	u32 val;
 	int ret;
 
+	ret = reset_control_deassert(sp->phy_rst);
+	if (ret) {
+		dev_err(dev, "Failed to take the PHY out of reset\n");
+		return ret;
+	}
+
 	/* Take the PHY lane group out of reset */
 	ret = reset_control_deassert(ins->lnk_rst);
 	if (ret) {
@@ -355,6 +361,10 @@ static const struct phy_ops ops = {
 	.power_on	= cdns_sierra_phy_on,
 	.power_off	= cdns_sierra_phy_off,
 	.reset		= cdns_sierra_phy_reset,
+	.owner		= THIS_MODULE,
+};
+
+static const struct phy_ops noop_ops = {
 	.owner		= THIS_MODULE,
 };
 
@@ -471,54 +481,11 @@ static int cdns_regmap_init_blocks(struct cdns_sierra_phy *sp,
 	return 0;
 }
 
-static int cdns_sierra_phy_probe(struct platform_device *pdev)
+static int cdns_sierra_phy_get_clocks(struct cdns_sierra_phy *sp,
+				      struct device *dev)
 {
-	struct cdns_sierra_phy *sp;
-	struct phy_provider *phy_provider;
-	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
-	struct cdns_sierra_data *data;
-	unsigned int id_value;
-	struct resource *res;
-	int i, ret, node = 0;
-	void __iomem *base;
 	struct clk *clk;
-	struct device_node *dn = dev->of_node, *child;
-
-	if (of_get_child_count(dn) == 0)
-		return -ENODEV;
-
-	/* Get init data for this PHY */
-	match = of_match_device(cdns_sierra_id_table, dev);
-	if (!match)
-		return -EINVAL;
-
-	data = (struct cdns_sierra_data *)match->data;
-
-	sp = devm_kzalloc(dev, sizeof(*sp), GFP_KERNEL);
-	if (!sp)
-		return -ENOMEM;
-	dev_set_drvdata(dev, sp);
-	sp->dev = dev;
-	sp->init_data = data;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base)) {
-		dev_err(dev, "missing \"reg\"\n");
-		return PTR_ERR(base);
-	}
-
-	ret = cdns_regmap_init_blocks(sp, base, data->block_offset_shift,
-				      data->reg_offset_shift);
-	if (ret)
-		return ret;
-
-	ret = cdns_regfield_init(sp);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, sp);
+	int ret;
 
 	sp->clk = devm_clk_get_optional(dev, "phy_clk");
 	if (IS_ERR(sp->clk)) {
@@ -554,18 +521,83 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	}
 	sp->cmn_refclk1_dig_div = clk;
 
-	ret = clk_prepare_enable(sp->clk);
+	return 0;
+}
+
+static int cdns_sierra_phy_probe(struct platform_device *pdev)
+{
+	struct cdns_sierra_phy *sp;
+	struct phy_provider *phy_provider;
+	struct device *dev = &pdev->dev;
+	const struct of_device_id *match;
+	struct cdns_sierra_data *data;
+	unsigned int id_value;
+	struct resource *res;
+	int i, val, ret, node = 0;
+	void __iomem *base;
+	struct device_node *dn = dev->of_node, *child;
+	bool already_configured = false;
+
+	if (of_get_child_count(dn) == 0)
+		return -ENODEV;
+
+	/* Get init data for this PHY */
+	match = of_match_device(cdns_sierra_id_table, dev);
+	if (!match)
+		return -EINVAL;
+
+	data = (struct cdns_sierra_data *)match->data;
+
+	sp = devm_kzalloc(dev, sizeof(*sp), GFP_KERNEL);
+	if (!sp)
+		return -ENOMEM;
+	dev_set_drvdata(dev, sp);
+	sp->dev = dev;
+	sp->init_data = data;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base)) {
+		dev_err(dev, "missing \"reg\"\n");
+		return PTR_ERR(base);
+	}
+
+	ret = cdns_regmap_init_blocks(sp, base, data->block_offset_shift,
+				      data->reg_offset_shift);
 	if (ret)
 		return ret;
 
-	/* Enable APB */
-	reset_control_deassert(sp->apb_rst);
+	ret = cdns_regfield_init(sp);
+	if (ret)
+		return ret;
 
-	/* Check that PHY is present */
-	regmap_field_read(sp->macro_id_type, &id_value);
-	if  (sp->init_data->id_value != id_value) {
-		ret = -EINVAL;
-		goto clk_disable;
+	for (i = 0; i < SIERRA_MAX_LANES; i++) {
+		regmap_field_read(sp->pllctrl_lock[i], &val);
+		if (val) {
+			already_configured = true;
+			break;
+		}
+	}
+
+	platform_set_drvdata(pdev, sp);
+
+	if (!already_configured) {
+		ret = cdns_sierra_phy_get_clocks(sp, dev);
+		if (ret)
+			return ret;
+
+		ret = clk_prepare_enable(sp->clk);
+		if (ret)
+			return ret;
+		/* Enable APB */
+		reset_control_deassert(sp->apb_rst);
+
+		/* Check that PHY is present */
+		regmap_field_read(sp->macro_id_type, &id_value);
+		if  (sp->init_data->id_value != id_value) {
+			ret = -EINVAL;
+			goto clk_disable;
+		}
 	}
 
 	sp->autoconf = of_property_read_bool(dn, "cdns,autoconf");
@@ -594,7 +626,10 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 
 		sp->num_lanes += sp->phys[node].num_lanes;
 
-		gphy = devm_phy_create(dev, child, &ops);
+		if (already_configured)
+			gphy = devm_phy_create(dev, child, &noop_ops);
+		else
+			gphy = devm_phy_create(dev, child, &ops);
 
 		if (IS_ERR(gphy)) {
 			ret = PTR_ERR(gphy);
@@ -613,12 +648,11 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	}
 
 	/* If more than one subnode, configure the PHY as multilink */
-	if (!sp->autoconf && sp->nsubnodes > 1)
+	if (!sp->autoconf && sp->nsubnodes > 1 && !already_configured)
 		regmap_field_write(sp->phy_pll_cfg_1, 0x1);
 
 	pm_runtime_enable(dev);
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	reset_control_deassert(sp->phy_rst);
 	return PTR_ERR_OR_ZERO(phy_provider);
 
 put_child:
@@ -685,10 +719,10 @@ static struct cdns_reg_pairs cdns_usb_cmn_regs_ext_ssc[] = {
 static struct cdns_reg_pairs cdns_usb_ln_regs_ext_ssc[] = {
 	{0xFE0A, SIERRA_DET_STANDEC_A_PREG},
 	{0x000F, SIERRA_DET_STANDEC_B_PREG},
-	{0x00A5, SIERRA_DET_STANDEC_C_PREG},
+	{0x55A5, SIERRA_DET_STANDEC_C_PREG},
 	{0x69ad, SIERRA_DET_STANDEC_D_PREG},
 	{0x0241, SIERRA_DET_STANDEC_E_PREG},
-	{0x0010, SIERRA_PSM_LANECAL_DLY_A1_RESETS_PREG},
+	{0x0110, SIERRA_PSM_LANECAL_DLY_A1_RESETS_PREG},
 	{0x0014, SIERRA_PSM_A0IN_TMR_PREG},
 	{0xCF00, SIERRA_PSM_DIAG_PREG},
 	{0x001F, SIERRA_PSC_TX_A0_PREG},
@@ -696,7 +730,7 @@ static struct cdns_reg_pairs cdns_usb_ln_regs_ext_ssc[] = {
 	{0x0003, SIERRA_PSC_TX_A2_PREG},
 	{0x0003, SIERRA_PSC_TX_A3_PREG},
 	{0x0FFF, SIERRA_PSC_RX_A0_PREG},
-	{0x0619, SIERRA_PSC_RX_A1_PREG},
+	{0x0003, SIERRA_PSC_RX_A1_PREG},
 	{0x0003, SIERRA_PSC_RX_A2_PREG},
 	{0x0001, SIERRA_PSC_RX_A3_PREG},
 	{0x0001, SIERRA_PLLCTRL_SUBRATE_PREG},
@@ -705,19 +739,19 @@ static struct cdns_reg_pairs cdns_usb_ln_regs_ext_ssc[] = {
 	{0x00CA, SIERRA_CLKPATH_BIASTRIM_PREG},
 	{0x2512, SIERRA_DFE_BIASTRIM_PREG},
 	{0x0000, SIERRA_DRVCTRL_ATTEN_PREG},
-	{0x873E, SIERRA_CLKPATHCTRL_TMR_PREG},
-	{0x03CF, SIERRA_RX_CREQ_FLTR_A_MODE1_PREG},
-	{0x01CE, SIERRA_RX_CREQ_FLTR_A_MODE0_PREG},
+	{0x823E, SIERRA_CLKPATHCTRL_TMR_PREG},
+	{0x078F, SIERRA_RX_CREQ_FLTR_A_MODE1_PREG},
+	{0x078F, SIERRA_RX_CREQ_FLTR_A_MODE0_PREG},
 	{0x7B3C, SIERRA_CREQ_CCLKDET_MODE01_PREG},
-	{0x033F, SIERRA_RX_CTLE_MAINTENANCE_PREG},
+	{0x023C, SIERRA_RX_CTLE_MAINTENANCE_PREG},
 	{0x3232, SIERRA_CREQ_FSMCLK_SEL_PREG},
 	{0x0000, SIERRA_CREQ_EQ_CTRL_PREG},
-	{0x8000, SIERRA_CREQ_SPARE_PREG},
+	{0x0000, SIERRA_CREQ_SPARE_PREG},
 	{0xCC44, SIERRA_CREQ_EQ_OPEN_EYE_THRESH_PREG},
-	{0x8453, SIERRA_CTLELUT_CTRL_PREG},
-	{0x4110, SIERRA_DFE_ECMP_RATESEL_PREG},
-	{0x4110, SIERRA_DFE_SMP_RATESEL_PREG},
-	{0x0002, SIERRA_DEQ_PHALIGN_CTRL},
+	{0x8452, SIERRA_CTLELUT_CTRL_PREG},
+	{0x4121, SIERRA_DFE_ECMP_RATESEL_PREG},
+	{0x4121, SIERRA_DFE_SMP_RATESEL_PREG},
+	{0x0003, SIERRA_DEQ_PHALIGN_CTRL},
 	{0x3200, SIERRA_DEQ_CONCUR_CTRL1_PREG},
 	{0x5064, SIERRA_DEQ_CONCUR_CTRL2_PREG},
 	{0x0030, SIERRA_DEQ_EPIPWR_CTRL2_PREG},
@@ -725,7 +759,7 @@ static struct cdns_reg_pairs cdns_usb_ln_regs_ext_ssc[] = {
 	{0x5A5A, SIERRA_DEQ_ERRCMP_CTRL_PREG},
 	{0x02F5, SIERRA_DEQ_OFFSET_CTRL_PREG},
 	{0x02F5, SIERRA_DEQ_GAIN_CTRL_PREG},
-	{0x9A8A, SIERRA_DEQ_VGATUNE_CTRL_PREG},
+	{0x9999, SIERRA_DEQ_VGATUNE_CTRL_PREG},
 	{0x0014, SIERRA_DEQ_GLUT0},
 	{0x0014, SIERRA_DEQ_GLUT1},
 	{0x0014, SIERRA_DEQ_GLUT2},
@@ -772,6 +806,7 @@ static struct cdns_reg_pairs cdns_usb_ln_regs_ext_ssc[] = {
 	{0x000F, SIERRA_LFPSFILT_NS_PREG},
 	{0x0009, SIERRA_LFPSFILT_RD_PREG},
 	{0x0001, SIERRA_LFPSFILT_MP_PREG},
+	{0x6013, SIERRA_SIGDET_SUPPORT_PREG},
 	{0x8013, SIERRA_SDFILT_H2L_A_PREG},
 	{0x8009, SIERRA_SDFILT_L2H_PREG},
 	{0x0024, SIERRA_RXBUFFER_CTLECTRL_PREG},
