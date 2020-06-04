@@ -1,28 +1,43 @@
-/**
- * Copyright (c) 2014 Redpine Signals Inc.
+/*
+ * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 	1. Redistributions of source code must retain the above copyright
+ * 	   notice, this list of conditions and the following disclaimer.
+ *
+ * 	2. Redistributions in binary form must reproduce the above copyright
+ * 	   notice, this list of conditions and the following disclaimer in the
+ * 	   documentation and/or other materials provided with the distribution.
+ *
+ * 	3. Neither the name of the copyright holder nor the names of its
+ * 	   contributors may be used to endorse or promote products derived from
+ * 	   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef __RSI_COMMON_H__
 #define __RSI_COMMON_H__
 
 #include <linux/kthread.h>
+#include "rsi_hci.h"
 
 #define EVENT_WAIT_FOREVER              0
-#define FIRMWARE_RSI9113                "rs9113_wlan_qspi.rps"
 #define QUEUE_NOT_FULL                  1
 #define QUEUE_FULL                      0
+#define SNIFFER_MODE			7
 
 static inline int rsi_init_event(struct rsi_event *pevent)
 {
@@ -37,10 +52,10 @@ static inline int rsi_wait_event(struct rsi_event *event, u32 timeout)
 
 	if (!timeout)
 		status = wait_event_interruptible(event->event_queue,
-				(atomic_read(&event->event_condition) == 0));
+				(!atomic_read(&event->event_condition)));
 	else
 		status = wait_event_interruptible_timeout(event->event_queue,
-				(atomic_read(&event->event_condition) == 0),
+				(!atomic_read(&event->event_condition)),
 				timeout);
 	return status;
 }
@@ -72,21 +87,58 @@ static inline int rsi_create_kthread(struct rsi_common *common,
 
 static inline int rsi_kill_thread(struct rsi_thread *handle)
 {
+	if (atomic_read(&handle->thread_done) > 0)
+		return 0;
 	atomic_inc(&handle->thread_done);
 	rsi_set_event(&handle->event);
 
 	return kthread_stop(handle->task);
 }
 
+static inline struct sk_buff *rsi_get_aligned_skb(struct sk_buff *skb) {
+	u8 *skb_data = skb->data;
+	int skb_len = skb->len;
+
+	skb_push(skb, RSI_DMA_ALIGN);
+	skb_pull(skb, PTR_ALIGN(skb->data,
+				RSI_DMA_ALIGN) - skb->data);
+	memmove(skb->data, skb_data, skb_len);
+	skb_trim(skb, skb_len);
+
+	return skb;
+}
+
+int rsi_load_radio_caps(struct rsi_common *common);
 void rsi_mac80211_detach(struct rsi_hw *hw);
-u16 rsi_get_connected_channel(struct ieee80211_vif *vif);
-struct rsi_hw *rsi_91x_init(u16 oper_mode);
+u16 rsi_get_connected_channel(struct rsi_hw *adapter);
+struct rsi_hw *rsi_91x_init(void);
 void rsi_91x_deinit(struct rsi_hw *adapter);
 int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len);
-#ifdef CONFIG_PM
+void rsi_indicate_bcnmiss(struct rsi_common *common);
+void rsi_resume_conn_channel(struct rsi_hw *adapter, struct ieee80211_vif *vif);
+char *dot11_pkt_type(__le16 frame_control);
+struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr);
+void rsi_init_bcn_timer(struct rsi_common *common);
+void rsi_del_bcn_timer(struct rsi_common *common);
+void rsi_bcn_scheduler_thread(struct rsi_common *common);
+#ifdef CONFIG_SDIO_INTR_POLL
+void init_sdio_intr_status_poll_thread(struct rsi_common *common);
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION (4, 15, 0)
+void rsi_roc_timeout(unsigned long data);
+#else
+void rsi_roc_timeout(struct timer_list *t);
+#endif
+struct ieee80211_vif *rsi_get_vif(struct rsi_hw *adapter, u8 *mac);
+void rsi_mac80211_hw_scan_cancel(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif);
+#ifdef CONFIG_RSI_WOW
 int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan);
 #endif
-struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr);
-struct ieee80211_vif *rsi_get_vif(struct rsi_hw *adapter, u8 *mac);
-void rsi_roc_timeout(struct timer_list *t);
+void sleep_exit_recvd(struct rsi_common *common);
+int protocol_tx_access(struct rsi_common *common);
+int set_clr_tx_intention(struct rsi_common *common, u8 proto_id, u8 set);
+void set_host_status(int value);
+int get_device_status(void);
+int rsi_send_ack_for_ulp_entry(struct rsi_common *common);
 #endif

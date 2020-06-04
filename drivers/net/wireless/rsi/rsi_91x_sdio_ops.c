@@ -1,24 +1,37 @@
-/**
- * Copyright (c) 2014 Redpine Signals Inc.
+/*
+ * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 	1. Redistributions of source code must retain the above copyright
+ * 	   notice, this list of conditions and the following disclaimer.
  *
+ * 	2. Redistributions in binary form must reproduce the above copyright
+ * 	   notice, this list of conditions and the following disclaimer in the
+ * 	   documentation and/or other materials provided with the distribution.
+ *
+ * 	3. Neither the name of the copyright holder nor the names of its
+ * 	   contributors may be used to endorse or promote products derived from
+ * 	   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <linux/firmware.h>
-#include <net/rsi_91x.h>
 #include "rsi_sdio.h"
 #include "rsi_common.h"
+#include "rsi_hal.h"
 
 /**
  * rsi_sdio_master_access_msword() - This function sets the AHB master access
@@ -28,7 +41,8 @@
  *
  * Return: status: 0 on success, -1 on failure.
  */
-int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
+int rsi_sdio_master_access_msword(struct rsi_hw *adapter,
+				  u16 ms_word)
 {
 	u8 byte;
 	u8 function = 0;
@@ -36,7 +50,7 @@ int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
 
 	byte = (u8)(ms_word & 0x00FF);
 
-	rsi_dbg(INIT_ZONE,
+	rsi_dbg(INFO_ZONE,
 		"%s: MASTER_ACCESS_MSBYTE:0x%x\n", __func__, byte);
 
 	status = rsi_sdio_write_register(adapter,
@@ -52,7 +66,7 @@ int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
 
 	byte = (u8)(ms_word >> 8);
 
-	rsi_dbg(INIT_ZONE, "%s:MASTER_ACCESS_LSBYTE:0x%x\n", __func__, byte);
+	rsi_dbg(INFO_ZONE, "%s:MASTER_ACCESS_LSBYTE:0x%x\n", __func__, byte);
 	status = rsi_sdio_write_register(adapter,
 					 function,
 					 SDIO_MASTER_ACCESS_LSBYTE,
@@ -66,31 +80,41 @@ void rsi_sdio_rx_thread(struct rsi_common *common)
 	struct rsi_91x_sdiodev *sdev = adapter->rsi_dev;
 	struct sk_buff *skb;
 	int status;
+	bool done = false;
 
 	do {
-		rsi_wait_event(&sdev->rx_thread.event, EVENT_WAIT_FOREVER);
-		rsi_reset_event(&sdev->rx_thread.event);
+		status = rsi_wait_event(&sdev->rx_thread.event, 
+					EVENT_WAIT_FOREVER);
+		if (status < 0)
+			break;
+
+		if (atomic_read(&sdev->rx_thread.thread_done))
+			break;
 
 		while (true) {
-			if (atomic_read(&sdev->rx_thread.thread_done))
-				goto out;
-
 			skb = skb_dequeue(&sdev->rx_q.head);
 			if (!skb)
 				break;
-			if (sdev->rx_q.num_rx_pkts > 0)
-				sdev->rx_q.num_rx_pkts--;
 			status = rsi_read_pkt(common, skb->data, skb->len);
 			if (status) {
 				rsi_dbg(ERR_ZONE, "Failed to read the packet\n");
 				dev_kfree_skb(skb);
-				break;
+				return;
 			}
 			dev_kfree_skb(skb);
+			if (sdev->rx_q.num_rx_pkts > 0)
+				sdev->rx_q.num_rx_pkts--;
+			
+			if (atomic_read(&sdev->rx_thread.thread_done)) {
+				done = true;
+				break;
+			}
 		}
+		rsi_reset_event(&sdev->rx_thread.event);
+		if (done)
+			break;
 	} while (1);
 
-out:
 	rsi_dbg(INFO_ZONE, "%s: Terminated SDIO RX thread\n", __func__);
 	skb_queue_purge(&sdev->rx_q.head);
 	atomic_inc(&sdev->rx_thread.thread_done);
@@ -113,13 +137,16 @@ static int rsi_process_pkt(struct rsi_common *common)
 	u32 rcv_pkt_len = 0;
 	int status = 0;
 	u8 value = 0;
+	u8 protocol = 0, unaggr_pkt = 0;
 	struct sk_buff *skb;
 
-	if (dev->rx_q.num_rx_pkts >= RSI_MAX_RX_PKTS)
-		return 0;
 
+#define COEX_PKT 0
+#define WLAN_PKT 3
+#define ZIGB_PKT 1
+#define BT_PKT   2
 	num_blks = ((adapter->interrupt_status & 1) |
-			((adapter->interrupt_status >> RECV_NUM_BLOCKS) << 1));
+			((adapter->interrupt_status >> 4) << 1));
 
 	if (!num_blks) {
 		status = rsi_sdio_read_register(adapter,
@@ -131,36 +158,60 @@ static int rsi_process_pkt(struct rsi_common *common)
 				__func__);
 			return status;
 		}
+
+		protocol = value >> 5;
 		num_blks = value & 0x1f;
+	} else {
+		protocol = WLAN_PKT;
 	}
 
-	if (dev->write_fail == 2)
+	if (dev->write_fail == 2) {
 		rsi_sdio_ack_intr(common->priv, (1 << MSDU_PKT_PENDING));
-
+	}
 	if (unlikely(!num_blks)) {
 		dev->write_fail = 2;
 		return -1;
 	}
 
+	if (protocol == BT_PKT || protocol == ZIGB_PKT)  //unaggr_pkt FIXME
+		unaggr_pkt = 1;
+
 	rcv_pkt_len = (num_blks * 256);
+	if (dev->rx_q.num_rx_pkts >= RSI_SDIO_MAX_RX_PKTS)
+	{
+		rsi_dbg(ISR_ZONE, "%s,%d: Reached MAX RX_Q size,"
+				 "dropping the packet\n",__func__,__LINE__);
+		goto DROP_PKT;
+	}
 
 	skb = dev_alloc_skb(rcv_pkt_len);
-	if (!skb)
-		return -ENOMEM;
 
-	status = rsi_sdio_host_intf_read_pkt(adapter, skb->data, rcv_pkt_len);
+	if (!skb)
+	{
+		rsi_dbg(ERR_ZONE, "%s,%d: Failed to allocate rx packet buffer,"
+				 "dropping packet\n",__func__,__LINE__);
+		goto DROP_PKT;
+	}
+
+	skb_put(skb, rcv_pkt_len);
+	status = rsi_sdio_host_intf_read_pkt(adapter, skb->data, skb->len);
 	if (status) {
-		rsi_dbg(ERR_ZONE, "%s: Failed to read packet from card\n",
-			__func__);
+		rsi_dbg(ERR_ZONE, "%s,%d: Failed to read packet from card\n",
+			__func__,__LINE__);
 		dev_kfree_skb(skb);
 		return status;
 	}
-	skb_put(skb, rcv_pkt_len);
 	skb_queue_tail(&dev->rx_q.head, skb);
 	dev->rx_q.num_rx_pkts++;
+	rsi_set_event(&dev->rx_thread.event);
+	return 0;
+DROP_PKT:
+	status = rsi_sdio_host_intf_read_pkt(adapter, dev->temp_rcv_buf, rcv_pkt_len);
+	if (status)
+		rsi_dbg(ERR_ZONE, "%s,%d: Failed to read packet from card\n",
+			__func__,__LINE__);
 
 	rsi_set_event(&dev->rx_thread.event);
-
 	return 0;
 }
 
@@ -250,6 +301,22 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 	return 0;
 }
 
+int rsi_read_intr_status_reg(struct rsi_hw *adapter)
+{
+	u8 isr_status = 0;
+	struct rsi_common *common = adapter->priv;
+	int status;
+
+	status = rsi_sdio_read_register(common->priv,
+						RSI_FN1_INT_REGISTER,
+						&isr_status);
+	isr_status &= 0xE;
+	
+	if(isr_status & BIT(MSDU_PKT_PENDING))
+		adapter->isr_pending = 1;
+	return 0;
+}
+
 /**
  * rsi_interrupt_handler() - This function read and process SDIO interrupts.
  * @adapter: Pointer to the adapter structure.
@@ -274,13 +341,15 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 						RSI_FN1_INT_REGISTER,
 						&isr_status);
 		if (status) {
-			rsi_dbg(ERR_ZONE,
+			rsi_dbg(INFO_ZONE,
 				"%s: Failed to Read Intr Status Register\n",
 				__func__);
 			mutex_unlock(&common->rx_lock);
 			return;
 		}
+
 		adapter->interrupt_status = isr_status;
+		isr_status &= 0xE;
 
 		if (isr_status == 0) {
 			rsi_set_event(&common->tx_thread.event);
@@ -288,6 +357,9 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 			mutex_unlock(&common->rx_lock);
 			return;
 		}
+
+//		adapter->interrupt_status = isr_status;
+//		isr_status &= 0xE;
 
 		rsi_dbg(ISR_ZONE, "%s: Intr_status = %x %d %d\n",
 			__func__, isr_status, (1 << MSDU_PKT_PENDING),
@@ -298,8 +370,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 
 			switch (isr_type) {
 			case BUFFER_AVAILABLE:
-				status = rsi_sdio_check_buffer_status(adapter,
-								      0);
+				status = rsi_sdio_check_buffer_status(adapter, 0);
 				if (status < 0)
 					rsi_dbg(ERR_ZONE,
 						"%s: Failed to check buffer status\n",
@@ -309,9 +380,9 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 				rsi_set_event(&common->tx_thread.event);
 
 				rsi_dbg(ISR_ZONE,
-					"%s: ==> BUFFER_AVAILABLE <==\n",
+					"%s: Buffer full/available\n",
 					__func__);
-				dev->buff_status_updated = true;
+				dev->buff_status_updated = 1;
 				break;
 
 			case FIRMWARE_ASSERT_IND:
@@ -319,8 +390,8 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 					"%s: ==> FIRMWARE Assert <==\n",
 					__func__);
 				status = rsi_sdio_read_register(common->priv,
-							SDIO_FW_STATUS_REG,
-							&fw_status);
+								SDIO_FW_STATUS_REG,
+								&fw_status);
 				if (status) {
 					rsi_dbg(ERR_ZONE,
 						"%s: Failed to read f/w reg\n",
@@ -328,7 +399,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 				} else {
 					rsi_dbg(ERR_ZONE,
 						"%s: Firmware Status is 0x%x\n",
-						__func__ , fw_status);
+						__func__, fw_status);
 					rsi_sdio_ack_intr(common->priv,
 							  (1 << FW_ASSERT_IND));
 				}
@@ -364,8 +435,15 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 	} while (1);
 }
 
-/* This function is used to read buffer status register and
- * set relevant fields in rsi_91x_sdiodev struct.
+/**
+ * rsi_sdio_check_buffer_status() - This function is used to the read
+ *					    buffer status register and set
+ *					    relevant fields in
+ *					    rsi_91x_sdiodev struct.
+ * @adapter: Pointer to the driver hw structure.
+ * @q_num: The Q number whose status is to be found.
+ *
+ * Return: status: -1 on failure or else queue full/stop is indicated.
  */
 int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 {
@@ -381,11 +459,10 @@ int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 		goto out;
 	}
 
-	dev->buff_status_updated = false;
+	dev->buff_status_updated = 0;
 	status = rsi_sdio_read_register(common->priv,
 					RSI_DEVICE_BUFFER_STATUS_REGISTER,
 					&buf_status);
-
 	if (status) {
 		rsi_dbg(ERR_ZONE,
 			"%s: Failed to read status register\n", __func__);
@@ -396,25 +473,22 @@ int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 		if (!dev->rx_info.mgmt_buffer_full)
 			dev->rx_info.mgmt_buf_full_counter++;
 		dev->rx_info.mgmt_buffer_full = true;
-	} else {
+	} else
 		dev->rx_info.mgmt_buffer_full = false;
-	}
 
 	if (buf_status & (BIT(PKT_BUFF_FULL))) {
 		if (!dev->rx_info.buffer_full)
 			dev->rx_info.buf_full_counter++;
 		dev->rx_info.buffer_full = true;
-	} else {
+	} else
 		dev->rx_info.buffer_full = false;
-	}
 
 	if (buf_status & (BIT(PKT_BUFF_SEMI_FULL))) {
 		if (!dev->rx_info.semi_buffer_full)
 			dev->rx_info.buf_semi_full_counter++;
 		dev->rx_info.semi_buffer_full = true;
-	} else {
+	} else
 		dev->rx_info.semi_buffer_full = false;
-	}
 
 	if (dev->rx_info.mgmt_buffer_full || dev->rx_info.buf_full_counter)
 		counter = 1;
