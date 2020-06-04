@@ -1,39 +1,143 @@
-/**
- * Copyright (c) 2014 Redpine Signals Inc.
+/*
+ * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 	1. Redistributions of source code must retain the above copyright
+ * 	   notice, this list of conditions and the following disclaimer.
  *
+ * 	2. Redistributions in binary form must reproduce the above copyright
+ * 	   notice, this list of conditions and the following disclaimer in the
+ * 	   documentation and/or other materials provided with the distribution.
+ *
+ * 	3. Neither the name of the copyright holder nor the names of its
+ * 	   contributors may be used to endorse or promote products derived from
+ * 	   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <linux/module.h>
-#include <linux/types.h>
-#include <net/rsi_91x.h>
+#include <linux/usb.h>
 #include "rsi_usb.h"
 #include "rsi_hal.h"
-#include "rsi_coex.h"
 
-/* Default operating mode is wlan STA + BT */
-static u16 dev_oper_mode = DEV_OPMODE_STA_BT_DUAL;
-module_param(dev_oper_mode, ushort, 0444);
-MODULE_PARM_DESC(dev_oper_mode,
-		 "1[Wi-Fi], 4[BT], 8[BT LE], 5[Wi-Fi STA + BT classic]\n"
-		 "9[Wi-Fi STA + BT LE], 13[Wi-Fi STA + BT classic + BT LE]\n"
-		 "6[AP + BT classic], 14[AP + BT classic + BT LE]");
+static struct rsi_host_intf_ops usb_host_intf_ops = {
+	.write_pkt		= rsi_usb_host_intf_write_pkt,
+	.master_reg_read	= rsi_usb_master_reg_read,
+	.master_reg_write	= rsi_usb_master_reg_write,
+	.read_reg_multiple	= rsi_usb_read_register_multiple,
+	.write_reg_multiple	= rsi_usb_write_register_multiple,
+	.load_data_master_write	= rsi_usb_load_data_master_write,
+	.check_hw_queue_status	= rsi_usb_check_queue_status,
+};
 
-static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num, gfp_t flags);
+#ifdef CONFIG_PM
+#if KERNEL_VERSION(4, 15, 0) > LINUX_VERSION_CODE
+void rsi_usb_suspend_timeout(struct rsi_common *common)
+{
+#else
+static void rsi_usb_suspend_timeout(struct timer_list *timer)
+{
+	struct rsi_common *common = from_timer(common, timer, suspend_timer);
+#endif
+	struct rsi_hw *adapter = common->priv;
 
+	if (adapter->usb_intf_in_suspend) {
+		if (adapter->usb_in_deep_ps && !protocol_tx_access(common)) {
+			mod_timer(&common->suspend_timer,
+				  msecs_to_jiffies(1000) + jiffies);
+			return;
+		}
+		usb_autopm_get_interface_async(adapter->usb_iface);
+		if (atomic_read(&adapter->usb_iface->dev.power.usage_count) > 0)
+			usb_autopm_put_interface_async(adapter->usb_iface);
+	}
+}
+#endif
+
+static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
+{
+	struct api_context ctx;
+	unsigned long expire;
+	int retval;
+
+	init_completion(&ctx.done);
+	urb->context = &ctx;
+	urb->actual_length = 0;
+	retval = usb_submit_urb(urb, GFP_NOIO);
+	if (unlikely(retval))
+		goto out;
+
+	expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
+	if (!wait_for_completion_timeout(&ctx.done, expire)) {
+		usb_kill_urb(urb);
+		retval = (ctx.status == -ENOENT ? -ETIMEDOUT : ctx.status);
+
+		dev_dbg(&urb->dev->dev,
+			"%s timed out on ep%d%s len=%u/%u\n",
+			current->comm,
+			usb_endpoint_num(&urb->ep->desc),
+			usb_urb_dir_in(urb) ? "in" : "out",
+			urb->actual_length,
+			urb->transfer_buffer_length);
+	} else
+		retval = ctx.status;
+out:
+	if (actual_length)
+		*actual_length = urb->actual_length;
+
+	usb_free_urb(urb);
+	return retval;
+}
+
+static void usb_api_blocking_completion(struct urb *urb)
+{
+	struct api_context *ctx = urb->context;
+
+	ctx->status = urb->status;
+	complete(&ctx->done);
+}
+
+int usb_bulk_msg_rsi(struct usb_device *usb_dev, unsigned int pipe,
+		 void *data, int len, int *actual_length, int timeout)
+{
+	struct urb *urb;
+	struct usb_host_endpoint *ep;
+
+	ep = usb_pipe_endpoint(usb_dev, pipe);
+	if (!ep || len < 0)
+		return -EINVAL;
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
+	if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_INT) {
+		pipe = (pipe & ~(3 << 30)) | (PIPE_INTERRUPT << 30);
+		usb_fill_int_urb(urb, usb_dev, pipe, data, len,
+				usb_api_blocking_completion, NULL,
+				ep->desc.bInterval);
+	} else
+		usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
+				usb_api_blocking_completion, NULL);
+	urb->transfer_flags |= URB_ZERO_PACKET; //Added this to support USB v1.2
+	return usb_start_wait_urb(urb, timeout, actual_length);
+}
 /**
- * rsi_usb_card_write() - This function writes to the USB Card.
+ * rsi_usb_card_write() - This function writes data to the USB Card.
  * @adapter: Pointer to the adapter structure.
  * @buf: Pointer to the buffer from where the data has to be taken.
  * @len: Length to be written.
@@ -44,30 +148,41 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num, gfp_t flags);
 static int rsi_usb_card_write(struct rsi_hw *adapter,
 			      u8 *buf,
 			      u16 len,
-			      u8 endpoint)
+			      u32 endpoint)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
-	int status;
+	int status = 0;
 	u8 *seg = dev->tx_buffer;
-	int transfer;
+	int transfer = 0;
 	int ep = dev->bulkout_endpoint_addr[endpoint - 1];
 
-	memset(seg, 0, len + RSI_USB_TX_HEAD_ROOM);
-	memcpy(seg + RSI_USB_TX_HEAD_ROOM, buf, len);
-	len += RSI_USB_TX_HEAD_ROOM;
+	if (adapter->priv->zb_fsm_state == ZB_DEVICE_READY &&
+	    (adapter->device_model == RSI_DEV_9116 ?
+	     endpoint == ZIGB_EP : endpoint == DATA_EP)) {
+		memcpy(seg, buf, len);
+	} else {
+		memset(seg, 0, len + 128);
+		memcpy(seg + 128, buf, len);
+		len += 128;
+	}
 	transfer = len;
-	status = usb_bulk_msg(dev->usbdev,
+	atomic_inc(&adapter->tx_pending_urbs);
+	status = usb_bulk_msg_rsi(dev->usbdev,
 			      usb_sndbulkpipe(dev->usbdev, ep),
 			      (void *)seg,
 			      (int)len,
 			      &transfer,
-			      HZ * 5);
-
+			      TIMEOUT);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE,
-			"Card write failed with error code :%10d\n", status);
+			"Card write failed with error code :%d\n", status);
 		dev->write_fail = 1;
+		goto fail;
 	}
+	rsi_dbg(MGMT_TX_ZONE, "%s: Sent Message successfully\n", __func__);
+	atomic_dec(&adapter->tx_pending_urbs);
+
+fail:
 	return status;
 }
 
@@ -82,78 +197,23 @@ static int rsi_usb_card_write(struct rsi_hw *adapter,
  * Return: 0 on success, a negative error code on failure.
  */
 static int rsi_write_multiple(struct rsi_hw *adapter,
-			      u8 endpoint,
+			      u32 addr,
 			      u8 *data,
 			      u32 count)
 {
-	struct rsi_91x_usbdev *dev;
+	struct rsi_91x_usbdev *dev =
+		(struct rsi_91x_usbdev *)adapter->rsi_dev;
 
-	if (!adapter)
-		return -ENODEV;
-
-	if (endpoint == 0)
-		return -EINVAL;
-
-	dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
-	if (dev->write_fail)
-		return -ENETDOWN;
-
-	return rsi_usb_card_write(adapter, data, count, endpoint);
-}
-
-/**
- * rsi_find_bulk_in_and_out_endpoints() - This function initializes the bulk
- *					  endpoints to the device.
- * @interface: Pointer to the USB interface structure.
- * @adapter: Pointer to the adapter structure.
- *
- * Return: ret_val: 0 on success, -ENOMEM on failure.
- */
-static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
-					      struct rsi_hw *adapter)
-{
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	__le16 buffer_size;
-	int ii, bin_found = 0, bout_found = 0;
-
-	iface_desc = interface->cur_altsetting;
-
-	for (ii = 0; ii < iface_desc->desc.bNumEndpoints; ++ii) {
-		endpoint = &(iface_desc->endpoint[ii].desc);
-
-		if (!dev->bulkin_endpoint_addr[bin_found] &&
-		    (endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		    USB_ENDPOINT_XFER_BULK)) {
-			buffer_size = endpoint->wMaxPacketSize;
-			dev->bulkin_size[bin_found] = buffer_size;
-			dev->bulkin_endpoint_addr[bin_found] =
-				endpoint->bEndpointAddress;
-			bin_found++;
-		}
-
-		if (!dev->bulkout_endpoint_addr[bout_found] &&
-		    !(endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		    USB_ENDPOINT_XFER_BULK)) {
-			buffer_size = endpoint->wMaxPacketSize;
-			dev->bulkout_endpoint_addr[bout_found] =
-				endpoint->bEndpointAddress;
-			dev->bulkout_size[bout_found] = buffer_size;
-			bout_found++;
-		}
-
-		if (bin_found >= MAX_BULK_EP || bout_found >= MAX_BULK_EP)
-			break;
+	if (!adapter || addr == 0) {
+		rsi_dbg(INFO_ZONE,
+			"%s: Unable to write to card\n", __func__);
+		return -1;
 	}
 
-	if (!(dev->bulkin_endpoint_addr[0]) &&
-	    dev->bulkout_endpoint_addr[0])
-		return -EINVAL;
+	if (dev->write_fail)
+		return -1;
 
-	return 0;
+	return rsi_usb_card_write(adapter, data, count, addr);
 }
 
 #define RSI_USB_REQ_OUT	(USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE)
@@ -169,24 +229,26 @@ static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
  */
 static int rsi_usb_reg_read(struct usb_device *usbdev,
 			    u32 reg,
-			    u16 *value,
+			    u32 *value,
 			    u16 len)
 {
 	u8 *buf;
-	int status = -ENOMEM;
+	int status = 0;
+	u16 reg_value;
+	u16 index;
 
-	if (len > RSI_USB_CTRL_BUF_SIZE)
-		return -EINVAL;
-
-	buf  = kmalloc(RSI_USB_CTRL_BUF_SIZE, GFP_KERNEL);
+	buf = kmalloc(4, GFP_KERNEL);
 	if (!buf)
-		return status;
-
+		return -ENOMEM;
+	len = 2;
+	reg_value = cpu_to_le16(((u16 *)&reg)[1] & 0xffff);
+	index = cpu_to_le16(((u16 *)&reg)[0] & 0xffff);
 	status = usb_control_msg(usbdev,
 				 usb_rcvctrlpipe(usbdev, 0),
 				 USB_VENDOR_REGISTER_READ,
 				 RSI_USB_REQ_IN,
-				 ((reg & 0xffff0000) >> 16), (reg & 0xffff),
+				 reg_value,
+				 index,
 				 (void *)buf,
 				 len,
 				 USB_CTRL_GET_TIMEOUT);
@@ -213,31 +275,30 @@ static int rsi_usb_reg_read(struct usb_device *usbdev,
  * Return: status: 0 on success, a negative error code on failure.
  */
 static int rsi_usb_reg_write(struct usb_device *usbdev,
-			     u32 reg,
-			     u32 value,
+			     unsigned long reg,
+			     unsigned long value,
 			     u16 len)
 {
 	u8 *usb_reg_buf;
-	int status = -ENOMEM;
+	int status = 0;
+	u16 reg_value, index;
 
-	if (len > RSI_USB_CTRL_BUF_SIZE)
-		return -EINVAL;
-
-	usb_reg_buf  = kmalloc(RSI_USB_CTRL_BUF_SIZE, GFP_KERNEL);
+	usb_reg_buf = kmalloc(4, GFP_KERNEL);
 	if (!usb_reg_buf)
-		return status;
+		return -ENOMEM;
+	usb_reg_buf[0] = (value & 0x00ff);
+	usb_reg_buf[1] = (value & 0xff00) >> 8;
+	usb_reg_buf[2] = (value & 0x00ff0000) >> 16;
+	usb_reg_buf[3] = (value & 0xff000000) >> 24;
 
-	usb_reg_buf[0] = (cpu_to_le32(value) & 0x00ff);
-	usb_reg_buf[1] = (cpu_to_le32(value) & 0xff00) >> 8;
-	usb_reg_buf[2] = (cpu_to_le32(value) & 0x00ff0000) >> 16;
-	usb_reg_buf[3] = (cpu_to_le32(value) & 0xff000000) >> 24;
-
+	reg_value = ((u16 *)&reg)[1] & 0xffff;
+	index = ((u16 *)&reg)[0] & 0xffff;
 	status = usb_control_msg(usbdev,
 				 usb_sndctrlpipe(usbdev, 0),
 				 USB_VENDOR_REGISTER_WRITE,
 				 RSI_USB_REQ_OUT,
-				 ((cpu_to_le32(reg) & 0xffff0000) >> 16),
-				 (cpu_to_le32(reg) & 0xffff),
+				 reg_value,
+				 index,
 				 (void *)usb_reg_buf,
 				 len,
 				 USB_CTRL_SET_TIMEOUT);
@@ -252,172 +313,101 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
 }
 
 /**
- * rsi_rx_done_handler() - This function is called when a packet is received
- *			   from USB stack. This is callback to receive done.
- * @urb: Received URB.
+ * rsi_usb_read_register_multiple() - This function reads multiple
+ *					bytes of data from the address.
+ * @adapter:	Pointer to the adapter structure.
+ * @addr:	Address of the register.
+ * @data:	Read data.
+ * @len:	Number of bytes to read.
  *
- * Return: None.
+ * Return: status: 0 on success, a negative error code on failure.
  */
-static void rsi_rx_done_handler(struct urb *urb)
-{
-	struct rx_usb_ctrl_block *rx_cb = urb->context;
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)rx_cb->data;
-	int status = -EINVAL;
-
-	if (urb->status) {
-		dev_kfree_skb(rx_cb->rx_skb);
-		return;
-	}
-
-	if (urb->actual_length <= 0 ||
-	    urb->actual_length > rx_cb->rx_skb->len) {
-		rsi_dbg(INFO_ZONE, "%s: Invalid packet length = %d\n",
-			__func__, urb->actual_length);
-		goto out;
-	}
-	if (skb_queue_len(&dev->rx_q) >= RSI_MAX_RX_PKTS) {
-		rsi_dbg(INFO_ZONE, "Max RX packets reached\n");
-		goto out;
-	}
-	skb_trim(rx_cb->rx_skb, urb->actual_length);
-	skb_queue_tail(&dev->rx_q, rx_cb->rx_skb);
-
-	rsi_set_event(&dev->rx_thread.event);
-	status = 0;
-
-out:
-	if (rsi_rx_urb_submit(dev->priv, rx_cb->ep_num, GFP_ATOMIC))
-		rsi_dbg(ERR_ZONE, "%s: Failed in urb submission", __func__);
-
-	if (status)
-		dev_kfree_skb(rx_cb->rx_skb);
-}
-
-static void rsi_rx_urb_kill(struct rsi_hw *adapter, u8 ep_num)
-{
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
-	struct rx_usb_ctrl_block *rx_cb = &dev->rx_cb[ep_num - 1];
-	struct urb *urb = rx_cb->rx_urb;
-
-	usb_kill_urb(urb);
-}
-
-/**
- * rsi_rx_urb_submit() - This function submits the given URB to the USB stack.
- * @adapter: Pointer to the adapter structure.
- *
- * Return: 0 on success, a negative error code on failure.
- */
-static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num, gfp_t mem_flags)
-{
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
-	struct rx_usb_ctrl_block *rx_cb = &dev->rx_cb[ep_num - 1];
-	struct urb *urb = rx_cb->rx_urb;
-	int status;
-	struct sk_buff *skb;
-	u8 dword_align_bytes = 0;
-
-#define RSI_MAX_RX_USB_PKT_SIZE	3000
-	skb = dev_alloc_skb(RSI_MAX_RX_USB_PKT_SIZE);
-	if (!skb)
-		return -ENOMEM;
-	skb_reserve(skb, MAX_DWORD_ALIGN_BYTES);
-	skb_put(skb, RSI_MAX_RX_USB_PKT_SIZE - MAX_DWORD_ALIGN_BYTES);
-	dword_align_bytes = (unsigned long)skb->data & 0x3f;
-	if (dword_align_bytes > 0)
-		skb_push(skb, dword_align_bytes);
-	urb->transfer_buffer = skb->data;
-	rx_cb->rx_skb = skb;
-
-	usb_fill_bulk_urb(urb,
-			  dev->usbdev,
-			  usb_rcvbulkpipe(dev->usbdev,
-			  dev->bulkin_endpoint_addr[ep_num - 1]),
-			  urb->transfer_buffer,
-			  skb->len,
-			  rsi_rx_done_handler,
-			  rx_cb);
-
-	status = usb_submit_urb(urb, mem_flags);
-	if (status) {
-		rsi_dbg(ERR_ZONE, "%s: Failed in urb submission\n", __func__);
-		dev_kfree_skb(skb);
-	}
-
-	return status;
-}
-
-static int rsi_usb_read_register_multiple(struct rsi_hw *adapter, u32 addr,
-					  u8 *data, u16 count)
+int rsi_usb_read_register_multiple(struct rsi_hw *adapter,
+				   u32 addr,
+				   u8 *data,
+				   u16 count)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	u8 *buf;
 	u16 transfer;
-	int status;
+	int status = 0;
+	u16 reg_val, index;
 
-	if (!addr)
+	if (addr == 0)
 		return -EINVAL;
 
-	buf = kzalloc(RSI_USB_BUF_SIZE, GFP_KERNEL);
+	buf = kzalloc(4096, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
+	reg_val = ((u16 *)&addr)[1] & 0xffff;
+	index = ((u16 *)&addr)[0] & 0xffff;
 	while (count) {
-		transfer = min_t(u16, count, RSI_USB_BUF_SIZE);
+		transfer = min_t(u16, count, 4096);
 		status = usb_control_msg(dev->usbdev,
 					 usb_rcvctrlpipe(dev->usbdev, 0),
 					 USB_VENDOR_REGISTER_READ,
 					 RSI_USB_REQ_IN,
-					 ((addr & 0xffff0000) >> 16),
-					 (addr & 0xffff), (void *)buf,
-					 transfer, USB_CTRL_GET_TIMEOUT);
+					 reg_val,
+					 index,
+					 (void *)buf,
+					 transfer,
+					 USB_CTRL_GET_TIMEOUT);
 		if (status < 0) {
 			rsi_dbg(ERR_ZONE,
 				"Reg read failed with error code :%d\n",
 				 status);
 			kfree(buf);
 			return status;
+
+		} else {
+			memcpy(data, buf, transfer);
+			count -= transfer;
+			data += transfer;
+			addr += transfer;
 		}
-		memcpy(data, buf, transfer);
-		count -= transfer;
-		data += transfer;
-		addr += transfer;
 	}
 	kfree(buf);
-	return 0;
+	return status;
 }
 
 /**
  * rsi_usb_write_register_multiple() - This function writes multiple bytes of
- *				       information to multiple registers.
- * @adapter: Pointer to the adapter structure.
- * @addr: Address of the register.
- * @data: Pointer to the data that has to be written.
- * @count: Number of multiple bytes to be written on to the registers.
+ *				       information to the given address.
+ * @adapter:	Pointer to the adapter structure.
+ * @addr:	Address of the register.
+ * @data:	Pointer to the data that has to be written.
+ * @count:	Number of multiple bytes to be written on to the registers.
  *
  * Return: status: 0 on success, a negative error code on failure.
  */
-static int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
-					   u8 *data, u16 count)
+int rsi_usb_write_register_multiple(struct rsi_hw *adapter,
+				    u32 addr,
+				    u8 *data,
+				    u16 count)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev =
+		(struct rsi_91x_usbdev *)adapter->rsi_dev;
 	u8 *buf;
 	u16 transfer;
 	int status = 0;
+	u16 reg_val, index;
 
-	buf = kzalloc(RSI_USB_BUF_SIZE, GFP_KERNEL);
+	buf = kzalloc(4096, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
+	reg_val = ((u16 *)&addr)[1] & 0xffff;
+	index = ((u16 *)&addr)[0] & 0xffff;
 	while (count) {
-		transfer = min_t(u16, count, RSI_USB_BUF_SIZE);
+		transfer = min_t(u16, count, 4096);
 		memcpy(buf, data, transfer);
 		status = usb_control_msg(dev->usbdev,
 					 usb_sndctrlpipe(dev->usbdev, 0),
 					 USB_VENDOR_REGISTER_WRITE,
 					 RSI_USB_REQ_OUT,
-					 ((addr & 0xffff0000) >> 16),
-					 (addr & 0xffff),
+					 reg_val,
+					 index,
 					 (void *)buf,
 					 transfer,
 					 USB_CTRL_SET_TIMEOUT);
@@ -434,7 +424,88 @@ static int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
 	}
 
 	kfree(buf);
-	return 0;
+	return status;
+}
+
+/**
+ * rsi_rx_done_handler() - This function is called when a packet is received
+ *			   from USB stack. This is callback to receive done.
+ * @urb: Received URB.
+ *
+ * Return: None.
+ */
+static void rsi_rx_done_handler(struct urb *urb)
+{
+	struct rx_usb_ctrl_block *rx_cb = urb->context;
+	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)rx_cb->data;
+
+	if (urb->status) {
+		dev_kfree_skb(rx_cb->rx_skb);
+		return;
+	}
+
+	if (urb->actual_length <= 0 || urb->actual_length > rx_cb->rx_skb->len) {
+		rsi_dbg(INFO_ZONE, "%s: Invalid packet length = %d\n", __func__, urb->actual_length);
+		return;
+	}
+	
+	skb_trim(rx_cb->rx_skb, urb->actual_length);
+	skb_queue_tail(&dev->rx_q[rx_cb->ep_num - 1], rx_cb->rx_skb);
+
+	rsi_set_event(&dev->rx_thread.event);
+
+	if (rsi_rx_urb_submit(dev->priv, rx_cb->ep_num))
+		rsi_dbg(ERR_ZONE, "%s: Failed in urb submission", __func__);
+
+}
+
+/**
+ * rsi_rx_urb_submit() - This function submits the given URB to the USB stack.
+ * @adapter: Pointer to the adapter structure.
+ *
+ * Return: 0 on success, a negative error code on failure.
+ */
+int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num)
+{
+	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rx_usb_ctrl_block *rx_cb = &dev->rx_cb[ep_num - 1];
+	struct urb *urb = rx_cb->rx_urb;
+	int status;
+	struct sk_buff *skb;
+	u8 dword_align_bytes;
+	uint32_t total_len = 0;
+
+	if (adapter->priv->driver_mode == SNIFFER_MODE)
+		total_len = RSI_RECV_BUFFER_LEN * 4;
+	else
+		total_len = RSI_RECV_BUFFER_LEN;
+
+	skb = dev_alloc_skb(total_len);
+	if (!skb)
+		return -ENOMEM;
+	skb_reserve(skb, 64); /* For dword alignment */
+	skb_put(skb, total_len - 64);
+	dword_align_bytes = (unsigned long)skb->data & 0x3f;
+	if (dword_align_bytes)
+		skb_push(skb, dword_align_bytes);
+
+	urb->transfer_buffer = skb->data;
+	rx_cb->rx_skb = skb;
+
+	usb_fill_bulk_urb(urb,
+			dev->usbdev,
+			usb_rcvbulkpipe(dev->usbdev,
+					dev->bulkin_endpoint_addr[ep_num - 1]),
+			urb->transfer_buffer,
+			skb->len,
+			rsi_rx_done_handler,
+			rx_cb);
+
+	status = usb_submit_urb(urb, GFP_KERNEL);
+	if (status)
+		rsi_dbg(ERR_ZONE, "%s: Failed in urb submission\n", __func__);
+
+	return status;
 }
 
 /**
@@ -446,41 +517,44 @@ static int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
  *
  * Return: 0 on success, a negative error code on failure.
  */
-static int rsi_usb_host_intf_write_pkt(struct rsi_hw *adapter,
-				       u8 *pkt,
-				       u32 len)
+int rsi_usb_host_intf_write_pkt(struct rsi_hw *adapter,
+				u8 *pkt,
+				u32 len)
 {
 	u32 queueno = ((pkt[1] >> 4) & 0x7);
 	u8 endpoint;
 
-	endpoint = ((queueno == RSI_WIFI_MGMT_Q || queueno == RSI_WIFI_DATA_Q ||
-		     queueno == RSI_COEX_Q) ? WLAN_EP : BT_EP);
+	rsi_dbg(DATA_TX_ZONE, "%s: queueno=%d\n", __func__, queueno);
+	if (adapter->device_model == RSI_DEV_9116 && queueno == RSI_ZIGB_Q) {
+		endpoint = ZIGB_EP;
+	} else {
+		endpoint = ((queueno == RSI_WIFI_MGMT_Q ||
+			     queueno == RSI_COEX_Q ||
+			     queueno == RSI_WIFI_DATA_Q) ?
+			     MGMT_EP : DATA_EP);
+	}
 
 	return rsi_write_multiple(adapter,
 				  endpoint,
-				  (u8 *)pkt,
+				  pkt,
 				  len);
 }
 
-static int rsi_usb_master_reg_read(struct rsi_hw *adapter, u32 reg,
-				   u32 *value, u16 len)
+int rsi_usb_master_reg_read(struct rsi_hw *adapter,
+			    u32 reg,
+			    u32 *value,
+			    u16 len)
 {
 	struct usb_device *usbdev =
 		((struct rsi_91x_usbdev *)adapter->rsi_dev)->usbdev;
-	u16 temp;
-	int ret;
 
-	ret = rsi_usb_reg_read(usbdev, reg, &temp, len);
-	if (ret < 0)
-		return ret;
-	*value = temp;
-
-	return 0;
+	return rsi_usb_reg_read(usbdev, reg, value, len);
 }
 
-static int rsi_usb_master_reg_write(struct rsi_hw *adapter,
-				    unsigned long reg,
-				    unsigned long value, u16 len)
+int rsi_usb_master_reg_write(struct rsi_hw *adapter,
+			     unsigned long reg,
+			     unsigned long value,
+			     u16 len)
 {
 	struct usb_device *usbdev =
 		((struct rsi_91x_usbdev *)adapter->rsi_dev)->usbdev;
@@ -488,28 +562,31 @@ static int rsi_usb_master_reg_write(struct rsi_hw *adapter,
 	return rsi_usb_reg_write(usbdev, reg, value, len);
 }
 
-static int rsi_usb_load_data_master_write(struct rsi_hw *adapter,
-					  u32 base_address,
-					  u32 instructions_sz, u16 block_size,
-					  u8 *ta_firmware)
+int rsi_usb_load_data_master_write(struct rsi_hw *adapter,
+				   u32 base_address,
+				   u32 instructions_sz,
+				   u16 block_size,
+				   u8 *ta_firmware)
 {
 	u16 num_blocks;
-	u32 cur_indx, i;
+	u32 cur_indx, ii;
 	u8 temp_buf[256];
-	int status;
 
 	num_blocks = instructions_sz / block_size;
 	rsi_dbg(INFO_ZONE, "num_blocks: %d\n", num_blocks);
 
-	for (cur_indx = 0, i = 0; i < num_blocks; i++, cur_indx += block_size) {
+	for (cur_indx = 0, ii = 0;
+	     ii < num_blocks;
+	     ii++, cur_indx += block_size) {
+		memset(temp_buf, 0, block_size);
 		memcpy(temp_buf, ta_firmware + cur_indx, block_size);
-		status = rsi_usb_write_register_multiple(adapter, base_address,
-							 (u8 *)(temp_buf),
-							 block_size);
-		if (status < 0)
-			return status;
+		if ((rsi_usb_write_register_multiple(adapter,
+						     base_address,
+						     (u8 *)(temp_buf),
+						     block_size)) < 0)
+			return -EIO;
 
-		rsi_dbg(INFO_ZONE, "%s: loading block: %d\n", __func__, i);
+		rsi_dbg(INFO_ZONE, "%s: loading block: %d\n", __func__, ii);
 		base_address += block_size;
 	}
 
@@ -517,12 +594,11 @@ static int rsi_usb_load_data_master_write(struct rsi_hw *adapter,
 		memset(temp_buf, 0, block_size);
 		memcpy(temp_buf, ta_firmware + cur_indx,
 		       instructions_sz % block_size);
-		status = rsi_usb_write_register_multiple
-						(adapter, base_address,
-						 (u8 *)temp_buf,
-						 instructions_sz % block_size);
-		if (status < 0)
-			return status;
+		if ((rsi_usb_write_register_multiple(adapter,
+					     base_address,
+					     (u8 *)temp_buf,
+					     instructions_sz % block_size)) < 0)
+			return -EIO;
 		rsi_dbg(INFO_ZONE,
 			"Written Last Block in Address 0x%x Successfully\n",
 			cur_indx);
@@ -530,14 +606,57 @@ static int rsi_usb_load_data_master_write(struct rsi_hw *adapter,
 	return 0;
 }
 
-static struct rsi_host_intf_ops usb_host_intf_ops = {
-	.write_pkt		= rsi_usb_host_intf_write_pkt,
-	.read_reg_multiple	= rsi_usb_read_register_multiple,
-	.write_reg_multiple	= rsi_usb_write_register_multiple,
-	.master_reg_read	= rsi_usb_master_reg_read,
-	.master_reg_write	= rsi_usb_master_reg_write,
-	.load_data_master_write	= rsi_usb_load_data_master_write,
-};
+int rsi_usb_check_queue_status(struct rsi_hw *adapter, u8 q_num)
+{
+	return QUEUE_NOT_FULL;
+
+#if 0
+	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	int status;
+	u32 buf_status = 0;
+
+	if (adapter->priv->fsm_state != FSM_MAC_INIT_DONE)
+		return QUEUE_NOT_FULL;
+
+	status = rsi_usb_reg_read(dev->usbdev, adapter->usb_buffer_status_reg,
+				  &buf_status, 2);
+	if (status < 0)
+		return status;
+
+	printk("buffer_status = %x\n", buf_status);
+	if (buf_status & (BIT(PKT_MGMT_BUFF_FULL))) {
+		if (!dev->rx_info.mgmt_buffer_full)
+			dev->rx_info.mgmt_buf_full_counter++;
+		dev->rx_info.mgmt_buffer_full = true;
+	} else {
+		dev->rx_info.mgmt_buffer_full = false;
+	}
+
+	if (buf_status & (BIT(PKT_BUFF_FULL))) {
+		if (!dev->rx_info.buffer_full)
+			dev->rx_info.buf_full_counter++;
+		dev->rx_info.buffer_full = true;
+	} else {
+		dev->rx_info.buffer_full = false;
+	}
+
+	if (buf_status & (BIT(PKT_BUFF_SEMI_FULL))) {
+		if (!dev->rx_info.semi_buffer_full)
+			dev->rx_info.buf_semi_full_counter++;
+		dev->rx_info.semi_buffer_full = true;
+	} else {
+		dev->rx_info.semi_buffer_full = false;
+	}
+
+	if ((q_num == MGMT_SOFT_Q) && (dev->rx_info.mgmt_buffer_full))
+		return QUEUE_FULL;
+
+	if ((q_num < MGMT_SOFT_Q) && (dev->rx_info.buffer_full))
+		return QUEUE_FULL;
+
+	return QUEUE_NOT_FULL;
+#endif
+}
 
 /**
  * rsi_deinit_usb_interface() - This function deinitializes the usb interface.
@@ -549,25 +668,91 @@ static void rsi_deinit_usb_interface(struct rsi_hw *adapter)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 
+	rsi_dbg(INFO_ZONE, "Deinitializing USB interface...\n");
+
 	rsi_kill_thread(&dev->rx_thread);
-
+	//kfree(dev->rx_cb[0].rx_buffer);
+	skb_queue_purge(&dev->rx_q[0]);
 	usb_free_urb(dev->rx_cb[0].rx_urb);
-	if (adapter->priv->coex_mode > 1)
-		usb_free_urb(dev->rx_cb[1].rx_urb);
+#if defined (CONFIG_RSI_BT_ALONE) || defined(CONFIG_RSI_COEX_MODE)	
+	//kfree(dev->rx_cb[1].rx_buffer);
+	skb_queue_purge(&dev->rx_q[1]);
+	usb_free_urb(dev->rx_cb[1].rx_urb);
+#endif
+	kfree(dev->saved_tx_buffer);
+}
 
-	kfree(dev->tx_buffer);
+/**
+ * rsi_find_bulk_in_and_out_endpoints() - This function initializes the bulk
+ *					  endpoints to the device.
+ * @interface: Pointer to the USB interface structure.
+ * @adapter: Pointer to the adapter structure.
+ *
+ * Return: ret_val: 0 on success, -ENOMEM on failure.
+ */
+static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
+					      struct rsi_hw *adapter)
+{
+	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct usb_host_interface *iface_desc;
+	struct usb_endpoint_descriptor *endpoint;
+	__le16 buffer_size;
+	int ii, bin_found = 0, bout_found = 0;
+
+	iface_desc = &interface->altsetting[0];
+
+	for (ii = 0; ii < iface_desc->desc.bNumEndpoints; ++ii) {
+		endpoint = &(iface_desc->endpoint[ii].desc);
+
+		if ((!dev->bulkin_endpoint_addr[bin_found]) &&
+		    (endpoint->bEndpointAddress & USB_DIR_IN) &&
+		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+		     USB_ENDPOINT_XFER_BULK)) {
+			buffer_size = endpoint->wMaxPacketSize;
+			dev->bulkin_size[bin_found] = buffer_size;
+			dev->bulkin_endpoint_addr[bin_found] =
+					endpoint->bEndpointAddress;
+			rsi_dbg(INIT_ZONE, "bulkin addr[%d] = %d\n", bin_found,
+				dev->bulkin_endpoint_addr[bin_found]);
+			bin_found++;
+		}
+
+		if (!dev->bulkout_endpoint_addr[bout_found] &&
+		    !(endpoint->bEndpointAddress & USB_DIR_IN) &&
+		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+		     USB_ENDPOINT_XFER_BULK)) {
+			rsi_dbg(INIT_ZONE, "%s:%d\n", __func__, __LINE__);
+			buffer_size = endpoint->wMaxPacketSize;
+			dev->bulkout_endpoint_addr[bout_found] =
+					endpoint->bEndpointAddress;
+			buffer_size = endpoint->wMaxPacketSize;
+			dev->bulkout_size[bout_found] = buffer_size;
+			rsi_dbg(INIT_ZONE, "bulkout addr[%d] = %d\n",
+				bout_found,
+				dev->bulkout_endpoint_addr[bout_found]);
+			bout_found++;
+		}
+
+		if ((bin_found >= MAX_BULK_EP) || (bout_found >= MAX_BULK_EP))
+			break;
+	}
+
+	if (!(dev->bulkin_endpoint_addr[0]) &&
+	    (dev->bulkout_endpoint_addr[0]))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int rsi_usb_init_rx(struct rsi_hw *adapter)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	struct rx_usb_ctrl_block *rx_cb;
-	u8 idx, num_rx_cb;
+	u8 idx;
 
-	num_rx_cb = (adapter->priv->coex_mode > 1 ? 2 : 1);
-
-	for (idx = 0; idx < num_rx_cb; idx++) {
+	for (idx = 0; idx < MAX_RX_URBS; idx++) {
 		rx_cb = &dev->rx_cb[idx];
+
 
 		rx_cb->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!rx_cb->rx_urb) {
@@ -576,22 +761,14 @@ static int rsi_usb_init_rx(struct rsi_hw *adapter)
 		}
 		rx_cb->ep_num = idx + 1;
 		rx_cb->data = (void *)dev;
-	}
-	skb_queue_head_init(&dev->rx_q);
-	rsi_init_event(&dev->rx_thread.event);
-	if (rsi_create_kthread(adapter->priv, &dev->rx_thread,
-			       rsi_usb_rx_thread, "RX-Thread")) {
-		rsi_dbg(ERR_ZONE, "%s: Unable to init rx thrd\n", __func__);
-		goto err;
-	}
 
+		skb_queue_head_init(&dev->rx_q[idx]);
+	}
 	return 0;
 
 err:
-	usb_free_urb(dev->rx_cb[0].rx_urb);
-	if (adapter->priv->coex_mode > 1)
-		usb_free_urb(dev->rx_cb[1].rx_urb);
-
+	kfree(rx_cb[0].rx_urb);
+	kfree(rx_cb[1].rx_urb);
 	return -1;
 }
 
@@ -606,20 +783,21 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 				  struct usb_interface *pfunction)
 {
 	struct rsi_91x_usbdev *rsi_dev;
-	int status;
+	struct rsi_common *common = adapter->priv;
+	int status = 0;
+	u8 dword_align_bytes = 0;
 
 	rsi_dev = kzalloc(sizeof(*rsi_dev), GFP_KERNEL);
 	if (!rsi_dev)
 		return -ENOMEM;
 
 	adapter->rsi_dev = rsi_dev;
+	adapter->usb_iface = pfunction;
 	rsi_dev->usbdev = interface_to_usbdev(pfunction);
 	rsi_dev->priv = (void *)adapter;
 
-	if (rsi_find_bulk_in_and_out_endpoints(pfunction, adapter)) {
-		status = -EINVAL;
-		goto fail_eps;
-	}
+	if (rsi_find_bulk_in_and_out_endpoints(pfunction, adapter))
+		return -EINVAL;
 
 	adapter->device = &pfunction->dev;
 	usb_set_intfdata(pfunction, adapter);
@@ -627,138 +805,183 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 	rsi_dev->tx_buffer = kmalloc(2048, GFP_KERNEL);
 	if (!rsi_dev->tx_buffer) {
 		status = -ENOMEM;
-		goto fail_eps;
+		goto fail_1;
 	}
+	rsi_dev->saved_tx_buffer = rsi_dev->tx_buffer;
+	dword_align_bytes = (unsigned long)rsi_dev->tx_buffer & 0x3f;
+	if (dword_align_bytes)
+		rsi_dev->tx_buffer = rsi_dev->tx_buffer +
+				     (64 - dword_align_bytes);
 
+	/* Initialize RX handle */
 	if (rsi_usb_init_rx(adapter)) {
 		rsi_dbg(ERR_ZONE, "Failed to init RX handle\n");
-		status = -ENOMEM;
-		goto fail_rx;
+		goto fail_1;
 	}
 
 	rsi_dev->tx_blk_size = 252;
-	adapter->block_size = rsi_dev->tx_blk_size;
+	adapter->tx_blk_size = rsi_dev->tx_blk_size;
 
 	/* Initializing function callbacks */
+	adapter->rx_urb_submit = rsi_rx_urb_submit;
 	adapter->check_hw_queue_status = rsi_usb_check_queue_status;
 	adapter->determine_event_timeout = rsi_usb_event_timeout;
-	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
 	adapter->host_intf_ops = &usb_host_intf_ops;
 
+	rsi_init_event(&rsi_dev->rx_thread.event);
+	status = rsi_create_kthread(common, &rsi_dev->rx_thread,
+				    rsi_usb_rx_thread, "USB-RX-Thread");
+	if (status) {
+		rsi_dbg(ERR_ZONE, "%s: Unable to init rx thrd\n", __func__);
+		goto fail_2;
+	}
+
 #ifdef CONFIG_RSI_DEBUGFS
-	/* In USB, one less than the MAX_DEBUGFS_ENTRIES entries is required */
-	adapter->num_debugfs_entries = (MAX_DEBUGFS_ENTRIES - 1);
+	/* In USB, one less than the MAX_DEBUGFS_ENTRIES entries
+	 * is required */
+	adapter->num_debugfs_entries = MAX_DEBUGFS_ENTRIES - 1;
 #endif
 
 	rsi_dbg(INIT_ZONE, "%s: Enabled the interface\n", __func__);
 	return 0;
 
-fail_rx:
-	kfree(rsi_dev->tx_buffer);
-
-fail_eps:
-
+fail_2:
+	kfree(rsi_dev->saved_tx_buffer);
+	rsi_kill_thread(&rsi_dev->rx_thread);
+fail_1:
 	return status;
 }
 
-static int usb_ulp_read_write(struct rsi_hw *adapter, u16 addr, u32 data,
-			      u16 len_in_bits)
+static int rsi_usb_gspi_init(struct rsi_hw *adapter)
 {
-	int ret;
+	u32 gspi_ctrl_reg0_val;
 
-	ret = rsi_usb_master_reg_write
-			(adapter, RSI_GSPI_DATA_REG1,
-			 ((addr << 6) | ((data >> 16) & 0xffff)), 2);
-	if (ret < 0)
-		return ret;
-
-	ret = rsi_usb_master_reg_write(adapter, RSI_GSPI_DATA_REG0,
-				       (data & 0xffff), 2);
-	if (ret < 0)
-		return ret;
+	/**
+	 * Programming gspi frequency = soc_frequency / 2
+	 * Warning : ULP seemed to be not working
+	 * well at high frequencies. Modify accordingly
+	 */
+	gspi_ctrl_reg0_val = 0x4;
+	gspi_ctrl_reg0_val |= 0x10;
+	gspi_ctrl_reg0_val |= 0x40;
+	gspi_ctrl_reg0_val |= 0x100;
+	gspi_ctrl_reg0_val |= 0x000;
+	gspi_ctrl_reg0_val |= 0x000;
 
 	/* Initializing GSPI for ULP read/writes */
-	rsi_usb_master_reg_write(adapter, RSI_GSPI_CTRL_REG0,
-				 RSI_GSPI_CTRL_REG0_VALUE, 2);
+	return rsi_usb_master_reg_write(adapter, GSPI_CTRL_REG0,
+			gspi_ctrl_reg0_val, 2);
+}
 
-	ret = rsi_usb_master_reg_write(adapter, RSI_GSPI_CTRL_REG1,
-				       ((len_in_bits - 1) | RSI_GSPI_TRIG), 2);
-	if (ret < 0)
-		return ret;
+static int usb_ulp_read_write(struct rsi_hw *adapter,
+			      u16 addr,
+			      u16 *data,
+			      u16 len_in_bits)
+{
+	if ((rsi_usb_master_reg_write(adapter,
+				      GSPI_DATA_REG1,
+				      ((addr << 6) | (data[1] & 0x3f)),
+				      2) < 0))
+		goto fail;
 
-	msleep(20);
+	if ((rsi_usb_master_reg_write(adapter,
+				      GSPI_DATA_REG0,
+				      (*(u16 *)&data[0]),
+				      2)) < 0)
+		goto fail;
+
+	if ((rsi_usb_gspi_init(adapter)) < 0)
+		goto fail;
+
+	if ((rsi_usb_master_reg_write(adapter, GSPI_CTRL_REG1,
+				      ((len_in_bits - 1) | GSPI_TRIG),
+				      2)) < 0)
+		goto fail;
+
+	msleep(10);
 
 	return 0;
+
+fail:
+	return -1;
 }
 
 static int rsi_reset_card(struct rsi_hw *adapter)
 {
-	int ret;
+	u16 temp[4] = {0};
 
 	rsi_dbg(INFO_ZONE, "Resetting Card...\n");
-	rsi_usb_master_reg_write(adapter, RSI_TA_HOLD_REG, 0xE, 4);
 
-	/* This msleep will ensure Thread-Arch processor to go to hold
-	 * and any pending dma transfers to rf in device to finish.
-	 */
-	msleep(100);
-
-	ret = rsi_usb_master_reg_write(adapter, SWBL_REGOUT,
-				       RSI_FW_WDT_DISABLE_REQ,
-				       RSI_COMMON_REG_SIZE);
-	if (ret < 0) {
-		rsi_dbg(ERR_ZONE, "Disabling firmware watchdog timer failed\n");
+	if (rsi_usb_master_reg_write(adapter, SWBL_REGOUT,
+				     FW_WDT_DISABLE_REQ, 2) < 0) {
+		rsi_dbg(ERR_ZONE, "%s: FW WDT Disable failed...\n",
+			__func__);
 		goto fail;
 	}
 
+#define TA_HOLD_REG 0x22000844
+	rsi_usb_master_reg_write(adapter, TA_HOLD_REG, 0xE, 4);
+	msleep(100);
+
 	if (adapter->device_model != RSI_DEV_9116) {
-		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1,
-					 RSI_ULP_WRITE_2, 32);
-		if (ret < 0)
+		*(u32 *)temp = 2;
+		if ((usb_ulp_read_write(adapter,
+					WATCH_DOG_TIMER_1,
+					&temp[0], 32)) < 0) {
 			goto fail;
-		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_2,
-					 RSI_ULP_WRITE_0, 32);
-		if (ret < 0)
+		}
+
+		*(u32 *)temp = 0;
+		if ((usb_ulp_read_write(adapter,
+					WATCH_DOG_TIMER_2,
+					temp, 32)) < 0) {
 			goto fail;
-		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_1,
-					 RSI_ULP_WRITE_50, 32);
-		if (ret < 0)
+		}
+
+		*(u32 *)temp = 50;
+		if ((usb_ulp_read_write(adapter,
+					WATCH_DOG_DELAY_TIMER_1,
+					temp, 32)) < 0) {
 			goto fail;
-		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_2,
-					 RSI_ULP_WRITE_0, 32);
-		if (ret < 0)
+		}
+
+		*(u32 *)temp = 0;
+		if ((usb_ulp_read_write(adapter,
+					WATCH_DOG_DELAY_TIMER_2,
+					temp, 32)) < 0) {
 			goto fail;
-		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_ENABLE,
-					 RSI_ULP_TIMER_ENABLE, 32);
-		if (ret < 0)
+		}
+
+		*(u32 *)temp = ((0xaa000) | RESTART_WDT | BYPASS_ULP_ON_WDT);
+		if ((usb_ulp_read_write(adapter,
+					WATCH_DOG_TIMER_ENABLE,
+					temp, 32)) < 0) {
 			goto fail;
+		}
 	} else {
 		if ((rsi_usb_master_reg_write(adapter,
 					      NWP_WWD_INTERRUPT_TIMER,
-					      NWP_WWD_INT_TIMER_CLKS,
-					      RSI_9116_REG_SIZE)) < 0) {
+					      5, 4)) < 0) {
 			goto fail;
 		}
 		if ((rsi_usb_master_reg_write(adapter,
 					      NWP_WWD_SYSTEM_RESET_TIMER,
-					      NWP_WWD_SYS_RESET_TIMER_CLKS,
-					      RSI_9116_REG_SIZE)) < 0) {
+					      4, 4)) < 0) {
 			goto fail;
 		}
 		if ((rsi_usb_master_reg_write(adapter,
 					      NWP_WWD_MODE_AND_RSTART,
-					      NWP_WWD_TIMER_DISABLE,
-					      RSI_9116_REG_SIZE)) < 0) {
+					      0xAA0001, 4)) < 0) {
 			goto fail;
 		}
 	}
 
-	rsi_dbg(INFO_ZONE, "Reset card done\n");
-	return ret;
+	rsi_dbg(INFO_ZONE, "***** Card Reset Done *****\n");
+	return 0;
 
 fail:
-	rsi_dbg(ERR_ZONE, "Reset card failed\n");
-	return ret;
+	rsi_dbg(ERR_ZONE, "Reset card Failed\n");
+	return -1;
 }
 
 /**
@@ -775,19 +998,36 @@ static int rsi_probe(struct usb_interface *pfunction,
 {
 	struct rsi_hw *adapter;
 	struct rsi_91x_usbdev *dev;
-	u16 fw_status;
-	int status;
+	struct rsi_common *common;
+	u32 fw_status = 0;
+	int status = 0;
 
 	rsi_dbg(INIT_ZONE, "%s: Init function called\n", __func__);
 
-	adapter = rsi_91x_init(dev_oper_mode);
+	adapter = rsi_91x_init();
 	if (!adapter) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to init os intf ops\n",
 			__func__);
 		return -ENOMEM;
 	}
-	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
 
+	common = adapter->priv;
+	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
+#ifdef CONFIG_RSI_MULTI_MODE
+	if (rsi_opermode_instances(adapter)) {
+		rsi_dbg(ERR_ZONE, "%s: Invalid operating modes\n",
+			__func__);
+		goto err;
+	}
+#else
+	adapter->priv->oper_mode = common->dev_oper_mode;
+	if (rsi_validate_oper_mode(common->dev_oper_mode)) {
+		rsi_dbg(ERR_ZONE, "%s: Invalid operating mode %d\n",
+			__func__, common->dev_oper_mode);
+		goto err;
+	}
+
+#endif
 	status = rsi_init_usb_interface(adapter, pfunction);
 	if (status) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to init usb interface\n",
@@ -795,17 +1035,23 @@ static int rsi_probe(struct usb_interface *pfunction,
 		goto err;
 	}
 
-	rsi_dbg(ERR_ZONE, "%s: Initialized os intf ops\n", __func__);
+	rsi_dbg(INIT_ZONE, "%s: Initialized os intf ops\n", __func__);
 
-	if (id && id->idProduct == RSI_USB_PID_9113) {
-		rsi_dbg(INIT_ZONE, "%s: 9113 module detected\n", __func__);
+	rsi_dbg(INIT_ZONE, "%s: product id = 0x%x vendor id = 0x%x\n",
+		__func__, id->idProduct, id->idVendor);
+
+	if (id && (id->idProduct == 0x9113)) {
+		rsi_dbg(INIT_ZONE, "%s: 9113 MODULE IS CONNECTED\n",
+			__func__);
 		adapter->device_model = RSI_DEV_9113;
-	} else if (id && id->idProduct == RSI_USB_PID_9116) {
-		rsi_dbg(INIT_ZONE, "%s: 9116 module detected\n", __func__);
+	} else if (id && (id->idProduct == 0x9116)) {
 		adapter->device_model = RSI_DEV_9116;
+		rsi_dbg(INIT_ZONE, "%s: 9116 MODULE IS CONNECTED\n",
+			__func__);
 	} else {
-		rsi_dbg(ERR_ZONE, "%s: Unsupported RSI device id 0x%x\n",
-			__func__, id->idProduct);
+		rsi_dbg(ERR_ZONE,
+			"##### Invalid RSI device id 0x%x\n",
+			id->idProduct);
 		goto err1;
 	}
 
@@ -828,20 +1074,20 @@ static int rsi_probe(struct usb_interface *pfunction,
 		rsi_dbg(INIT_ZONE, "%s: Device Init Done\n", __func__);
 	}
 
-	status = rsi_rx_urb_submit(adapter, WLAN_EP, GFP_KERNEL);
+	status = rsi_rx_urb_submit(adapter, 1 /* RX_WLAN_EP */);  
 	if (status)
 		goto err1;
 
-	if (adapter->priv->coex_mode > 1) {
-		status = rsi_rx_urb_submit(adapter, BT_EP, GFP_KERNEL);
-		if (status)
-			goto err_kill_wlan_urb;
-	}
+#if defined(CONFIG_RSI_BT_ALONE) || defined(CONFIG_RSI_COEX_MODE)
+	status = rsi_rx_urb_submit(adapter, 2 /* RX_BT_EP */);
+	if (status)
+		goto err1;
+#endif
 
+#ifdef CONFIG_PM
+	usb_enable_autosuspend(dev->usbdev);
+#endif
 	return 0;
-
-err_kill_wlan_urb:
-	rsi_rx_urb_kill(adapter, WLAN_EP);
 err1:
 	rsi_deinit_usb_interface(adapter);
 err:
@@ -852,7 +1098,7 @@ err:
 
 /**
  * rsi_disconnect() - This function performs the reverse of the probe function,
- *		      it deinitialize the driver structure.
+ *		      it deintialize the driver structure.
  * @pfunction: Pointer to the USB interface structure.
  *
  * Return: None.
@@ -860,46 +1106,205 @@ err:
 static void rsi_disconnect(struct usb_interface *pfunction)
 {
 	struct rsi_hw *adapter = usb_get_intfdata(pfunction);
+	struct usb_device *usbdev;
 
 	if (!adapter)
 		return;
 
 	rsi_mac80211_detach(adapter);
+	rsi_dbg(INFO_ZONE, "mac80211 detach done\n");
 
-	if (IS_ENABLED(CONFIG_RSI_COEX) && adapter->priv->coex_mode > 1 &&
-	    adapter->priv->bt_adapter) {
-		rsi_bt_ops.detach(adapter->priv->bt_adapter);
-		adapter->priv->bt_adapter = NULL;
-	}
-
-	if (adapter->priv->coex_mode > 1)
-		rsi_rx_urb_kill(adapter, BT_EP);
-	rsi_rx_urb_kill(adapter, WLAN_EP);
+#if defined(CONFIG_RSI_BT_ALONE) || defined(CONFIG_RSI_COEX_MODE)
+	if ((adapter->priv->coex_mode == 2) ||
+	    (adapter->priv->coex_mode == 4))
+		rsi_hci_detach(adapter->priv);
+	rsi_dbg(INFO_ZONE, "HCI Detach Done\n");
+#endif
 
 	rsi_reset_card(adapter);
+
 	rsi_deinit_usb_interface(adapter);
+	rsi_dbg(INFO_ZONE, "USB interface down\n");
+
 	rsi_91x_deinit(adapter);
 
+	usbdev = ((struct rsi_91x_usbdev *)adapter->rsi_dev)->usbdev;
+#ifdef CONFIG_PM
+	usb_disable_autosuspend(usbdev);
+#endif
 	rsi_dbg(INFO_ZONE, "%s: Deinitialization completed\n", __func__);
 }
 
 #ifdef CONFIG_PM
-static int rsi_suspend(struct usb_interface *intf, pm_message_t message)
+static int rsi_suspend(struct usb_interface *pfunction, pm_message_t message)
 {
-	/* Not yet implemented */
-	return -ENOSYS;
+	struct rsi_hw *adapter = usb_get_intfdata(pfunction);
+	struct rsi_common *common;
+	struct rsi_91x_usbdev *dev;
+	struct usb_device *usbdev;
+	struct timer_list *timer = NULL;
+	u8 *temp_buf;
+	int status = 0;
+	u32 suspend_duration;
+	u64 duration_j = 0;
+
+	if (!adapter)
+		return -ENODEV;
+	common = adapter->priv;
+	timer = &common->suspend_timer;
+	dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	usbdev = dev->usbdev;
+	temp_buf = kzalloc(6, GFP_KERNEL);
+	if (!temp_buf) {
+		rsi_dbg(ERR_ZONE, "Can't allocate memory\n");
+		return -ENOMEM;
+	}
+#define USB_VENDOR_PS_STATUS_READ 0x18
+	/* Read LMAC PS status and sleep duration */
+	down(&common->tx_access_lock);
+	if ((!protocol_tx_access(common)) &&
+	    (!atomic_read(&adapter->tx_pending_urbs))) {
+		status = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
+					 USB_VENDOR_PS_STATUS_READ,
+					 USB_TYPE_VENDOR | USB_DIR_IN |
+					 USB_RECIP_DEVICE, 0, 0,
+					 (void *)temp_buf, 6/*len*/, 3000);
+		/* Reading takes some time use 1 ms delay */
+		usleep_range(1000, 2000);
+		if (status < 0) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Reg read failed with error code :%d\n",
+				__func__, status);
+			up(&common->tx_access_lock);
+			goto err;
+		}
+		/* LMAC power save status */
+		if (!temp_buf[0]) {
+			/*
+			 * Don't process suspend
+			 */
+			rsi_dbg(INFO_ZONE, "Don't process suspend\n");
+			status = -EBUSY;
+			up(&common->tx_access_lock);
+			goto err;
+		}
+		/* Extract sleep duration, if zero then card is in deep sleep */
+		if ((*(u32 *)&temp_buf[2])) {
+			suspend_duration = ((*(u32 *)&temp_buf[2]) / 1000);
+			adapter->usb_in_deep_ps = 0;
+		} else {
+			suspend_duration = 1000;
+			adapter->usb_in_deep_ps = 1;
+		}
+		rsi_dbg(INFO_ZONE, "Suspend duration: %d\n", suspend_duration);
+		if (suspend_duration < 5) {
+			rsi_dbg(INFO_ZONE,
+				"Don't process suspend if duration < 5ms\n");
+			status = -EBUSY;
+			up(&common->tx_access_lock);
+			goto err;
+		}
+		rsi_dbg(ERR_ZONE, "Killing URB's\n");
+		if (&dev->rx_cb[0])/* Kill URB */
+			usb_kill_urb(dev->rx_cb[0].rx_urb);
+#if defined(CONFIG_RSI_BT_ALONE) || defined(CONFIG_RSI_COEX_MODE)
+		if (&dev->rx_cb[1])/* Kill URB */
+			usb_kill_urb(dev->rx_cb[1].rx_urb);
+#endif
+		common->common_hal_tx_access = false;
+		adapter->usb_intf_in_suspend = 1;
+		up(&common->tx_access_lock);
+		duration_j =  msecs_to_jiffies(suspend_duration) + jiffies;
+		if (!timer->function) {
+			rsi_dbg(INIT_ZONE, "Init USB suspend timer\n");
+#if KERNEL_VERSION(4, 15, 0) > LINUX_VERSION_CODE
+			init_timer(timer);
+			timer->data = (unsigned long)common;
+			timer->function = (void *)rsi_usb_suspend_timeout;
+#else
+			timer_setup(timer, rsi_usb_suspend_timeout, 0);
+#endif
+			timer->expires = duration_j;
+			add_timer(timer);
+			status = 0;
+		} else {
+			mod_timer(timer, duration_j);
+			status = 0;
+		}
+	} else {
+		status = -EBUSY;
+		up(&common->tx_access_lock);
+		goto err;
+	}
+
+err:
+		kfree(temp_buf);
+		return status;
 }
 
-static int rsi_resume(struct usb_interface *intf)
+static int rsi_resume(struct usb_interface *pfunction)
 {
-	/* Not yet implemented */
-	return -ENOSYS;
+	struct rsi_hw *adapter = usb_get_intfdata(pfunction);
+	struct rsi_common *common;
+	struct rsi_91x_usbdev *dev;
+	struct usb_device *usbdev;
+	u8 *temp_buf;
+	int status = 0;
+
+	if (!adapter)
+		return -ENODEV;
+	if (!adapter->usb_intf_in_suspend) {
+		rsi_dbg(INFO_ZONE, "USB already in resume\n");
+		return 0;
+	}
+	common = adapter->priv;
+	dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	usbdev = dev->usbdev;
+	temp_buf = kzalloc(6, GFP_KERNEL);
+	if (!temp_buf) {
+		rsi_dbg(ERR_ZONE, "Can't allocate memory\n");
+		return -ENOMEM;
+	}
+	down(&common->tx_access_lock);
+	status = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
+				 USB_VENDOR_PS_STATUS_READ,
+				 USB_TYPE_VENDOR | USB_DIR_IN |
+				 USB_RECIP_DEVICE,
+				 1, 0, (void *)temp_buf, 6/*len*/, 3000);
+	usleep_range(1000, 2000); /* Provide 1 ms delay */
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Reg read failed with error code :%d\n",
+			__func__, status);
+		up(&common->tx_access_lock);
+		kfree(temp_buf);
+		return status;
+	}
+	/* RX_WLAN_EP */
+	status = rsi_rx_urb_submit(adapter, 1);
+	if (status)
+		goto err1;
+
+#if defined(CONFIG_RSI_BT_ALONE) || defined(CONFIG_RSI_COEX_MODE)
+	/* RX_BT_EP */
+	status = rsi_rx_urb_submit(adapter, 2);
+	if (status)
+		goto err1;
+#endif
+
+	adapter->usb_intf_in_suspend = 0;
+	up(&common->tx_access_lock);
+	sleep_exit_recvd(common);
+	kfree(temp_buf);
+	return 0;
+err1:
+	return status;
 }
 #endif
 
 static const struct usb_device_id rsi_dev_table[] = {
-	{ USB_DEVICE(RSI_USB_VENDOR_ID, RSI_USB_PID_9113) },
-	{ USB_DEVICE(RSI_USB_VENDOR_ID, RSI_USB_PID_9116) },
+	{ USB_DEVICE(USB_VENDOR_ID_RSI, USB_DEVICE_ID_RSI_9113) },
+	{ USB_DEVICE(USB_VENDOR_ID_RSI, USB_DEVICE_ID_RSI_9116) },
 	{ /* Blank */},
 };
 
@@ -911,15 +1316,29 @@ static struct usb_driver rsi_driver = {
 #ifdef CONFIG_PM
 	.suspend    = rsi_suspend,
 	.resume     = rsi_resume,
+	.supports_autosuspend = 1,
 #endif
 };
 
-module_usb_driver(rsi_driver);
+static int __init rsi_usb_module_init(void)
+{
+	rsi_dbg(INIT_ZONE,
+		"=====> RSI USB Module Initialize <=====\n");
+	return usb_register(&rsi_driver);
+}
+
+static void __exit rsi_usb_module_exit(void)
+{
+	usb_deregister(&rsi_driver);
+}
+
+module_init(rsi_usb_module_init);
+module_exit(rsi_usb_module_exit);
 
 MODULE_AUTHOR("Redpine Signals Inc");
 MODULE_DESCRIPTION("Common USB layer for RSI drivers");
 MODULE_SUPPORTED_DEVICE("RSI-91x");
 MODULE_DEVICE_TABLE(usb, rsi_dev_table);
 MODULE_FIRMWARE(FIRMWARE_RSI9113);
-MODULE_VERSION("0.1");
+MODULE_VERSION(DRV_VER);
 MODULE_LICENSE("Dual BSD/GPL");

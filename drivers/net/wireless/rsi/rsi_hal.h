@@ -1,17 +1,31 @@
-/**
- * Copyright (c) 2017 Redpine Signals Inc.
+/*
+ * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 	1. Redistributions of source code must retain the above copyright
+ * 	   notice, this list of conditions and the following disclaimer.
+ *
+ * 	2. Redistributions in binary form must reproduce the above copyright
+ * 	   notice, this list of conditions and the following disclaimer in the
+ * 	   documentation and/or other materials provided with the distribution.
+ *
+ * 	3. Neither the name of the copyright holder nor the names of its
+ * 	   contributors may be used to endorse or promote products derived from
+ * 	   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef __RSI_HAL_H__
@@ -27,20 +41,60 @@
 #define DEV_OPMODE_STA_BT_DUAL		13
 #define DEV_OPMODE_AP_BT		6
 #define DEV_OPMODE_AP_BT_DUAL		14
+#define DEV_OPMODE_ZB_ALONE		16
+#define DEV_OPMODE_STA_ZB		17
+#define DEV_OPMODE_ZB_COORDINATOR	32
+#define DEV_OPMODE_ZB_ROUTER		48
 
+/* ZigBee Operating Modes */
+#define ZIGBEE_END_DEVICE		1
+#define ZIGBEE_COORDINATOR		2
+#define ZIGBEE_ROUTER			3
+
+#define ZIGBEE_OPERMODE_MASK		0x3
+
+#define TA_LOAD_ADDRESS			0x00
+#define FIRMWARE_RSI9113		"rsi_91x.fw"
 #define FLASH_WRITE_CHUNK_SIZE		(4 * 1024)
+#define USB_FLASH_READ_CHUNK_SIZE	((2 * 1024) - 4)
+#define SDIO_FLASH_READ_CHUNK_SIZE	(2 * 1024)
 #define FLASH_SECTOR_SIZE		(4 * 1024)
+#define STARTING_BLOCK_INDEX		0
+#define FLASH_BLOCK_SIZE		(32 * 1024)
+
+#define RS9116_RPS_HEADER_SIZE		0x40
+#define PING_BUFFER_ADDRESS_9116        (0x18000 + 0x4)
 
 #define FLASH_SIZE_ADDR			0x04000016
+
+#ifdef CONFIG_RS9116_FLASH_MODE
+#define PING_BUFFER_ADDRESS		0x18000
+#define PONG_BUFFER_ADDRESS		0x19000
+#else
+#define PONG_BUFFER_ADDRESS_9116	0x19400
 #define PING_BUFFER_ADDRESS		0x19000
 #define PONG_BUFFER_ADDRESS		0x1a000
+#endif
+
 #define SWBL_REGIN			0x41050034
 #define SWBL_REGOUT			0x4105003c
 #define PING_WRITE			0x1
 #define PONG_WRITE			0x2
+#define FW_WDT_DISABLE_REQ		0x69
+#define FW_WDT_DISABLE_DONE		0x96
 
 #define BL_CMD_TIMEOUT			2000
 #define BL_BURN_TIMEOUT			(50 * 1000)
+
+#define MASTER_READ_MODE		1
+#define EEPROM_READ_MODE		2
+
+#ifdef CONFIG_RS9116_FLASH_MODE
+#define RSI_FLASH_READ_COEX_IMAGE	(0x04000000 + 0x80000 + 0x40)
+#define RSI_FLASH_READ_WLAN_IMAGE	(0x04000000 + 0x20000 + 0x40)
+#define RSI_LMAC_VER_OFFSET_RS9116      (0x22c0 + 0x40)
+#define RSI_9116_FLASH_SIZE             (4 * 1024 * 1024)
+#endif
 
 #define REGIN_VALID			0xA
 #define REGIN_INPUT			0xA0
@@ -48,7 +102,9 @@
 #define REGOUT_INVALID			(~0xAB)
 #define CMD_PASS			0xAA
 #define CMD_FAIL			0xCC
+#define INVALID_ADDR			0x4C
 
+#define BURN_BL				0x23
 #define LOAD_HOSTED_FW			'A'
 #define BURN_HOSTED_FW			'B'
 #define PING_VALID			'I'
@@ -62,84 +118,101 @@
 #define JUMP_TO_ZERO_PC			'J'
 #define FW_LOADING_SUCCESSFUL		'S'
 #define LOADING_INITIATED		'1'
+#define IMAGE_STORED_IN_DUMP		0xF7
 
-#define RSI_ULP_RESET_REG		0x161
-#define RSI_WATCH_DOG_TIMER_1		0x16c
-#define RSI_WATCH_DOG_TIMER_2		0x16d
-#define RSI_WATCH_DOG_DELAY_TIMER_1		0x16e
-#define RSI_WATCH_DOG_DELAY_TIMER_2		0x16f
-#define RSI_WATCH_DOG_TIMER_ENABLE		0x170
-
-/* Watchdog timer addresses for 9116 */
-#define NWP_AHB_BASE_ADDR		0x41300000
-#define NWP_WWD_INTERRUPT_TIMER		(NWP_AHB_BASE_ADDR + 0x300)
-#define NWP_WWD_SYSTEM_RESET_TIMER	(NWP_AHB_BASE_ADDR + 0x304)
-#define NWP_WWD_WINDOW_TIMER		(NWP_AHB_BASE_ADDR + 0x308)
-#define NWP_WWD_TIMER_SETTINGS		(NWP_AHB_BASE_ADDR + 0x30C)
-#define NWP_WWD_MODE_AND_RSTART		(NWP_AHB_BASE_ADDR + 0x310)
-#define NWP_WWD_RESET_BYPASS		(NWP_AHB_BASE_ADDR + 0x314)
-#define NWP_FSM_INTR_MASK_REG		(NWP_AHB_BASE_ADDR + 0x104)
-
-/* Watchdog timer values */
-#define NWP_WWD_INT_TIMER_CLKS		5
-#define NWP_WWD_SYS_RESET_TIMER_CLKS	4
-#define NWP_WWD_TIMER_DISABLE		0xAA0001
-
-#define RSI_ULP_WRITE_0			00
-#define RSI_ULP_WRITE_2			02
-#define RSI_ULP_WRITE_50		50
-
-#define RSI_RESTART_WDT			BIT(11)
-#define RSI_BYPASS_ULP_ON_WDT		BIT(1)
-
-#define RSI_ULP_TIMER_ENABLE		((0xaa000) | RSI_RESTART_WDT |	\
-					 RSI_BYPASS_ULP_ON_WDT)
-#define RSI_RF_SPI_PROG_REG_BASE_ADDR	0x40080000
-
-#define RSI_GSPI_CTRL_REG0		(RSI_RF_SPI_PROG_REG_BASE_ADDR)
-#define RSI_GSPI_CTRL_REG1		(RSI_RF_SPI_PROG_REG_BASE_ADDR + 0x2)
-#define RSI_GSPI_DATA_REG0		(RSI_RF_SPI_PROG_REG_BASE_ADDR + 0x4)
-#define RSI_GSPI_DATA_REG1		(RSI_RF_SPI_PROG_REG_BASE_ADDR + 0x6)
-#define RSI_GSPI_DATA_REG2		(RSI_RF_SPI_PROG_REG_BASE_ADDR + 0x8)
-
-#define RSI_GSPI_CTRL_REG0_VALUE		0x340
-
-#define RSI_GSPI_DMA_MODE			BIT(13)
-
-#define RSI_GSPI_2_ULP			BIT(12)
-#define RSI_GSPI_TRIG			BIT(7)
-#define RSI_GSPI_READ			BIT(6)
-#define RSI_GSPI_RF_SPI_ACTIVE		BIT(8)
+/* Total RAM access commands from TA */
+#define MEM_ACCESS_CTRL_FROM_HOST  0x41300000
+#define RAM_384K_ACCESS_FROM_TA (BIT(2) | BIT(3) | BIT(4) | BIT(5) \
+				 | BIT(20) | BIT(21) | BIT(22) | BIT(23) \
+				 | BIT(24) | BIT(25))
 
 /* Boot loader commands */
+#define HOST_INTF_REG_OUT		0x4105003C
+#define HOST_INTF_REG_IN		0x41050034
+#define BOARD_READY			0xABCD
+#define REG_READ			0xD1
+#define REG_WRITE			0xD2
 #define SEND_RPS_FILE			'2'
+#define BOOTUP_OPTIONS_LAST_CONFIG_NOT_SAVED 0xF1
+#define BOOTUP_OPTIONS_CHECKSUM_FAIL 0xF2
+#define INVALID_OPTION			0xF3
+#define CHECKSUM_SUCCESS		0xAA
+#define CHECKSUM_FAILURE		0xCC
+#define CHECKSUM_INVALID_ADDRESS	0x4C
 
+#define EEPROM_VERSION_OFFSET		77
+#define CALIB_CRC_OFFSET		4092
+#define MAGIC_WORD			0x5A
+#define MAGIC_WORD_OFFSET_1		40
+#define MAGIC_WORD_OFFSET_2		424
 #define FW_IMAGE_MIN_ADDRESS		(68 * 1024)
+#define FLASH_MAX_ADDRESS		(4 * 1024 * 1024) //4MB
 #define MAX_FLASH_FILE_SIZE		(400 * 1024) //400K
-#define FLASH_START_ADDRESS		16
+#define FLASHING_START_ADDRESS		16
+#define CALIB_VALUES_START_ADDR		16
+#define SOC_FLASH_ADDR			0x04000000
+#define EEPROM_DATA_SIZE		4096
+#define CALIB_DATA_SIZE		(EEPROM_DATA_SIZE - CALIB_VALUES_START_ADDR)
+#define BL_HEADER			32
 
+#define BT_CARD_READY_IND		0x89
+#define WLAN_CARD_READY_IND		0x0
 #define COMMON_HAL_CARD_READY_IND	0x0
+#define ZIGB_CARD_READY_IND		0xff
 
 #define COMMAN_HAL_WAIT_FOR_CARD_READY	1
+#define COMMON_HAL_SEND_CONFIG_PARAMS	2
+#define COMMON_HAL_TX_ACCESS		3
+#define COMMON_HAL_WAIT_FOR_PROTO_CARD_READY 4
+#define HEX_FILE			1
+#define BIN_FILE			0
+#define UNIX_FILE_TYPE			8
+#define DOS_FILE_TYPE			9
+#define LMAC_INSTRUCTIONS_SIZE		(16  * 1024) /* 16Kbytes */
 
-#define RSI_DEV_OPMODE_WIFI_ALONE	1
-#define RSI_DEV_COEX_MODE_WIFI_ALONE	1
+#define ULP_RESET_REG			0x161
+#define WATCH_DOG_TIMER_1		0x16c
+#define WATCH_DOG_TIMER_2		0x16d
+#define WATCH_DOG_DELAY_TIMER_1		0x16e
+#define WATCH_DOG_DELAY_TIMER_2		0x16f
+#define WATCH_DOG_TIMER_ENABLE		0x170
 
-#define BBP_INFO_40MHZ 0x6
+#define RESTART_WDT			BIT(11)
+#define BYPASS_ULP_ON_WDT		BIT(1)
+
+#define RF_SPI_PROG_REG_BASE_ADDR	0x40080000
+
+#define GSPI_CTRL_REG0			(RF_SPI_PROG_REG_BASE_ADDR)
+#define GSPI_CTRL_REG1			(RF_SPI_PROG_REG_BASE_ADDR + 0x2)
+#define GSPI_DATA_REG0			(RF_SPI_PROG_REG_BASE_ADDR + 0x4)
+#define GSPI_DATA_REG1			(RF_SPI_PROG_REG_BASE_ADDR + 0x6)
+#define GSPI_DATA_REG2			(RF_SPI_PROG_REG_BASE_ADDR + 0x8)
+
+#define GSPI_DMA_MODE			BIT(13)
+
+#define GSPI_2_ULP			BIT(12)
+#define GSPI_TRIG			BIT(7)
+#define GSPI_READ			BIT(6)
+#define GSPI_RF_SPI_ACTIVE		BIT(8)
 
 #define FW_FLASH_OFFSET			0x820
-#define LMAC_VER_OFFSET_9113		(FW_FLASH_OFFSET + 0x200)
-#define LMAC_VER_OFFSET_9116		0x22C2
-#define MAX_DWORD_ALIGN_BYTES		64
-#define RSI_COMMON_REG_SIZE		2
-#define RSI_9116_REG_SIZE		4
-#define FW_ALIGN_SIZE			4
-#define RSI_9116_FW_MAGIC_WORD		0x5aa5
+#define LMAC_VER_OFFSET			FW_FLASH_OFFSET +0x200
+#define LMAC_VER_OFFSET_RS9116			0x22c0
 
-#define MEM_ACCESS_CTRL_FROM_HOST	0x41300000
-#define RAM_384K_ACCESS_FROM_TA		(BIT(2) | BIT(3) | BIT(4) | BIT(5) | \
-					 BIT(20) | BIT(21) | BIT(22) | \
-					 BIT(23) | BIT(24) | BIT(25))
+/* Buffer status register related info */
+#define PKT_BUFF_SEMI_FULL		0
+#define PKT_BUFF_FULL			1
+#define PKT_MGMT_BUFF_FULL		2
+#define MSDU_PKT_PENDING		3
+
+#define NWP_AHB_BASE_ADDR               0x41300000
+#define NWP_WWD_INTERRUPT_TIMER         (NWP_AHB_BASE_ADDR + 0x300)
+#define NWP_WWD_SYSTEM_RESET_TIMER      (NWP_AHB_BASE_ADDR + 0x304)
+#define NWP_WWD_WINDOW_TIMER            (NWP_AHB_BASE_ADDR + 0x308)
+#define NWP_WWD_TIMER_SETTINGS          (NWP_AHB_BASE_ADDR + 0x30C)
+#define NWP_WWD_MODE_AND_RSTART         (NWP_AHB_BASE_ADDR + 0x310)
+#define NWP_WWD_RESET_BYPASS            (NWP_AHB_BASE_ADDR + 0x314)
+#define NWP_FSM_INTR_MASK_REG           (NWP_AHB_BASE_ADDR + 0x104)
 
 struct bl_header {
 	__le32 flags;
@@ -154,15 +227,24 @@ struct ta_metadata {
 	unsigned int address;
 };
 
+#ifdef CONFIG_RSI_MULTI_MODE
+extern atomic_t drv_instances[5];
+#define DRV_INSTANCE(__x) (atomic_read(&drv_instances[(__x) - 1]))
+#define DRV_INSTANCE_SET(__x, __y) \
+	(atomic_set(&drv_instances[((__x)? (__x) - 1: 0)], (__y)))
+#define MAX_INSTANCES 5
+#endif
+
 #define RSI_BL_CTRL_LEN_MASK			0xFFFFFF
 #define RSI_BL_CTRL_SPI_32BIT_MODE		BIT(27)
 #define RSI_BL_CTRL_REL_TA_SOFTRESET		BIT(28)
 #define RSI_BL_CTRL_START_FROM_ROM_PC		BIT(29)
 #define RSI_BL_CTRL_SPI_8BIT_MODE		BIT(30)
 #define RSI_BL_CTRL_LAST_ENTRY			BIT(31)
+
 struct bootload_entry {
 	__le32 control;
-	__le32 dst_addr;
+	__le32 dst_addr;                       /* Destination address */
 } __packed;
 
 struct bootload_ds {
@@ -172,48 +254,16 @@ struct bootload_ds {
 	struct bootload_entry bl_entry[7];
 } __packed;
 
-struct rsi_mgmt_desc {
-	__le16 len_qno;
-	u8 frame_type;
-	u8 misc_flags;
-	u8 xtend_desc_size;
-	u8 header_len;
-	__le16 frame_info;
-	__le16 rate_info;
-	__le16 bbp_info;
-	__le16 seq_ctrl;
-	u8 reserved2;
-	u8 sta_id;
-} __packed;
-
-struct rsi_data_desc {
-	__le16 len_qno;
-	u8 cfm_frame_type;
-	u8 misc_flags;
-	u8 xtend_desc_size;
-	u8 header_len;
-	__le16 frame_info;
-	__le16 rate_info;
-	__le16 bbp_info;
-	__le16 mac_flags;
-	u8 qid_tid;
-	u8 sta_id;
-} __packed;
-
-struct rsi_bt_desc {
-	__le16 len_qno;
-	__le16 reserved1;
-	__le32 reserved2;
-	__le32 reserved3;
-	__le16 reserved4;
-	__le16 bt_pkt_type;
-} __packed;
-
-int rsi_hal_device_init(struct rsi_hw *adapter);
 int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb);
 int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb);
-int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb);
-int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb);
+int rsi_hal_device_init(struct rsi_hw *adapter);
+int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb);
-
+int rsi_send_zb_pkt(struct rsi_common *common, struct sk_buff *skb);
+int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb);
+int rsi_deregister_bt(struct rsi_common *common);
+int rsi_validate_oper_mode(u16 oper_mode);
+#ifdef CONFIG_RSI_MULTI_MODE
+int rsi_opermode_instances(struct rsi_hw *adapter);
+#endif
 #endif
