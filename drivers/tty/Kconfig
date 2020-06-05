@@ -480,6 +480,12 @@ config VCC
 
 source "drivers/tty/hvc/Kconfig"
 
+config TTY0TTY
+	tristate "tty0tty support"
+	default n
+	help
+	  tty0tty - linux null modem emulator
+
 endif # TTY
 
 source "drivers/tty/serdev/Kconfig"
