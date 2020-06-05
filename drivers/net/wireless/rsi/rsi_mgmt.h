@@ -1,17 +1,31 @@
-/**
- * Copyright (c) 2014 Redpine Signals Inc.
+/*
+ * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 	1. Redistributions of source code must retain the above copyright
+ * 	   notice, this list of conditions and the following disclaimer.
+ *
+ * 	2. Redistributions in binary form must reproduce the above copyright
+ * 	   notice, this list of conditions and the following disclaimer in the
+ * 	   documentation and/or other materials provided with the distribution.
+ *
+ * 	3. Neither the name of the copyright holder nor the names of its
+ * 	   contributors may be used to endorse or promote products derived from
+ * 	   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef __RSI_MGMT_H__
@@ -22,21 +36,28 @@
 #include "rsi_main.h"
 
 #define MAX_MGMT_PKT_SIZE               512
-#define RSI_NEEDED_HEADROOM             84
+#define RSI_NEEDED_HEADROOM             80
 #define RSI_RCV_BUFFER_LEN              2000
 
 #define RSI_11B_MODE                    0
 #define RSI_11G_MODE                    BIT(7)
-#define RETRY_COUNT                     8
+#define RETRY_COUNT                     15
 #define RETRY_LONG                      4
 #define RETRY_SHORT                     7
 #define WMM_SHORT_SLOT_TIME             9
 #define SIFS_DURATION                   16
+#define SNIFFER_ENABLE			0x1
+#define DSBL_TA_AGGR			0x1
 
-#define EAPOL4_PACKET_LEN		0x85
 #define KEY_TYPE_CLEAR                  0
 #define RSI_PAIRWISE_KEY                1
 #define RSI_GROUP_KEY                   2
+
+#define RSI_MAC_SUB_LEN                3
+
+#define NULL_SSID                      2
+#define INVALID_DATA                   64
+#define DWORD_ALIGNMENT			64
 
 /* EPPROM_READ_ADDRESS */
 #define WLAN_MAC_EEPROM_ADDR            40
@@ -47,28 +68,50 @@
 #define WLAN_EEPROM_RFTYPE_ADDR		424
 
 /*WOWLAN RESUME WAKEUP TYPES*/
-#define RSI_UNICAST_MAGIC_PKT		BIT(0)
-#define RSI_BROADCAST_MAGICPKT		BIT(1)
-#define RSI_EAPOL_PKT			BIT(2)
-#define RSI_DISCONNECT_PKT		BIT(3)
-#define RSI_HW_BMISS_PKT		BIT(4)
-#define RSI_INSERT_SEQ_IN_FW		BIT(2)
+#define	UNICAST_MAGIC_PKT       	BIT(0) 
+#define	BROADCAST_MAGICPKT      	BIT(1) 
+#define	EAPOL_PKT               	BIT(2) 
+#define	DISCONNECT_PKT          	BIT(3) 
+#define	HW_BMISS_PKT            	BIT(4) 
+#define INSERT_SEQ_IN_FW                BIT(2)
 
-#define WOW_MAX_FILTERS_PER_LIST 16
-#define WOW_PATTERN_SIZE 256
+#define RSI_BAND_CHECK			0x03
 
 /* Receive Frame Types */
-#define RSI_RX_DESC_MSG_TYPE_OFFSET	2
-#define TA_CONFIRM_TYPE                 0x01
-#define RX_DOT11_MGMT                   0x02
-#define TX_STATUS_IND                   0x04
-#define BEACON_EVENT_IND		0x08
-#define EAPOL4_CONFIRM                  1
+enum rx_cmd_type {
+	CARD_READY_IND = 0x0,
+	TA_CONFIRM_TYPE = 0x01,
+	RX_DOT11_MGMT = 0x02,
+	RX_DOT11_DATA = 0x03,
+	TX_STATUS_IND = 0x04,
+	PS_NOTIFY_IND = 0x05,
+	SLEEP_NOTIFY_IND = 0x06,
+	DECRYPT_ERROR_IND = 0x07,
+	BEACON_EVENT_IND = 0x08,
+	DEBUG_IND = 0x09,
+	RX_MISC_IND = 0xa,
+	UNCONNECTED_PEER = 0xb,
+	HW_BMISS_EVENT = 0xc,
+	RATE_GC_TABLE_UPDATE = 0xd,
+	RADAR_DETECTED = 0x0e,
+	TSF_SYNC_CONFIRM = 0xc0,
+	ANTENNA_SELECT = 0xf,
+	RADIO_MEAS_RPT = 0x10,
+	FW_ERROR_STATE_IND = 0x1C,
+
+};
+
+#ifdef CONFIG_RSI_WOW
+#define WOW_MAX_FILTERS_PER_LIST 16
+#define WOW_PATTERN_SIZE 256
+#endif
+#define EAPOL4_CONFIRM			1
 #define PROBEREQ_CONFIRM                2
-#define CARD_READY_IND                  0x00
-#define SLEEP_NOTIFY_IND                0x06
-#define RSI_TX_STATUS_TYPE		15
-#define RSI_TX_STATUS			12
+#define NULLDATA_CONFIRM		3
+
+#define RSI_MAX_BGSCAN_CHANNEL_SUPPORTED	0x6F
+#define RSI_MAX_BGSCAN_PROBE_REQ_LEN		0x71
+#define HW_BMISS_THRESHOLD			20
 
 #define RSI_DELETE_PEER                 0x0
 #define RSI_ADD_PEER                    0x1
@@ -82,51 +125,44 @@
 #define RATE_INFO_ENABLE                BIT(0)
 #define MORE_DATA_PRESENT		BIT(1)
 #define RSI_BROADCAST_PKT               BIT(9)
-#define RSI_DESC_REQUIRE_CFM_TO_HOST	BIT(2)
-#define RSI_ADD_DELTA_TSF_VAP_ID	BIT(3)
-#define RSI_FETCH_RETRY_CNT_FRM_HST	BIT(4)
-#define RSI_QOS_ENABLE			BIT(12)
-#define RSI_REKEY_PURPOSE		BIT(13)
-#define RSI_ENCRYPT_PKT			BIT(15)
-#define RSI_SET_PS_ENABLE		BIT(12)
+#define RSI_DESC_11G_MODE		BIT(7)
+#define RSI_DESC_REQUIRE_CFM_TO_HOST	BIT(10)
+#define ADD_DELTA_TSF_VAP_ID		BIT(11)
+#define FETCH_RETRY_CNT_FRM_HST		BIT(12)
 
-#define RSI_CMDDESC_40MHZ		BIT(4)
-#define RSI_CMDDESC_UPPER_20_ENABLE	BIT(5)
-#define RSI_CMDDESC_LOWER_20_ENABLE	BIT(6)
-#define RSI_CMDDESC_FULL_40_ENABLE	(BIT(5) | BIT(6))
 #define UPPER_20_ENABLE                 (0x2 << 12)
 #define LOWER_20_ENABLE                 (0x4 << 12)
 #define FULL40M_ENABLE                  0x6
-
+#define RSI_UAPSD_WAKEUP_PERIOD         100
 #define RSI_LMAC_CLOCK_80MHZ            0x1
 #define RSI_ENABLE_40MHZ                (0x1 << 3)
 #define ENABLE_SHORTGI_RATE		BIT(9)
 
-#define RX_BA_INDICATION                1
-#define RSI_TBL_SZ                      40
-#define MAX_RETRIES                     8
-#define RSI_IFTYPE_STATION		 0
+#define RX_BA_INDICATION		1
+#define RSI_TBL_SZ			40
+#define MAX_RETRIES			8
+#define RSI_IFTYPE_STATION		1
 
-#define STD_RATE_MCS7                   0x07
-#define STD_RATE_MCS6                   0x06
-#define STD_RATE_MCS5                   0x05
-#define STD_RATE_MCS4                   0x04
-#define STD_RATE_MCS3                   0x03
-#define STD_RATE_MCS2                   0x02
-#define STD_RATE_MCS1                   0x01
-#define STD_RATE_MCS0                   0x00
-#define STD_RATE_54                     0x6c
-#define STD_RATE_48                     0x60
-#define STD_RATE_36                     0x48
-#define STD_RATE_24                     0x30
-#define STD_RATE_18                     0x24
-#define STD_RATE_12                     0x18
-#define STD_RATE_11                     0x16
-#define STD_RATE_09                     0x12
-#define STD_RATE_06                     0x0C
-#define STD_RATE_5_5                    0x0B
-#define STD_RATE_02                     0x04
-#define STD_RATE_01                     0x02
+#define STD_RATE_MCS7			0x07
+#define STD_RATE_MCS6			0x06
+#define STD_RATE_MCS5			0x05
+#define STD_RATE_MCS4			0x04
+#define STD_RATE_MCS3			0x03
+#define STD_RATE_MCS2			0x02
+#define STD_RATE_MCS1			0x01
+#define STD_RATE_MCS0			0x00
+#define STD_RATE_54			0x6c
+#define STD_RATE_48			0x60
+#define STD_RATE_36			0x48
+#define STD_RATE_24			0x30
+#define STD_RATE_18			0x24
+#define STD_RATE_12			0x18
+#define STD_RATE_11			0x16
+#define STD_RATE_09			0x12
+#define STD_RATE_06			0x0C
+#define STD_RATE_5_5			0x0B
+#define STD_RATE_02			0x04
+#define STD_RATE_01			0x02
 
 #define RSI_RF_TYPE                     1
 #define RSI_RATE_00                     0x00
@@ -151,7 +187,6 @@
 #define RSI_RATE_MCS6                   0x106
 #define RSI_RATE_MCS7                   0x107
 #define RSI_RATE_MCS7_SG                0x307
-#define RSI_RATE_AUTO			0xffff
 
 #define BW_20MHZ                        0
 #define BW_40MHZ                        1
@@ -170,13 +205,20 @@
 #define LONG_PREAMBLE			0x0000
 #define SHORT_PREAMBLE			0x0001
 
-#define RSI_SUPP_FILTERS	(FIF_ALLMULTI | FIF_PROBE_REQ |\
-				 FIF_BCN_PRBRESP_PROMISC)
+#define RSI_SUPP_FILTERS		(FIF_ALLMULTI | FIF_PROBE_REQ |\
+					 FIF_BCN_PRBRESP_PROMISC)
 
 #define ANTENNA_SEL_INT			0x02 /* RF_OUT_2 / Integerated */
 #define ANTENNA_SEL_UFL			0x03 /* RF_OUT_1 / U.FL */
-#define ANTENNA_MASK_VALUE		0x00ff
-#define ANTENNA_SEL_TYPE		1
+
+/* Power save handshake types */
+#define NO_HAND_SHAKE			0
+#define GPIO_HAND_SHAKE			1
+#define PACKET_HAND_SHAKE		2
+#define TA_GPIO				0
+#define ULP_GPIO			1
+#define RF_POWER_3_3			1
+#define RF_POWER_1_9			0
 
 /* Rx filter word definitions */
 #define PROMISCOUS_MODE			BIT(0)
@@ -187,36 +229,37 @@
 #define ALLOW_CONN_PEER_MGMT_WHILE_BUF_FULL BIT(5)
 #define DISALLOW_BROADCAST_DATA		BIT(6)
 
-#define RSI_MPDU_DENSITY		0x8
-#define RSI_CHAN_RADAR			BIT(7)
-#define RSI_BEACON_INTERVAL		200
-#define RSI_DTIM_COUNT			2
+#define RSI_TXPOWER_MAX			20
+#define RSI_TXPOWER_MIN			-127
 
-#define RSI_PS_DISABLE_IND		BIT(15)
-#define RSI_PS_ENABLE			1
-#define RSI_PS_DISABLE			0
-#define RSI_DEEP_SLEEP			1
-#define RSI_CONNECTED_SLEEP		2
-#define RSI_SLEEP_REQUEST		1
-#define RSI_WAKEUP_REQUEST		2
+#define DEEP_SLEEP			1
+#define CONNECTED_SLEEP			2
 
-#define RSI_IEEE80211_UAPSD_QUEUES \
+#define ULP_SLEEP_NOTIFY		6
+#define ULP_SLEEP_ENTRY			1
+#define ULP_TOKEN	cpu_to_le16(*(u16 *)&msg[12] >> 4)
+#define SLEEP_REQUEST			1
+#define WAKEUP_REQUEST			2
+
+#define RSI_TXPOWER_MIN			-127
+
+#define IEEE80211_MARKALL_UAPSD_QUEUES \
 	(IEEE80211_WMM_IE_STA_QOSINFO_AC_VO | \
 	 IEEE80211_WMM_IE_STA_QOSINFO_AC_VI | \
 	 IEEE80211_WMM_IE_STA_QOSINFO_AC_BE | \
 	 IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
 
-#define RSI_DESC_VAP_ID_MASK		0xC000u
-#define RSI_DESC_VAP_ID_OFST		14
-#define RSI_DATA_DESC_MAC_BBP_INFO	BIT(0)
-#define RSI_DATA_DESC_NO_ACK_IND	BIT(9)
-#define RSI_DATA_DESC_QOS_EN		BIT(12)
-#define RSI_DATA_DESC_NORMAL_FRAME	0x00
-#define RSI_DATA_DESC_DTIM_BEACON_GATED_FRAME	BIT(10)
-#define RSI_DATA_DESC_BEACON_FRAME	BIT(11)
-#define RSI_DATA_DESC_DTIM_BEACON	(BIT(10) | BIT(11))
-#define RSI_DATA_DESC_INSERT_TSF	BIT(15)
-#define RSI_DATA_DESC_INSERT_SEQ_NO	BIT(2)
+/* Tx data frame format */
+#define MAC_BBP_INFO			BIT(0) 
+#define NO_ACK_IND			BIT(9)
+#define QOS_EN				BIT(12)
+/* frame type bit{11:10} */
+#define NORMAL_FRAME			0x00
+#define DTIM_BEACON_GATED_FRAME		BIT(10) 
+#define BEACON_FRAME			BIT(11)
+#define DTIM_BEACON			BIT(10) | BIT(11)
+#define INSERT_TSF			BIT(15)
+#define INSERT_SEQ_NO			BIT(2)
 
 #ifdef CONFIG_PM
 #define RSI_WOW_ANY			BIT(1)
@@ -224,16 +267,20 @@
 #define RSI_WOW_MAGIC_PKT		BIT(4)
 #define RSI_WOW_DISCONNECT		BIT(5)
 #endif
-
-#define RSI_MAX_TX_AGGR_FRMS		8
-#define RSI_MAX_RX_AGGR_FRMS		8
+#define HOST_BG_SCAN_TRIG		BIT(4)
+#define TARGET_BOARD_CARACALLA		BIT(10)
+#define RSI_TX_POWER_MODE_MASK		0x0F
+#define RSI_RX_POWER_MODE_MASK		0xF0
+#define TX_PWR_IN_SNIFFER_MODE		0
+#define TX_AGGR_LIMIT_FOR_RS9116	32
+#define TX_AGGR_LIMIT_FOR_RS9113	8
 
 enum opmode {
-	RSI_OPMODE_UNSUPPORTED = -1,
-	RSI_OPMODE_AP = 0,
-	RSI_OPMODE_STA,
-	RSI_OPMODE_P2P_GO,
-	RSI_OPMODE_P2P_CLIENT
+	UNKNOW_OPMODE = -1,
+	AP_OPMODE = 0,
+	STA_OPMODE = 1,
+	P2P_GO_OPMODE = 2,
+	P2P_CLIENT_OPMODE = 3
 };
 
 enum vap_status {
@@ -245,7 +292,19 @@ enum vap_status {
 enum peer_type {
 	PEER_TYPE_AP,
 	PEER_TYPE_STA,
+	PEER_TYPE_P2P_GO,
+	PEER_TYPE_P2P_CLIENT,
+	PEER_TYPE_IBSS
 };
+
+/*
+ * Subtypes for RX_MISC_IND frame
+ * Frame sub types from LMAC to Host
+ */
+enum rx_misc_ind_subtype {
+	FW_UPGRADE_REQ
+};
+
 extern struct ieee80211_rate rsi_rates[12];
 extern const u16 rsi_mcsrates[8];
 
@@ -260,96 +319,88 @@ enum sta_notify_events {
 
 /* Send Frames Types */
 enum cmd_frame_type {
-	TX_DOT11_MGMT,
-	RESET_MAC_REQ,
-	RADIO_CAPABILITIES,
-	BB_PROG_VALUES_REQUEST,
-	RF_PROG_VALUES_REQUEST,
-	WAKEUP_SLEEP_REQUEST,
-	SCAN_REQUEST,
-	TSF_UPDATE,
-	PEER_NOTIFY,
-	BLOCK_HW_QUEUE,
-	SET_KEY_REQ,
-	AUTO_RATE_IND,
-	BOOTUP_PARAMS_REQUEST,
-	VAP_CAPABILITIES,
-	EEPROM_READ,
-	EEPROM_WRITE,
-	GPIO_PIN_CONFIG ,
-	SET_RX_FILTER,
-	AMPDU_IND,
-	STATS_REQUEST_FRAME,
-	BB_BUF_PROG_VALUES_REQ,
-	BBP_PROG_IN_TA,
-	BG_SCAN_PARAMS,
-	BG_SCAN_PROBE_REQ,
-	CW_MODE_REQ,
-	PER_CMD_PKT,
-	ANT_SEL_FRAME = 0x20,
-	VAP_DYNAMIC_UPDATE = 0x27,
-	COMMON_DEV_CONFIG = 0x28,
-	RADIO_PARAMS_UPDATE = 0x29,
-	WOWLAN_CONFIG_PARAMS = 0x2B,
-	WOWLAN_WAKEUP_REASON = 0xc5
+	TX_DOT11_MGMT = 0,
+	RESET_MAC_REQ, /* 0x1 */
+	RADIO_CAPABILITIES, /* 0x2 */
+	BB_PROG_VALUES_REQUEST, /* 0x3 */
+	RF_PROG_VALUES_REQUEST, /* 0x4 */
+	WAKEUP_SLEEP_REQUEST, /* 0x5 */
+	SCAN_REQUEST, /* 0x6 */
+	TSF_UPDATE, /* 0x7 */
+	PEER_NOTIFY, /* 0x8 */
+	BLOCK_HW_QUEUE, /* 0x9 */
+	SET_KEY_REQ, /* 0xA */
+	AUTO_RATE_IND, /* 0xB */
+	BOOTUP_PARAMS_REQUEST, /* 0xC */
+	VAP_CAPABILITIES, /* 0xD */
+	EEPROM_READ, /* 0xE */
+	EEPROM_WRITE, /* 0xF */
+	GPIO_PIN_CONFIG, /* 0x10 */
+	SET_RX_FILTER, /* 0x11 */
+	AMPDU_IND, /* 0x12 */
+	STATS_REQUEST, /* 0x13 */
+	BB_BUF_PROG_VALUES_REQ, /* 0x14 */
+	BBP_PROG_IN_TA, /* 0x15 */
+	BG_SCAN_PARAMS, /* 0x16 */
+	BG_SCAN_PROBE_REQ, /* 0x17 */
+	CW_MODE_REQ, /* 0x18 */
+	PER_CMD_PKT, /* 0x19 */
+	DEV_SLEEP_REQUEST, /* 0x1A */
+	DEV_WAKEUP_CNF,  /* 0x1B */
+	RF_LOOPBACK_REQ, /* 0x1C */
+	RF_LPBK_M3,  /* 0x1D */
+	RF_RESET_FRAME,  /* 0x1E */
+	LMAC_REG_OPS,  /* 0x1F */
+	ANT_SEL_FRAME, /* 0x20 */
+	CONFIRM, /* 0x21 */
+	WLAN_DE_REGISTER, /* 0x22 */
+	DEBUG_FRAME,  /* 0x23 */
+	HW_BMISS_HANDLE, /* 0x24 */
+	MULTICAST_ENABLE, /* 0x25 */
+	TX_MISC_IND, /* 0x26 */
+	VAP_DYNAMIC_UPDATE, /* 0x27 */
+	COMMON_DEV_CONFIG, /* 0x28 */
+	RADIO_PARAMS_UPDATE, /* 0x29 */
+	RADAR_REQUEST, /* 0x2A */
+	WOWLAN_CONFIG_PARAMS, /* 0x2B */
+	IAP_CONFIG, /* 0x2C */
+	RADIO_MEASUREMENT_REQ, /* 0x2D */
+	FEATURES_ENABLE = 0x33,
+	WOWLAN_WAKEUP_REASON = 0xc5 /* 0xC5 */
 };
 
+struct rsi_ulp_params {
+	__le16 desc_word[8];
+} __packed;
+
+struct reg_class {
+	u8 op_class;
+	u8 bandwidth;
+	u16 chans[20];
+};
+
+/* RSI Command packet formats */
 struct rsi_mac_frame {
 	__le16 desc_word[8];
 } __packed;
 
-#define PWR_SAVE_WAKEUP_IND		BIT(0)
-#define TCP_CHECK_SUM_OFFLOAD		BIT(1)
-#define CONFIRM_REQUIRED_TO_HOST	BIT(2)
-#define ADD_DELTA_TSF			BIT(3)
-#define FETCH_RETRY_CNT_FROM_HOST_DESC	BIT(4)
-#define EOSP_INDICATION			BIT(5)
-#define REQUIRE_TSF_SYNC_CONFIRM	BIT(6)
-#define ENCAP_MGMT_PKT			BIT(7)
-#define DESC_IMMEDIATE_WAKEUP		BIT(15)
-
-struct rsi_xtended_desc {
-	u8 confirm_frame_type;
-	u8 retry_cnt;
-	u16 reserved;
-};
-
-struct rsi_cmd_desc_dword0 {
-	__le16 len_qno;
-	u8 frame_type;
-	u8 misc_flags;
-};
-
-struct rsi_cmd_desc_dword1 {
-	u8 xtend_desc_size;
-	u8 reserved1;
-	__le16 reserved2;
-};
-
-struct rsi_cmd_desc_dword2 {
-	__le32 pkt_info; /* Packet specific data */
-};
-
-struct rsi_cmd_desc_dword3 {
-	__le16 token;
-	u8 qid_tid;
-	u8 sta_id;
-};
-
-struct rsi_cmd_desc {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	struct rsi_cmd_desc_dword1 desc_dword1;
-	struct rsi_cmd_desc_dword2 desc_dword2;
-	struct rsi_cmd_desc_dword3 desc_dword3;
-};
+struct rsi_boot_params_9116 {
+	__le16 desc_word[8];
+	struct bootup_params_9116 bootup_params;
+} __packed;
 
 struct rsi_boot_params {
 	__le16 desc_word[8];
 	struct bootup_params bootup_params;
 } __packed;
 
+struct bt_register_param {
+	u16 desc_word[8];
+	u8 params[5];
+}__packed;
+
 struct rsi_peer_notify {
-	struct rsi_cmd_desc desc;
+	__le16 desc_word[8];
 	u8 mac_addr[6];
 	__le16 command;
 	__le16 mpdu_density;
@@ -357,85 +408,26 @@ struct rsi_peer_notify {
 	__le32 sta_flags;
 } __packed;
 
-/* Aggregation params flags */
-#define RSI_AGGR_PARAMS_TID_MASK	0xf
-#define RSI_AGGR_PARAMS_START		BIT(4)
-#define RSI_AGGR_PARAMS_RX_AGGR		BIT(5)
-struct rsi_aggr_params {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	struct rsi_cmd_desc_dword0 desc_dword1;
-	__le16 seq_start;
-	__le16 baw_size;
-	__le16 token;
-	u8 aggr_params;
-	u8 peer_id;
-} __packed;
-
-struct rsi_bb_rf_prog {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	__le16 reserved1;
-	u8 rf_power_mode;
-	u8 reserved2;
-	u8 endpoint;
-	u8 reserved3;
-	__le16 reserved4;
-	__le16 reserved5;
-	__le16 flags;
-} __packed;
-
-struct rsi_chan_config {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	struct rsi_cmd_desc_dword1 desc_dword1;
-	u8 channel_number;
-	u8 antenna_gain_offset_2g;
-	u8 antenna_gain_offset_5g;
-	u8 channel_width;
-	__le16 tx_power;
-	u8 region_rftype;
-	u8 flags;
-} __packed;
-
 struct rsi_vap_caps {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	u8 reserved1;
-	u8 status;
-	__le16 reserved2;
-	u8 vif_type;
-	u8 channel_bw;
-	__le16 antenna_info;
-	__le16 token;
-	u8 radioid_macid;
-	u8 vap_id;
+	__le16 desc_word[8];
 	u8 mac_addr[6];
 	__le16 keep_alive_period;
 	u8 bssid[6];
-	__le16 reserved4;
+	__le16 reserved;
 	__le32 flags;
 	__le16 frag_threshold;
 	__le16 rts_threshold;
 	__le32 default_mgmt_rate;
-	__le16 default_ctrl_rate;
-	__le16 ctrl_rate_flags;
+	__le32 default_ctrl_rate;
 	__le32 default_data_rate;
 	__le16 beacon_interval;
 	__le16 dtim_period;
 	__le16 beacon_miss_threshold;
 } __packed;
 
-struct rsi_ant_sel_frame {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	u8 reserved;
-	u8 sub_frame_type;
-	__le16 ant_value;
-	__le32 reserved1;
-	__le32 reserved2;
-} __packed;
-
 struct rsi_dynamic_s {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	struct rsi_cmd_desc_dword1 desc_dword1;
-	struct rsi_cmd_desc_dword2 desc_dword2;
-	struct rsi_cmd_desc_dword3 desc_dword3;
+	__le16 desc_word[8];
+
 	struct framebody {
 		__le16 data_rate;
 		__le16 mgmt_rate;
@@ -443,30 +435,37 @@ struct rsi_dynamic_s {
 	} frame_body;
 } __packed;
 
-/* Key descriptor flags */
-#define RSI_KEY_TYPE_BROADCAST	BIT(1)
-#define RSI_WEP_KEY		BIT(2)
-#define RSI_WEP_KEY_104		BIT(3)
-#define RSI_CIPHER_WPA		BIT(4)
-#define RSI_CIPHER_TKIP		BIT(5)
-#define RSI_KEY_MODE_AP		BIT(7)
-#define RSI_PROTECT_DATA_FRAMES	BIT(13)
-#define RSI_KEY_ID_MASK		0xC0
-#define RSI_KEY_ID_OFFSET	14
+#define RSI_MAX_BGS_PROBEREQ_LEN	120
+struct rsi_bgscan_params {
+	__le16 desc_word[8];
+	__le16 bgscan_threshold;
+	__le16 roam_threshold;
+	__le16 bgscan_periodicity;
+	u8 num_bg_channels;
+	u8 two_probe;
+	__le16 active_scan_duration;
+	__le16 passive_scan_duration;
+	__le16 channels2scan[MAX_BGSCAN_CHANNELS];
+} __packed;
+
+struct rsi_bgscan_probe {
+	__le16 desc_word[8];
+	__le16 mgmt_rate;
+	__le16 flags;
+	__le16 channel_num;
+	__le16 channel_scan_time;
+	__le16 probe_req_length;
+} __packed;
+
 struct rsi_set_key {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	struct rsi_cmd_desc_dword1 desc_dword1;
-	__le16 key_desc;
-	__le32 bpn;
-	u8 sta_id;
-	u8 vap_id;
+	__le16 desc_word[8];
 	u8 key[4][32];
 	u8 tx_mic_key[8];
 	u8 rx_mic_key[8];
 } __packed;
 
 struct rsi_auto_rate {
-	struct rsi_cmd_desc desc;
+	__le16 desc_word[8];
 	__le16 failure_limit;
 	__le16 initial_boundary;
 	__le16 max_threshold_limt;
@@ -477,19 +476,6 @@ struct rsi_auto_rate {
 	__le16 supported_rates[40];
 } __packed;
 
-#define QUIET_INFO_VALID	BIT(0)
-#define QUIET_ENABLE		BIT(1)
-struct rsi_block_unblock_data {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	u8 xtend_desc_size;
-	u8 host_quiet_info;
-	__le16 reserved;
-	__le16 block_q_bitmap;
-	__le16 unblock_q_bitmap;
-	__le16 token;
-	__le16 flush_q_bitmap;
-} __packed;
-
 struct qos_params {
 	__le16 cont_win_min_q;
 	__le16 cont_win_max_q;
@@ -498,14 +484,7 @@ struct qos_params {
 } __packed;
 
 struct rsi_radio_caps {
-	struct rsi_cmd_desc_dword0 desc_dword0;
-	struct rsi_cmd_desc_dword0 desc_dword1;
-	u8 channel_num;
-	u8 rf_model;
-	__le16 ppe_ack_rate;
-	__le16 mode_11j;
-	u8 radio_cfg_info;
-	u8 radio_info;
+	__le16 desc_word[8];
 	struct qos_params qos_params[MAX_HW_QUEUES];
 	u8 num_11n_rates;
 	u8 num_11ac_rates;
@@ -518,57 +497,41 @@ struct rsi_radio_caps {
 	__le16 preamble_type;
 } __packed;
 
-/* ULP GPIO flags */
-#define RSI_GPIO_MOTION_SENSOR_ULP_WAKEUP	BIT(0)
-#define RSI_GPIO_SLEEP_IND_FROM_DEVICE		BIT(1)
-#define RSI_GPIO_2_ULP				BIT(2)
-#define RSI_GPIO_PUSH_BUTTON_ULP_WAKEUP		BIT(3)
+struct rsi_ulp_gpio_vals {
+	u8 motion_sensor_gpio_ulp_wakeup : 1;
+	u8 sleep_ind_from_device : 1;
+	u8 ulp_gpio_2 :1;
+	u8 push_button_ulp_wakeup : 1;
+	u8 reserved : 4;
+} __packed;
 
-/* SOC GPIO flags */
-#define RSI_GPIO_0_PSPI_CSN_0			BIT(0)
-#define RSI_GPIO_1_PSPI_CSN_1			BIT(1)
-#define RSI_GPIO_2_HOST_WAKEUP_INTR		BIT(2)
-#define RSI_GPIO_3_PSPI_DATA_0			BIT(3)
-#define RSI_GPIO_4_PSPI_DATA_1			BIT(4)
-#define RSI_GPIO_5_PSPI_DATA_2			BIT(5)
-#define RSI_GPIO_6_PSPI_DATA_3			BIT(6)
-#define RSI_GPIO_7_I2C_SCL			BIT(7)
-#define RSI_GPIO_8_I2C_SDA			BIT(8)
-#define RSI_GPIO_9_UART1_RX			BIT(9)
-#define RSI_GPIO_10_UART1_TX			BIT(10)
-#define RSI_GPIO_11_UART1_RTS_I2S_CLK		BIT(11)
-#define RSI_GPIO_12_UART1_CTS_I2S_WS		BIT(12)
-#define RSI_GPIO_13_DBG_UART_RX_I2S_DIN		BIT(13)
-#define RSI_GPIO_14_DBG_UART_RX_I2S_DOUT	BIT(14)
-#define RSI_GPIO_15_LP_WAKEUP_BOOT_BYPASS	BIT(15)
-#define RSI_GPIO_16_LED_0			BIT(16)
-#define RSI_GPIO_17_BTCOEX_WLAN_ACT_EXT_ANT_SEL	BIT(17)
-#define RSI_GPIO_18_BTCOEX_BT_PRIO_EXT_ANT_SEL	BIT(18)
-#define RSI_GPIO_19_BTCOEX_BT_ACT_EXT_ON_OFF	BIT(19)
-#define RSI_GPIO_20_RF_RESET			BIT(20)
-#define RSI_GPIO_21_SLEEP_IND_FROM_DEVICE	BIT(21)
+struct rsi_soc_gpio_vals {
+	u32 pspi_csn_0 : 1;
+	u32 pspi_csn_1 : 1;
+	u32 host_wakeup_intr :1;
+	u32 pspi_data_0 : 1;
+	u32 pspi_data_1 : 1;
+	u32 pspi_data_2 : 1;
+	u32 pspi_data_3 : 1;
+	u32 i2c_scl :1;
+	u32 i2c_sda   :1;
+	u32 uart1_rx :1;
+	u32 uart1_tx  :1;
+	u32 uart1_rts_i2s_clk :1;
+	u32 uart1_cts_i2s_ws :1;
+	u32 dbg_uart_rx_i2s_din :1;
+	u32 dbg_uart_tx_i2s_dout :1;
+	u32 lp_wakeup_boot_bypass :1;
+	u32 led_0 :1;
+	u32 btcoex_wlan_active_ext_pa_ant_sel_A :1;
+	u32 btcoex_bt_priority_ext_pa_ant_sel_B :1;
+	u32 btcoex_bt_active_ext_pa_on_off :1;
+	u32 rf_reset :1;
+	u32 sleep_ind_from_device :1;
+} __packed;
 
-#define RSI_UNUSED_SOC_GPIO_BITMAP (RSI_GPIO_9_UART1_RX | \
-				    RSI_GPIO_10_UART1_TX | \
-				    RSI_GPIO_11_UART1_RTS_I2S_CLK | \
-				    RSI_GPIO_12_UART1_CTS_I2S_WS | \
-				    RSI_GPIO_13_DBG_UART_RX_I2S_DIN | \
-				    RSI_GPIO_14_DBG_UART_RX_I2S_DOUT | \
-				    RSI_GPIO_15_LP_WAKEUP_BOOT_BYPASS | \
-				    RSI_GPIO_17_BTCOEX_WLAN_ACT_EXT_ANT_SEL | \
-				    RSI_GPIO_18_BTCOEX_BT_PRIO_EXT_ANT_SEL | \
-				    RSI_GPIO_19_BTCOEX_BT_ACT_EXT_ON_OFF | \
-				    RSI_GPIO_21_SLEEP_IND_FROM_DEVICE)
-
-#define RSI_UNUSED_ULP_GPIO_BITMAP (RSI_GPIO_MOTION_SENSOR_ULP_WAKEUP | \
-				    RSI_GPIO_SLEEP_IND_FROM_DEVICE | \
-				    RSI_GPIO_2_ULP | \
-				    RSI_GPIO_PUSH_BUTTON_ULP_WAKEUP);
 struct rsi_config_vals {
-	__le16 len_qno;
-	u8 pkt_type;
-	u8 misc_flags;
-	__le16 reserved1[6];
+	u16 desc_word[8];
 	u8 lp_ps_handshake;
 	u8 ulp_ps_handshake;
 	u8 sleep_config_params; /* 0 for no handshake,
@@ -576,7 +539,7 @@ struct rsi_config_vals {
 				 * 2 packet handshake
 				 */
 	u8 unused_ulp_gpio;
-	__le32 unused_soc_gpio_bitmap;
+	u32 unused_soc_gpio_bitmap;
 	u8 ext_pa_or_bt_coex_en;
 	u8 opermode;
 	u8 wlan_rf_pwr_mode;
@@ -585,43 +548,68 @@ struct rsi_config_vals {
 	u8 driver_mode;
 	u8 region_code;
 	u8 antenna_sel_val;
-	u8 reserved2[16];
-} __packed;
-
-/* Packet info flags */
-#define RSI_EEPROM_HDR_SIZE_OFFSET		8
-#define RSI_EEPROM_HDR_SIZE_MASK		0x300
-#define RSI_EEPROM_LEN_OFFSET			20
-#define RSI_EEPROM_LEN_MASK			0xFFF00000
-
-struct rsi_eeprom_read_frame {
-	__le16 len_qno;
-	u8 pkt_type;
-	u8 misc_flags;
-	__le32 pkt_info;
-	__le32 eeprom_offset;
-	__le16 delay_ms;
-	__le16 reserved3;
+	u16 dev_peer_dist;
+	u16 dev_bt_feature_bitmap;
+	u16 uart_dbg;
+	u16 features_9116;
+	u16 dev_ble_roles;
+	u16 bt_bdr;
+	u16 dev_anchor_point_gap;
+	u8 reserved[2];
 } __packed;
 
 struct rsi_request_ps {
-	struct rsi_cmd_desc desc;
+	u16 desc_word[8];
 	struct ps_sleep_params ps_sleep;
 	u8 ps_mimic_support;
 	u8 ps_uapsd_acs;
 	u8 ps_uapsd_wakeup_period;
 	u8 reserved;
-	__le32 ps_listen_interval;
-	__le32 ps_dtim_interval_duration;
-	__le16 ps_num_dtim_intervals;
+	u32 ps_listen_interval;
+	u32 ps_dtim_interval_duration;
+	u16 ps_num_dtim_intervals;
 } __packed;
 
-struct rsi_wowlan_req {
-	struct rsi_cmd_desc desc;
+struct rsi_wowlan_req { 
+	__le16 desc_word[8];
 	u8 sourceid[ETH_ALEN];
 	u16 wow_flags;
 	u16 host_sleep_status;
 } __packed;
+
+struct rsi_bcn_meas_req {
+	__le16 desc_word[8];
+	u8 bssid[ETH_ALEN];
+	u8 ssid[32];
+	u8 rep_detail;
+	u8 meas_mode;
+	u8 bgscan_probe[0];
+} __packed;
+
+struct rsi_frame_meas_req {
+	__le16 desc_word[8];
+	u8 bssid[ETH_ALEN];
+	u8 frm_req_type;
+} __packed;
+
+#define RSI_DUTY_CYCLING	BIT(0)
+#define RSI_END_OF_FRAME	BIT(1)
+#define RSI_SIFS_TX_ENABLE	BIT(2)
+#define RSI_DPD			BIT(3)
+#define LMAC_BCON_DROP_EN	BIT(5)
+#define DROP_BYTES_FEATURE	BIT(7)
+#define LMAC_BCON_EN_DIS_THRESHOLD	4
+struct rsi_wlan_9116_features {
+	__le16 desc_word[8];
+	u8 pll_mode;
+	u8 rf_type;
+	u8 wireless_mode;
+	u8 enable_ppe;
+	u8 afe_type;
+	u8 reserved1;
+	__le16 reserved2;
+	__le32 feature_enable;
+}__packed;
 
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
 {
@@ -648,35 +636,27 @@ static inline u8 rsi_get_channel(u8 *addr)
 	return *(char *)(addr + 15);
 }
 
-static inline void rsi_set_len_qno(__le16 *addr, u16 len, u8 qno)
-{
-	*addr = cpu_to_le16(len | ((qno & 7) << 12));
-}
-
-int rsi_handle_card_ready(struct rsi_common *common, u8 *msg);
 int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg);
 int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode,
 			     u8 *mac_addr, u8 vap_id, u8 vap_status);
-int rsi_send_aggregation_params_frame(struct rsi_common *common, u16 tid,
-				      u16 ssn, u8 buf_size, u8 event,
-				      u8 sta_id);
-int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,
-		     u8 key_type, u8 key_id, u32 cipher, s16 sta_id,
-		     struct ieee80211_vif *vif);
+int rsi_send_aggr_params_frame(struct rsi_common *common, u16 tid,
+			       u16 ssn, u8 buf_size, u8 event, u8 sta_id);
+int rsi_load_key(struct rsi_common *common, u8 *data, u16 key_len,
+		 u8 key_type, u8 key_id, u32 cipher, s16 sta_id);
 int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel);
 int rsi_send_vap_dynamic_update(struct rsi_common *common);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
-int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
-				  u8 notify_event, const unsigned char *bssid,
-				  u8 qos_enable, u16 aid, u16 sta_id,
-				  struct ieee80211_vif *vif);
 void rsi_inform_bss_status(struct rsi_common *common, enum opmode opmode,
-			   u8 status, const u8 *addr, u8 qos_enable, u16 aid,
-			   struct ieee80211_sta *sta, u16 sta_id,
-			   u16 assoc_cap, struct ieee80211_vif *vif);
+			   u8 status, const u8 *bssid, u8 qos_enable, u16 aid,
+			   struct ieee80211_sta *sta, u16 sta_id, u16 assoc_cap);
+int rsi_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
+			      u8 notify_event, const unsigned char *bssid,
+			      u8 qos_enable, u16 aid, u16 sta_id);
 void rsi_indicate_pkt_to_os(struct rsi_common *common, struct sk_buff *skb);
 int rsi_mac80211_attach(struct rsi_common *common);
+int rsi_send_bgscan_params(struct rsi_common *common, int enable);
+int rsi_send_bgscan_probe_req(struct rsi_common *common);
 void rsi_indicate_tx_status(struct rsi_hw *common, struct sk_buff *skb,
 			    int status);
 bool rsi_is_cipher_wep(struct rsi_common *common);
@@ -684,14 +664,40 @@ void rsi_core_qos_processor(struct rsi_common *common);
 void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_mgmt_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb);
+int rsi_send_beacon(struct rsi_common *common);
+int rsi_send_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_band_check(struct rsi_common *common, struct ieee80211_channel *chan);
 int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word);
+int rsi_flash_read(struct rsi_hw *adapter);
+int rsi_program_bb_rf(struct rsi_common *common);
 int rsi_send_radio_params_update(struct rsi_common *common);
+void init_bgscan_params(struct rsi_common *common);
 int rsi_set_antenna(struct rsi_common *common, u8 antenna);
-#ifdef CONFIG_PM
+int rsi_hci_attach(struct rsi_common *common);
+int rsi_handle_card_ready(struct rsi_common *common, u8 *msg);
+int rsi_send_bt_reg_params(struct rsi_common *common);
+void rsi_validate_bgscan_channels(struct rsi_hw *adapter,
+				  struct bgscan_config_params *params);
+#ifdef CONFIG_RSI_WOW
 int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 			    u16 sleep_status);
 #endif
-int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
-			struct ieee80211_vif *vif);
+void rsi_scan_start(struct work_struct *data);
+void rsi_scan_complete(struct work_struct *data);
+int rsi_send_probe_request(struct rsi_common *common, 
+			   struct cfg80211_scan_request *scan_req, u8 n_ssid,
+			   u8 channel, u8 scan_type);
+#ifdef CONFIG_CARACALLA_BOARD
+void rsi_apply_carcalla_power_values(struct rsi_hw *adapter,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_channel *channel);
+#endif
+#ifdef CONFIG_RSI_11K
+int rsi_get_channel_load_meas(struct rsi_common *common,
+			      struct rsi_meas_params params);
+int rsi_get_frame_meas(struct rsi_common *common,
+		       struct rsi_frame_meas_params params);
+int rsi_get_beacon_meas(struct rsi_common *common,
+			struct rsi_beacon_meas_params params);
+#endif
 #endif
