@@ -1,126 +1,154 @@
-/**
- * Copyright (c) 2018 Redpine Signals Inc.
+/*
+ * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 	1. Redistributions of source code must retain the above copyright
+ * 	   notice, this list of conditions and the following disclaimer.
+ *
+ * 	2. Redistributions in binary form must reproduce the above copyright
+ * 	   notice, this list of conditions and the following disclaimer in the
+ * 	   documentation and/or other materials provided with the distribution.
+ *
+ * 	3. Neither the name of the copyright holder nor the names of its
+ * 	   contributors may be used to endorse or promote products derived from
+ * 	   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "rsi_main.h"
 #include "rsi_coex.h"
-#include "rsi_mgmt.h"
 #include "rsi_hal.h"
+#include "rsi_mgmt.h"
 
-static enum rsi_coex_queues rsi_coex_determine_coex_q
-			(struct rsi_coex_ctrl_block *coex_cb)
+static u8 rsi_coex_determine_coex_q(struct rsi_coex_ctrl_block *coex_cb)
 {
-	enum rsi_coex_queues q_num = RSI_COEX_Q_INVALID;
+	u8 q_num = INVALID_QUEUE;
 
-	if (skb_queue_len(&coex_cb->coex_tx_qs[RSI_COEX_Q_COMMON]) > 0)
-		q_num = RSI_COEX_Q_COMMON;
-	if (skb_queue_len(&coex_cb->coex_tx_qs[RSI_COEX_Q_BT]) > 0)
-		q_num = RSI_COEX_Q_BT;
-	if (skb_queue_len(&coex_cb->coex_tx_qs[RSI_COEX_Q_WLAN]) > 0)
-		q_num = RSI_COEX_Q_WLAN;
+	if (skb_queue_len(&coex_cb->coex_tx_qs[VIP_Q]) > 0)
+		q_num = VIP_Q;
+	if (skb_queue_len(&coex_cb->coex_tx_qs[COEX_Q]) > 0)
+		q_num = COEX_Q;
+	if (skb_queue_len(&coex_cb->coex_tx_qs[BT_Q]) > 0)
+		q_num = BT_Q;
+	if (skb_queue_len(&coex_cb->coex_tx_qs[ZIGB_Q]) > 0)
+		q_num = ZIGB_Q;
+	if (skb_queue_len(&coex_cb->coex_tx_qs[WLAN_Q]) > 0)
+		q_num = WLAN_Q;
 
 	return q_num;
 }
 
 static void rsi_coex_sched_tx_pkts(struct rsi_coex_ctrl_block *coex_cb)
 {
-	enum rsi_coex_queues coex_q = RSI_COEX_Q_INVALID;
+	u8 coex_q;
 	struct sk_buff *skb;
-
-	do {
+#ifdef CONFIG_RSI_ZIGB
+	struct rsi_common *common = coex_cb->priv;
+#endif
+	while (1) {
 		coex_q = rsi_coex_determine_coex_q(coex_cb);
 		rsi_dbg(INFO_ZONE, "queue = %d\n", coex_q);
 
-		if (coex_q == RSI_COEX_Q_BT) {
-			skb = skb_dequeue(&coex_cb->coex_tx_qs[RSI_COEX_Q_BT]);
-			rsi_send_bt_pkt(coex_cb->priv, skb);
+		if (coex_q == INVALID_QUEUE) {
+			rsi_dbg(DATA_TX_ZONE, "No more pkt\n");
+			break;
 		}
-	} while (coex_q != RSI_COEX_Q_INVALID);
+
+		if ((coex_q == BT_Q) || (coex_q == ZIGB_Q)) {
+			skb = skb_dequeue(&coex_cb->coex_tx_qs[BT_Q]);
+#ifdef CONFIG_RSI_ZIGB
+			if (common->zb_fsm_state == ZB_DEVICE_READY) {
+				rsi_dbg(DATA_TX_ZONE, "Sending zigbee pkt\n");
+				rsi_send_zb_pkt(coex_cb->priv, skb);
+			} else {
+#endif
+				rsi_dbg(DATA_TX_ZONE, "Sending BT pkt\n");
+				rsi_send_bt_pkt(coex_cb->priv, skb);
+#ifdef CONFIG_RSI_ZIGB
+			}
+#endif
+		}
+	}
 }
 
+/**
+ * rsi_coex_scheduler_thread() - This function is a kernel thread to schedule
+ *			       the coex packets to device
+ * @common: Pointer to the driver private structure.
+ *
+ * Return: None.
+ */
 static void rsi_coex_scheduler_thread(struct rsi_common *common)
 {
+	int status = 0;
 	struct rsi_coex_ctrl_block *coex_cb =
 		(struct rsi_coex_ctrl_block *)common->coex_cb;
 	u32 timeout = EVENT_WAIT_FOREVER;
 
 	do {
-		rsi_wait_event(&coex_cb->coex_tx_thread.event, timeout);
+		status = rsi_wait_event(&coex_cb->coex_tx_thread.event,
+					timeout);
+		if (status < 0)
+			break;
 		rsi_reset_event(&coex_cb->coex_tx_thread.event);
-
-		rsi_coex_sched_tx_pkts(coex_cb);
+		status = set_clr_tx_intention(common, BT_ZB_ID, 1);
+		if (!status)
+			rsi_coex_sched_tx_pkts(coex_cb);
+		else
+			rsi_dbg(ERR_ZONE, "%s,%d:  Failed to get tx_access\n",
+				__func__, __LINE__);
+		set_clr_tx_intention(common, BT_ZB_ID, 0);
 	} while (atomic_read(&coex_cb->coex_tx_thread.thread_done) == 0);
-
 	complete_and_exit(&coex_cb->coex_tx_thread.completion, 0);
 }
 
 int rsi_coex_recv_pkt(struct rsi_common *common, u8 *msg)
 {
-	u8 msg_type = msg[RSI_RX_DESC_MSG_TYPE_OFFSET];
+	u16 msg_type = msg[2];
 
-	switch (msg_type) {
-	case COMMON_CARD_READY_IND:
-		rsi_dbg(INFO_ZONE, "common card ready received\n");
+	if (msg_type == COMMON_CARD_READY_IND) {
 		common->hibernate_resume = false;
+		rsi_dbg(INFO_ZONE, "COMMON CARD READY RECEIVED\n");
 		rsi_handle_card_ready(common, msg);
-		break;
-	case SLEEP_NOTIFY_IND:
-		rsi_dbg(INFO_ZONE, "sleep notify received\n");
+	} else if (msg_type == SLEEP_NOTIFY_IND) {
+		rsi_dbg(INFO_ZONE, "\n\n sleep notify RECEIVED\n");
 		rsi_mgmt_pkt_recv(common, msg);
-		break;
 	}
 
 	return 0;
 }
 
-static inline int rsi_map_coex_q(u8 hal_queue)
-{
-	switch (hal_queue) {
-	case RSI_COEX_Q:
-		return RSI_COEX_Q_COMMON;
-	case RSI_WLAN_Q:
-		return RSI_COEX_Q_WLAN;
-	case RSI_BT_Q:
-		return RSI_COEX_Q_BT;
-	}
-	return RSI_COEX_Q_INVALID;
-}
-
-int rsi_coex_send_pkt(void *priv, struct sk_buff *skb, u8 hal_queue)
+int rsi_coex_send_pkt(void *priv,
+		      struct sk_buff *skb,
+		      u8 hal_queue)
 {
 	struct rsi_common *common = (struct rsi_common *)priv;
 	struct rsi_coex_ctrl_block *coex_cb =
 		(struct rsi_coex_ctrl_block *)common->coex_cb;
 	struct skb_info *tx_params = NULL;
-	enum rsi_coex_queues coex_q;
-	int status;
+	int status = 0;
 
-	coex_q = rsi_map_coex_q(hal_queue);
-	if (coex_q == RSI_COEX_Q_INVALID) {
-		rsi_dbg(ERR_ZONE, "Invalid coex queue\n");
-		return -EINVAL;
-	}
-	if (coex_q != RSI_COEX_Q_COMMON &&
-	    coex_q != RSI_COEX_Q_WLAN) {
-		skb_queue_tail(&coex_cb->coex_tx_qs[coex_q], skb);
+	/* Add pkt to queue if not WLAN packet */
+	if (hal_queue != RSI_WLAN_Q) {
+		skb_queue_tail(&coex_cb->coex_tx_qs[hal_queue], skb);
 		rsi_set_event(&coex_cb->coex_tx_thread.event);
-		return 0;
+		return status;
 	}
 	if (common->iface_down) {
-		tx_params =
-			(struct skb_info *)&IEEE80211_SKB_CB(skb)->driver_data;
+		tx_params = (struct skb_info *)&IEEE80211_SKB_CB(skb)->driver_data;
 
 		if (!(tx_params->flags & INTERNAL_MGMT_PKT)) {
 			rsi_indicate_tx_status(common->priv, skb, -EINVAL);
@@ -134,12 +162,12 @@ int rsi_coex_send_pkt(void *priv, struct sk_buff *skb, u8 hal_queue)
 	else
 		status = rsi_send_data_pkt(common, skb);
 
-	return status;
+	return 0;
 }
 
-int rsi_coex_attach(struct rsi_common *common)
+int rsi_coex_init(struct rsi_common *common)
 {
-	struct rsi_coex_ctrl_block *coex_cb;
+	struct rsi_coex_ctrl_block *coex_cb = NULL;
 	int cnt;
 
 	coex_cb = kzalloc(sizeof(*coex_cb), GFP_KERNEL);
@@ -148,6 +176,7 @@ int rsi_coex_attach(struct rsi_common *common)
 
 	common->coex_cb = (void *)coex_cb;
 	coex_cb->priv = common;
+	sema_init(&coex_cb->tx_bus_lock, 1);
 
 	/* Initialize co-ex queues */
 	for (cnt = 0; cnt < NUM_COEX_TX_QUEUES; cnt++)
@@ -160,21 +189,28 @@ int rsi_coex_attach(struct rsi_common *common)
 			       rsi_coex_scheduler_thread,
 			       "Coex-Tx-Thread")) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to init tx thrd\n", __func__);
-		return -EINVAL;
+		goto err;
 	}
 	return 0;
+
+err:
+	return -EINVAL;
 }
 
-void rsi_coex_detach(struct rsi_common *common)
+void rsi_coex_deinit(struct rsi_common *common)
 {
-	struct rsi_coex_ctrl_block *coex_cb =
-		(struct rsi_coex_ctrl_block *)common->coex_cb;
 	int cnt;
 
+	struct rsi_coex_ctrl_block *coex_cb =
+		(struct rsi_coex_ctrl_block *)common->coex_cb;
+
+	/* Stop the coex tx thread */
 	rsi_kill_thread(&coex_cb->coex_tx_thread);
 
+	/* Empty the coex queue */
 	for (cnt = 0; cnt < NUM_COEX_TX_QUEUES; cnt++)
 		skb_queue_purge(&coex_cb->coex_tx_qs[cnt]);
 
+	/* Free the coex control block */
 	kfree(coex_cb);
 }

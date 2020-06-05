@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0-only
 config WLAN_VENDOR_RSI
 	bool "Redpine Signals Inc devices"
 	default y
@@ -6,15 +5,14 @@ config WLAN_VENDOR_RSI
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
-	  kernel: saying N will just cause the configurator to skip all the
-	  questions about these cards. If you say Y, you will be asked for
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about  cards. If you say Y, you will be asked for
 	  your specific card in the following questions.
 
 if WLAN_VENDOR_RSI
 
 config RSI_91X
 	tristate "Redpine Signals Inc 91x WLAN driver support"
-	select BT_HCIRSI if RSI_COEX
 	depends on MAC80211
 	---help---
 	  This option enabes support for RSI 1x1 devices.
@@ -26,7 +24,7 @@ config RSI_DEBUGFS
 	default y
 	---help---
 	 Say Y, if you would like to enable debug support. This option
-	 creates debugfs entries
+	 creates debugfs entries.
 
 config RSI_SDIO
 	tristate "Redpine Signals SDIO bus support"
@@ -44,14 +42,68 @@ config RSI_USB
 	  This option enables the USB bus support in rsi drivers.
 	  Select M (recommended), if you have a RSI 1x1 wireless module.
 
-config RSI_COEX
-	bool "Redpine Signals WLAN BT Coexistence support"
-	depends on BT && RSI_91X
-	depends on !(BT=m && RSI_91X=y)
-	default y
+config RSI_BT_ALONE
+	bool "Redpine Signals BT alone (classic/LE) mode support"
+	depends on RSI_91X
+	default n
 	---help---
-	  This option enables the WLAN BT coex support in rsi drivers.
-	  Select M (recommended), if you have want to use this feature
-	  and you have RS9113 module.
+	  This option enables the BT classic alone upport in rsi drivers.
+	  Say Y, if you want to use this feature.
+
+config RSI_COEX_MODE
+	bool "Redpine Signals Wi-Fi BT Coex support"
+	depends on RSI_91X
+	default n
+	---help---
+	  This option enables the Wi-Fi BT coex support in rsi drivers.
+	  Select Y, if you have to use this feature.
+
+config RSI_WOW
+	bool "Redpine Signals WoWLAN support"
+	depends on RSI_91X
+	default n
+	---help---
+	  This option enables the WoWLAN support.
+	  Say Y if you want to use this feature.
+
+config RSI_P2P
+	bool "Redpine Signals Wi-Fi Direct support"
+	depends on RSI_91X
+	default n
+	---help---
+	  This option enables the Wi-Fi Direct support in rsi drivers.
+	  Select Y, if you have to use this feature.
+
+config HW_SCAN_OFFLOAD 
+	bool "Redpine Signals Hardware scan offload feature"
+	depends on RSI_91X
+	default n
+	---help---
+	  This option enables the hardware scan offload option in rsi drivers.
+	  Select Y, if you have to use this feature.
+
+config CARACALLA_BOARD 
+	bool "Redpine device support on Caracalla board"
+	depends on RSI_91X
+	default n
+	---help---
+	  This option is used to support Caracalla board with RSI driver.
+	  Select Y, if you have to use this support.
+
+config RSI_ZIGB 
+	bool "Redpine device support on Zigbee"
+	depends on RSI_91X && RSI_COEX_MODE
+	default n
+	---help---
+	  This option is used to support Zigbee with RSI driver.
+	  Select Y, if you have to use this support.
+
+config RS9116_FLASH_MODE
+	bool "Redpine Signals RS9116 chip Flash mode FW load support"
+	depends on RSI_91X && RSI_COEX_MODE
+	default n
+	---help---
+	  This option enables Flash mode FW load support for RS9116.
+	  Say Y if you want to use this feature.
 
 endif # WLAN_VENDOR_RSI
