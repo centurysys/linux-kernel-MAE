@@ -465,4 +465,10 @@ config LDISC_AUTOLOAD
 	  dev.tty.ldisc_autoload sysctl, this configuration option will
 	  only set the default value of this functionality.
 
+config TTY0TTY
+	tristate "tty0tty support"
+	default n
+	help
+	  tty0tty - linux null modem emulator
+
 endif # TTY
