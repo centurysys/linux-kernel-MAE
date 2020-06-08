@@ -1204,7 +1204,7 @@ static int rsi_suspend(struct usb_interface *pfunction, pm_message_t message)
 			up(&common->tx_access_lock);
 			goto err;
 		}
-		rsi_dbg(ERR_ZONE, "Killing URB's\n");
+		//rsi_dbg(ERR_ZONE, "Killing URB's\n");
 		if (&dev->rx_cb[0])/* Kill URB */
 			usb_kill_urb(dev->rx_cb[0].rx_urb);
 #if defined(CONFIG_RSI_BT_ALONE) || defined(CONFIG_RSI_COEX_MODE)
