@@ -87,6 +87,7 @@
 				gpios = <&tca9538 7 GPIO_ACTIVE_LOW>;
 				linux,default-trigger = "oneshot";
 				led-pattern = <500 100>;
+				default-state = "on";
 			};
 		};
 	};
