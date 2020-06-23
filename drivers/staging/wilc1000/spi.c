@@ -144,8 +144,9 @@ static int wilc_bus_probe(struct spi_device *spi)
 		goto disable_rtc_clk;
 
 	if (!init_power) {
-		wilc_wlan_power(wilc, true);
+		wilc_wlan_power(wilc, false);
 		init_power = 1;
+		wilc_wlan_power(wilc, true);
 	}
 
 	wilc_bt_init(wilc);

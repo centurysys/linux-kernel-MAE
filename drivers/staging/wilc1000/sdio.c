@@ -192,22 +192,20 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	 */
 	np = of_parse_phandle(func->card->host->parent->of_node, "mmc-pwrseq",
 			      0);
-	if (!np) {
+	if (np && of_device_is_available(np)) {
+		init_power = 1;
+		of_node_put(np);
+	} else {
 		ret = wilc_of_parse_power_pins(wilc);
 		if (ret)
 			goto disable_rtc_clk;
-	} else {
-		init_power = 1;
-		of_node_put(np);
 	}
 
 
 	if (!init_power) {
-		/* This could be removed and let hif_init do its job. Also
-		 * doing insert/remove module for many times should lead
-		 * to calling this only the 1st time. */
-		wilc_wlan_power(wilc, true);
+		wilc_wlan_power(wilc, false);
 		init_power = 1;
+		wilc_wlan_power(wilc, true);
 	}
 
 	wilc_bt_init(wilc);
