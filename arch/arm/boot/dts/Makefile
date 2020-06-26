@@ -60,6 +60,8 @@ dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-sama5d2_xplained.dtb \
 	at91-sama5d3_xplained.dtb \
 	at91-centurysys-gemini.dtb \
+	at91-centurysys-gemini-00.dtb \
+	at91-centurysys-gemini-01.dtb \
 	at91-centurysys-gemini-01.dtbo \
 	at91-dvk_som60.dtb \
 	at91-gatwick.dtb \
