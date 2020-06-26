@@ -19,6 +19,14 @@
 	model = "Century Systems Gemini";
 	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
 
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart3;
+		serial2 = &uart5;
+		serial3 = &uart7;
+		serial4 = &uart0;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
