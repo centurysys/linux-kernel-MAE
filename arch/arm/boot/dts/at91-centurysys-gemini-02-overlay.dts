@@ -60,6 +60,7 @@
 			tca953x_adc_vcc_on {
 				label = "ADC_VCC_ON";
 				gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
 			};
 		};
 	};
