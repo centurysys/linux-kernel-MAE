@@ -21,7 +21,7 @@
 #define LTC2487_DIFF			0
 #define LTC2487_SIGN			BIT(3)
 #define LTC2487_CONFIG_DEFAULT		LTC2487_ENABLE
-#define LTC2487_CONVERSION_TIME_MS	150ULL
+#define LTC2487_CONVERSION_TIME_MS	170ULL
 
 struct ltc2487_st {
 	struct i2c_client *client;
@@ -66,14 +66,17 @@ static int ltc2487_read(struct ltc2487_st *st, u8 address, int *val)
 {
 	struct i2c_client *client = st->client;
 	int ret;
+	char buf[2];
 
 	ret = ltc2487_wait_conv(st);
 	if (ret < 0)
 		return ret;
 
-	if (ret || st->addr_prev != address) {
-		ret = i2c_smbus_write_byte(st->client,
-					   LTC2487_ENABLE | address);
+	if (ret) {
+		buf[0] = LTC2487_CONFIG_DEFAULT | address;
+		buf[1] = 0x80;
+
+		ret = i2c_master_send(client, buf, 2);
 		if (ret < 0)
 			return ret;
 		st->addr_prev = address;
@@ -146,6 +149,7 @@ static int ltc2487_read_raw(struct iio_dev *indio_dev,
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.differential = 1, \
+	.datasheet_name = "ch"#_chan, \
 }
 
 static const struct iio_chan_spec ltc2487_channel[] = {
@@ -200,10 +204,6 @@ static int ltc2487_probe(struct i2c_client *client,
 			goto err_regulator_disable;
 		}
 	}
-
-	ret = i2c_smbus_write_byte(st->client, LTC2487_CONFIG_DEFAULT);
-	if (ret < 0)
-		goto err_array_unregister;
 
 	st->addr_prev = LTC2487_CONFIG_DEFAULT;
 	st->time_prev = ktime_get();
