@@ -580,6 +580,16 @@ config LTC2485
 	  To compile this driver as a module, choose M here: the module will be
 	  called ltc2485.
 
+config LTC2487
+	tristate "Linear Technology LTC2487 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2487
+	  16-Bit 2-/4-Channel Delta Sigma ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2487.
+
 config LTC2496
 	tristate "Linear Technology LTC2496 ADC driver"
 	depends on SPI
