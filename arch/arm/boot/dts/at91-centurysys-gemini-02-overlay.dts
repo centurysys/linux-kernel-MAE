@@ -18,6 +18,18 @@
 	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
 
 	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			vadc_fixed: fixedregulator_adc {
+				compatible = "regulator-fixed";
+				regulator-name = "VADC_5V";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+			};
+		};
+	};
+
+	fragment@1 {
 		target = <&i2c1>;
 		__overlay__ {
 			#address-cells = <1>;
@@ -27,7 +39,7 @@
 			ltc2487: ltc2487@14 {
 				compatible = "lltc,ltc2487";
 				reg = <0x14>;
-				vref-supply = <&vdd_3v3_lp_reg>;
+				vref-supply = <&vadc_fixed>;
 			};
 
 			tca9538: tca9538@70 {
@@ -49,7 +61,7 @@
 		};
 	};
 
-	fragment@1 {
+	fragment@2 {
 		target = <&leds>;
 		__overlay__ {
 			tca953x_efuse_shdn_n {
