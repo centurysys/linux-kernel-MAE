@@ -72,7 +72,7 @@ static int ltc2487_read(struct ltc2487_st *st, u8 address, int *val)
 	if (ret < 0)
 		return ret;
 
-	if (ret) {
+	if (ret || st->addr_prev != address) {
 		buf[0] = LTC2487_CONFIG_DEFAULT | address;
 		buf[1] = 0x80;
 
@@ -143,13 +143,10 @@ static int ltc2487_read_raw(struct iio_dev *indio_dev,
 #define LTC2487_CHAN_DIFF(_chan, _addr) { \
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
-	.channel = (_chan) * 2 + ((_addr) & LTC2487_SIGN ? 1 : 0), \
-	.channel2 = (_chan) * 2 + ((_addr) & LTC2487_SIGN ? 0 : 1),\
-	.address = (_addr | _chan), \
+	.channel = (_chan), \
+	.address = (_chan), \
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
-	.differential = 1, \
-	.datasheet_name = "ch"#_chan, \
 }
 
 static const struct iio_chan_spec ltc2487_channel[] = {
@@ -167,6 +164,7 @@ static int ltc2487_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	struct ltc2487_st *st;
 	struct iio_map *plat_data;
+	char buf[2];
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
@@ -205,7 +203,14 @@ static int ltc2487_probe(struct i2c_client *client,
 		}
 	}
 
-	st->addr_prev = LTC2487_CONFIG_DEFAULT;
+	buf[0] = LTC2487_CONFIG_DEFAULT;
+	buf[1] = 0x80;
+
+	ret = i2c_master_send(client, buf, 2);
+	if (ret < 0)
+		goto err_array_unregister;
+
+	st->addr_prev = 0;
 	st->time_prev = ktime_get();
 
 	ret = iio_device_register(indio_dev);
