@@ -130,16 +130,6 @@ static int ltc2487_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-#define LTC2487_CHAN(_chan, _addr, _ds_name) { \
-	.type = IIO_VOLTAGE, \
-	.indexed = 1, \
-	.channel = (_chan), \
-	.address = (_addr | (_chan / 2) | ((_chan & 1) ? LTC2487_SIGN : 0)), \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
-	.datasheet_name = (_ds_name), \
-}
-
 #define LTC2487_CHAN_DIFF(_chan, _addr) { \
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
