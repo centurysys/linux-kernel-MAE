@@ -1692,7 +1692,7 @@ static int parse_cgroup_root_flags(char *data, unsigned int *root_flags)
 
 	*root_flags = 0;
 
-	if (!data)
+	if (!data || *data == '\0')
 		return 0;
 
 	while ((token = strsep(&data, ",")) != NULL) {
@@ -1942,7 +1942,7 @@ struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
 			       struct cgroup_namespace *ns)
 {
 	struct dentry *dentry;
-	bool new_sb;
+	bool new_sb = false;
 
 	dentry = kernfs_mount(fs_type, flags, root->kf_root, magic, &new_sb);
 
@@ -1952,6 +1952,7 @@ struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
 	 */
 	if (!IS_ERR(dentry) && ns != &init_cgroup_ns) {
 		struct dentry *nsdentry;
+		struct super_block *sb = dentry->d_sb;
 		struct cgroup *cgrp;
 
 		mutex_lock(&cgroup_mutex);
@@ -1962,12 +1963,14 @@ struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
 		spin_unlock_irq(&css_set_lock);
 		mutex_unlock(&cgroup_mutex);
 
-		nsdentry = kernfs_node_dentry(cgrp->kn, dentry->d_sb);
+		nsdentry = kernfs_node_dentry(cgrp->kn, sb);
 		dput(dentry);
+		if (IS_ERR(nsdentry))
+			deactivate_locked_super(sb);
 		dentry = nsdentry;
 	}
 
-	if (IS_ERR(dentry) || !new_sb)
+	if (!new_sb)
 		cgroup_put(&root->cgrp);
 
 	return dentry;
@@ -4080,20 +4083,25 @@ static void css_task_iter_advance(struct css_task_iter *it)
 
 	lockdep_assert_held(&css_set_lock);
 repeat:
-	/*
-	 * Advance iterator to find next entry.  cset->tasks is consumed
-	 * first and then ->mg_tasks.  After ->mg_tasks, we move onto the
-	 * next cset.
-	 */
-	next = it->task_pos->next;
+	if (it->task_pos) {
+		/*
+		 * Advance iterator to find next entry.  cset->tasks is
+		 * consumed first and then ->mg_tasks.  After ->mg_tasks,
+		 * we move onto the next cset.
+		 */
+		next = it->task_pos->next;
 
-	if (next == it->tasks_head)
-		next = it->mg_tasks_head->next;
+		if (next == it->tasks_head)
+			next = it->mg_tasks_head->next;
 
-	if (next == it->mg_tasks_head)
+		if (next == it->mg_tasks_head)
+			css_task_iter_advance_css_set(it);
+		else
+			it->task_pos = next;
+	} else {
+		/* called from start, proceed to the first cset */
 		css_task_iter_advance_css_set(it);
-	else
-		it->task_pos = next;
+	}
 
 	/* if PROCS, skip over tasks which aren't group leaders */
 	if ((it->flags & CSS_TASK_ITER_PROCS) && it->task_pos &&
@@ -4133,7 +4141,7 @@ void css_task_iter_start(struct cgroup_subsys_state *css, unsigned int flags,
 
 	it->cset_head = it->cset_pos;
 
-	css_task_iter_advance_css_set(it);
+	css_task_iter_advance(it);
 
 	spin_unlock_irq(&css_set_lock);
 }
