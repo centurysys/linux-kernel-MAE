@@ -165,6 +165,7 @@
 
 	aliases {
 		xio_2b = &xio_2b;
+		xio_40 = &xio_40;
 	};
 
 	/* XIO: (id: 0x2b) Plum-LCD */
