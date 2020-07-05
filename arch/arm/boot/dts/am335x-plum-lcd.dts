@@ -146,6 +146,23 @@
 		};
 	};
 
+	leds_bg96_ctrl: leds_bg96_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWRKEY {
+			label = "Mobile_PWRKEY";
+			gpios = <&gpiox_0x18 7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x18 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+	};
+
 	aliases {
 		xio_2b = &xio_2b;
 	};
@@ -156,6 +173,14 @@
 		devices = <&gpiox_0x04 &gpiox_0x10 &gpiox_0x12
 		           &gpiox_0x14 &gpiox_0x16
 		           &leds_dout &leds_lcd &leds_radio>;
+	};
+
+	/* XIO: (id: 0x40) Plum-LCD-2 */
+	xio_40: xio@0x40 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x04 &gpiox_0x10 &gpiox_0x12
+		           &gpiox_0x14 &gpiox_0x16 &gpiox_0x18 &gpiox_0x1a
+		           &leds_dout &leds_lcd &leds_radio &leds_bg96_ctrl>;
 	};
 };
 
@@ -664,6 +689,41 @@
 		default-on;
 
 		status = "disabled";
+	};
+
+	/* BG96 Mobile Control */
+	gpiox_0x18: gpio@2,0x18 {
+		reg = <2 0x00000018 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* BG96 Mobile Status */
+	gpiox_0x1a: gpio@2,0x1a {
+		reg = <2 0x0000001a 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM_CD";
+			reg = <0>;
+		};
+
+		stat@7 {
+			label = "ModuleMainPowerGood";
+			reg = <7>;
+		};
 	};
 };
 
