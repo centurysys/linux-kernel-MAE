@@ -1656,7 +1656,6 @@ out_free_dma:
 	clk_disable_unprepare(clk);
 out_free_irq:
 out_unmap_regs:
-out_free:
 	spi_master_put(master);
 	return ret;
 }
