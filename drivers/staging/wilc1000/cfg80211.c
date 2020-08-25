@@ -49,9 +49,11 @@ static const struct ieee80211_txrx_stypes
 	},
 };
 
+#ifdef CONFIG_PM
 static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
+#endif
 
 struct wilc_p2p_mgmt_data {
 	int size;
@@ -2338,10 +2340,12 @@ struct wilc *wilc_create_wiphy(struct device *dev)
 #endif
 
 	wiphy->max_scan_ssids = WILC_MAX_NUM_PROBED_SSID;
+#ifdef CONFIG_PM
 #if KERNEL_VERSION(3, 11, 0) <= LINUX_VERSION_CODE
 	wiphy->wowlan = &wowlan_support;
 #else
 	wiphy->wowlan = wowlan_support;
+#endif
 #endif
 	wiphy->max_num_pmkids = WILC_MAX_NUM_PMKIDS;
 	wiphy->max_scan_ie_len = 1000;
