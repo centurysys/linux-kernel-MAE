@@ -1015,7 +1015,7 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 			PRINT_INFO(vif->ndev, CFG80211_DBG,
 				   "Setting WIPHY_PARAM_FRAG_THRESHOLD %d\n",
 				   wiphy->frag_threshold);
-			cfg_param_val.flag |= WILC_CFG_PARAM_RETRY_LONG;
+			cfg_param_val.flag |= WILC_CFG_PARAM_FRAG_THRESHOLD;
 			cfg_param_val.frag_threshold = wiphy->frag_threshold;
 		} else {
 			PRINT_ER(vif->ndev,
@@ -2419,29 +2419,4 @@ void wilc_deinit_host_int(struct net_device *net)
 
 	if (ret)
 		PRINT_ER(net, "Error while deinitializing host interface\n");
-}
-
-void wilc_free_wiphy(struct net_device *net)
-{
-	PRINT_INFO(net, CFG80211_DBG, "Unregistering wiphy\n");
-	if (!net) {
-		PRINT_INFO(net, INIT_DBG, "net_device is NULL\n");
-		return;
-	}
-
-	if (!net->ieee80211_ptr) {
-		PRINT_INFO(net, INIT_DBG, "ieee80211_ptr is NULL\n");
-		return;
-	}
-
-	if (!net->ieee80211_ptr->wiphy) {
-		PRINT_INFO(net, INIT_DBG, "wiphy is NULL\n");
-		return;
-	}
-
-	wiphy_unregister(net->ieee80211_ptr->wiphy);
-
-	PRINT_INFO(net, INIT_DBG, "Freeing wiphy\n");
-	wiphy_free(net->ieee80211_ptr->wiphy);
-	kfree(net->ieee80211_ptr);
 }
