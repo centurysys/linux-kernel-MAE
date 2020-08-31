@@ -2267,7 +2267,9 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	if (ret)
 		goto free_wl;
 
+#ifdef WILC_DEBUGFS
 	wilc_debugfs_init();
+#endif
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
@@ -2295,7 +2297,9 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 free_wq:
 	destroy_workqueue(wl->hif_workqueue);
 free_debug_fs:
+#ifdef WILC_DEBUGFS
 	wilc_debugfs_remove();
+#endif
 	cfg_deinit(wl);
 free_wl:
 	wlan_deinit_locks(wl);
