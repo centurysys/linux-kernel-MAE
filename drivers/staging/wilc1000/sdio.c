@@ -683,7 +683,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 
 	/* Patch for sdio interrupt latency issue */
 	ret = pm_runtime_get_sync(mmc_dev(func->card->host));
-	if (ret) {
+	if (ret < 0) {
 		pm_runtime_put_noidle(mmc_dev(func->card->host));
 		return ret;
 	}
