@@ -91,16 +91,15 @@ struct wilc_spi_cmd {
 } __packed;
 
 struct wilc_spi_read_rsp_data {
-	u8 rsp_cmd_type;
-	u8 status;
-	u8 resp_header;
-	u8 resp_data[4];
+	u8 header;
+	u8 data[4];
 	u8 crc[];
 } __packed;
 
 struct wilc_spi_rsp_data {
 	u8 rsp_cmd_type;
 	u8 status;
+	u8 data[];
 } __packed;
 
 struct wilc_spi_special_cmd_rsp {
@@ -480,6 +479,7 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
  *      Spi Internal Read/Write Function
  *
  ********************************************/
+#define WILC_SPI_RSP_HDR_EXTRA_DATA (3)
 static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 				u8 clockless)
 {
@@ -489,7 +489,9 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 	int cmd_len, resp_len = 0;
 	u8 crc[2];
 	struct wilc_spi_cmd *c;
-	struct wilc_spi_read_rsp_data *r;
+	struct wilc_spi_rsp_data *rsp;
+	struct wilc_spi_read_rsp_data *r_data;
+	int i = 0;
 
 	memset(wb, 0x0, sizeof(wb));
 	memset(rb, 0x0, sizeof(rb));
@@ -511,7 +513,7 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 	}
 
 	cmd_len = offsetof(struct wilc_spi_cmd, u.simple_cmd.crc);
-	resp_len = sizeof(*r);
+	resp_len = sizeof(*rsp) + sizeof(*r_data) + WILC_SPI_RSP_HDR_EXTRA_DATA;
 
 	if (!spi_priv->crc_off) {
 		c->u.simple_cmd.crc[0] = wilc_get_crc7(wb, cmd_len);
@@ -530,34 +532,42 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 		return -EINVAL;
 	}
 
-	r = (struct wilc_spi_read_rsp_data *)&rb[cmd_len];
+	rsp = (struct wilc_spi_rsp_data *)&rb[cmd_len];
 	/*
 	 * Clockless registers operations might return unexptected responses,
 	 * even if successful.
 	 */
-	if (r->rsp_cmd_type != cmd && !clockless) {
+	if (rsp->rsp_cmd_type != cmd && !clockless) {
 		dev_err(&spi->dev,
 			"Failed cmd response, cmd (%02x), resp (%02x)\n",
-			cmd, r->rsp_cmd_type);
+			cmd, rsp->rsp_cmd_type);
 		return -EINVAL;
 	}
 
-	if (r->status != WILC_SPI_COMMAND_STAT_SUCCESS && !clockless) {
+	if (rsp->status != WILC_SPI_COMMAND_STAT_SUCCESS && !clockless) {
 		dev_err(&spi->dev, "Failed cmd state response state (%02x)\n",
-			r->status);
+			rsp->status);
 		return -EINVAL;
 	}
 
-	if (WILC_GET_RESP_HDR_START(r->resp_header) != 0xf) {
-		dev_err(&spi->dev, "Error, data read response (%02x)\n",
-			r->resp_header);
+	do {
+		if (WILC_GET_RESP_HDR_START(rsp->data[i]) == 0xf)
+			break;
+		i++;
+	} while (i < SPI_RESP_RETRY_COUNT);
+
+	if (i >= SPI_RESP_RETRY_COUNT) {
+		dev_err(&spi->dev, "Error, data read response\n");
 		return -EINVAL;
 	}
+
+	r_data = (struct wilc_spi_read_rsp_data *)&rsp->data[i];
+
 	if (b)
-		memcpy(b, r->resp_data, 4);
+		memcpy(b, r_data->data, 4);
 
 	if (!spi_priv->crc_off)
-		memcpy(crc, r->crc, 2);
+		memcpy(crc, r_data->crc, 2);
 
 	return 0;
 }
