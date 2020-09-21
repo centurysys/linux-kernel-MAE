@@ -1609,21 +1609,6 @@ int wilc_wlan_stop(struct wilc *wilc, struct wilc_vif *vif)
 		return ret;
 	}
 
-	ret = wilc->hif_func->hif_read_reg(wilc, WILC_FW_HOST_COMM, &reg);
-	if (ret) {
-		PRINT_ER(vif->ndev, "Error while reading reg\n");
-		release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP, DEV_WIFI);
-		return ret;
-	}
-	reg = BIT(0);
-
-	ret = wilc->hif_func->hif_write_reg(wilc, WILC_FW_HOST_COMM, reg);
-	if (ret) {
-		PRINT_ER(vif->ndev, "Error while writing reg\n");
-		release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP, DEV_WIFI);
-		return ret;
-	}
-
 	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP, DEV_WIFI);
 
 	return 0;
