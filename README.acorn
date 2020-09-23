@@ -1,18 +1,15 @@
 
-1. How to build the kernel
+How to build kernel
 
 $ source acorn.env
-For ls1012a-rdb, ls1012a-frdm and ls1012a-frwy:
-$ cp dot.config.ls1012a .config && make oldconfig && make -j 8 Image.gz && ./mk_uImage.sh LS1012ARDB && make dtbs
-For acorn:
-$ cp dot.config.ls1012a-acorn .config && make oldconfig && make -j 8 Image.gz && ./mk_uImage.sh ACORN && make dtbs
-
-2. How to use the kernel
-
-Boot LS1012A-RDB board from your TFTP server
-Copy the kernel image(uImage) and DTB image(dtb) to the /srv/tftp directory of your Linux host PC.
-
 For ls1012a-rdb:
-$ cp uImage /srv/tftp/ && cp arch/arm64/boot/dts/freescale/fsl-ls1012a-rdb.dtb /srv/tftp/dtb
-For acorn:
-$ cp uImage /srv/tftp/ && cp arch/arm64/boot/dts/freescale/cs-acorn.dtb /srv/tftp/dtb
+$ cp dot.config.ls1012a .config
+$ make oldconfig
+$ make -j 8 Image.gz && ./mk_uImage.sh LS1012ARDB && make dtbs && \
+cp -v uImage /srv/tftp/ && cp -v arch/arm64/boot/dts/freescale/fsl-ls1012a-rdb.dtb /srv/tftp/dtb
+
+For Acorn Board:
+$ cp dot.config.ls1012a-acorn .config
+$ make oldconfig
+$ make -j 8 Image.gz && ./mk_uImage.sh ACORN && make dtbs && \
+cp -v uImage /srv/tftp/ && cp -v arch/arm64/boot/dts/freescale/cs-acorn.dtb /srv/tftp/dtb
