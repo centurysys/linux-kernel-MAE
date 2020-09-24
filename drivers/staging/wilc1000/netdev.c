@@ -37,6 +37,7 @@ static int debug_thread(void *arg)
 
 	while (1) {
 		int srcu_idx;
+		int ret;
 
 		if (!wl->initialized && !kthread_should_stop()) {
 			msleep(1000);
@@ -44,15 +45,15 @@ static int debug_thread(void *arg)
 		} else if (!wl->initialized) {
 			break;
 		}
-
-		if (wait_for_completion_timeout(&wl->debug_thread_started,
-						msecs_to_jiffies(6000))) {
+		ret = wait_for_completion_interruptible_timeout(
+			&wl->debug_thread_started, msecs_to_jiffies(6000));
+		if (ret > 0) {
 			while (!kthread_should_stop())
 				schedule();
 			pr_info("Exit debug thread\n");
 			return 0;
 		}
-		if (!debug_running)
+		if (!debug_running || ret == -ERESTARTSYS)
 			continue;
 
 		pr_debug("%s *** Debug Thread Running ***cnt[%d]\n", __func__,
@@ -393,7 +394,8 @@ static int wilc_txq_task(void *vp)
 		struct net_device *ndev = vif->ndev;
 
 		PRINT_INFO(ndev, TX_DBG, "txq_task Taking a nap\n");
-		wait_for_completion(&wl->txq_event);
+		if (wait_for_completion_interruptible(&wl->txq_event))
+			continue;
 		PRINT_INFO(ndev, TX_DBG, "txq_task Who waked me up\n");
 		if (wl->close) {
 			complete(&wl->txq_thread_started);
