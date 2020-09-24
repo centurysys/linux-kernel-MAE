@@ -178,7 +178,6 @@ static int init_irq(struct net_device *dev)
 		wl->io_type == WILC_HIF_SDIO_GPIO_IRQ) {
 		if (request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
 					 isr_bh_routine, IRQF_TRIGGER_FALLING |
-							IRQF_ONESHOT |
 							IRQF_NO_SUSPEND,
 					 "WILC_IRQ", wl) < 0) {
 			PRINT_ER(dev, "Failed to request IRQ [%d]\n",
