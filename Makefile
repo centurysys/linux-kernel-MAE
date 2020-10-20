@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
 PATCHLEVEL = 4
-SUBLEVEL = 71
+SUBLEVEL = 72
 EXTRAVERSION = -linux4sam-2020.10-rc2
 NAME = Kleptomaniac Octopus
 
