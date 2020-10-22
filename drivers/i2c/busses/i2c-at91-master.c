@@ -734,7 +734,7 @@ out:
  */
 static const struct i2c_adapter_quirks at91_twi_quirks = {
 	.flags = I2C_AQ_COMB | I2C_AQ_COMB_WRITE_FIRST | I2C_AQ_COMB_SAME_ADDR,
-	.max_comb_1st_msg_len = 3,
+	.max_num_msgs = 2,
 };
 
 static u32 at91_twi_func(struct i2c_adapter *adapter)

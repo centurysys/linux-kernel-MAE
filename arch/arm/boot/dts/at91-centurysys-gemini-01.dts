@@ -467,8 +467,8 @@
 						  "", "", "", "", "", "", "", "", /* PB8  .. 15 */
 						  "", "", "", "", "", "", "", "", /* PB16 .. 23 */
 						  "SW_INIT_N", "SW_OPT", "", "", "", "", "", "",
-						  "", "MobileLED_G0", "MobileLED_R0", "MobileLED_G1",
-						  "MobileLED_R1", "PowerLED_G", "", "PHY_RESET_N",
+						  "", "MobileLED_G1", "MobileLED_R1", "MobileLED_G2",
+						  "MobileLED_R2", "PowerLED_G", "", "PHY_RESET_N",
 						  "", "", "DB9_DTR", "DB9_DSR", "DB9_DCD", "DB9_RI",
 						  "DB9_FORCEOFF_N", "XIOUSB_ENABLE",
 						  "", "", "", "", "", "", "", "Mobile_PWRKEY",
@@ -775,22 +775,22 @@
 		status = "okay";
 
 		led_g1 {
-			label = "MobileLED_G0";
+			label = "MobileLED_G1";
 			gpios = <&pioA PIN_PC1 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r1 {
-			label = "MobileLED_R0";
+			label = "MobileLED_R1";
 			gpios = <&pioA PIN_PC2 GPIO_ACTIVE_LOW>;
 		};
 
 		led_g2 {
-			label = "MobileLED_G1";
+			label = "MobileLED_G2";
 			gpios = <&pioA PIN_PC3 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r2 {
-			label = "MobileLED_R1";
+			label = "MobileLED_R2";
 			gpios = <&pioA PIN_PC4 GPIO_ACTIVE_LOW>;
 		};
 
