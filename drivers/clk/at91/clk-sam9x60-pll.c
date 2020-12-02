@@ -14,12 +14,37 @@
 
 #include "pmc.h"
 
+#define PMC_PLL_CTRL0	0xc
+#define		PMC_PLL_CTRL0_DIV_MSK		GENMASK(7, 0)
+#define		PMC_PLL_CTRL0_ENPLL		BIT(28)
+#define		PMC_PLL_CTRL0_ENPLLCK		BIT(29)
+#define		PMC_PLL_CTRL0_ENLOCK		BIT(31)
+
+#define PMC_PLL_CTRL1	0x10
+#define		PMC_PLL_CTRL1_FRACR_MSK		GENMASK(21, 0)
+#define		PMC_PLL_CTRL1_MUL_MSK		GENMASK(30, 24)
+
+#define PMC_PLL_ACR	0x18
+#define		PMC_PLL_ACR_DEFAULT_UPLL	0x12020010UL
+#define		PMC_PLL_ACR_DEFAULT_PLLA	0x00020010UL
+#define		PMC_PLL_ACR_UTMIVR		BIT(12)
+#define		PMC_PLL_ACR_UTMIBG		BIT(13)
+#define		PMC_PLL_ACR_LOOP_FILTER_MSK	GENMASK(31, 24)
+
+#define PMC_PLL_UPDT	0x1c
+#define		PMC_PLL_UPDT_UPDATE		BIT(8)
+
+#define PMC_PLL_ISR0	0xec
 #define	PMC_PLL_CTRL0_DIV_MSK	GENMASK(7, 0)
-#define	PMC_PLL_CTRL1_MUL_MSK	GENMASK(30, 24)
+#define	PMC_PLL_CTRL1_MUL_MSK	GENMASK(31, 24)
+#define	PMC_PLL_CTRL1_FRACR_MSK	GENMASK(21, 0)
 
 #define PLL_DIV_MAX		(FIELD_GET(PMC_PLL_CTRL0_DIV_MSK, UINT_MAX) + 1)
 #define UPLL_DIV		2
 #define PLL_MUL_MAX		(FIELD_GET(PMC_PLL_CTRL1_MUL_MSK, UINT_MAX) + 1)
+
+#define FCORE_MIN		(600000000)
+#define FCORE_MAX		(1200000000)
 
 #define PLL_MAX_ID		1
 
@@ -52,7 +77,7 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 	unsigned long flags;
 	u8 div;
 	u16 mul;
-	u32 val;
+	u32 val, frac;
 
 	spin_lock_irqsave(pll->lock, flags);
 	regmap_write(regmap, AT91_PMC_PLL_UPDT, pll->id);
@@ -62,9 +87,10 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 
 	regmap_read(regmap, AT91_PMC_PLL_CTRL1, &val);
 	mul = FIELD_GET(PMC_PLL_CTRL1_MUL_MSK, val);
+	frac = FIELD_GET(PMC_PLL_CTRL1_FRACR_MSK, val);
 
 	if (sam9x60_pll_ready(regmap, pll->id) &&
-	    (div == pll->div && mul == pll->mul)) {
+	    (div == pll->div && mul == pll->mul && frac == pll->frac)) {
 		spin_unlock_irqrestore(pll->lock, flags);
 		return 0;
 	}
@@ -77,7 +103,8 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 	regmap_write(regmap, AT91_PMC_PLL_ACR, val);
 
 	regmap_write(regmap, AT91_PMC_PLL_CTRL1,
-		     FIELD_PREP(PMC_PLL_CTRL1_MUL_MSK, pll->mul));
+		     FIELD_PREP(PMC_PLL_CTRL1_MUL_MSK, pll->mul) |
+		     FIELD_PREP(PMC_PLL_CTRL1_FRACR_MSK, pll->frac));
 
 	if (pll->characteristics->upll) {
 		/* Enable the UTMI internal bandgap */
@@ -152,7 +179,8 @@ static unsigned long sam9x60_pll_recalc_rate(struct clk_hw *hw,
 {
 	struct sam9x60_pll *pll = to_sam9x60_pll(hw);
 
-	return (parent_rate * (pll->mul + 1)) / (pll->div + 1);
+	return DIV_ROUND_CLOSEST_ULL((parent_rate * (pll->mul + 1) +
+		((u64)parent_rate * pll->frac >> 22)), (pll->div + 1));
 }
 
 static long sam9x60_pll_get_best_div_mul(struct sam9x60_pll *pll,
@@ -168,6 +196,7 @@ static long sam9x60_pll_get_best_div_mul(struct sam9x60_pll *pll,
 	unsigned long bestdiv = 0;
 	unsigned long bestmul = 0;
 	unsigned long bestfrac = 0;
+	u64 fcore = 0;
 
 	if (rate < characteristics->output[0].min ||
 	    rate > characteristics->output[0].max)
@@ -212,6 +241,11 @@ static long sam9x60_pll_get_best_div_mul(struct sam9x60_pll *pll,
 				remainder = rate - tmprate;
 		}
 
+		fcore = parent_rate * (tmpmul + 1) +
+			((u64)parent_rate * tmpfrac >> 22);
+		if (fcore < FCORE_MIN || fcore > FCORE_MAX)
+			continue;
+
 		/*
 		 * Compare the remainder with the best remainder found until
 		 * now and elect a new best multiplier/divider pair if the
@@ -231,7 +265,8 @@ static long sam9x60_pll_get_best_div_mul(struct sam9x60_pll *pll,
 	}
 
 	/* Check if bestrate is a valid output rate  */
-	if (bestrate < characteristics->output[0].min &&
+	if (fcore < FCORE_MIN || fcore > FCORE_MAX ||
+	    bestrate < characteristics->output[0].min ||
 	    bestrate > characteristics->output[0].max)
 		return -ERANGE;
 
