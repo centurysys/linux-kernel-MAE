@@ -47,6 +47,7 @@ static u8 wilc_get_crc7(u8 *buffer, u32 len)
 
 #define SPI_RESP_RETRY_COUNT			(10)
 #define SPI_RETRY_COUNT				(10)
+#define SPI_ENABLE_VMM_RETRY_LIMIT		2
 #define DATA_PKT_SZ_256				256
 #define DATA_PKT_SZ_512				512
 #define DATA_PKT_SZ_1K				1024
@@ -1172,8 +1173,26 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 
 static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 {
-	return spi_internal_write(wilc,
-				  WILC_SPI_INT_CLEAR - WILC_SPI_REG_BASE, val);
+	int ret;
+	int retry = SPI_ENABLE_VMM_RETRY_LIMIT;
+	u32 check;
+
+	while (retry) {
+		ret = spi_internal_write(wilc,
+					 WILC_SPI_INT_CLEAR - WILC_SPI_REG_BASE,
+					 val);
+		if (ret)
+			break;
+
+		ret = spi_internal_read(wilc,
+					WILC_SPI_INT_CLEAR - WILC_SPI_REG_BASE,
+					&check);
+		if (ret || ((check & EN_VMM) == (val & EN_VMM)))
+			break;
+
+		retry--;
+	}
+	return ret;
 }
 
 static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
