@@ -94,9 +94,6 @@ static int dw_mipi_csi_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index >= ARRAY_SIZE(dw_mipi_csi_formats))
 		return -EINVAL;
 
-	if (code->index != 0)
-		return -EINVAL;
-
 	code->code = dw_mipi_csi_formats[code->index].mbus_code;
 	return 0;
 }
