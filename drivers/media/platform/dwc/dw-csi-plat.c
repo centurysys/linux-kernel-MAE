@@ -251,11 +251,23 @@ static struct v4l2_subdev_core_ops dw_mipi_csi_core_ops = {
 #endif
 };
 
+static int dw_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+			       struct v4l2_mbus_config *cfg)
+{
+	cfg->flags = V4L2_MBUS_CSI2_2_LANE | V4L2_MBUS_CSI2_CHANNEL_0 |
+			V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+
+	cfg->type = V4L2_MBUS_CSI2_DPHY;
+
+	return 0;
+}
+
 static struct v4l2_subdev_pad_ops dw_mipi_csi_pad_ops = {
 	.init_cfg = dw_mipi_csi_init_cfg,
 	.enum_mbus_code = dw_mipi_csi_enum_mbus_code,
 	.get_fmt = dw_mipi_csi_get_fmt,
 	.set_fmt = dw_mipi_csi_set_fmt,
+	.get_mbus_config = dw_get_mbus_config,
 };
 
 static struct v4l2_subdev_ops dw_mipi_csi_subdev_ops = {
