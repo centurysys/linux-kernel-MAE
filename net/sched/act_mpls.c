@@ -82,7 +82,7 @@ static int tcf_mpls_act(struct sk_buff *skb, const struct tc_action *a,
 			goto drop;
 		break;
 	case TCA_MPLS_ACT_PUSH:
-		new_lse = tcf_mpls_get_lse(NULL, p, !eth_p_mpls(skb->protocol));
+		new_lse = tcf_mpls_get_lse(NULL, p, !eth_p_mpls(skb_protocol(skb, true)));
 		if (skb_mpls_push(skb, new_lse, p->tcfm_proto, mac_len,
 				  skb->dev && skb->dev->type == ARPHRD_ETHER))
 			goto drop;
@@ -273,8 +273,6 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 	if (p)
 		kfree_rcu(p, rcu);
 
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 	return ret;
 put_chain:
 	if (goto_ch)
@@ -410,6 +408,7 @@ static void __exit mpls_cleanup_module(void)
 module_init(mpls_init_module);
 module_exit(mpls_cleanup_module);
 
+MODULE_SOFTDEP("post: mpls_gso");
 MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MPLS manipulation actions");

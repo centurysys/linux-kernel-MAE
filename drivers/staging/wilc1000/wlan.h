@@ -195,7 +195,6 @@ static inline bool is_wilc3000(u32 id)
 #define VMM_TBL_RX_SHADOW_BASE		WILC_AHB_SHARE_MEM_BASE
 #define VMM_TBL_RX_SHADOW_SIZE		256
 
-#define WILC_FW_HOST_COMM		0x13c0
 #define WILC_GP_REG_0			0x149c
 #define WILC_GP_REG_1			0x14a0
 

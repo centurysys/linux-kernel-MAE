@@ -192,22 +192,20 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	 */
 	np = of_parse_phandle(func->card->host->parent->of_node, "mmc-pwrseq",
 			      0);
-	if (!np) {
+	if (np && of_device_is_available(np)) {
+		init_power = 1;
+		of_node_put(np);
+	} else {
 		ret = wilc_of_parse_power_pins(wilc);
 		if (ret)
 			goto disable_rtc_clk;
-	} else {
-		init_power = 1;
-		of_node_put(np);
 	}
 
 
 	if (!init_power) {
-		/* This could be removed and let hif_init do its job. Also
-		 * doing insert/remove module for many times should lead
-		 * to calling this only the 1st time. */
-		wilc_wlan_power(wilc, true);
+		wilc_wlan_power(wilc, false);
 		init_power = 1;
+		wilc_wlan_power(wilc, true);
 	}
 
 	wilc_bt_init(wilc);
@@ -683,7 +681,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 
 	/* Patch for sdio interrupt latency issue */
 	ret = pm_runtime_get_sync(mmc_dev(func->card->host));
-	if (ret) {
+	if (ret < 0) {
 		pm_runtime_put_noidle(mmc_dev(func->card->host));
 		return ret;
 	}
@@ -697,7 +695,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 1;
-	cmd.address =  SDIO_FBR_BASE(func->num) + SDIO_FBR_STD_IF;
+	cmd.address = SDIO_FBR_BASE(1);
 	cmd.data = SDIO_FBR_ENABLE_CSA;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
@@ -1128,5 +1126,5 @@ module_driver(wilc_sdio_driver,
 	      sdio_register_driver,
 	      sdio_unregister_driver);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("15.3");
+MODULE_VERSION("15.4.1");
 

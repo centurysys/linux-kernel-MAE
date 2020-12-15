@@ -290,8 +290,7 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 		return NULL;
 	}
 	wl->monitor_dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	strncpy(wl->monitor_dev->name, name, IFNAMSIZ);
-	wl->monitor_dev->name[IFNAMSIZ - 1] = 0;
+	strlcpy(wl->monitor_dev->name, name, IFNAMSIZ);
 	wl->monitor_dev->netdev_ops = &wilc_wfi_netdev_ops;
 #if KERNEL_VERSION(4, 11, 9) <= LINUX_VERSION_CODE
 	wl->monitor_dev->needs_free_netdev = true;
@@ -300,13 +299,10 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 #endif
 	if (register_netdevice(wl->monitor_dev)) {
 		PRINT_ER(real_dev, "register_netdevice failed\n");
+		free_netdev(wl->monitor_dev);
 		return NULL;
 	}
 	priv = netdev_priv(wl->monitor_dev);
-	if (!priv) {
-		PRINT_ER(real_dev, "private structure is NULL\n");
-		return NULL;
-	}
 
 	priv->real_ndev = real_dev;
 

@@ -49,9 +49,11 @@ static const struct ieee80211_txrx_stypes
 	},
 };
 
+#ifdef CONFIG_PM
 static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
+#endif
 
 struct wilc_p2p_mgmt_data {
 	int size;
@@ -136,8 +138,7 @@ static void cfg_scan_result(enum scan_event scan_event,
 						info->frame_len,
 						(s32)info->rssi * 100,
 						GFP_KERNEL);
-		if (!bss)
-			cfg80211_put_bss(wiphy, bss);
+		cfg80211_put_bss(wiphy, bss);
 	} else if (scan_event == SCAN_EVENT_DONE) {
 		PRINT_INFO(priv->dev, CFG80211_DBG, "Scan Done[%p]\n",
 			   priv->dev);
@@ -1014,7 +1015,7 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 			PRINT_INFO(vif->ndev, CFG80211_DBG,
 				   "Setting WIPHY_PARAM_FRAG_THRESHOLD %d\n",
 				   wiphy->frag_threshold);
-			cfg_param_val.flag |= WILC_CFG_PARAM_RETRY_LONG;
+			cfg_param_val.flag |= WILC_CFG_PARAM_FRAG_THRESHOLD;
 			cfg_param_val.frag_threshold = wiphy->frag_threshold;
 		} else {
 			PRINT_ER(vif->ndev,
@@ -2266,7 +2267,9 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	if (ret)
 		goto free_wl;
 
+#ifdef WILC_DEBUGFS
 	wilc_debugfs_init();
+#endif
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
@@ -2294,7 +2297,9 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 free_wq:
 	destroy_workqueue(wl->hif_workqueue);
 free_debug_fs:
+#ifdef WILC_DEBUGFS
 	wilc_debugfs_remove();
+#endif
 	cfg_deinit(wl);
 free_wl:
 	wlan_deinit_locks(wl);
@@ -2338,10 +2343,12 @@ struct wilc *wilc_create_wiphy(struct device *dev)
 #endif
 
 	wiphy->max_scan_ssids = WILC_MAX_NUM_PROBED_SSID;
+#ifdef CONFIG_PM
 #if KERNEL_VERSION(3, 11, 0) <= LINUX_VERSION_CODE
 	wiphy->wowlan = &wowlan_support;
 #else
 	wiphy->wowlan = wowlan_support;
+#endif
 #endif
 	wiphy->max_num_pmkids = WILC_MAX_NUM_PMKIDS;
 	wiphy->max_scan_ie_len = 1000;
@@ -2416,29 +2423,4 @@ void wilc_deinit_host_int(struct net_device *net)
 
 	if (ret)
 		PRINT_ER(net, "Error while deinitializing host interface\n");
-}
-
-void wilc_free_wiphy(struct net_device *net)
-{
-	PRINT_INFO(net, CFG80211_DBG, "Unregistering wiphy\n");
-	if (!net) {
-		PRINT_INFO(net, INIT_DBG, "net_device is NULL\n");
-		return;
-	}
-
-	if (!net->ieee80211_ptr) {
-		PRINT_INFO(net, INIT_DBG, "ieee80211_ptr is NULL\n");
-		return;
-	}
-
-	if (!net->ieee80211_ptr->wiphy) {
-		PRINT_INFO(net, INIT_DBG, "wiphy is NULL\n");
-		return;
-	}
-
-	wiphy_unregister(net->ieee80211_ptr->wiphy);
-
-	PRINT_INFO(net, INIT_DBG, "Freeing wiphy\n");
-	wiphy_free(net->ieee80211_ptr->wiphy);
-	kfree(net->ieee80211_ptr);
 }

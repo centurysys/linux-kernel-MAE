@@ -49,8 +49,10 @@ extern atomic_t WILC_DEBUG_REGION;
 #define PRINT_ER(netdev, format, ...) netdev_err(netdev, "ERR [%s:%d] "format,\
 	__func__, __LINE__, ##__VA_ARGS__)
 
+#ifdef WILC_DEBUGFS
 int wilc_debugfs_init(void);
 void wilc_debugfs_remove(void);
+#endif
 
 #if KERNEL_VERSION(3, 15, 0) > LINUX_VERSION_CODE
 int of_irq_get(struct device_node *dev, int index);
