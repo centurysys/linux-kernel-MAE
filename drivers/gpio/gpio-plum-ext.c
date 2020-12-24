@@ -341,7 +341,7 @@ static int plum_gpio_set_hwcounter_enable(struct gpio_chip *gc, unsigned offset,
 	enable = !!enable;
 
 	reg = readb(port->base + GPIO_COUNTER_CTRL);
-	reg &= ~(enable << offset);
+	reg &= ~(1 << offset);
 	reg |= enable << offset;
 	writeb(reg, port->base + GPIO_COUNTER_CTRL);
 
