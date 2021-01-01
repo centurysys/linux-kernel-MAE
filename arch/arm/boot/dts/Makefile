@@ -61,6 +61,7 @@ dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-sama5d3_xplained.dtb \
 	at91-centurysys-gemini-00.dtb \
 	at91-centurysys-gemini-01.dtb \
+	at91-centurysys-gemini-02.dtb \
 	at91-centurysys-gemini-01.dtbo \
 	at91-centurysys-gemini-02.dtbo \
 	at91-centurysys-gemini-03.dtbo \

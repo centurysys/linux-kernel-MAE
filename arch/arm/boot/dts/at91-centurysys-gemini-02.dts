@@ -24,7 +24,6 @@
 		serial1 = &uart3;
 		serial2 = &uart5;
 		serial3 = &uart7;
-		serial4 = &uart0;
 	};
 
 	chosen {
@@ -119,15 +118,6 @@
 					compatible = "atmel,tcb-timer";
 					reg = <1>;
 				};
-			};
-
-			/* BG96 GNSS */
-			uart0: serial@f801c000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart0_default>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
-				status = "okay";
 			};
 
 			/* Debug console */
@@ -660,12 +650,6 @@
 						 <PIN_PA15__SPI0_MOSI>,
 						 <PIN_PA16__SPI0_MISO>,
 						 <PIN_PA17__SPI0_NPCS0>;
-					bias-disable;
-				};
-
-				pinctrl_uart0_default: uart0_default {
-					pinmux = <PIN_PB26__URXD0>,
-						 <PIN_PB27__UTXD0>;
 					bias-disable;
 				};
 
