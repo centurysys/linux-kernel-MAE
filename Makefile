@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 4
 SUBLEVEL = 81
-EXTRAVERSION = -linux4sam-2020.10-rc5
+EXTRAVERSION = -linux4sam-2020.10
 NAME = Kleptomaniac Octopus
 
 # *DOCUMENTATION*
