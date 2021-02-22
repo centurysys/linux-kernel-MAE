@@ -289,7 +289,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned index = pwm->hwpwm % 2;
 	struct atmel_tcb_pwm_device *atcbpwm = NULL;
 	struct atmel_tc *tc = tcbpwmc->tc;
-	int i;
+	int i = 0;
 	int slowclk = 0;
 	unsigned period;
 	unsigned duty;
@@ -301,7 +301,9 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * Find best clk divisor:
 	 * the smallest divisor which can fulfill the period_ns requirements.
 	 */
-	for (i = 0; i < 5; ++i) {
+	if (tc->tcb_config->has_gclk)
+		i = 1;
+	for ( ; i < 5; ++i) {
 		if (atmel_tc_divisors[i] == 0) {
 			slowclk = i;
 			continue;
