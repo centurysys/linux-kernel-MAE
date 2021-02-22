@@ -351,6 +351,7 @@ static const u8 atmel_tcb_divisors[5] = { 2, 8, 32, 128, 0, };
 static const struct of_device_id atmel_tcb_of_match[] = {
 	{ .compatible = "atmel,at91rm9200-tcb", .data = (void *)16, },
 	{ .compatible = "atmel,at91sam9x5-tcb", .data = (void *)32, },
+	{ .compatible = "atmel,sama5d2-tcb", .data = (void *)32, },
 	{ /* sentinel */ }
 };
 
