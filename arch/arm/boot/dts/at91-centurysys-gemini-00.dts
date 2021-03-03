@@ -332,6 +332,7 @@
 
 				xio_wakeup@7 {
 					reg = <9>;
+					atmel,wakeup-active-high;
 				};
 			};
 
