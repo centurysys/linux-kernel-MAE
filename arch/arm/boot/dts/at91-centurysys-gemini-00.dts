@@ -438,6 +438,11 @@
 					compatible = "ti,tmp75";
 					reg = <0x49>;
 				};
+
+				rtc@68 {
+					compatible = "st,m41t80";
+					reg = <0x68>;
+				};
 			};
 
 			adc: adc@fc030000 {
