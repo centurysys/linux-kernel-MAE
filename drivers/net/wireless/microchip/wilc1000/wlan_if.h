@@ -188,6 +188,13 @@ enum wid_type {
 	WID_BIN			= 5,
 };
 
+enum {
+	ANTENNA1		= 0,
+	ANTENNA2		= 1,
+	DIVERSITY		= 2,
+	NUM_ANT_MODE
+};
+
 struct wid {
 	u16 id;
 	enum wid_type type;
@@ -790,6 +797,7 @@ enum {
 
 	WID_SETUP_MULTICAST_FILTER	= 0x408b,
 
+	WID_ANTENNA_SELECTION		= 0x408c,
 	/* Miscellaneous WIDs */
 	WID_ALL				= 0x7FFE,
 	WID_MAX				= 0xFFFF
