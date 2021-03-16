@@ -1749,6 +1749,8 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 		goto free_hq;
 	}
 
+	wilc_sysfs_init(wl);
+
 	return 0;
 
 free_hq:
