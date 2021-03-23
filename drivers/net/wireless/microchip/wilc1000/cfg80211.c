@@ -1266,13 +1266,12 @@ static int dump_station(struct wiphy *wiphy, struct net_device *dev,
 	if (idx != 0)
 		return -ENOENT;
 
-	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
-
 	ret = wilc_get_rssi(vif, &sinfo->signal);
 	if (ret)
 		return ret;
 
-	memcpy(mac, vif->priv.associated_bss, ETH_ALEN);
+	sinfo->filled |=  BIT(NL80211_STA_INFO_SIGNAL);
+
 	return 0;
 }
 
