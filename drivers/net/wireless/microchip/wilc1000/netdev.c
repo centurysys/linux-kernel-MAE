@@ -62,7 +62,7 @@ static int init_irq(struct net_device *dev)
 		return ret;
 	}
 	netdev_dbg(dev, "IRQ request succeeded IRQ-NUM= %d\n", wl->dev_irq_num);
-
+	enable_irq_wake(wl->dev_irq_num);
 	return 0;
 }
 
