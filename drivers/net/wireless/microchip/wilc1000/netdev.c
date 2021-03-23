@@ -725,6 +725,7 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	vif->netstats.tx_packets++;
 	vif->netstats.tx_bytes += tx_data->size;
+	tx_data->vif = vif;
 	queue_count = wilc_wlan_txq_add_net_pkt(ndev, tx_data,
 						tx_data->buff, tx_data->size,
 						wilc_tx_complete);

@@ -383,6 +383,7 @@ struct tx_complete_data {
 	int size;
 	void *buff;
 	struct sk_buff *skb;
+	struct wilc_vif *vif;
 };
 
 struct wilc_cfg_cmd_hdr {
