@@ -123,21 +123,6 @@ void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode)
 	vif->mode = mode;
 }
 
-int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
-{
-	int srcu_idx;
-	u8 ret_val = 0;
-	struct wilc_vif *vif;
-
-	srcu_idx = srcu_read_lock(&wilc->srcu);
-	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
-		if (!is_zero_ether_addr(vif->bssid))
-			ret_val++;
-	}
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
-	return ret_val;
-}
-
 static int wilc_txq_task(void *vp)
 {
 	int ret;
