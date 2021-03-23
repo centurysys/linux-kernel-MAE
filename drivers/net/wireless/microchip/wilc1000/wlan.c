@@ -267,7 +267,7 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 		complete(&wilc->cfg_event);
 		return 0;
 	}
-	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
+	tqe = kmalloc(sizeof(*tqe), GFP_KERNEL);
 	if (!tqe) {
 		complete(&wilc->cfg_event);
 		return 0;
