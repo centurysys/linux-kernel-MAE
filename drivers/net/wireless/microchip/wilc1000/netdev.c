@@ -114,13 +114,20 @@ out:
 void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode)
 {
 	struct wilc_vif *vif = netdev_priv(wilc_netdev);
+	struct wilc *wilc = vif->wilc;
+	int srcu_idx;
 
-	if (bssid)
-		ether_addr_copy(vif->bssid, bssid);
-	else
-		eth_zero_addr(vif->bssid);
-
-	vif->mode = mode;
+	srcu_idx = srcu_read_lock(&wilc->srcu);
+	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
+		if (wilc_netdev == vif->ndev) {
+			if (bssid)
+				ether_addr_copy(vif->bssid, bssid);
+			else
+				eth_zero_addr(vif->bssid);
+			vif->iftype = mode;
+		}
+	}
+	srcu_read_unlock(&wilc->srcu, srcu_idx);
 }
 
 static int wilc_txq_task(void *vp)
