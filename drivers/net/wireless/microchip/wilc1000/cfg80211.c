@@ -466,11 +466,6 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 	if (!wilc)
 		return -EIO;
 
-	if (wilc->close) {
-		/* already disconnected done */
-		cfg80211_disconnected(dev, 0, NULL, 0, true, GFP_KERNEL);
-		return 0;
-	}
 
 	if (vif->iftype != WILC_CLIENT_MODE)
 		wilc->sta_ch = WILC_INVALID_CHANNEL;
