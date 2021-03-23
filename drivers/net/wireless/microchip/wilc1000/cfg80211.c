@@ -107,8 +107,10 @@ static void cfg_scan_result(enum scan_event scan_event,
 {
 	struct wilc_priv *priv = user_void;
 
-	if (!priv->cfg_scanning)
+	if (!priv || !priv->cfg_scanning) {
+		pr_err("%s is NULL\n", __func__);
 		return;
+	}
 
 	if (scan_event == SCAN_EVENT_NETWORK_FOUND) {
 		s32 freq;
