@@ -1451,12 +1451,11 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 	int ret = 0;
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc_priv *priv = &vif->priv;
+	u8 *assoc_bss = priv->assoc_stainfo.sta_associated_bss[params->aid];
 
 	if (vif->iftype == WILC_AP_MODE || vif->iftype == WILC_GO_MODE) {
-		memcpy(priv->assoc_stainfo.sta_associated_bss[params->aid], mac,
-		       ETH_ALEN);
-
-		ret = wilc_add_station(vif, mac, params);
+		memcpy(assoc_bss, mac, ETH_ALEN);
+		ret = wilc_add_station(vif, (const u8 *)mac, params);
 		if (ret)
 			netdev_err(dev, "Host add station fail\n");
 	}
@@ -1494,7 +1493,7 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_vif *vif = netdev_priv(dev);
 
 	if (vif->iftype == WILC_AP_MODE || vif->iftype == WILC_GO_MODE) {
-		ret = wilc_edit_station(vif, mac, params);
+		ret = wilc_edit_station(vif, (const u8 *)mac, params);
 		if (ret)
 			netdev_err(dev, "Host edit station fail\n");
 	}
