@@ -269,12 +269,11 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 
 	netdev_dbg(dev, "Start configuring Firmware\n");
 	hif_drv = (struct host_if_drv *)priv->hif_drv;
-	netdev_dbg(dev, "Host = %p\n", hif_drv);
 
 	w = vif->iftype;
 	cpu_to_le32s(&w);
-	if (!wilc_wlan_cfg_set(vif, 1, WID_SET_OPERATION_MODE, (u8 *)&w, 4,
-			       0, 0))
+	if (!wilc_wlan_cfg_set(vif, 1, WID_SET_OPERATION_MODE, (u8 *)&w, 4, 0,
+			       0))
 		goto fail;
 
 	b = WILC_FW_BSS_TYPE_INFRA;
@@ -289,7 +288,7 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11G_OPERATING_MODE, &b, 1, 0, 0))
 		goto fail;
 
-	b = WILC_FW_PREAMBLE_SHORT;
+	b = WILC_FW_PREAMBLE_AUTO;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_PREAMBLE, &b, 1, 0, 0))
 		goto fail;
 
@@ -421,7 +420,7 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 
 	b = 1;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_IMMEDIATE_BA_ENABLED, &b, 1,
-			       1, 1))
+			       1, 0))
 		goto fail;
 
 	return 0;
