@@ -72,6 +72,13 @@ struct wilc_buffered_eap {
 	unsigned int pkt_offset;
 	u8 *buff;
 };
+
+struct wilc_p2p_var {
+	u8 local_random;
+	u8 recv_random;
+	bool is_wilc_ie;
+};
+
 static const u32 wilc_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
@@ -157,9 +164,8 @@ struct wilc_priv {
 	struct wilc_buffered_eap *buffered_eap;
 
 	struct timer_list eap_buff_timer;
-	bool p2p_listen_state;
 	int scanned_cnt;
-
+	struct wilc_p2p_var p2p;
 	u64 inc_roc_cookie;
 };
 
@@ -218,6 +224,7 @@ struct wilc_vif {
 	bool connecting;
 	struct wilc_priv priv;
 	struct list_head list;
+	bool p2p_listen_state;
 	struct cfg80211_bss *bss;
 };
 
