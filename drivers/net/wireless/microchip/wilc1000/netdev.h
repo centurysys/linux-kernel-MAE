@@ -208,6 +208,7 @@ struct wilc_tx_queue_status {
 struct wilc {
 	struct wiphy *wiphy;
 	const struct wilc_hif_func *hif_func;
+	u32 chipid;
 	int io_type;
 	s8 mac_status;
 	struct clk *rtc_clk;
