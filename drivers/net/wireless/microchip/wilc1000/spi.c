@@ -552,10 +552,14 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 	}
 
 	r = (struct wilc_spi_rsp_data *)&rb[cmd_len];
+	/*
+	 * Clockless registers operations might return unexptected responses,
+	 * even if successful.
+	 */
 	if (r->rsp_cmd_type != cmd && !clockless) {
 		if (!spi_priv->probing_crc)
 			dev_err(&spi->dev,
-				"Failed cmd, cmd (%02x), resp (%02x)\n",
+				"Failed cmd response, cmd (%02x), resp (%02x)\n",
 				cmd, r->rsp_cmd_type);
 		return -EINVAL;
 	}

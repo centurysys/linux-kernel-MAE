@@ -230,6 +230,8 @@ static int wilc_sdio_reset(struct wilc *wilc)
 	int ret;
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 
+	dev_info(&func->dev, "De Init SDIO\n");
+
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 0;
@@ -664,6 +666,9 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	int loop, ret;
 	u32 chipid;
 
+	dev_info(&func->dev, "SDIO speed: %d\n",
+		func->card->host->ios.clock);
+
 	/* Patch for sdio interrupt latency issue */
 	ret = pm_runtime_get_sync(mmc_dev(func->card->host));
 	if (ret < 0) {
@@ -956,9 +961,10 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	struct wilc_sdio *sdio_priv = wilc->bus_data;
 	u32 reg;
+	int ret, i;
 
 	if (nint > MAX_NUM_INT) {
-		dev_err(&func->dev, "Too many interrupts (%d)...\n", nint);
+		dev_err(&func->dev, "Too many interrupts %d\n", nint);
 		return -EINVAL;
 	}
 
@@ -981,9 +987,6 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 	}
 
 	if (sdio_priv->irq_gpio) {
-		u32 reg;
-		int ret, i;
-
 		/**
 		 *      interrupt pin mux select
 		 **/
