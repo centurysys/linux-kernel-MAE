@@ -506,7 +506,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 
 		if (wilc_wlan_cfg_get(vif, 1, WID_FIRMWARE_VERSION, 1, 0)) {
 			int size;
-			char firmware_ver[20];
+			char firmware_ver[50];
 
 			size = wilc_wlan_cfg_get_val(wl, WID_FIRMWARE_VERSION,
 						     firmware_ver,
