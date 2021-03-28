@@ -157,6 +157,7 @@ struct wilc_spi_special_cmd_rsp {
 static int wilc_bus_probe(struct spi_device *spi)
 {
 	int ret;
+	static bool init_power;
 	struct wilc *wilc;
 	struct device *dev = &spi->dev;
 	struct wilc_spi *spi_priv;
@@ -185,9 +186,22 @@ static int wilc_bus_probe(struct spi_device *spi)
 	}
 	clk_prepare_enable(wilc->rtc_clk);
 
+	ret = wilc_of_parse_power_pins(wilc);
+	if (ret)
+		goto disable_rtc_clk;
+
+	if (!init_power) {
+		wilc_wlan_power(wilc, false);
+		init_power = 1;
+		wilc_wlan_power(wilc, true);
+	}
+
 	dev_info(dev, "WILC SPI probe success\n");
 	return 0;
 
+disable_rtc_clk:
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_disable_unprepare(wilc->rtc_clk);
 netdev_cleanup:
 	wilc_netdev_cleanup(wilc);
 free:
@@ -1136,6 +1150,7 @@ static int wilc_spi_deinit(struct wilc *wilc)
 	struct wilc_spi *spi_priv = wilc->bus_data;
 
 	spi_priv->isinit = false;
+	wilc_wlan_power(wilc, false);
 
 	return 0;
 }

@@ -227,6 +227,15 @@ struct wilc_vif {
 	struct cfg80211_bss *bss;
 };
 
+struct wilc_power_gpios {
+	int reset;
+	int chip_en;
+};
+
+struct wilc_power {
+	struct wilc_power_gpios gpios;
+};
+
 struct wilc_tx_queue_status {
 	u8 buffer[AC_BUFFER_SIZE];
 	u16 end_index;
@@ -296,6 +305,7 @@ struct wilc {
 	struct device *dt_dev;
 
 	enum wilc_chip_type chip;
+	struct wilc_power power;
 	struct workqueue_struct *hif_workqueue;
 	struct wilc_cfg cfg;
 	void *bus_data;
