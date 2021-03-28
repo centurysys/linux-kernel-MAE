@@ -306,6 +306,7 @@ static inline bool is_wilc1000(u32 id)
 #define IS_MANAGMEMENT		0x100
 #define IS_MANAGMEMENT_CALLBACK	0x080
 #define IS_MGMT_STATUS_SUCCES	0x040
+#define IS_MON_PKT		0x020
 
 #define WILC_WID_TYPE		GENMASK(15, 12)
 #define WILC_VMM_ENTRY_FULL_RETRY	1
@@ -438,4 +439,5 @@ int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count);
 int wilc_wlan_init(struct net_device *dev);
 u32 wilc_get_chipid(struct wilc *wilc, bool update);
+void wilc_wfi_handle_monitor_rx(struct wilc *wilc, u8 *buff, u32 size);
 #endif
