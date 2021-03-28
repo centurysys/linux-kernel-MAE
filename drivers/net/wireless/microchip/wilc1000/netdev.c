@@ -1069,11 +1069,13 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 
 	SET_NETDEV_DEV(ndev, wiphy_dev(wl->wiphy));
 
+	vif->ndev->ml_priv = vif;
 	vif->priv.wdev.wiphy = wl->wiphy;
 	vif->priv.wdev.netdev = ndev;
 	vif->priv.wdev.iftype = type;
 	vif->priv.dev = ndev;
 
+	vif->priv.dev = ndev;
 	if (rtnl_locked)
 		ret = cfg80211_register_netdevice(ndev);
 	else
