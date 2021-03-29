@@ -18,13 +18,13 @@
 /* latest API version supported */
 #define WILC1000_API_VER		1
 
-#define WILC1000_FW_PREFIX		"atmel/wilc1000_wifi_firmware-"
+#define WILC1000_FW_PREFIX		"mchp/wilc1000_wifi_firmware-"
 #define __WILC1000_FW(api)		WILC1000_FW_PREFIX #api ".bin"
 #define WILC1000_FW(api)		__WILC1000_FW(api)
 
 #define WILC3000_API_VER		1
 
-#define WILC3000_FW_PREFIX		"atmel/wilc3000_wifi_firmware-"
+#define WILC3000_FW_PREFIX		"mchp/wilc3000_wifi_firmware-"
 #define __WILC3000_FW(api)		WILC3000_FW_PREFIX #api ".bin"
 #define WILC3000_FW(api)		__WILC3000_FW(api)
 
