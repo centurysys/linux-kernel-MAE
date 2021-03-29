@@ -22,6 +22,103 @@
 #define __WILC1000_FW(api)		WILC1000_FW_PREFIX #api ".bin"
 #define WILC1000_FW(api)		__WILC1000_FW(api)
 
+static int wilc_mac_open(struct net_device *ndev);
+static int wilc_mac_close(struct net_device *ndev);
+
+static int debug_running;
+static int recovery_on;
+int wait_for_recovery;
+static int debug_thread(void *arg)
+{
+	struct wilc *wl = arg;
+	struct wilc_vif *vif;
+	signed long timeout;
+	struct host_if_drv *hif_drv;
+	int i = 0;
+
+	complete(&wl->debug_thread_started);
+
+	while (1) {
+		int srcu_idx;
+		int ret;
+
+		if (!wl->initialized && !kthread_should_stop()) {
+			msleep(1000);
+			continue;
+		} else if (!wl->initialized) {
+			break;
+		}
+		ret = wait_for_completion_interruptible_timeout(
+			&wl->debug_thread_started, msecs_to_jiffies(6000));
+		if (ret > 0) {
+			while (!kthread_should_stop())
+				schedule();
+			pr_info("Exit debug thread\n");
+			return 0;
+		}
+		if (!debug_running || ret == -ERESTARTSYS)
+			continue;
+
+		pr_debug("%s *** Debug Thread Running ***cnt[%d]\n", __func__,
+			 cfg_packet_timeout);
+
+		if (cfg_packet_timeout < 5)
+			continue;
+
+		pr_info("%s <Recover>\n", __func__);
+		cfg_packet_timeout = 0;
+		timeout = 10;
+		recovery_on = 1;
+		wait_for_recovery = 1;
+
+		srcu_idx = srcu_read_lock(&wl->srcu);
+		list_for_each_entry_rcu(vif, &wl->vif_list, list) {
+			/* close the interface only if it was open */
+			if (vif->mac_opened) {
+				wilc_mac_close(vif->ndev);
+				vif->restart = 1;
+			}
+		}
+		//TODO://Need to find way to call them in reverse
+		i = 0;
+		list_for_each_entry_rcu(vif, &wl->vif_list, list) {
+			struct wilc_conn_info *info;
+
+			/* Only open the interface manually closed earlier */
+			if (!vif->restart)
+				continue;
+			i++;
+			hif_drv = vif->priv.hif_drv;
+			while (wilc_mac_open(vif->ndev) && --timeout)
+				msleep(100);
+
+			if (hif_drv->hif_state == HOST_IF_CONNECTED) {
+				info = &hif_drv->conn_info;
+				if (hif_drv->usr_scan_req.scan_result) {
+					del_timer(&hif_drv->scan_timer);
+					handle_scan_done(vif,
+							 SCAN_EVENT_ABORTED);
+				}
+				if (info->conn_result) {
+					info->conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
+							  0, info->arg);
+				} else {
+					pr_err("Connect result NULL\n");
+				}
+				eth_zero_addr(hif_drv->assoc_bssid);
+				info->req_ies_len = 0;
+				kfree(info->req_ies);
+				info->req_ies = NULL;
+				hif_drv->hif_state = HOST_IF_IDLE;
+			}
+			vif->restart = 0;
+		}
+		srcu_read_unlock(&wl->srcu, srcu_idx);
+		recovery_on = 0;
+	}
+	return 0;
+}
+
 static void wilc_disable_irq(struct wilc *wilc, int wait)
 {
 	if (wait) {
@@ -487,6 +584,16 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
 
+	if (!recovery_on) {
+		debug_running = false;
+		if (&wl->debug_thread_started)
+			complete(&wl->debug_thread_started);
+		if (wl->debug_thread) {
+			kthread_stop(wl->debug_thread);
+			wl->debug_thread = NULL;
+		}
+	}
+
 	wl->close = 1;
 
 	complete(&wl->txq_event);
@@ -553,6 +660,19 @@ static int wlan_initialize_threads(struct net_device *dev)
 		return PTR_ERR(wilc->txq_thread);
 	}
 	wait_for_completion(&wilc->txq_thread_started);
+
+	if (!debug_running) {
+		wilc->debug_thread = kthread_run(debug_thread, (void *)wilc,
+						 "WILC_DEBUG");
+		if (IS_ERR(wilc->debug_thread)) {
+			pr_err("couldn't create debug thread\n");
+			wilc->close = 1;
+			kthread_stop(wilc->txq_thread);
+			return PTR_ERR(wilc->debug_thread);
+		}
+		debug_running = true;
+		wait_for_completion(&wilc->debug_thread_started);
+	}
 
 	return 0;
 }
@@ -671,16 +791,23 @@ static int wilc_mac_open(struct net_device *ndev)
 	if (wl->open_ifcs == 0)
 		wilc_bt_power_up(wl, DEV_WIFI);
 
-	ret = wilc_init_host_int(ndev);
-	if (ret)
-		return ret;
+	if (!recovery_on) {
+		ret = wilc_init_host_int(ndev);
+		if (ret < 0) {
+			pr_err("Failed to initialize host interface\n");
+			return ret;
+		}
+	}
 
 	ret = wilc_wlan_initialize(ndev, vif);
 	if (ret) {
-		wilc_deinit_host_int(ndev);
+		pr_err("Failed to initialize wilc\n");
+		if (!recovery_on)
+			wilc_deinit_host_int(ndev);
 		return ret;
 	}
 
+	wait_for_recovery = 0;
 	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
 				vif->idx);
 
@@ -866,6 +993,8 @@ static int wilc_mac_close(struct net_device *ndev)
 		netif_stop_queue(vif->ndev);
 
 	handle_connect_cancel(vif);
+
+	if (!recovery_on)
 		wilc_deinit_host_int(vif->ndev);
 	}
 

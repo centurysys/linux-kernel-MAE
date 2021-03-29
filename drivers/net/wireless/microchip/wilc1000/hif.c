@@ -133,7 +133,7 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 	return NULL;
 }
 
-static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
+int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 {
 	int result = 0;
 	u8 abort_running_scan;

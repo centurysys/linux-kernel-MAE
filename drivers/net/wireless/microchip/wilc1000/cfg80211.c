@@ -1780,6 +1780,7 @@ static void wlan_init_locks(struct wilc *wl)
 	init_completion(&wl->cfg_event);
 	init_completion(&wl->sync_event);
 	init_completion(&wl->txq_thread_started);
+	init_completion(&wl->debug_thread_started);
 	init_srcu_struct(&wl->srcu);
 }
 

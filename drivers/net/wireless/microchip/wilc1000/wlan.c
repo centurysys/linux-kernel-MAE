@@ -1150,6 +1150,9 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 
 	ret = func->hif_block_tx_ext(wilc, 0, txb, offset);
 
+	if (!ret)
+		cfg_packet_timeout = 0;
+
 out_release_bus:
 	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP, DEV_WIFI);
 
@@ -1618,12 +1621,18 @@ int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u16 wid, int commit,
 	return ret_size;
 }
 
+unsigned int cfg_packet_timeout;
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count)
 {
 	int i;
 	int ret = 0;
 	u32 drv = wilc_get_vif_idx(vif);
+
+	if (wait_for_recovery) {
+		while (wait_for_recovery)
+			msleep(300);
+	}
 
 	if (mode == WILC_GET_CFG) {
 		for (i = 0; i < count; i++) {
@@ -1632,6 +1641,7 @@ int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 					       (i == count - 1),
 					       drv)) {
 				ret = -ETIMEDOUT;
+				pr_err("Get Timed out\n");
 				break;
 			}
 		}
@@ -1650,11 +1660,12 @@ int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 					       (i == count - 1),
 					       drv)) {
 				ret = -ETIMEDOUT;
+				pr_err("Set Timed out\n");
 				break;
 			}
 		}
 	}
-
+	cfg_packet_timeout = (ret < 0) ? cfg_packet_timeout + 1 : 0;
 	return ret;
 }
 

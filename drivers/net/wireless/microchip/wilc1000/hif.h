@@ -32,6 +32,7 @@ enum {
 };
 
 #define WILC_MAX_ASSOC_RESP_FRAME_SIZE   256
+extern uint32_t cfg_packet_timeout;
 
 struct rf_info {
 	u8 link_speed;
@@ -221,6 +222,7 @@ void wilc_set_wowlan_trigger(struct wilc_vif *vif, bool enabled);
  * the best antenna
  */
 int wilc_set_antenna(struct wilc_vif *vif, u8 mode);
+int handle_scan_done(struct wilc_vif *vif, enum scan_event evt);
 void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length);

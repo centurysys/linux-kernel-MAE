@@ -18,6 +18,8 @@
 #include "wlan.h"
 #include "wlan_cfg.h"
 
+extern int wait_for_recovery;
+
 #define FLOW_CONTROL_LOWER_THRESHOLD		128
 #define FLOW_CONTROL_UPPER_THRESHOLD		256
 
@@ -223,6 +225,7 @@ struct wilc_vif {
 	bool connecting;
 	struct wilc_priv priv;
 	struct list_head list;
+	u8 restart;
 	bool p2p_listen_state;
 	struct cfg80211_bss *bss;
 };
@@ -279,8 +282,9 @@ struct wilc {
 	struct completion sync_event;
 	struct completion txq_event;
 	struct completion txq_thread_started;
-
+	struct completion debug_thread_started;
 	struct task_struct *txq_thread;
+	struct task_struct *debug_thread;
 
 	int quit;
 
