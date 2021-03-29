@@ -318,11 +318,11 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	if (result) {
 		netdev_err(vif->ndev, "Failed to send scan parameters\n");
 		goto error;
+	} else {
+		hif_drv->scan_timer_vif = vif;
+		mod_timer(&hif_drv->scan_timer,
+			  jiffies + msecs_to_jiffies(scan_timeout));
 	}
-
-	hif_drv->scan_timer_vif = vif;
-	mod_timer(&hif_drv->scan_timer,
-		  jiffies + msecs_to_jiffies(scan_timeout));
 
 error:
 

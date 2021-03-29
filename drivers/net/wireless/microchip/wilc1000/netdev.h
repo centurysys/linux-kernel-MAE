@@ -234,6 +234,7 @@ struct wilc_power_gpios {
 
 struct wilc_power {
 	struct wilc_power_gpios gpios;
+	u8 status[DEV_MAX];
 };
 
 struct wilc_tx_queue_status {
@@ -306,6 +307,8 @@ struct wilc {
 
 	enum wilc_chip_type chip;
 	struct wilc_power power;
+	uint8_t keep_awake[DEV_MAX];
+	struct mutex cs;
 	struct workqueue_struct *hif_workqueue;
 	struct wilc_cfg cfg;
 	void *bus_data;
@@ -335,4 +338,7 @@ void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
 struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 				      int vif_type, enum nl80211_iftype type,
 				      bool rtnl_locked);
+int wilc_bt_power_up(struct wilc *wilc, int source);
+int wilc_bt_power_down(struct wilc *wilc, int source);
+
 #endif

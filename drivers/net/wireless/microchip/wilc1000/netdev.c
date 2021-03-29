@@ -668,7 +668,8 @@ static int wilc_mac_open(struct net_device *ndev)
 		return -ENODEV;
 	}
 
-	netdev_dbg(ndev, "MAC OPEN[%p]\n", ndev);
+	if (wl->open_ifcs == 0)
+		wilc_bt_power_up(wl, DEV_WIFI);
 
 	ret = wilc_init_host_int(ndev);
 	if (ret)

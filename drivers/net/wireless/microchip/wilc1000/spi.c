@@ -196,6 +196,8 @@ static int wilc_bus_probe(struct spi_device *spi)
 		wilc_wlan_power(wilc, true);
 	}
 
+	wilc_bt_init(wilc);
+
 	dev_info(dev, "WILC SPI probe success\n");
 	return 0;
 
@@ -218,6 +220,7 @@ static int wilc_bus_remove(struct spi_device *spi)
 	wilc_netdev_cleanup(wilc);
 	kfree(spi_priv);
 
+	wilc_bt_deinit();
 	return 0;
 }
 
@@ -228,14 +231,14 @@ static int wilc_spi_suspend(struct device *dev)
 
 	dev_info(&spi->dev, "\n\n << SUSPEND >>\n\n");
 	mutex_lock(&wilc->hif_cs);
-	chip_wakeup(wilc);
+	chip_wakeup(wilc, DEV_WIFI);
 
 	if (mutex_is_locked(&wilc->hif_cs))
 		mutex_unlock(&wilc->hif_cs);
 
 	/* notify the chip that host will sleep */
-	host_sleep_notify(wilc);
-	chip_allow_sleep(wilc);
+	host_sleep_notify(wilc, DEV_WIFI);
+	chip_allow_sleep(wilc, DEV_WIFI);
 	mutex_lock(&wilc->hif_cs);
 
 	return 0;
@@ -249,16 +252,16 @@ static int wilc_spi_resume(struct device *dev)
 	dev_info(&spi->dev, "\n\n  <<RESUME>>\n\n");
 
 	/* wake the chip to compelete the re-initialization */
-	chip_wakeup(wilc);
+	chip_wakeup(wilc, DEV_WIFI);
 
 	if (mutex_is_locked(&wilc->hif_cs))
 		mutex_unlock(&wilc->hif_cs);
 
-	host_wakeup_notify(wilc);
+	host_wakeup_notify(wilc, DEV_WIFI);
 
 	mutex_lock(&wilc->hif_cs);
 
-	chip_allow_sleep(wilc);
+	chip_allow_sleep(wilc, DEV_WIFI);
 
 	if (mutex_is_locked(&wilc->hif_cs))
 		mutex_unlock(&wilc->hif_cs);

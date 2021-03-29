@@ -15,6 +15,7 @@
  *      Wlan Configuration ID
  *
  ********************************************/
+#define	FW_WILC3000_BLE		"mchp/wilc3000_ble_firmware.bin"
 
 enum bss_types {
 	WILC_FW_BSS_TYPE_INFRA = 0,
@@ -34,6 +35,10 @@ enum {
 	WILC_FW_PREAMBLE_LONG = 1,	/* Long Preamble */
 	WILC_FW_PREAMBLE_AUTO = 2,	/* Auto Preamble Selection */
 };
+
+#define DEV_WIFI	0
+#define DEV_BT		1
+#define DEV_MAX		2
 
 enum {
 	WILC_FW_PASSIVE_SCAN = 0,

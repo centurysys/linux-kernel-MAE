@@ -1771,6 +1771,7 @@ static void wlan_init_locks(struct wilc *wl)
 	mutex_init(&wl->cfg_cmd_lock);
 	mutex_init(&wl->vif_mutex);
 	mutex_init(&wl->deinit_lock);
+	mutex_init(&wl->cs);
 
 	spin_lock_init(&wl->txq_spinlock);
 	mutex_init(&wl->txq_add_to_head_cs);
@@ -1790,6 +1791,7 @@ void wlan_deinit_locks(struct wilc *wilc)
 	mutex_destroy(&wilc->cfg_cmd_lock);
 	mutex_destroy(&wilc->txq_add_to_head_cs);
 	mutex_destroy(&wilc->vif_mutex);
+	mutex_destroy(&wilc->cs);
 	mutex_destroy(&wilc->deinit_lock);
 	cleanup_srcu_struct(&wilc->srcu);
 }
@@ -1797,9 +1799,9 @@ void wlan_deinit_locks(struct wilc *wilc)
 int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 		       const struct wilc_hif_func *ops)
 {
+	int i, ret;
 	struct wilc *wl;
 	struct wilc_vif *vif;
-	int ret, i;
 
 	wl = wilc_create_wiphy(dev);
 	if (!wl) {
