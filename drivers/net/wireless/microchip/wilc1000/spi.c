@@ -6,6 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
+#include <linux/module.h>
 #include <linux/crc7.h>
 #include <linux/crc-itu-t.h>
 
@@ -291,6 +292,7 @@ static struct spi_driver wilc_spi_driver = {
 };
 module_spi_driver(wilc_spi_driver);
 MODULE_LICENSE("GPL");
+MODULE_VERSION("15.4.1");
 
 static int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)
 {
