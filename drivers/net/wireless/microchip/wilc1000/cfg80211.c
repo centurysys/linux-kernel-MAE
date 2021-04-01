@@ -1485,6 +1485,11 @@ static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
 	struct wireless_dev *wdev;
 	u8 iftype;
 
+	/* check if interface type is mointor because AP mode is supported over
+	 * monitor interface. No need to increment interface count check if
+	 * monitor mode is associated with AP interface. The same approach is
+	 * applied with p2p_device interface
+	 */
 	if (type == NL80211_IFTYPE_MONITOR) {
 		struct net_device *ndev;
 		int srcu_idx;

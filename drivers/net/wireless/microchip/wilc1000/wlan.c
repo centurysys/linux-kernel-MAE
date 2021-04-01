@@ -877,9 +877,8 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 		goto out_release_bus;
 
 	if (entries == 0) {
-		/*
-		 * No VMM space available in firmware so retry to transmit
-		 * the packet from tx queue.
+		/* No VMM entry space available in firmware so try again to
+		 * transmit the packet from tx queue
 		 */
 		ret = WILC_VMM_ENTRY_FULL_RETRY;
 		goto out_release_bus;
