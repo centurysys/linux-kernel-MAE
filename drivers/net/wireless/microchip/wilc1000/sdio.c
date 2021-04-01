@@ -378,7 +378,7 @@ static int wilc_sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 		ret = wilc_sdio_cmd52(wilc, &cmd);
 		if (ret)
 			dev_err(&func->dev,
-				"Failed cmd 52, read reg (%08x) ...\n", addr);
+				"Failed cmd 52, write reg (%08x) ...\n", addr);
 	} else {
 		struct sdio_cmd53 cmd;
 

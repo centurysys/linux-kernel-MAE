@@ -1093,8 +1093,11 @@ void wilc_set_wowlan_trigger(struct wilc_vif *vif, bool enabled)
 static void handle_scan_timer(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
+	int ret;
 
-	handle_scan_done(msg->vif, SCAN_EVENT_ABORTED);
+	ret = handle_scan_done(msg->vif, SCAN_EVENT_ABORTED);
+	if (ret)
+		pr_err("Failed to handle scan done\n");
 	kfree(msg);
 }
 

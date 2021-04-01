@@ -651,6 +651,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		   bool pairwise,
 		   const u8 *mac_addr)
 {
+	int ret = 0;
 	struct wilc_vif *vif = netdev_priv(netdev);
 	struct wilc_priv *priv = &vif->priv;
 
@@ -677,10 +678,12 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		memset(priv->wep_key[key_index], 0,
 		       priv->wep_key_len[key_index]);
 		priv->wep_key_len[key_index] = 0;
-		wilc_remove_wep_key(vif, key_index);
+		pr_info("%s: Removing WEP key with index = %d\n", __func__,
+			key_index);
+		ret = wilc_remove_wep_key(vif, key_index);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
@@ -1676,6 +1679,7 @@ static const struct cfg80211_ops wilc_cfg80211_ops = {
 
 static void wlan_init_locks(struct wilc *wl)
 {
+	pr_info("Initializing Locks ...\n");
 	mutex_init(&wl->hif_cs);
 	mutex_init(&wl->rxq_cs);
 	mutex_init(&wl->cfg_cmd_lock);
@@ -1694,6 +1698,7 @@ static void wlan_init_locks(struct wilc *wl)
 
 void wlan_deinit_locks(struct wilc *wilc)
 {
+	pr_info("De-Initializing Locks\n");
 	mutex_destroy(&wilc->hif_cs);
 	mutex_destroy(&wilc->rxq_cs);
 	mutex_destroy(&wilc->cfg_cmd_lock);
@@ -1711,8 +1716,10 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	int ret, i;
 
 	wl = wilc_create_wiphy(dev);
-	if (!wl)
+	if (!wl) {
+		pr_err("failed to create wiphy\n");
 		return -EINVAL;
+	}
 
 	wlan_init_locks(wl);
 
@@ -1765,10 +1772,13 @@ struct wilc *wilc_create_wiphy(struct device *dev)
 	int ret;
 
 	wiphy = wiphy_new(&wilc_cfg80211_ops, sizeof(*wl));
-	if (!wiphy)
+	if (!wiphy) {
+		pr_err("wiphy new allocate failed\n");
 		return NULL;
+	}
 
 	wl = wiphy_priv(wiphy);
+	pr_info("Registering wifi device\n");
 
 	memcpy(wl->bitrates, wilc_bitrates, sizeof(wilc_bitrates));
 	memcpy(wl->channels, wilc_2ghz_channels, sizeof(wilc_2ghz_channels));
@@ -1805,11 +1815,15 @@ struct wilc *wilc_create_wiphy(struct device *dev)
 				BIT(NL80211_IFTYPE_P2P_GO) |
 				BIT(NL80211_IFTYPE_P2P_CLIENT);
 	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	pr_info("Max scan ids= %d,Max scan IE len= %d,Signal Type= %d,Interface Modes= %d\n",
+		wiphy->max_scan_ssids, wiphy->max_scan_ie_len,
+		wiphy->signal_type, wiphy->interface_modes);
 
 	set_wiphy_dev(wiphy, dev);
 	wl->wiphy = wiphy;
 	ret = wiphy_register(wiphy);
 	if (ret) {
+		pr_err("Cannot register wiphy device\n");
 		wiphy_free(wiphy);
 		return NULL;
 	}
