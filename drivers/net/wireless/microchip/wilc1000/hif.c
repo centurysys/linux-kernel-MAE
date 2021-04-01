@@ -2199,6 +2199,12 @@ static bool is_valid_gpio(struct wilc_vif *vif, u8 gpio)
 			return true;
 		else
 			return false;
+	case WILC_3000:
+		if (gpio == 0 || gpio == 3 || gpio == 4 ||
+		    (gpio >= 17 && gpio <= 20))
+			return true;
+		else
+			return false;
 	default:
 		return false;
 	}
