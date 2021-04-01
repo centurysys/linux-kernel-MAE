@@ -660,8 +660,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	}
 
 	del_timer(&hif_drv->connect_timer);
-	conn_info->conn_result(CONN_DISCONN_EVENT_CONN_RESP, mac_status,
-			       hif_drv->conn_info.arg);
+	conn_info->conn_result(CONN_DISCONN_EVENT_CONN_RESP, mac_status, conn_info->arg);
 
 	if (mac_status == WILC_MAC_STATUS_CONNECTED &&
 	    conn_info->status == WLAN_STATUS_SUCCESS) {
