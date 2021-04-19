@@ -89,6 +89,11 @@ static struct atmel_tcb_config tcb_sam9x5_config = {
 	.counter_width = 32,
 };
 
+static struct atmel_tcb_config tcb_sama5d2_config = {
+	.counter_width = 32,
+	.has_gclk = 1,
+};
+
 static const struct of_device_id atmel_tcb_dt_ids[] = {
 	{
 		.compatible = "atmel,at91rm9200-tcb",
@@ -96,6 +101,9 @@ static const struct of_device_id atmel_tcb_dt_ids[] = {
 	}, {
 		.compatible = "atmel,at91sam9x5-tcb",
 		.data = &tcb_sam9x5_config,
+	}, {
+		.compatible = "atmel,sama5d2-tcb",
+		.data = &tcb_sama5d2_config,
 	}, {
 		/* sentinel */
 	}

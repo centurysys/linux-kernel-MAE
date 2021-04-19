@@ -36,9 +36,11 @@ struct clk;
 /**
  * struct atmel_tcb_config - SoC data for a Timer/Counter Block
  * @counter_width: size in bits of a timer counter register
+ * @has_gclk: boolean indicating if a timer counter has a generic clock
  */
 struct atmel_tcb_config {
 	size_t	counter_width;
+	bool    has_gclk;
 };
 
 /**
