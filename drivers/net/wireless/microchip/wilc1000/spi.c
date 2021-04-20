@@ -67,6 +67,8 @@ static int wilc_spi_reset(struct wilc *wilc);
 #define CMD_SINGLE_READ				0xca
 #define CMD_RESET				0xcf
 
+#define SPI_RESP_RETRY_COUNT			(10)
+#define SPI_RETRY_COUNT				(10)
 #define SPI_ENABLE_VMM_RETRY_LIMIT		2
 
 /* SPI response fields (section 11.1.2 in ATWILC1000 User Guide): */
@@ -728,7 +730,7 @@ static int wilc_spi_dma_rw(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz)
 		/*
 		 * Data Response header
 		 */
-		retry = 100;
+		retry = SPI_RESP_RETRY_COUNT;
 		do {
 			if (wilc_spi_rx(wilc, &rsp, 1)) {
 				dev_err(&spi->dev,
