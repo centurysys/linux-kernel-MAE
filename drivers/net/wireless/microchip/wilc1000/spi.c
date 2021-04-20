@@ -1007,7 +1007,14 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	/*
 	 * Data response
 	 */
-	return spi_data_rsp(wilc, CMD_DMA_EXT_WRITE);
+	result = spi_data_rsp(wilc, CMD_DMA_EXT_WRITE);
+	if (result) {
+		dev_err(&spi->dev, "Failed block data write...\n");
+		return result;
+	}
+
+
+	return 0;
 }
 
 /********************************************
