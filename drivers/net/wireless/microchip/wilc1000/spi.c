@@ -36,7 +36,7 @@ MODULE_PARM_DESC(enable_crc16,
  * zero bytes when the SPI bus operates at 48MHz and none when it
  * operates at 1MHz.
  */
-#define WILC_SPI_RSP_HDR_EXTRA_DATA	8
+#define WILC_SPI_RSP_HDR_EXTRA_DATA	3
 
 struct wilc_spi {
 	bool isinit;		/* true if SPI protocol has been configured */
@@ -549,11 +549,11 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < WILC_SPI_RSP_HDR_EXTRA_DATA; ++i)
+	for (i = 0; i < SPI_RESP_RETRY_COUNT; ++i)
 		if (WILC_GET_RESP_HDR_START(r->data[i]) == 0xf)
 			break;
 
-	if (i >= WILC_SPI_RSP_HDR_EXTRA_DATA) {
+	if (i >= SPI_RESP_RETRY_COUNT) {
 		dev_err(&spi->dev, "Error, data start missing\n");
 		return -EINVAL;
 	}
