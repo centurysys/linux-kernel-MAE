@@ -623,8 +623,6 @@ static int chip_allow_sleep_wilc1000(struct wilc *wilc)
 		if ((reg & to_host_from_fw_bit) == 0)
 			break;
 	}
-	if (!trials)
-		pr_warn("FW not responding\n");
 
 	/* Clear bit 1 */
 	ret = hif_func->hif_read_reg(wilc, wakeup_reg, &reg);
