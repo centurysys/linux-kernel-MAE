@@ -43,6 +43,10 @@ struct host_if_set_ant {
 	u8 gpio_mode;
 };
 
+struct tx_power {
+	u8 tx_pwr;
+};
+
 struct power_mgmt_param {
 	bool enabled;
 	u32 timeout;
@@ -62,6 +66,7 @@ union wilc_message_body {
 	struct host_if_wowlan_trigger wow_trigger;
 	struct send_buffered_eap send_buff_eap;
 	struct host_if_set_ant set_ant;
+	struct tx_power tx_power;
 	struct power_mgmt_param pwr_mgmt_info;
 };
 
@@ -2370,16 +2375,46 @@ int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power)
 	return wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 }
 
-int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
+static void handle_get_tx_pwr(struct work_struct *work)
 {
+	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
+	struct wilc_vif *vif = msg->vif;
+	u8 *tx_pwr = &msg->body.tx_power.tx_pwr;
+	int ret;
 	struct wid wid;
 
 	wid.id = WID_TX_POWER;
 	wid.type = WID_CHAR;
-	wid.val = tx_power;
+	wid.val = tx_pwr;
 	wid.size = sizeof(char);
 
-	return wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1);
+	ret = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1);
+	if (ret)
+		PRINT_ER(vif->ndev, "Failed to get TX PWR\n");
+
+	complete(&msg->work_comp);
+}
+
+int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
+{
+	int ret;
+	struct host_if_msg *msg;
+
+	msg = wilc_alloc_work(vif, handle_get_tx_pwr, true);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
+
+	ret = wilc_enqueue_work(msg);
+	if (ret) {
+		PRINT_ER(vif->ndev, "enqueue work failed\n");
+	} else {
+		wait_for_completion(&msg->work_comp);
+		*tx_power = msg->body.tx_power.tx_pwr;
+	}
+
+	/* free 'msg' after copying data */
+	kfree(msg);
+	return ret;
 }
 
 static bool is_valid_gpio(struct wilc_vif *vif, u8 gpio)
