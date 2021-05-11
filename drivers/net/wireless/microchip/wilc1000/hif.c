@@ -43,6 +43,11 @@ struct host_if_set_ant {
 	u8 gpio_mode;
 };
 
+struct power_mgmt_param {
+	bool enabled;
+	u32 timeout;
+};
+
 struct wilc_del_all_sta {
 	u8 assoc_sta;
 	u8 mac[WILC_MAX_NUM_STA][ETH_ALEN];
@@ -57,6 +62,7 @@ union wilc_message_body {
 	struct host_if_wowlan_trigger wow_trigger;
 	struct send_buffered_eap send_buff_eap;
 	struct host_if_set_ant set_ant;
+	struct power_mgmt_param pwr_mgmt_info;
 };
 
 struct host_if_msg {
@@ -2278,26 +2284,53 @@ int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 	return result;
 }
 
-int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
+static void handle_power_management(struct work_struct *work)
 {
-	struct wid wid;
+	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
+	struct wilc_vif *vif = msg->vif;
+	struct power_mgmt_param *pm_param = &msg->body.pwr_mgmt_info;
 	int result;
+	struct wid wid;
 	s8 power_mode;
 
-	PRINT_INFO(vif->ndev, HOSTINF_DBG, "\n\n>> Setting PS to %d <<\n\n",
-		   enabled);
-	if (enabled)
+	wid.id = WID_POWER_MANAGEMENT;
+
+	if (pm_param->enabled)
 		power_mode = WILC_FW_MIN_FAST_PS;
 	else
 		power_mode = WILC_FW_NO_POWERSAVE;
-
-	wid.id = WID_POWER_MANAGEMENT;
+	PRINT_INFO(vif->ndev, HOSTINF_DBG, "Handling power mgmt to %d\n",
+		   power_mode);
 	wid.val = &power_mode;
 	wid.size = sizeof(char);
+
+	PRINT_INFO(vif->ndev, HOSTINF_DBG, "Handling Power Management\n");
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)
-		netdev_err(vif->ndev, "Failed to send power management\n");
+		PRINT_ER(vif->ndev, "Failed to send power management\n");
 
+	kfree(msg);
+}
+
+int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
+{
+	int result;
+	struct host_if_msg *msg;
+
+	PRINT_INFO(vif->ndev, HOSTINF_DBG, "\n\n>> Setting PS to %d <<\n\n",
+		   enabled);
+	msg = wilc_alloc_work(vif, handle_power_management, false);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
+
+	msg->body.pwr_mgmt_info.enabled = enabled;
+	msg->body.pwr_mgmt_info.timeout = timeout;
+
+	result = wilc_enqueue_work(msg);
+	if (result) {
+		PRINT_ER(vif->ndev, "enqueue work failed\n");
+		kfree(msg);
+	}
 	return result;
 }
 
