@@ -2005,16 +2005,6 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 	/* initialize the BE HW params */
 	dpcm_be_dai_hw_params_init(fe, stream);
 
-	/* FIXME: a very low period time will make the CPU take too many
-	 * interrupts, which might end up not having enough time to actually
-	 * fill the buffer(s); for now, the BE min period time will be half of
-	 * the FE min period time
-	 */
-	t = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIOD_TIME);
-	dpcm_t = hw_param_interval(&fe->dpcm[stream].hw_params,
-				   SNDRV_PCM_HW_PARAM_PERIOD_TIME);
-	dpcm_t->min = t->min / 2;
-
 	if (fe->dai_link->dpcm_merged_format) {
 		memcpy(hw_param_interval(&fe->dpcm[stream].hw_params,
 					 SNDRV_PCM_HW_PARAM_FORMAT),
