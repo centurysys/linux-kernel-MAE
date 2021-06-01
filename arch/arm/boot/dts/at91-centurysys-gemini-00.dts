@@ -329,11 +329,6 @@
 				ext_rtc@6 {
 					reg = <8>;
 				};
-
-				xio_wakeup@7 {
-					reg = <9>;
-					atmel,wakeup-active-high;
-				};
 			};
 
 			watchdog@f8048040 {
