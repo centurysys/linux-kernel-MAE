@@ -1164,6 +1164,15 @@ static int wilc_spi_deinit(struct wilc *wilc)
 	return 0;
 }
 
+static int wilc_spi_clear_init(struct wilc *wilc)
+{
+	struct wilc_spi *spi_priv = wilc->bus_data;
+
+	spi_priv->isinit = false;
+
+	return 0;
+}
+
 static int wilc_spi_init(struct wilc *wilc, bool resume)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
@@ -1387,4 +1396,5 @@ static const struct wilc_hif_func wilc_hif_spi = {
 	.hif_sync_ext = wilc_spi_sync_ext,
 	.hif_reset = wilc_spi_reset,
 	.hif_is_init = wilc_spi_is_init,
+	.hif_clear_init = wilc_spi_clear_init,
 };

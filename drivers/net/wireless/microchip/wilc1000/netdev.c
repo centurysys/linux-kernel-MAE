@@ -85,6 +85,14 @@ static int debug_thread(void *arg)
 				vif->restart = 1;
 			}
 		}
+
+		/* For Spi, clear 'is_init' flag so that protocol offset
+		 * register can be send to FW to setup required crc mode after
+		 * chip reset
+		 */
+		if (wl->io_type == WILC_HIF_SPI)
+			wl->hif_func->hif_clear_init(wl);
+
 		//TODO://Need to find way to call them in reverse
 		i = 0;
 		list_for_each_entry_rcu(vif, &wl->vif_list, list) {
