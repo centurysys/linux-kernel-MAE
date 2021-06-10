@@ -59,6 +59,20 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sw_pins>;
+
+		sw_init {
+			label = "SW_INIT";
+			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+			linux,code = <0x100>; /* BTN_0 */
+			wakeup-source;
+		};
+	};
+
 	xio_adc_supply: fixedregulator_adc@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "xio-adc-supply";
@@ -1741,6 +1755,12 @@
 	usb1_pins: pinmux_usb1_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0xa34, (PIN_OUTPUT | MUX_MODE7))  /* usb1_drvvbus.gpio3_13 */
+		>;
+	};
+
+	sw_pins: pinmux_sw_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x824, (PIN_INPUT | MUX_MODE7))	/* gpmc_ad9.gpio0_23 */
 		>;
 	};
 };
