@@ -677,7 +677,11 @@ static int __init igb_init_module(void)
 	return ret;
 }
 
+#if defined(CONFIG_CS_ACORN) || defined(CONFIG_CS_ACORN_V2)
+device_initcall_sync(igb_init_module);
+#else
 module_init(igb_init_module);
+#endif
 
 /**
  *  igb_exit_module - Driver Exit Cleanup Routine
