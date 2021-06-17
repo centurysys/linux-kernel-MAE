@@ -108,6 +108,18 @@ config ARCH_LAYERSCAPE
 	help
 	  This enables support for the Freescale Layerscape SoC family.
 
+choice
+	prompt "Century Systems board family"
+	depends on ARCH_LAYERSCAPE
+
+config CS_ACORN
+	bool "Century Systems Acorn board"
+
+config CS_ACORN_V2
+	bool "Century Systems Acorn V2 board"
+
+endchoice
+
 config ARCH_LG1K
 	bool "LG Electronics LG1K SoC Family"
 	help
