@@ -1,0 +1,18 @@
+
+How to build kernel
+
+For Acorn-V2 Board:
+$ cp dot.config.ls1012a-acorn .config
+$ make oldconfig
+$ make -j 8 Image.gz && ./mk_uImage.sh ACORN && make dtbs && \
+cp -v uImage /srv/tftp/ && cp -v arch/arm64/boot/dts/freescale/cs-acorn-v2.dtb /srv/tftp/dtb
+
+* When updating uImage and dtb.
+[host]
+$ dd if=/dev/zero of=256data bs=1 count=256
+$ cat 256data arch/arm64/boot/dts/freescale/cs-acorn-v2.dtb > dtb
+$ scp dtb uImage ubuntu@192.168.0.254:/tmp/
+[target]
+$ sudo dd if=/tmp/dtb of=/dev/mmcblk0p1
+$ sudo dd if=/tmp/uImage of=/dev/mmcblk0p2
+$ sudo init 6
