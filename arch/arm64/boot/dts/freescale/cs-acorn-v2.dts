@@ -1,0 +1,322 @@
+/*
+ * Device Tree file for NXP LS1012A FRWY Board.
+ *
+ * Copyright 2018 NXP
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPLv2 or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/net/ti-dp83867.h>
+#include "fsl-ls1012a.dtsi"
+
+/ {
+	model = "ACORN Board";
+	compatible = "acorn", "fsl,ls1012a";
+
+	aliases {
+		ethernet0 = &pfe_mac0;
+	};
+
+	sys_mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "1P8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	dipsw: dipsw {
+		compatible = "nxr,dipsw";
+		status = "ok";
+
+		gpios = <&gpio1 3 GPIO_ACTIVE_LOW
+			&gpio1 4 GPIO_ACTIVE_LOW
+			&gpio1 5 GPIO_ACTIVE_LOW
+			&gpio1 6 GPIO_ACTIVE_LOW>;
+	};
+
+	leds_system: leds_system {
+		compatible = "gpio-leds";
+		status = "ok";
+
+		led@1 {
+			label = "power_green";
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led@2 {
+			label = "aux1_red";
+			gpios = <&ioexp_a 0 GPIO_ACTIVE_LOW>;
+		};
+
+		led@3 {
+			label = "aux2_red";
+			gpios = <&ioexp_a 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led@4 {
+			label = "aux1_green";
+			gpios = <&ioexp_a 2 GPIO_ACTIVE_LOW>;
+		};
+
+		led@5 {
+			label = "aux2_green";
+			gpios = <&ioexp_a 3 GPIO_ACTIVE_LOW>;
+		};
+
+		usb_drvvbus {
+			label = "usb_drvvbus";
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+};
+
+&pcie1 {
+	status = "okay";
+};
+
+&duart0 {
+	status = "okay";
+};
+
+&esdhc0 {
+	broken-cd;
+	status = "okay";
+};
+
+&esdhc1 {
+	status = "disabled";
+};
+
+&i2c0 {
+	status = "okay";
+
+	rtc@32 {
+		compatible = "dsk324sr";
+		reg = <0x32>;
+	};
+
+	led@45 {
+		compatible = "ti,tca6507";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x45>;
+
+		/* LEDs on Main board */
+		led0: power-status-red@0 {
+			label = "power_red";
+			reg = <0x0>;
+		};
+		led1: system-status1-red@1 {
+			label = "status1_red";
+			reg = <0x1>;
+		};
+		led2: system-status2-red@2 {
+			label = "status2_red";
+			reg = <0x2>;
+		};
+		led3: system-status3-red@3 {
+			label = "status3_red";
+			reg = <0x3>;
+		};
+		led4: system-status1-green@4 {
+			label = "status1_green";
+			linux,default-trigger = "timer";
+			reg = <0x4>;
+		};
+		led5: system-status2-green@5 {
+			label = "status2_green";
+			reg = <0x5>;
+		};
+		led6: system-status3-green@6 {
+			label = "status3_green";
+			reg = <0x6>;
+		};
+	};
+
+	eeprom@50 {
+		compatible = "24c16";
+		reg = <0x50>;
+	};
+
+	ioexp_a: gpio@74 {
+		compatible = "ti,tca6416";
+		reg = <0x74>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&dspi {
+	bus-num = <0>;
+	status = "okay";
+
+	sc16is740: sc16is740@0 {
+		compatible = "nxp,sc16is740";
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+		clocks = <&clk24m>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <7 2>;
+		clk24m: oscillator {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+	};
+};
+
+&qspi {
+	num-cs = <1>;
+	bus-num = <0>;
+	status = "okay";
+
+	qflash0: n25q128a11@0 {
+		compatible = "micron,n25q128a11";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <20000000>;
+		m25p,fast-read;
+		reg = <0>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <2>;
+
+		/* MTD partition table */
+		partition@0 {
+			label = "u-boot";
+			reg = <0x00000000 0x00200000>;
+		};
+
+		partition@1 {
+			label = "u-boot-env";
+			reg = <0x00200000 0x00080000>;
+		};
+
+		partition@2 {
+			label = "reserved";
+			reg = <0x00280000 0x00080000>;
+		};
+
+		partition@3 {
+			label = "oops";
+			reg = <0x00300000 0x00200000>;
+		};
+	};
+};
+
+&pfe {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	pfe_mac0: ethernet@0 {
+		compatible = "fsl,pfe-gemac-port";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x0>;	/* GEM_ID */
+		fsl,gemac-bus-id = <0x0>;	/* BUS_ID */
+		fsl,gemac-phy-id = <0x0>;       /* PHY_ID */
+		fsl,mdio-mux-val = <0x0>;
+		phy-mode = "sgmii";
+		fsl,pfe-phy-if-flags = <0x0>;
+
+		mdio@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>; /* enabled/disabled */
+
+			sgmii_phy0: ethernet-phy@0 {
+				reg = <0>;
+				qca,ar8327-initvals = <
+					0x00004 0x0000080   /* PAD0_MODE */
+					0x000e0 0xc74164de  /* SGMII_CTRL */
+					0x0007c 0x4e        /* PORT0_STATUS */
+				>;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&gpio1>;
+				interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+				irq-gpio = <&gpio1 11 GPIO_ACTIVE_LOW>;
+			};
+
+#if 0
+			sgmii_phy1: ethernet-phy@1 {
+				reg = <5>;
+				ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&gpio1>;
+				interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+				irq-gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
+			};
+#endif
+		};
+	};
+
+#if 0
+	pfe_mac1: ethernet@1 {
+		compatible = "fsl,pfe-gemac-port";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x1>;	/* GEM_ID */
+		fsl,gemac-bus-id = <0x1>;       /* BUS_ID */
+		fsl,gemac-phy-id = <0x5>;       /* PHY_ID */
+		fsl,mdio-mux-val = <0x0>;
+		phy-mode = "sgmii";
+		fsl,pfe-phy-if-flags = <0x0>;
+
+		mdio@0 {
+			reg = <0x0>; /* enabled/disabled */
+		};
+	};
+#endif
+};
+
+&sai2 {
+	status = "okay";
+};
