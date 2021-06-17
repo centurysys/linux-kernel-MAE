@@ -2,7 +2,7 @@
 How to build kernel
 
 For Acorn-V2 Board:
-$ cp dot.config.ls1012a-acorn .config
+$ cp arch/arm64/configs/lsdk-acorn-v2.config .config
 $ make oldconfig
 $ make -j 8 Image.gz && ./mk_uImage.sh ACORN && make dtbs && \
 cp -v uImage /srv/tftp/ && cp -v arch/arm64/boot/dts/freescale/cs-acorn-v2.dtb /srv/tftp/dtb
