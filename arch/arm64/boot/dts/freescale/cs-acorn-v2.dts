@@ -262,28 +262,12 @@
 		#size-cells = <0>;
 		reg = <0x0>;	/* GEM_ID */
 		fsl,gemac-bus-id = <0x0>;	/* BUS_ID */
-		fsl,gemac-phy-id = <0x0>;       /* PHY_ID */
 		fsl,mdio-mux-val = <0x0>;
 		phy-mode = "sgmii";
-		fsl,pfe-phy-if-flags = <0x0>;
 
-		mdio@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x1>; /* enabled/disabled */
-
-			sgmii_phy0: ethernet-phy@0 {
-				reg = <0>;
-				qca,ar8327-initvals = <
-					0x00004 0x0000080   /* PAD0_MODE */
-					0x000e0 0xc74164de  /* SGMII_CTRL */
-					0x0007c 0x4e        /* PORT0_STATUS */
-				>;
-				#interrupt-cells = <2>;
-				interrupt-parent = <&gpio1>;
-				interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
-				irq-gpio = <&gpio1 11 GPIO_ACTIVE_LOW>;
-			};
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
 		};
 	};
 };
