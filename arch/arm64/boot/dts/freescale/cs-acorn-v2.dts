@@ -84,28 +84,28 @@
 		status = "ok";
 
 		led@1 {
-			label = "power_green";
+			label = "power-stat:g";
 			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
 		led@2 {
-			label = "aux1_red";
+			label = "AUX_R1";
 			gpios = <&ioexp_a 0 GPIO_ACTIVE_LOW>;
 		};
 
 		led@3 {
-			label = "aux2_red";
+			label = "AUX_R2";
 			gpios = <&ioexp_a 1 GPIO_ACTIVE_LOW>;
 		};
 
 		led@4 {
-			label = "aux1_green";
+			label = "AUX_G1";
 			gpios = <&ioexp_a 2 GPIO_ACTIVE_LOW>;
 		};
 
 		led@5 {
-			label = "aux2_green";
+			label = "AUX_G2";
 			gpios = <&ioexp_a 3 GPIO_ACTIVE_LOW>;
 		};
 
@@ -152,32 +152,38 @@
 
 		/* LEDs on Main board */
 		led0: power-status-red@0 {
-			label = "power_red";
+			label = "power-stat:r";
 			reg = <0x0>;
 		};
+
 		led1: system-status1-red@1 {
-			label = "status1_red";
+			label = "system-status1:r";
+			linux,default-trigger = "heartbeat";
 			reg = <0x1>;
 		};
+
 		led2: system-status2-red@2 {
-			label = "status2_red";
+			label = "system-status2:r";
 			reg = <0x2>;
 		};
+
 		led3: system-status3-red@3 {
-			label = "status3_red";
+			label = "system-status3:r";
 			reg = <0x3>;
 		};
+
 		led4: system-status1-green@4 {
-			label = "status1_green";
-			linux,default-trigger = "timer";
+			label = "system-status1:g";
 			reg = <0x4>;
 		};
+
 		led5: system-status2-green@5 {
-			label = "status2_green";
+			label = "system-status2:g";
 			reg = <0x5>;
 		};
+
 		led6: system-status3-green@6 {
-			label = "status3_green";
+			label = "system-status3:g";
 			reg = <0x6>;
 		};
 	};
@@ -250,6 +256,26 @@
 		partition@3 {
 			label = "oops";
 			reg = <0x00300000 0x00200000>;
+		};
+
+		barebox_env: partition@4 {
+			label = "barebox.env";
+			reg = <0x00500000 0x00008000>;
+		};
+
+		barebox_bin: partition@5 {
+			label = "barebox.bin";
+			reg = <0x00508000 0x000f8000>;
+		};
+
+		hist_firmup: partition@6 {
+			label = "hist_firmup";
+			reg = <0x00600000 0x00080000>;
+		};
+
+		hist_boot: partition@7 {
+			label = "hist_boot";
+			reg = <0x00680000 0x00080000>;
 		};
 	};
 };
