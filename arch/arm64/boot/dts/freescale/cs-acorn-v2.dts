@@ -122,10 +122,12 @@
 };
 
 &duart0 {
+	clocks = <&clockgen 4 3>;
 	status = "okay";
 };
 
 &esdhc0 {
+	clocks = <&clockgen 4 1>;
 	broken-cd;
 	status = "okay";
 };
@@ -216,6 +218,7 @@
 &qspi {
 	num-cs = <1>;
 	bus-num = <0>;
+	clocks = <&clockgen 4 1>, <&clockgen 4 1>;
 	status = "okay";
 
 	qflash0: n25q128a11@0 {
@@ -255,6 +258,7 @@
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
+	clocks = <&clockgen 4 3>;
 
 	pfe_mac0: ethernet@0 {
 		compatible = "fsl,pfe-gemac-port";
@@ -270,8 +274,4 @@
 			full-duplex;
 		};
 	};
-};
-
-&sai2 {
-	status = "okay";
 };
