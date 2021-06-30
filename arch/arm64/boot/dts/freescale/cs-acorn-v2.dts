@@ -302,22 +302,22 @@
 
 		barebox_env: partition@4 {
 			label = "barebox.env";
-			reg = <0x00500000 0x00008000>;
+			reg = <0x00500000 0x00080000>;
 		};
 
 		barebox_bin: partition@5 {
 			label = "barebox.bin";
-			reg = <0x00508000 0x000f8000>;
+			reg = <0x00580000 0x00180000>;
 		};
 
 		hist_firmup: partition@6 {
 			label = "hist_firmup";
-			reg = <0x00600000 0x00080000>;
+			reg = <0x00700000 0x00080000>;
 		};
 
 		hist_boot: partition@7 {
 			label = "hist_boot";
-			reg = <0x00680000 0x00080000>;
+			reg = <0x00780000 0x00080000>;
 		};
 	};
 };
