@@ -119,6 +119,46 @@
 
 &pcie1 {
 	status = "okay";
+
+	pci_root: root@0,0 {
+		reg = <0x00000000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		bridge@1,0 {
+			reg = <0x00010000 0 0 0 0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			bridge@2,1 {
+				reg = <0x00020800 0 0 0 0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				eth1: eth1@3 {
+					compatible = "intel,igb";
+					reg = <0x00030000 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					mac-address = [ 00 80 6d 01 23 45 ];
+				};
+			};
+
+			bridge@2,2 {
+				reg = <0x00021000 0 0 0 0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				eth2: eth2@4 {
+					compatible = "intel,igb";
+					reg = <0x00040000 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					mac-address = [ 00 80 6d 01 23 46 ];
+				};
+			};
+		};
+	};
 };
 
 &duart0 {
@@ -284,7 +324,7 @@
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
-	clocks = <&clockgen 4 3>;
+//	clocks = <&clockgen 4 0>;
 
 	pfe_mac0: ethernet@0 {
 		compatible = "fsl,pfe-gemac-port";
