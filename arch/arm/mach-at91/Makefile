@@ -15,6 +15,7 @@ obj-$(CONFIG_AT91_VDEC_G1)	+= memalloc.o vdec_g1.o
 
 # Power Management
 obj-$(CONFIG_ATMEL_PM)		+= pm.o pm_suspend.o
+obj-$(CONFIG_ATMEL_SECURE_PM)	+= pm_secure.o
 
 ifeq ($(CONFIG_CPU_V7),y)
 AFLAGS_pm_suspend.o := -march=armv7-a
