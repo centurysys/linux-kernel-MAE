@@ -606,6 +606,30 @@
 		};
 	};
 
+	leds_rs9116_ctrl: leds_rs9116_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@WLAN_Power {
+			label = "WLAN_Power";
+			gpios = <&gpiox_0x08_rs9116 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led@WLAN_PowerSel {
+			label = "WLAN_PowerSel";
+			gpios = <&gpiox_0x08_rs9116 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			retain-state-suspended;
+		};
+
+		led@WLAN_RESET_N {
+			label = "WLAN_RESET_N";
+			gpios = <&gpiox_0x08_rs9116 2 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+	};
+
 	leds_poe_ctrl: leds_poe_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -1176,6 +1200,7 @@
 		xio_3d = &xio_3d;
 		xio_3e = &xio_3e;
 		xio_3f = &xio_3f;
+		xio_41 = &xio_41;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1540,6 +1565,15 @@
 			   &gpiox_0x40_counter &gpiox_0x80
 			   &gpiox_0x04_lisa
 			   &leds_foma &leds_amp_ctrl &leds_do>;
+	};
+
+	/* XIO: (id: 0x41) AMT_WLAN_RS9116 (Redpine) */
+	xio_41: xio@0x41 {
+		#size-cells = <0>;
+		devices = <&xio_hub_ctrl
+			   &gpiox_0x00 &gpiox_0x04_lisa
+			   &gpiox_0x08_rs9116 &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &leds_amp_wlan_ctrl &leds_mobile_wlan &leds_rs9116_ctrl>;
 	};
 };
 
@@ -2212,6 +2246,17 @@
 
 	/* WLAN Control */
 	gpiox_0x08_wlan: gpio@2,0x08 {
+		reg = <2 0x00000008 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* WLAN Control (RS9116) */
+	gpiox_0x08_rs9116: gpio@2,0x08 {
 		reg = <2 0x00000008 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
