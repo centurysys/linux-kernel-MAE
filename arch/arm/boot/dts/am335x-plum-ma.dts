@@ -590,6 +590,7 @@
 			label = "WLAN_Power";
 			gpios = <&gpiox_0x08_wlan 0 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
+			retain-state-suspended;
 		};
 
 		led@WLAN_PowerSel {
@@ -614,6 +615,7 @@
 			label = "WLAN_Power";
 			gpios = <&gpiox_0x08_rs9116 0 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
+			retain-state-suspended;
 		};
 
 		led@WLAN_PowerSel {
