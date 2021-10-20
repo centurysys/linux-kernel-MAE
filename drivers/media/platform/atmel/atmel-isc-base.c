@@ -441,12 +441,14 @@ static void isc_buffer_queue(struct vb2_buffer *vb)
 	unsigned long flags;
 
 	spin_lock_irqsave(&isc->dma_queue_lock, flags);
-	if (!isc->cur_frm && list_empty(&isc->dma_queue) &&
-		vb2_is_streaming(vb->vb2_queue)) {
+
+	if (!isc->cur_frm && list_empty(&isc->dma_queue) && !isc->stop) {
 		isc->cur_frm = buf;
 		isc_start_dma(isc);
-	} else
+	} else {
 		list_add_tail(&buf->list, &isc->dma_queue);
+	}
+
 	spin_unlock_irqrestore(&isc->dma_queue_lock, flags);
 }
 
@@ -1014,7 +1016,7 @@ static int isc_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct isc_device *isc = video_drvdata(file);
 
-	if (vb2_is_streaming(&isc->vb2_vidq))
+	if (!isc->stop)
 		return -EBUSY;
 
 	return isc_set_fmt(isc, f);
@@ -1536,7 +1538,7 @@ static int isc_s_awb_ctrl(struct v4l2_ctrl *ctrl)
 
 		isc_update_awb_ctrls(isc);
 
-		if (vb2_is_streaming(&isc->vb2_vidq)) {
+		if (!isc->stop) {
 			/*
 			 * If we are streaming, we can update profile to
 			 * have the new settings in place.
@@ -1552,8 +1554,7 @@ static int isc_s_awb_ctrl(struct v4l2_ctrl *ctrl)
 		}
 
 		/* if we have autowhitebalance on, start histogram procedure */
-		if (ctrls->awb == ISC_WB_AUTO &&
-		    vb2_is_streaming(&isc->vb2_vidq) &&
+		if (ctrls->awb == ISC_WB_AUTO && !isc->stop &&
 		    ISC_IS_FORMAT_RAW(isc->config.sd_format->mbus_code))
 			isc_set_histogram(isc, true);
 
@@ -1828,6 +1829,8 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	struct video_device *vdev = &isc->video_dev;
 	struct vb2_queue *q = &isc->vb2_vidq;
 	int ret = 0;
+
+	isc->stop = true;
 
 	INIT_WORK(&isc->awb_work, isc_awb_work);
 
