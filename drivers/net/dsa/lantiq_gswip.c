@@ -1447,10 +1447,8 @@ static void gswip_phylink_set_capab(unsigned long *supported,
 	phylink_set(mask, 100baseT_Half);
 	phylink_set(mask, 100baseT_Full);
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static void gswip_xrx200_phylink_validate(struct dsa_switch *ds, int port,
@@ -1478,7 +1476,7 @@ static void gswip_xrx200_phylink_validate(struct dsa_switch *ds, int port,
 			goto unsupported;
 		break;
 	default:
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		dev_err(ds->dev, "Unsupported port: %i\n", port);
 		return;
 	}
@@ -1488,7 +1486,7 @@ static void gswip_xrx200_phylink_validate(struct dsa_switch *ds, int port,
 	return;
 
 unsupported:
-	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_zero(supported);
 	dev_err(ds->dev, "Unsupported interface '%s' for port %d\n",
 		phy_modes(state->interface), port);
 }
@@ -1518,7 +1516,7 @@ static void gswip_xrx300_phylink_validate(struct dsa_switch *ds, int port,
 			goto unsupported;
 		break;
 	default:
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		dev_err(ds->dev, "Unsupported port: %i\n", port);
 		return;
 	}
@@ -1528,7 +1526,7 @@ static void gswip_xrx300_phylink_validate(struct dsa_switch *ds, int port,
 	return;
 
 unsupported:
-	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_zero(supported);
 	dev_err(ds->dev, "Unsupported interface '%s' for port %d\n",
 		phy_modes(state->interface), port);
 }
