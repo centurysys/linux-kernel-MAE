@@ -1,0 +1,16 @@
+
+How to build kernel
+
+For Acorn Board:
+$ source arm64.env
+$ cp arch/arm64/configs/lsdk-acorn.config .config
+$ make oldconfig
+$ make -j 8 Image.gz && ./mk_uImage.sh ACORN && make dtbs && \
+cp -v uImage /srv/tftp/ && cp -v arch/arm64/boot/dts/freescale/cs-acorn.dtb /srv/tftp/dtb
+
+For Acorn-V2 Board:
+$ source arm64.env
+$ cp arch/arm64/configs/lsdk-acorn-v2.config .config
+$ make oldconfig
+$ make -j 8 Image.gz && ./mk_uImage.sh ACORN && make dtbs && \
+cp -v uImage /srv/tftp/ && cp -v arch/arm64/boot/dts/freescale/cs-acorn-v2.dtb /srv/tftp/dtb
