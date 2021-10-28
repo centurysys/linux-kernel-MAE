@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree Include file for Freescale Layerscape-1043A family SoC.
+ *
+ * Copyright 2014-2015 Freescale Semiconductor, Inc.
+ *
+ * Mingkai Hu <Mingkai.hu@freescale.com>
+ */
+
+/ {
+	mpcie_ctrl: mpcie_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		mpcie_dc_3v3_en {
+			label = "mpcie_dc_3v3_en";
+			gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		mpcie_perst_n {
+			label = "mpcie_perst_n";
+			gpios = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	m2_pcie_ctrl: m2_pcie_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		m2_dc_3v3_en {
+			label = "m2_dc_3v3_en";
+			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		m2_pcie_dis {
+			label = "m2_pcie_dis";
+			gpios = <&gpio3 2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		m2_card_power_on {
+			label = "m2_card_power_on";
+			gpios = <&gpio4 2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		m2_pcie_reset_n {
+			label = "m2_pcie_reset_n";
+			gpios = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+			default-state = "on"; /* TODO: wait 50ms after power on */
+		};
+	};
+
+ 	m2_usb_ctrl: m2_usb_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		m2_dc_3v3_en {
+			label = "m2_dc_3v3_en";
+			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		m2_pcie_dis {
+			label = "m2_pcie_dis";
+			gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+
+		m2_card_power_on {
+			label = "m2_card_power_on";
+			gpios = <&gpio4 2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	mpcie_ctrl_preboot: mpcie_ctrl_preboot {
+		status = "okay";
+	};
+
+	m2_pcie_ctrl_preboot: m2_pcie_ctrl_preboot {
+		status = "disabled";
+	};
+
+	m2_usb_ctrl_preboot: m2_usb_ctrl_preboot {
+		status = "okay";
+	};
+};

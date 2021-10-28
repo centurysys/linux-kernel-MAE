@@ -1,0 +1,325 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree Include file for Freescale Layerscape-1043A family SoC.
+ *
+ * Copyright 2014-2015 Freescale Semiconductor, Inc.
+ *
+ * Mingkai Hu <Mingkai.hu@freescale.com>
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "cs-southernx.dtsi"
+
+/ {
+	model = "SouthernX Board";
+
+	aliases {
+		crypto = &crypto;
+		serial0 = &duart0;
+		serial1 = &duart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		status = "ok";
+
+		sw_init {
+			label = "SW_INIT";
+			gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_0>;
+		};
+	};
+
+	leds_system: leds_system {
+		compatible = "gpio-leds";
+		status = "ok";
+
+		led@1 {
+			label = "power_green";
+			gpios = <&gpio4 3 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+
+		led@2 {
+			label = "aux1_red";
+			gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
+		};
+
+		led@3 {
+			label = "aux2_red";
+			gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
+		};
+
+		led@4 {
+			label = "aux1_green";
+			gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
+		};
+
+		led@5 {
+			label = "aux2_green";
+			gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
+		};
+
+		led@6 {
+			label = "top_led_r0";
+			gpios = <&gpio3 3 GPIO_ACTIVE_LOW>;
+		};
+
+		led@7 {
+			label = "top_led_r1";
+			gpios = <&gpio3 4 GPIO_ACTIVE_LOW>;
+		};
+
+		led@8 {
+			label = "mobile1_red";
+			gpios = <&gpio3 5 GPIO_ACTIVE_LOW>;
+		};
+
+		led@9 {
+			label = "ant1_level2_red";
+			gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
+		};
+
+		led@10 {
+			label = "ant1_level1_red";
+			gpios = <&gpio3 7 GPIO_ACTIVE_LOW>;
+		};
+
+		led@11 {
+			label = "top_led_g0";
+			gpios = <&gpio3 16 GPIO_ACTIVE_LOW>;
+		};
+
+		led@12 {
+			label = "top_led_g1";
+			gpios = <&gpio3 17 GPIO_ACTIVE_LOW>;
+		};
+
+		led@13 {
+			label = "mobile1_green";
+			gpios = <&gpio3 18 GPIO_ACTIVE_LOW>;
+		};
+
+		led@14 {
+			label = "ant1_level2_green";
+			gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
+		};
+
+		led@15 {
+			label = "ant1_level1_green";
+			gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
+		};
+
+	};
+};
+
+&qspi {
+	num-cs = <1>;
+	bus-num = <0>;
+	status = "okay";
+
+	qflash0: n25q128a11@0 {
+		compatible = "micron,n25q128a11";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <20000000>;
+		m25p,fast-read;
+		reg = <0>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <2>;
+
+		/* MTD partition table */
+		partition@0 {
+			label = "u-boot";
+			reg = <0x00000000 0x00200000>;
+		};
+
+		partition@1 {
+			label = "u-boot-env";
+			reg = <0x00200000 0x00080000>;
+		};
+
+		partition@2 {
+			label = "reserved";
+			reg = <0x00280000 0x00080000>;
+		};
+
+		partition@3 {
+			label = "oops";
+			reg = <0x00300000 0x00200000>;
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+
+	rtc@32 {
+		compatible = "dsk324sr";
+		reg = <0x32>;
+	};
+
+	led@45 {
+		compatible = "ti,tca6507";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x45>;
+
+		/* LEDs on Main board */
+		led0: power-status-red@0 {
+			label = "power_red";
+			reg = <0x0>;
+		};
+
+		led1: system-status1-red@1 {
+			label = "status1_red";
+			reg = <0x1>;
+		};
+
+		led2: system-status2-red@2 {
+			label = "status2_red";
+			reg = <0x2>;
+		};
+
+		led3: system-status3-red@3 {
+			label = "status3_red";
+			reg = <0x3>;
+		};
+
+		led4: system-status1-green@4 {
+			label = "status1_green";
+			linux,default-trigger = "timer";
+			reg = <0x4>;
+		};
+
+		led5: system-status2-green@5 {
+			label = "status2_green";
+			reg = <0x5>;
+		};
+
+		led6: system-status3-green@6 {
+			label = "status3_green";
+			reg = <0x6>;
+		};
+	};
+
+	eeprom@50 {
+		compatible = "24c16";
+		reg = <0x50>;
+	};
+
+	emc1812@7c {
+		compatible = "emc1412";
+		reg = <0x7c>;
+	};
+
+	emc1812@5c {
+		compatible = "emc1412";
+		reg = <0x5c>;
+	};
+};
+
+&duart0 {
+	status = "okay";
+};
+
+&duart1 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
+};
+
+&pcie2 {
+	status = "okay";
+};
+
+&pcie3 {
+	status = "okay";
+};
+
+#include "fsl-ls1043-post.dtsi"
+
+&fman0 {
+	ethernet@e0000 {
+		phy-handle = <&qsgmii_phy1>;
+		phy-connection-type = "qsgmii";
+	};
+
+	ethernet@e2000 {
+		phy-handle = <&qsgmii_phy2>;
+		phy-connection-type = "qsgmii";
+	};
+
+	ethernet@e8000 {
+		phy-handle = <&qsgmii_phy3>;
+		phy-connection-type = "qsgmii";
+	};
+
+	ethernet@ea000 {
+		phy-handle = <&qsgmii_phy4>;
+		phy-connection-type = "qsgmii";
+	};
+
+	ethernet@f0000 { /* 10GEC1 */
+		phy-handle = <&aqr107_phy>;
+		phy-connection-type = "xgmii";
+	};
+
+	ethernet@e4000 {
+		status = "disabled";
+	};
+
+	ethernet@e6000 {
+		status = "disabled";
+	};
+
+	mdio@fc000 {
+		qsgmii_phy1: ethernet-phy@1 {
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x4>;
+		};
+
+		qsgmii_phy2: ethernet-phy@2 {
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x5>;
+		};
+
+		qsgmii_phy3: ethernet-phy@3 {
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x6>;
+		};
+
+		qsgmii_phy4: ethernet-phy@4 {
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x7>;
+		};
+	};
+
+	mdio@fd000 {
+		aqr107_phy: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c45";
+			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x1>;
+		};
+	};
+};
