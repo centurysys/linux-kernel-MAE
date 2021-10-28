@@ -1,0 +1,8 @@
+
+How to build kernel
+
+$ source arm64.env
+$ cp arch/arm64/configs/lsdk-southernx.config .config
+$ make oldconfig
+$ make -j 8 Image.gz && ./mk_uImage.sh SOUTHERNX && make dtbs && \
+cp -v uImage /srv/tftp/ && cp -v arch/arm64/boot/dts/freescale/cs-southernx-sdk.dtb /srv/tftp/dtb
