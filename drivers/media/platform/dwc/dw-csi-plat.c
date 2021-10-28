@@ -151,7 +151,6 @@ dw_mipi_csi_set_fmt(struct v4l2_subdev *sd,
 		*mf = fmt->format;
 		if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 			dev->fmt = dev_fmt;
-		dev->fmt->mbus_code = mf->code;
 		dw_mipi_csi_set_ipi_fmt(dev);
 	}
 
