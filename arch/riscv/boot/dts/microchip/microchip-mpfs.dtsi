@@ -3,6 +3,7 @@
 
 /dts-v1/;
 #include "dt-bindings/clock/microchip,mpfs-clock.h"
+#include "dt-bindings/mailbox/miv-ihc.h"
 #include "microchip-mpfs-fabric.dtsi"
 
 / {
