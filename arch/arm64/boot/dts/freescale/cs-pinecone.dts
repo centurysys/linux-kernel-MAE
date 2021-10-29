@@ -1,0 +1,301 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree Include file for Freescale Layerscape-1046A family SoC.
+ *
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ *
+ * Mingkai Hu <mingkai.hu@nxp.com>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "cs-pinecone.dtsi"
+
+/ {
+	model = "PINECONE Board";
+	compatible = "pinecone", "fsl,ls1046a";
+
+	aliases {
+		serial0 = &duart0;
+		serial1 = &duart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	leds_system: leds_system {
+		compatible = "gpio-leds";
+		status = "ok";
+
+		led@1 {
+			label = "power_green";
+			gpios = <&gpio3 3 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+
+		led@2 {
+			label = "aux1_red";
+			gpios = <&gpio2 9 GPIO_ACTIVE_LOW>;
+		};
+
+		led@3 {
+			label = "aux2_red";
+			gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
+		};
+
+		led@4 {
+			label = "aux1_green";
+			gpios = <&gpio2 11 GPIO_ACTIVE_LOW>;
+		};
+
+		led@5 {
+			label = "aux2_green";
+			gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&duart0 {
+	status = "okay";
+};
+
+&duart1 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&esdhc {
+	broken-cd;
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	pmbus@20 {
+		compatible = "pmbus";
+		reg = <0x20>;
+	};
+
+	pmbus@24 {
+		compatible = "pmbus";
+		reg = <0x24>;
+	};
+
+	powr1014@60 {
+		compatible = "powr1014";
+		reg = <0x60>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	rtc@32 {
+		compatible = "dsk324sr";
+		reg = <0x32>;
+	};
+
+	led@45 {
+		compatible = "ti,tca6507";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x45>;
+
+		/* LEDs on Main board */
+		led0: power-status-red@0 {
+			label = "power_red";
+			reg = <0x0>;
+		};
+		led1: system-status1-red@1 {
+			label = "status1_red";
+			reg = <0x1>;
+		};
+		led2: system-status2-red@2 {
+			label = "status2_red";
+			reg = <0x2>;
+		};
+		led3: system-status3-red@3 {
+			label = "status3_red";
+			reg = <0x3>;
+		};
+		led4: system-status1-green@4 {
+			label = "status1_green";
+			linux,default-trigger = "timer";
+			reg = <0x4>;
+		};
+		led5: system-status2-green@5 {
+			label = "status2_green";
+			reg = <0x5>;
+		};
+		led6: system-status3-green@6 {
+			label = "status3_green";
+			reg = <0x6>;
+		};
+	};
+
+	eeprom@50 {
+		compatible = "24c16";
+		reg = <0x50>;
+	};
+
+	fan18: fan@18 {
+		compatible = "ti,amc6821";
+		reg = <0x18>;
+		cooling-min-state = <0>;
+		cooling-max-state = <9>;
+		#cooling-cells = <2>;
+	};
+
+	fan19: fan@19 {
+		compatible = "ti,amc6821";
+		reg = <0x19>;
+		cooling-min-state = <0>;
+		cooling-max-state = <9>;
+		#cooling-cells = <2>;
+	};
+};
+
+&dspi {
+	bus-num = <0>;
+	status = "okay";
+
+	ksz9897: ksz9897@0 {
+		compatible = "microchip,ksz9897";
+		reg = <0>;
+
+		spi-max-frequency = <10000000>;
+		spi-cpha;
+		spi-cpol;
+		interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				label = "lan1";
+			};
+			port@1 {
+				reg = <1>;
+				label = "lan2";
+			};
+			port@2 {
+				reg = <2>;
+				label = "lan3";
+			};
+			port@3 {
+				reg = <3>;
+				label = "lan4";
+			};
+			port@6 {
+				reg = <6>;
+				label = "cpu";
+				ethernet = <&enet4>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};
+
+&qspi {
+	num-cs = <1>;
+	bus-num = <0>;
+	status = "okay";
+
+	qflash0: n25q128a11@0 {
+		compatible = "micron,n25q128a11";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <20000000>;
+		m25p,fast-read;
+		reg = <0>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <2>;
+
+		/* MTD partition table */
+		partition@0 {
+			label = "u-boot";
+			reg = <0x00000000 0x00200000>;
+		};
+
+		partition@1 {
+			label = "u-boot-env";
+			reg = <0x00200000 0x00080000>;
+		};
+
+		partition@2 {
+			label = "reserved";
+			reg = <0x00280000 0x00080000>;
+		};
+
+		partition@3 {
+			label = "oops";
+			reg = <0x00300000 0x00200000>;
+		};
+	};
+};
+
+#include "cs-pinecone-post.dtsi"
+
+&fman0 {
+	enet6: ethernet@f0000 { /* 10GEC1 */
+		phy-handle = <&aqr107_phy1>;
+		phy-connection-type = "xgmii";
+	};
+
+	enet7: ethernet@f2000 { /* 10GEC2 */
+		phy-handle = <&aqr107_phy2>;
+		phy-connection-type = "xgmii";
+	};
+
+	enet4: ethernet@e8000 {
+		phy-connection-type = "sgmii";
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
+		};
+	};
+
+	enet0: ethernet@e0000 {
+		status = "disabled";
+	};
+
+	enet1: ethernet@e2000 {
+		status = "disabled";
+	};
+
+	enet2: ethernet@e4000 {
+		status = "disabled";
+	};
+
+	enet3: ethernet@e6000 {
+		status = "disabled";
+	};
+
+	enet5: ethernet@ea000 {
+		status = "disabled";
+	};
+
+	mdio@fd000 {
+		aqr107_phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c45";
+			reg = <0x1>;
+			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		aqr107_phy2: ethernet-phy@2 {
+			compatible = "ethernet-phy-ieee802.3-c45";
+			reg = <0x2>;
+			interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+};
