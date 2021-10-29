@@ -133,6 +133,15 @@ config CS_ACORN
 config CS_ACORN_V2
 	bool "Century Systems Acorn V2 board"
 
+config CS_SOUTHERNX
+	bool "Century Systems Southernx board"
+
+config CS_SOUTHERNX_MINI
+	bool "Century Systems Southernx-Mini board"
+
+config CS_PINECONE
+	bool "Century Systems Pinecone board"
+
 endchoice
 
 config ARCH_LG1K
