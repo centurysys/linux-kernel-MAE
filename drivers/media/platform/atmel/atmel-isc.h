@@ -297,6 +297,7 @@ struct isc_device {
 	struct completion	comp;
 
 	struct v4l2_format	fmt;
+	struct v4l2_format	try_fmt;
 	struct isc_format	**user_formats;
 	unsigned int		num_user_formats;
 
