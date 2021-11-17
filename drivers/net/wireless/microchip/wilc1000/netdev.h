@@ -148,6 +148,7 @@ struct wilc_priv {
 	struct net_device *real_ndev;
 	struct wilc_wfi_key *wilc_gtk[WILC_MAX_NUM_STA];
 	struct wilc_wfi_key *wilc_ptk[WILC_MAX_NUM_STA];
+	struct wilc_wfi_key *wilc_igtk[2];
 	u8 wilc_groupkey;
 
 	/* mutexes */
@@ -218,6 +219,7 @@ struct wilc_vif {
 	u8 restart;
 	bool p2p_listen_state;
 	struct cfg80211_bss *bss;
+	struct cfg80211_external_auth_params auth;
 };
 
 struct wilc_power_gpios {
@@ -327,7 +329,7 @@ void wilc_frmw_to_host(struct wilc_vif *vif, u8 *buff, u32 size,
 		       u32 pkt_offset, u8 status);
 void wilc_mac_indicate(struct wilc *wilc);
 void wilc_netdev_cleanup(struct wilc *wilc);
-void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
+void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size, bool is_auth);
 void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
 struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 				      int vif_type, enum nl80211_iftype type,

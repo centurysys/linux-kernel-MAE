@@ -1273,7 +1273,8 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 				wilc_wfi_handle_monitor_rx(wilc, buff_ptr,
 							   pkt_len);
 			else
-				wilc_wfi_mgmt_rx(wilc, buff_ptr, pkt_len);
+				wilc_wfi_mgmt_rx(wilc, buff_ptr, pkt_len,
+						 pkt_offset & IS_MGMT_AUTH_PKT);
 		} else {
 			struct net_device *wilc_netdev;
 			struct wilc_vif *vif;

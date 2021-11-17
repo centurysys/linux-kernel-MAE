@@ -376,7 +376,7 @@ error:
 static int wilc_send_connect_wid(struct wilc_vif *vif)
 {
 	int result = 0;
-	struct wid wid_list[4];
+	struct wid wid_list[5];
 	u32 wid_cnt = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	struct wilc_conn_info *conn_attr = &hif_drv->conn_info;
@@ -403,6 +403,12 @@ static int wilc_send_connect_wid(struct wilc_vif *vif)
 		}
 	}
 	srcu_read_unlock(&vif->wilc->srcu, srcu_idx);
+
+	wid_list[wid_cnt].id = WID_SET_MFP;
+	wid_list[wid_cnt].type = WID_CHAR;
+	wid_list[wid_cnt].size = sizeof(char);
+	wid_list[wid_cnt].val = (s8 *)&conn_attr->mfp_type;
+	wid_cnt++;
 
 	wid_list[wid_cnt].id = WID_INFO_ELEMENT_ASSOCIATE;
 	wid_list[wid_cnt].type = WID_BIN_DATA;
@@ -435,6 +441,8 @@ static int wilc_send_connect_wid(struct wilc_vif *vif)
 	wid_list[wid_cnt].val = (u8 *)bss_param;
 	wid_cnt++;
 
+	PRINT_D(vif->ndev, HOSTINF_DBG, "Management Frame Protection type = %x\n",
+		conn_attr->mfp_type);
 	PRINT_INFO(vif->ndev, GENERIC_DBG, "send HOST_IF_WAITING_CONN_RESP\n");
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list, wid_cnt);
@@ -442,9 +450,12 @@ static int wilc_send_connect_wid(struct wilc_vif *vif)
 		netdev_err(vif->ndev, "failed to send config packet\n");
 		goto error;
 	} else {
+		if (conn_attr->auth_type == WILC_FW_AUTH_SAE)
+			hif_drv->hif_state = HOST_IF_EXTERNAL_AUTH;
+		else
+			hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
 		PRINT_INFO(vif->ndev, GENERIC_DBG,
-			   "set HOST_IF_WAITING_CONN_RESP\n");
-		hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
+			   "set state [%d]\n", hif_drv->hif_state);
 	}
 
 	return 0;
@@ -843,7 +854,15 @@ static void handle_rcvd_gnrl_async_info(struct work_struct *work)
 		goto free_msg;
 	}
 
-	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
+	if (hif_drv->hif_state == HOST_IF_EXTERNAL_AUTH) {
+		int ret;
+
+		pr_debug("%s: external SAE processing: bss=%pM akm=%u\n",
+			 __func__, vif->auth.bssid, vif->auth.key_mgmt_suite);
+		ret = cfg80211_external_auth_request(vif->ndev, &vif->auth,
+						     GFP_KERNEL);
+		hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
+	} else if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
 		host_int_parse_assoc_resp_info(vif, mac_info->status);
 	} else if (mac_info->status == WILC_MAC_STATUS_DISCONNECTED) {
 		if (hif_drv->hif_state == HOST_IF_CONNECTED) {
@@ -913,7 +932,8 @@ int wilc_disconnect(struct wilc_vif *vif)
 	}
 
 	if (conn_info->conn_result) {
-		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
+		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
+		    hif_drv->hif_state == HOST_IF_EXTERNAL_AUTH) {
 			PRINT_INFO(vif->ndev, HOSTINF_DBG,
 				   "supplicant requested disconnection\n");
 			del_timer(&hif_drv->connect_timer);
@@ -1254,6 +1274,32 @@ void wilc_set_wowlan_trigger(struct wilc_vif *vif, bool enabled)
 			 "Failed to send wowlan trigger config packet\n");
 }
 
+int wilc_set_external_auth_param(struct wilc_vif *vif,
+				 struct cfg80211_external_auth_params *auth)
+{
+	int ret;
+	struct wid wid;
+	struct wilc_external_auth_param *param;
+
+	wid.id = WID_EXTERNAL_AUTH_PARAM;
+	wid.type = WID_BIN_DATA;
+	wid.size = sizeof(*param);
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	if (!param)
+		return -EINVAL;
+	wid.val = (u8 *)param;
+	param->action = auth->action;
+	ether_addr_copy(param->bssid, auth->bssid);
+	memcpy(param->ssid, auth->ssid.ssid, auth->ssid.ssid_len);
+	param->ssid_len = auth->ssid.ssid_len;
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+	if (ret)
+		PRINT_ER(vif->ndev, "failed to set external auth param\n");
+
+	kfree(param);
+	return ret;
+}
+
 static void handle_scan_timer(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -1418,6 +1464,37 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		kfree(key_buf);
 	}
 
+	return result;
+}
+
+int wilc_add_igtk(struct wilc_vif *vif, const u8 *igtk, u8 igtk_key_len,
+		  const u8 *pn, u8 pn_len, const u8 *mac_addr, u8 mode, u8 index)
+{
+	int result = 0;
+	u8 t_key_len = igtk_key_len;
+	struct wid wid;
+	struct wilc_wpa_igtk *key_buf;
+
+	key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
+	if (!key_buf) {
+		PRINT_ER(vif->ndev, "No buffer to keep Key buffer - Station\n");
+		return -ENOMEM;
+	}
+
+	key_buf->index = index;
+
+	memcpy(&key_buf->pn[0], pn, pn_len);
+	key_buf->pn_len = pn_len;
+
+	memcpy(&key_buf->key[0], igtk, igtk_key_len);
+	key_buf->key_len = t_key_len;
+
+	wid.id = WID_ADD_IGTK;
+	wid.type = WID_STR;
+	wid.size = sizeof(*key_buf) + t_key_len;
+	wid.val = (s8 *)key_buf;
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+	kfree(key_buf);
 	return result;
 }
 
@@ -1747,12 +1824,11 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	*hif_drv_handler = hif_drv;
 	vif->hif_drv = hif_drv;
 
-	timer_setup(&vif->periodic_rssi, get_periodic_rssi, 0);
-	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
-
 	timer_setup(&hif_drv->scan_timer, timer_scan_cb, 0);
 	timer_setup(&hif_drv->connect_timer, timer_connect_cb, 0);
 	timer_setup(&hif_drv->remain_on_ch_timer, listen_timer_cb, 0);
+	timer_setup(&vif->periodic_rssi, get_periodic_rssi, 0);
+	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
 
 	hif_drv->hif_state = HOST_IF_IDLE;
 
@@ -1985,6 +2061,11 @@ void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 	case IEEE80211_STYPE_PROBE_REQ:
 		PRINT_INFO(vif->ndev, HOSTINF_DBG, "PROBE REQ\n");
 		reg_frame.reg_id = WILC_FW_PROBE_REQ_IDX;
+		break;
+
+	case IEEE80211_STYPE_AUTH:
+		PRINT_INFO(vif->ndev, HOSTINF_DBG, "AUTH\n");
+		reg_frame.reg_id = WILC_FW_AUTH_REQ_IDX;
 		break;
 
 	default:

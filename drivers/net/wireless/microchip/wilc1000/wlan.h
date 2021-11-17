@@ -340,6 +340,7 @@ static inline bool is_wilc3000(u32 id)
 #define IS_MANAGMEMENT_CALLBACK	0x080
 #define IS_MGMT_STATUS_SUCCES	0x040
 #define IS_MON_PKT		0x020
+#define IS_MGMT_AUTH_PKT	0x010
 
 #define WILC_WID_TYPE		GENMASK(15, 12)
 #define WILC_VMM_ENTRY_FULL_RETRY	1
@@ -465,6 +466,7 @@ void wilc_enable_tcp_ack_filter(struct wilc_vif *vif, bool value);
 netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *dev);
 
 bool wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size);
+bool wilc_wfi_mgmt_frame_rx(struct wilc_vif *vif, u8 *buff, u32 size);
 void host_wakeup_notify(struct wilc *wilc, int source);
 void host_sleep_notify(struct wilc *wilc, int source);
 void chip_allow_sleep(struct wilc *wilc, int source);
