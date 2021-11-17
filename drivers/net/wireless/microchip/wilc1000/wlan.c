@@ -1152,14 +1152,14 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 		u32 header, buffer_offset;
 		u8 mgmt_ptk = 0;
 
+		if (vmm_table[i] == 0 || vmm_entries_ac[i] >= NQUEUES)
+			break;
+
 		tqe = wilc_wlan_txq_remove_from_head(wilc, vmm_entries_ac[i]);
-		ac_pkt_num_to_chip[vmm_entries_ac[i]]++;
 		if (!tqe)
 			break;
 
-		if (vmm_table[i] == 0)
-			break;
-
+		ac_pkt_num_to_chip[vmm_entries_ac[i]]++;
 		vif = tqe->vif;
 		le32_to_cpus(&vmm_table[i]);
 		vmm_sz = FIELD_GET(WILC_VMM_BUFFER_SIZE, vmm_table[i]);
