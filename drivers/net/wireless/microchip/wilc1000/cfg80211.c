@@ -371,9 +371,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	PRINT_D(vif->ndev, CFG80211_DBG, "Required SSID= %s\n, AuthType= %d\n",
 		sme->ssid, sme->auth_type);
 
-	memset(priv->wep_key, 0, sizeof(priv->wep_key));
-	memset(priv->wep_key_len, 0, sizeof(priv->wep_key_len));
-
 	PRINT_D(vif->ndev, CFG80211_DBG, "sme->crypto.wpa_versions=%x\n",
 		sme->crypto.wpa_versions);
 	PRINT_D(vif->ndev, CFG80211_DBG, "sme->crypto.cipher_group=%x\n",
@@ -390,34 +387,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_INFO(vif->ndev, CORECONFIG_DBG,
 			   ">> sme->crypto.wpa_versions: %x\n",
 			   sme->crypto.wpa_versions);
-		if (cipher_group == WLAN_CIPHER_SUITE_WEP40) {
-			security = WILC_FW_SEC_WEP;
-			PRINT_D(vif->ndev, CFG80211_DBG,
-				"WEP Default Key Idx = %d\n", sme->key_idx);
-
-			for (i = 0; i < sme->key_len; i++)
-				PRINT_D(vif->ndev, CORECONFIG_DBG,
-					"WEP Key Value[%d] = %d\n", i,
-					sme->key[i]);
-
-			priv->wep_key_len[sme->key_idx] = sme->key_len;
-			memcpy(priv->wep_key[sme->key_idx], sme->key,
-			       sme->key_len);
-
-			wilc_set_wep_default_keyid(vif, sme->key_idx);
-			wilc_add_wep_key_bss_sta(vif, sme->key, sme->key_len,
-						 sme->key_idx);
-		} else if (cipher_group == WLAN_CIPHER_SUITE_WEP104) {
-			security = WILC_FW_SEC_WEP_EXTENDED;
-
-			priv->wep_key_len[sme->key_idx] = sme->key_len;
-			memcpy(priv->wep_key[sme->key_idx], sme->key,
-			       sme->key_len);
-
-			wilc_set_wep_default_keyid(vif, sme->key_idx);
-			wilc_add_wep_key_bss_sta(vif, sme->key, sme->key_len,
-						 sme->key_idx);
-		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2) {
+		if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2) {
 			if (cipher_group == WLAN_CIPHER_SUITE_TKIP)
 				security = WILC_FW_SEC_WPA2_TKIP;
 			else
@@ -456,11 +426,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
 		PRINT_INFO(vif->ndev, CFG80211_DBG, "In OPEN SYSTEM\n");
 		auth_type = WILC_FW_AUTH_OPEN_SYSTEM;
-		break;
-
-	case NL80211_AUTHTYPE_SHARED_KEY:
-		auth_type = WILC_FW_AUTH_SHARED_KEY;
-		PRINT_INFO(vif->ndev, CFG80211_DBG, "In SHARED KEY\n");
 		break;
 
 	default:
@@ -574,14 +539,6 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static inline void wilc_wfi_cfg_copy_wep_info(struct wilc_priv *priv,
-					      u8 key_index,
-					      struct key_params *params)
-{
-	priv->wep_key_len[key_index] = params->key_len;
-	memcpy(priv->wep_key[key_index], params->key, params->key_len);
-}
-
 static int wilc_wfi_cfg_allocate_wpa_entry(struct wilc_priv *priv, u8 idx)
 {
 	if (!priv->wilc_gtk[idx]) {
@@ -635,7 +592,6 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	const u8 *tx_mic = NULL;
 	u8 mode = WILC_FW_SEC_NO;
 	u8 op_mode;
-	int i;
 	struct wilc_vif *vif = netdev_priv(netdev);
 	struct wilc_priv *priv = &vif->priv;
 
@@ -647,51 +603,6 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 		   params->key[1],
 		   params->key[2]);
 	switch (params->cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
-		if (priv->wdev.iftype == NL80211_IFTYPE_AP) {
-			wilc_wfi_cfg_copy_wep_info(priv, key_index, params);
-
-			PRINT_INFO(vif->ndev, CFG80211_DBG,
-				   "Adding AP WEP Default key Idx = %d\n",
-				   key_index);
-			PRINT_INFO(vif->ndev, CFG80211_DBG,
-				   "Adding AP WEP Key len= %d\n",
-				   params->key_len);
-
-			for (i = 0; i < params->key_len; i++)
-				PRINT_INFO(vif->ndev, CFG80211_DBG,
-					   "WEP AP key val[%d] = %x\n", i,
-					   params->key[i]);
-
-			if (params->cipher == WLAN_CIPHER_SUITE_WEP40)
-				mode = WILC_FW_SEC_WEP;
-			else
-				mode = WILC_FW_SEC_WEP_EXTENDED;
-
-			ret = wilc_add_wep_key_bss_ap(vif, params->key,
-						      params->key_len,
-						      key_index, mode,
-						      WILC_FW_AUTH_OPEN_SYSTEM);
-			break;
-		}
-		if (memcmp(params->key, priv->wep_key[key_index],
-			   params->key_len)) {
-			wilc_wfi_cfg_copy_wep_info(priv, key_index, params);
-
-			PRINT_INFO(vif->ndev, CFG80211_DBG,
-				   "Adding WEP Default key Idx = %d\n",
-				   key_index);
-			PRINT_INFO(vif->ndev, CFG80211_DBG,
-				   "Adding WEP Key length = %d\n",
-				   params->key_len);
-			ret = wilc_add_wep_key_bss_sta(vif, params->key,
-						       params->key_len,
-						       key_index);
-		}
-
-		break;
-
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (priv->wdev.iftype == NL80211_IFTYPE_AP ||
@@ -794,15 +705,6 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		priv->wilc_ptk[key_index] = NULL;
 	}
 
-	if (key_index <= 3 && priv->wep_key_len[key_index]) {
-		memset(priv->wep_key[key_index], 0,
-		       priv->wep_key_len[key_index]);
-		priv->wep_key_len[key_index] = 0;
-		pr_info("%s: Removing WEP key with index = %d\n", __func__,
-			key_index);
-		ret = wilc_remove_wep_key(vif, key_index);
-	}
-
 	return ret;
 }
 
@@ -836,13 +738,10 @@ static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	return 0;
 }
 
+/* wiphy_new() will WARN if not present*/
 static int set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 			   u8 key_index, bool unicast, bool multicast)
 {
-	struct wilc_vif *vif = netdev_priv(netdev);
-
-	wilc_set_wep_default_keyid(vif, key_index);
-
 	return 0;
 }
 
