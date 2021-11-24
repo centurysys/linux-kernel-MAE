@@ -1576,6 +1576,7 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 				  struct iio_chan_spec const *chan, int *val)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
+	int (*fn)(struct at91_adc_state *, int, u16 *) = NULL;
 	u16 tmp_val;
 	int ret;
 
@@ -1583,28 +1584,19 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 	 * Keep in mind that we cannot use software trigger or touchscreen
 	 * if external trigger is enabled
 	 */
-	if (chan->type == IIO_POSITIONRELATIVE) {
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-		mutex_lock(&st->lock);
 
-		ret = at91_adc_read_position(st, chan->channel,
-					     &tmp_val);
-		*val = tmp_val;
-		mutex_unlock(&st->lock);
-		iio_device_release_direct_mode(indio_dev);
+	if (chan->type == IIO_POSITIONRELATIVE)
+		fn = at91_adc_read_position;
+	if (chan->type == IIO_PRESSURE)
+		fn = at91_adc_read_pressure;
 
-		return at91_adc_adjust_val_osr(st, val);
-	}
-	if (chan->type == IIO_PRESSURE) {
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-		mutex_lock(&st->lock);
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
+	mutex_lock(&st->lock);
 
-		ret = at91_adc_read_pressure(st, chan->channel,
-					     &tmp_val);
+	if (fn) {
+		ret = fn(st, chan->channel, &tmp_val);
 		*val = tmp_val;
 		mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
@@ -1613,11 +1605,6 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 	}
 
 	/* in this case we have a voltage channel */
-
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-	mutex_lock(&st->lock);
 
 	st->chan = chan;
 
