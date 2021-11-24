@@ -142,6 +142,8 @@ struct at91_adc_reg_layout {
 #define AT91_SAMA5D2_EMR_OSR_1SAMPLES		0
 #define AT91_SAMA5D2_EMR_OSR_4SAMPLES		1
 #define AT91_SAMA5D2_EMR_OSR_16SAMPLES		2
+#define AT91_SAMA5D2_EMR_OSR_64SAMPLES		3
+#define AT91_SAMA5D2_EMR_OSR_256SAMPLES		4
 
 /* Extended Mode Register - Averaging on single trigger event */
 #define AT91_SAMA5D2_EMR_ASTE(V)		((V) << 20)
@@ -308,6 +310,8 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
 #define AT91_OSR_1SAMPLES		1
 #define AT91_OSR_4SAMPLES		4
 #define AT91_OSR_16SAMPLES		16
+#define AT91_OSR_64SAMPLES		64
+#define AT91_OSR_256SAMPLES		256
 
 #define AT91_SAMA5D2_CHAN_SINGLE(index, num, addr)			\
 	{								\
@@ -640,7 +644,9 @@ static const struct at91_adc_platform sama7g5_platform = {
 	.osr_mask = GENMASK(18, 16),
 	.osr_vals = BIT(AT91_SAMA5D2_EMR_OSR_1SAMPLES) |
 		    BIT(AT91_SAMA5D2_EMR_OSR_4SAMPLES) |
-		    BIT(AT91_SAMA5D2_EMR_OSR_16SAMPLES),
+		    BIT(AT91_SAMA5D2_EMR_OSR_16SAMPLES) |
+		    BIT(AT91_SAMA5D2_EMR_OSR_64SAMPLES) |
+		    BIT(AT91_SAMA5D2_EMR_OSR_256SAMPLES),
 	.chan_realbits = 16,
 };
 
@@ -774,6 +780,18 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_16SAMPLES,
 					    osr_mask);
 		break;
+	case AT91_OSR_64SAMPLES:
+		if (!(osr_vals & BIT(AT91_SAMA5D2_EMR_OSR_64SAMPLES)))
+			return -EINVAL;
+		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_64SAMPLES,
+					    osr_mask);
+		break;
+	case AT91_OSR_256SAMPLES:
+		if (!(osr_vals & BIT(AT91_SAMA5D2_EMR_OSR_256SAMPLES)))
+			return -EINVAL;
+		emr |= AT91_SAMA5D2_EMR_OSR(AT91_SAMA5D2_EMR_OSR_256SAMPLES,
+					    osr_mask);
+		break;
 	}
 
 	at91_adc_writel(st, EMR, emr);
@@ -791,6 +809,10 @@ static int at91_adc_adjust_val_osr(struct at91_adc_state *st, int *val)
 		nbits = 13;
 	else if (st->oversampling_ratio == AT91_OSR_16SAMPLES)
 		nbits = 14;
+	else if (st->oversampling_ratio == AT91_OSR_64SAMPLES)
+		nbits = 15;
+	else if (st->oversampling_ratio == AT91_OSR_256SAMPLES)
+		nbits = 16;
 
 	/*
 	 * We have nbits of real data and channel is registered as
@@ -1670,7 +1692,8 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		if ((val != AT91_OSR_1SAMPLES) && (val != AT91_OSR_4SAMPLES) &&
-		    (val != AT91_OSR_16SAMPLES))
+		    (val != AT91_OSR_16SAMPLES) && (val != AT91_OSR_64SAMPLES) &&
+		    (val != AT91_OSR_256SAMPLES))
 			return -EINVAL;
 		/* if no change, optimize out */
 		if (val == st->oversampling_ratio)
@@ -1883,7 +1906,9 @@ static IIO_CONST_ATTR(hwfifo_watermark_max, AT91_HWFIFO_MAX_SIZE_STR);
 static IIO_CONST_ATTR(oversampling_ratio_available,
 		      __stringify(AT91_OSR_1SAMPLES) " "
 		      __stringify(AT91_OSR_4SAMPLES) " "
-		      __stringify(AT91_OSR_16SAMPLES));
+		      __stringify(AT91_OSR_16SAMPLES) " "
+		      __stringify(AT91_OSR_64SAMPLES) " "
+		      __stringify(AT91_OSR_256SAMPLES));
 
 static struct attribute *at91_adc_attributes[] = {
 	&iio_const_attr_oversampling_ratio_available.dev_attr.attr,
