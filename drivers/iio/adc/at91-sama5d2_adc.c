@@ -404,6 +404,7 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
  * @hw_trig_cnt:	number of possible hardware triggers
  * @osr_mask:		oversampling ratio bitmask on EMR register
  * @osr_vals:		available oversampling rates
+ * @chan_realbits:	realbits for registered channels
  */
 struct at91_adc_platform {
 	const struct at91_adc_reg_layout	*layout;
@@ -417,6 +418,7 @@ struct at91_adc_platform {
 	unsigned int				hw_trig_cnt;
 	unsigned int				osr_mask;
 	unsigned int				osr_vals;
+	unsigned int				chan_realbits;
 };
 
 /**
@@ -619,6 +621,7 @@ static const struct at91_adc_platform sama5d2_platform = {
 	.osr_vals = BIT(AT91_SAMA5D2_EMR_OSR_1SAMPLES) |
 		    BIT(AT91_SAMA5D2_EMR_OSR_4SAMPLES) |
 		    BIT(AT91_SAMA5D2_EMR_OSR_16SAMPLES),
+	.chan_realbits = 14,
 };
 
 static const struct at91_adc_platform sama7g5_platform = {
@@ -638,6 +641,7 @@ static const struct at91_adc_platform sama7g5_platform = {
 	.osr_vals = BIT(AT91_SAMA5D2_EMR_OSR_1SAMPLES) |
 		    BIT(AT91_SAMA5D2_EMR_OSR_4SAMPLES) |
 		    BIT(AT91_SAMA5D2_EMR_OSR_16SAMPLES),
+	.chan_realbits = 16,
 };
 
 static int at91_adc_chan_xlate(struct iio_dev *indio_dev, int chan)
@@ -779,19 +783,21 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 
 static int at91_adc_adjust_val_osr(struct at91_adc_state *st, int *val)
 {
-	if (st->oversampling_ratio == AT91_OSR_1SAMPLES) {
-		/*
-		 * in this case we only have 12 bits of real data, but channel
-		 * is registered as 14 bits, so shift left two bits
-		 */
-		*val <<= 2;
-	} else if (st->oversampling_ratio == AT91_OSR_4SAMPLES) {
-		/*
-		 * in this case we have 13 bits of real data, but channel
-		 * is registered as 14 bits, so left shift one bit
-		 */
-		*val <<= 1;
-	}
+	int nbits, diff;
+
+	if (st->oversampling_ratio == AT91_OSR_1SAMPLES)
+		nbits = 12;
+	else if (st->oversampling_ratio == AT91_OSR_4SAMPLES)
+		nbits = 13;
+	else if (st->oversampling_ratio == AT91_OSR_16SAMPLES)
+		nbits = 14;
+
+	/*
+	 * We have nbits of real data and channel is registered as
+	 * st->soc_info.platform->chan_realbits, so shift left diff bits.
+	 */
+	diff = st->soc_info.platform->chan_realbits - nbits;
+	*val <<= diff;
 
 	return IIO_VAL_INT;
 }
