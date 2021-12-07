@@ -604,8 +604,8 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 		goto freeurb;
 	}
 
-	buf = ops->dev_frame_to_cmd(priv, skb, &context->dlc, &cmd_len,
-				    context->echo_index);
+	buf = ops->dev_frame_to_cmd(priv, skb, &cmd_len,
+					 context->echo_index);
 	if (!buf) {
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
