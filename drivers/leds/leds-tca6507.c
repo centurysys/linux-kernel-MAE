@@ -693,6 +693,7 @@ tca6507_led_dt_init(struct device *dev)
 		u32 reg;
 		int ret;
 
+		memset(&led, 0, sizeof(led));
 		if (fwnode_property_read_string(child, "label", &led.name))
 			led.name = fwnode_get_name(child);
 
