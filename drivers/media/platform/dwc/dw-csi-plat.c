@@ -347,25 +347,28 @@ static const struct v4l2_async_notifier_operations csi2host_async_ops = {
 static int
 dw_mipi_csi_parse_dt(struct platform_device *pdev, struct dw_csi *dev)
 {
-	struct device_node *node = pdev->dev.of_node, *input_node, *output_node,
-			   *input_parent;
+	struct device_node *of_node = pdev->dev.of_node;
+	struct fwnode_handle *input_fwnode, *output_fwnode;
 	struct v4l2_fwnode_endpoint ep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	struct v4l2_fwnode_endpoint ep2 = { };
 	struct v4l2_async_subdev *asd;
 	int ret = 0;
 
-	if (of_property_read_u32(node, "snps,output-type",
+	if (of_property_read_u32(of_node, "snps,output-type",
 				 &dev->hw.output))
 		dev->hw.output = 2;
 
-	input_node = of_graph_get_next_endpoint(node, NULL);
-	if (!input_node) {
-		dev_err(&pdev->dev, "No port node at %pOF\n",
-			pdev->dev.of_node);
+	input_fwnode = fwnode_graph_get_next_endpoint(of_fwnode_handle(of_node),
+						      NULL);
+	if (!input_fwnode) {
+		dev_err(&pdev->dev,
+			"missing port node at %pOF, input node is mandatory.\n",
+			of_node);
 		return -EINVAL;
 	}
+
 	/* Get port node and validate MIPI-CSI channel id. */
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(input_node), &ep);
+	ret = v4l2_fwnode_endpoint_parse(input_fwnode, &ep);
 	if (ret)
 		goto err;
 
@@ -376,29 +379,26 @@ dw_mipi_csi_parse_dt(struct platform_device *pdev, struct dw_csi *dev)
 	}
 	dev->hw.num_lanes = ep.bus.mipi_csi2.num_data_lanes;
 
-	input_parent = of_graph_get_remote_port_parent(input_node);
-	if (!input_parent) {
-		dev_err(&pdev->dev, "could not get input node's parent node.\n");
-		return -EINVAL;
+	output_fwnode = fwnode_graph_get_next_endpoint
+				(of_fwnode_handle(of_node), input_fwnode);
+
+	if (output_fwnode) {
+		ret = v4l2_fwnode_endpoint_parse(output_fwnode,
+						 &ep2);
+
+		fwnode_handle_put(output_fwnode);
 	}
 
-	output_node = of_graph_get_next_endpoint(node, input_node);
-	if (!node) {
-		dev_err(&pdev->dev, "No port 2 node at %s\n",
-				pdev->dev.of_node->full_name);
-		return -EINVAL;
+	if (!output_fwnode || ret) {
+		dev_info(&pdev->dev,
+			 "missing output node at %pOF\n", of_node);
 	}
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(output_node), &ep2);
-	if (ret)
-		goto err;
 
 	v4l2_async_notifier_init(&dev->notifier);
 
         asd = v4l2_async_notifier_add_fwnode_remote_subdev(&dev->notifier,
-                                        of_fwnode_handle(input_node),
+                                        input_fwnode,
                                         struct v4l2_async_subdev);
-
-	of_node_put(input_parent);
 
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
@@ -407,7 +407,7 @@ dw_mipi_csi_parse_dt(struct platform_device *pdev, struct dw_csi *dev)
 
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add async notifier.\n");
-		goto csi2host_prepare_notifier_err;
+		goto err;
 	}
 
 	dev->notifier.ops = &csi2host_async_ops;
@@ -416,13 +416,11 @@ dw_mipi_csi_parse_dt(struct platform_device *pdev, struct dw_csi *dev)
 
 	if (ret) {
 		dev_err(&pdev->dev, "fail to register async notifier.\n");
-		goto csi2host_prepare_notifier_err;
+		goto err;
 	}
 
-csi2host_prepare_notifier_err:
-	of_node_put(input_parent);
 err:
-	of_node_put(node);
+	of_node_put(of_node);
 	return ret;
 }
 
