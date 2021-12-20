@@ -227,6 +227,7 @@ static int dw_mipi_csi_init_cfg(struct v4l2_subdev *sd,
 static int dw_mipi_csi_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct dw_csi *dev = sd_to_mipi_csi_dev(sd);
+	int ret = v4l2_subdev_call(dev->input_sd, video, s_stream, enable);
 
 	if (enable) {
 		dw_mipi_csi_hw_stdby(dev);
@@ -237,8 +238,7 @@ static int dw_mipi_csi_s_stream(struct v4l2_subdev *sd, int enable)
 		/* reset data type */
 		dev->ipi_dt = 0x0;
 	}
-
-	return v4l2_subdev_call(dev->input_sd, video, s_stream, enable);
+	return ret;
 }
 
 static struct v4l2_subdev_core_ops dw_mipi_csi_core_ops = {
