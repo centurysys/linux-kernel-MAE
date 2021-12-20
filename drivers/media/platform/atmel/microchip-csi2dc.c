@@ -533,9 +533,9 @@ static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
 	struct v4l2_async_subdev *asd;
 	int ret = 0;
 
-	v4l2_async_nf_init(&csi2dc->notifier);
+	v4l2_async_notifier_init(&csi2dc->notifier);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csi2dc->notifier,
+	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&csi2dc->notifier,
 					      input_fwnode,
 					      struct v4l2_async_subdev);
 
@@ -546,18 +546,18 @@ static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
 		dev_err(csi2dc->dev,
 			"failed to add async notifier for node %pOF: %d\n",
 			to_of_node(input_fwnode), ret);
-		v4l2_async_nf_cleanup(&csi2dc->notifier);
+		v4l2_async_notifier_cleanup(&csi2dc->notifier);
 		return ret;
 	}
 
 	csi2dc->notifier.ops = &csi2dc_async_ops;
 
-	ret = v4l2_async_subdev_nf_register(&csi2dc->csi2dc_sd,
+	ret = v4l2_async_subdev_notifier_register(&csi2dc->csi2dc_sd,
 					    &csi2dc->notifier);
 	if (ret) {
 		dev_err(csi2dc->dev, "fail to register async notifier: %d\n",
 			ret);
-		v4l2_async_nf_cleanup(&csi2dc->notifier);
+		v4l2_async_notifier_cleanup(&csi2dc->notifier);
 	}
 
 	return ret;
@@ -743,7 +743,7 @@ static int csi2dc_probe(struct platform_device *pdev)
 	return 0;
 
 csi2dc_probe_cleanup_notifier:
-	v4l2_async_nf_cleanup(&csi2dc->notifier);
+	v4l2_async_notifier_cleanup(&csi2dc->notifier);
 csi2dc_probe_cleanup_entity:
 	media_entity_cleanup(&csi2dc->csi2dc_sd.entity);
 
@@ -757,8 +757,8 @@ static int csi2dc_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	v4l2_async_unregister_subdev(&csi2dc->csi2dc_sd);
-	v4l2_async_nf_unregister(&csi2dc->notifier);
-	v4l2_async_nf_cleanup(&csi2dc->notifier);
+	v4l2_async_notifier_unregister(&csi2dc->notifier);
+	v4l2_async_notifier_cleanup(&csi2dc->notifier);
 	media_entity_cleanup(&csi2dc->csi2dc_sd.entity);
 
 	return 0;
