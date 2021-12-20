@@ -278,7 +278,7 @@ void dw_mipi_csi_start(struct dw_csi *csi_dev)
 	struct device *dev = csi_dev->dev;
 
 	dw_mipi_csi_write(csi_dev, reg.N_LANES, (csi_dev->hw.num_lanes - 1));
-	dev_info(dev, "number of lanes: %d\n", csi_dev->hw.num_lanes);
+	dev_dbg(dev, "number of lanes: %d\n", csi_dev->hw.num_lanes);
 
 	/* IPI Related Configuration */
 	if (csi_dev->hw.output == IPI_OUT || csi_dev->hw.output == BOTH_OUT) {
