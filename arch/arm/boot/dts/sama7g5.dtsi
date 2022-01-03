@@ -159,6 +159,12 @@
 			clock-names = "td_slck", "md_slck", "main_xtal";
 		};
 
+		reset_controller: rstc@e001d000 {
+			compatible = "microchip,sama7g5-rstc", "microchip,sam9x60-rstc", "syscon";
+			reg = <0xe001d000 0xc>, <0xe001d0e4 0x4>;
+			clocks = <&clk32k 0>;
+		};
+
 		shdwc: shdwc@e001d010 {
 			compatible = "microchip,sama7g5-shdwc", "syscon";
 			reg = <0xe001d010 0x10>;
