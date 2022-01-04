@@ -10,6 +10,13 @@
  */
 #ifndef _ATMEL_ISC_H_
 
+#include <linux/clk-provider.h>
+#include <linux/platform_device.h>
+
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/videobuf2-dma-contig.h>
+
 #define ISC_CLK_MAX_DIV		255
 
 enum isc_clk_id {
@@ -95,6 +102,9 @@ struct isc_format {
 			configuration.
  * @fourcc:		Fourcc code for this format.
  * @bpp:		Bytes per pixel in the current format.
+ * @bpp_v4l2:		Bytes per pixel in the current format, for v4l2.
+			This differs from 'bpp' in the sense that in planar
+			formats, it refers only to the first plane.
  * @rlp_cfg_mode:	Configuration of the RLP (rounding, limiting packaging)
  * @dcfg_imode:		Configuration of the input of the DMA module
  * @dctrl_dview:	Configuration of the output of the DMA module
@@ -105,6 +115,7 @@ struct fmt_config {
 
 	u32			fourcc;
 	u8			bpp;
+	u8			bpp_v4l2;
 
 	u32			rlp_cfg_mode;
 	u32			dcfg_imode;
@@ -170,6 +181,17 @@ struct isc_reg_offsets {
 	u32 dma;
 	u32 version;
 	u32 his_entry;
+};
+
+enum isc_mc_pads {
+	ISC_PAD_SINK	= 0,
+	ISC_PADS_NUM	= 1,
+};
+
+enum isc_scaler_pads {
+	ISC_SCALER_PAD_SINK	= 0,
+	ISC_SCALER_PAD_SOURCE	= 1,
+	ISC_SCALER_PADS_NUM	= 2,
 };
 
 /*
@@ -247,6 +269,12 @@ struct isc_reg_offsets {
  *			be used as an input to the controller
  * @controller_formats_size:	size of controller_formats array
  * @formats_list_size:	size of formats_list array
+ * @pads:		media controller pads for isc video entity
+ * @mdev:		media device that is registered by the isc
+ * @remote_pad:		remote pad on the connected subdevice
+ * @scaler_sd:		subdevice for the scaler that isc registers
+ * @scaler_pads:	media controller pads for the scaler subdevice
+ * @scaler_format:	current format for the scaler subdevice
  */
 struct isc_device {
 	struct regmap		*regmap;
@@ -269,6 +297,7 @@ struct isc_device {
 	struct completion	comp;
 
 	struct v4l2_format	fmt;
+	struct v4l2_format	try_fmt;
 	struct isc_format	**user_formats;
 	unsigned int		num_user_formats;
 
@@ -279,6 +308,7 @@ struct isc_device {
 	struct work_struct	awb_work;
 
 	struct mutex		lock; /* serialize access to file operations */
+	struct mutex		awb_mutex; /* serialize access to streaming status from awb work queue */
 	spinlock_t		awb_lock; /* serialize access to DMA buffers from awb work queue */
 
 	struct regmap_field	*pipeline[ISC_PIPE_LINE_NODE_NUM];
@@ -335,6 +365,19 @@ struct isc_device {
 	struct isc_format		*formats_list;
 	u32				controller_formats_size;
 	u32				formats_list_size;
+
+	struct {
+		struct media_pad		pads[ISC_PADS_NUM];
+		struct media_device		mdev;
+
+		u32				remote_pad;
+	};
+
+	struct {
+		struct v4l2_subdev		scaler_sd;
+		struct media_pad		scaler_pads[ISC_SCALER_PADS_NUM];
+		struct v4l2_mbus_framefmt	scaler_format;
+	};
 };
 
 extern const struct regmap_config isc_regmap_config;
@@ -346,4 +389,10 @@ int isc_clk_init(struct isc_device *isc);
 void isc_subdev_cleanup(struct isc_device *isc);
 void isc_clk_cleanup(struct isc_device *isc);
 
+int isc_mc_init(struct isc_device *isc, u32 ver);
+int isc_mc_register(struct isc_device *isc);
+void isc_mc_cleanup(struct isc_device *isc);
+
+struct isc_format *isc_find_format_by_code(struct isc_device *isc,
+					   unsigned int code, int *index);
 #endif
