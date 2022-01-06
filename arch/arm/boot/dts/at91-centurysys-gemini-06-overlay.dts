@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * at91-centurysys-gemini-05-overlay.dts - Device Tree Overlay file (xio_id: 0x05)
+ * at91-centurysys-gemini-06-overlay.dts - Device Tree Overlay file (xio_id: 0x06)
  *                                           for Century Systems Gemini board
  *
  *  Copyright (C) 2022 Century Systems
@@ -32,6 +32,18 @@
 	};
 
 	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			vadc_fixed: fixedregulator_adc {
+				compatible = "regulator-fixed";
+				regulator-name = "VADC_5V";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+			};
+		};
+	};
+
+	fragment@2 {
 		target = <&flx3>;
 		__overlay__ {
 			atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
@@ -63,13 +75,19 @@
 		};
 	};
 
-	fragment@2 {
+	fragment@3 {
 		target = <&i2c1>;
 		__overlay__ {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			/* GNSS Option (xio_id: 5) */
+			/* Water Meter Option (xio_id: 6) */
+			ltc2487: ltc2487@14 {
+				compatible = "lltc,ltc2487";
+				reg = <0x14>;
+				vref-supply = <&vadc_fixed>;
+			};
+
 			tca9538: tca9538@70 {
 				compatible = "nxp,pca9538";
 				reg = <0x70>;
@@ -77,14 +95,14 @@
 				#size-cells = <0>;
 				#gpio-cells = <2>;
 
-				gpio-line-names = "GNSS_LED_R",
-						  "GNSS_LED_G",
+				gpio-line-names = "eFUSE_SHDN_N",
+						  "eFUSE_FLT_N",
 						  "Reserved2",
 						  "Reserved3",
-						  "GNSS_Power",
+						  "DISO_PDIS_N",
 						  "Reserved5",
 						  "Reserved6",
-						  "GNSS_Reset";
+						  "TXD_Enable";
 			};
 		};
 	};
@@ -92,27 +110,20 @@
 	fragment@4 {
 		target = <&leds>;
 		__overlay__ {
-			tca953x_gnss_red {
-				label = "GNSS_R";
-				gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
+			tca953x_efuse_shdn_n {
+				label = "VOUT_CTRL";
+				gpios = <&tca9538 0 GPIO_ACTIVE_HIGH>;
 			};
 
-			tca953x_gnss_green {
-				label = "GNSS_G";
-				gpios = <&tca9538 1 GPIO_ACTIVE_LOW>;
-			};
-
-			tca953x_gnss_power {
-				label = "GNSS_Power";
+			tca953x_adc_vcc_on {
+				label = "ADC_VCC_ON";
 				gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
 			};
 
-			tca953x_gnss_reset {
-				label = "GNSS_RESET";
+			tca953x_txd_enable {
+				label = "TXD_Enable";
 				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "oneshot";
-				led-pattern = <100 100>;
-				default-state = "off";
 			};
 		};
 	};
