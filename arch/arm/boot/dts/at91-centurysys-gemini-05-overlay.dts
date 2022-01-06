@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-05-overlay.dts - Device Tree Overlay file (xio_id: 0x03)
+ *                                           for Century Systems Gemini board
+ *
+ *  Copyright (C) 2022 Century Systems
+ *                     Takeyoshi Kikuchi <kikuchi@centurysys.co.jp>
+ */
+
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/dma/at91.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/at91.h>
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+
+	fragment@0 {
+		target = <&pioA>;
+		__overlay__ {
+			pinctrl_flx3_uart_default: flx3_usart_default {
+				pinmux = <PIN_PC20__FLEXCOM3_IO0>, //TX
+					 <PIN_PC19__FLEXCOM3_IO1>; //RX
+				bias-disable;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&flx3>;
+		__overlay__ {
+			atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "okay";
+
+			uart6: serial@200 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0x200 0x200>;
+				interrupt-parent = <&aic>;
+				interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(17))>,
+				       <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(18))>;
+				dma-names = "tx", "rx";
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
+				clock-names = "usart";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_flx3_uart_default>;
+				atmel,fifo-size = <32>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* GNSS Option (xio_id: 5) */
+			tca9538: tca9538@70 {
+				compatible = "nxp,pca9538";
+				reg = <0x70>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#gpio-cells = <2>;
+
+				gpio-line-names = "GNSS_LED_R",
+						  "GNSS_LED_G",
+						  "Reserved2",
+						  "Reserved3",
+						  "GNSS_Power",
+						  "Reserved5",
+						  "Reserved6",
+						  "GNSS_Reset";
+			};
+		};
+	};
+
+	fragment@4 {
+		target = <&leds>;
+		__overlay__ {
+			tca953x_gnss_red {
+				label = "GNSS_R";
+				gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
+			};
+
+			tca953x_gnss_green {
+				label = "GNSS_G";
+				gpios = <&tca9538 1 GPIO_ACTIVE_LOW>;
+			};
+
+			tca953x_gnss_power {
+				label = "GNSS_Power";
+				gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
+			};
+
+			tca953x_gnss_reset {
+				label = "GNSS_RESET";
+				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "oneshot";
+				led-pattern = <100 100>;
+				default-state = "off";
+			};
+		};
+	};
+};
