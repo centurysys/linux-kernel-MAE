@@ -534,15 +534,6 @@
 					bias-disable;
 				};
 
-				pinctrl_flx3_default: flx3_default {
-					pinmux = <PIN_PC20__FLEXCOM3_IO0>,
-						 <PIN_PC19__FLEXCOM3_IO1>,
-						 <PIN_PC18__FLEXCOM3_IO2>,
-						 <PIN_PC21__FLEXCOM3_IO3>,
-						 <PIN_PC22__FLEXCOM3_IO4>;
-					bias-disable;
-				};
-
 				pinctrl_flx4_default: flx4_default {
 					pinmux = <PIN_PC28__FLEXCOM4_IO0>,
 						 <PIN_PC29__FLEXCOM4_IO1>,
