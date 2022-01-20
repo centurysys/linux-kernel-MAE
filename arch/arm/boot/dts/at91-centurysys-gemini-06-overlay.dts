@@ -68,8 +68,8 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_flx3_uart_default>;
 				atmel,fifo-size = <32>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
+				/*atmel,use-dma-rx;*/
+				/*atmel,use-dma-tx;*/
 				status = "okay";
 			};
 		};
@@ -123,7 +123,7 @@
 
 			tca953x_txd_enable {
 				label = "TXD_Enable";
-				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
+				gpios = <&tca9538 7 GPIO_ACTIVE_LOW>;
 			};
 		};
 	};
