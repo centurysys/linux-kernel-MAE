@@ -30,7 +30,7 @@
 
 #define BACKUP_DDR_PHY_CALIBRATION	(9)
 
-/**
+/*
  * struct at91_pm_bu - AT91 power management backup unit data structure
  * @suspended: true if suspended to backup mode
  * @reserved: reserved
@@ -60,7 +60,7 @@ struct at91_pm_sfrbu_regs {
 	} pswbu;
 };
 
-/**
+/*
  * struct at91_soc_pm - AT91 SoC power management data structure
  * @config_shdwc_ws: wakeup sources configuration function for SHDWC
  * @config_pmc_ws: wakeup srouces configuration function for PMC
@@ -82,7 +82,7 @@ struct at91_soc_pm {
 	void *memcs;
 };
 
-/**
+/*
  * enum at91_pm_iomaps:	IOs that needs to be mapped for different PM modes
  * @AT91_PM_IOMAP_SHDWC:	SHDWC controller
  * @AT91_PM_IOMAP_SFRBU:	SFRBU controller
