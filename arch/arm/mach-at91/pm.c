@@ -66,9 +66,9 @@ struct at91_pm_sfrbu_regs {
  * @config_pmc_ws: wakeup srouces configuration function for PMC
  * @ws_ids: wakup sources of_device_id array
  * @shdwc_np: pointer to shdwc node
+ * @bu: backup unit mapped data (for backup mode)
  * @data: PM data to be used on last phase of suspend
  * @sfrbu_regs: SFRBU registers mapping
- * @bu: backup unit mapped data (for backup mode)
  * @memcs: memory chip select
  */
 struct at91_soc_pm {
