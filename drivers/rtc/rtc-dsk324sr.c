@@ -66,26 +66,43 @@ static struct i2c_driver dsk324sr_driver;
 
 static int dsk324sr_read_time(struct device *dev, struct rtc_time *tm)
 {
+#define DATALEN 14
 	struct i2c_client *client = to_i2c_client(dev);
-	unsigned char date[7];
-	int data, err;
+	unsigned char date[DATALEN], date2[DATALEN];
+	int data, err, retry;
+	bool ok = false;
 
-	/* Now read time and date */
-	err = i2c_smbus_read_i2c_block_data(client, DSK324SR_REG_SC,
-		7, date);
+        for (retry = 0; retry < 3; retry++) {
+		/* Now read time and date */
+		err = i2c_smbus_read_i2c_block_data(client, DSK324SR_REG_SC,
+			DATALEN, date);
 
-	if (err < 0) {
+		if (err < DATALEN) {
+			dev_err(&client->dev, "Unable to read date (1), result = %d\n", err);
+			continue;
+		}
+
+		err = i2c_smbus_read_i2c_block_data(client, DSK324SR_REG_SC,
+			14, date2);
+
+		if (err < DATALEN) {
+			dev_err(&client->dev, "Unable to read date (2), result = %d\n", err);
+			continue;
+		}
+
+		if (memcmp(date, date2, DATALEN) == 0) {
+			ok = true;
+			break;
+		}
+	}
+
+	if (!ok) {
 		dev_err(&client->dev, "Unable to read date\n");
 		return -EIO;
 	}
 
 	/* Check flag register */
-	data = i2c_smbus_read_byte_data(client, DSK324SR_REG_FLAG);
-
-	if (data < 0) {
-		dev_err(&client->dev, "Unable to read device flags\n");
-		return -EIO;
-	}
+	data = (int) date[DSK324SR_REG_FLAG];
 
 	/* make sure VDHF bit cleared */
 	if (data & DSK324SR_FLAG_VDHF)
