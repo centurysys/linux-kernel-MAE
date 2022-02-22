@@ -195,6 +195,11 @@ static const struct at91_reset_data sam9x60 = {
 	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
 };
 
+static const struct at91_reset_data sama7g5 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
+	.n_device_reset = 3,
+};
+
 static const struct of_device_id at91_reset_of_match[] = {
 	{
 		.compatible = "atmel,at91sam9260-rstc",
@@ -215,6 +220,10 @@ static const struct of_device_id at91_reset_of_match[] = {
 	{
 		.compatible = "microchip,sam9x60-rstc",
 		.data = &sam9x60,
+	},
+	{
+		.compatible = "microchip,sama7g5-rstc",
+		.data = &sama7g5,
 	},
 	{ /* sentinel */ }
 };
