@@ -17,6 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
+#include <linux/reset-controller.h>
 
 #include <soc/at91/at91sam9_ddrsdr.h>
 #include <soc/at91/at91sam9_sdramc.h>
@@ -53,10 +54,20 @@ enum reset_type {
 struct at91_reset {
 	void __iomem *rstc_base;
 	void __iomem *ramc_base[2];
+	void __iomem *dev_base;
+	struct reset_controller_dev rcdev;
 	struct clk *sclk;
 	struct notifier_block nb;
+	spinlock_t lock;
 	u32 args;
 	u32 ramc_lpr;
+};
+
+#define to_at91_reset(r)	container_of(r, struct at91_reset, rcdev)
+
+struct at91_reset_data {
+	u32 reset_args;
+	u32 n_device_reset;
 };
 
 /*
@@ -68,6 +79,9 @@ static int at91_reset(struct notifier_block *this, unsigned long mode,
 		      void *cmd)
 {
 	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
+	unsigned long flags;
+
+	spin_lock_irqsave(&reset->lock, flags);
 
 	asm volatile(
 		/* Align to cache lines */
@@ -99,14 +113,22 @@ static int at91_reset(struct notifier_block *this, unsigned long mode,
 		  "r" (reset->ramc_lpr)
 		: "r4");
 
+	spin_unlock_irqrestore(&reset->lock, flags);
+
 	return NOTIFY_DONE;
 }
 
-static void __init at91_reset_status(struct platform_device *pdev,
+static void __init at91_reset_status(struct at91_reset *reset,
+				     struct platform_device *pdev,
 				     void __iomem *base)
 {
 	const char *reason;
-	u32 reg = readl(base + AT91_RSTC_SR);
+	unsigned long flags;
+	u32 reg;
+
+	spin_lock_irqsave(&reset->lock, flags);
+	reg = readl(base + AT91_RSTC_SR);
+	spin_unlock_irqrestore(&reset->lock, flags);
 
 	switch ((reg & AT91_RSTC_RSTTYP) >> 8) {
 	case RESET_TYPE_GENERAL:
@@ -153,37 +175,144 @@ static const struct of_device_id at91_ramc_of_match[] = {
 	{ /* sentinel */ }
 };
 
+static const struct at91_reset_data sam9260 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
+};
+
+static const struct at91_reset_data sam9g45 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
+};
+
+static const struct at91_reset_data sama5d3 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
+};
+
+static const struct at91_reset_data samx7 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
+};
+
+static const struct at91_reset_data sam9x60 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
+};
+
+static const struct at91_reset_data sama7g5 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
+	.n_device_reset = 3,
+};
+
 static const struct of_device_id at91_reset_of_match[] = {
 	{
 		.compatible = "atmel,at91sam9260-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
-				 AT91_RSTC_PROCRST),
+		.data = &sam9260,
 	},
 	{
 		.compatible = "atmel,at91sam9g45-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
-				 AT91_RSTC_PROCRST)
+		.data = &sam9g45,
 	},
 	{
 		.compatible = "atmel,sama5d3-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
-				 AT91_RSTC_PROCRST)
+		.data = &sama5d3,
 	},
 	{
 		.compatible = "atmel,samx7-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PROCRST)
+		.data = &samx7,
 	},
 	{
 		.compatible = "microchip,sam9x60-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PROCRST)
+		.data = &sam9x60,
+	},
+	{
+		.compatible = "microchip,sama7g5-rstc",
+		.data = &sama7g5,
 	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, at91_reset_of_match);
 
+static int at91_reset_update(struct reset_controller_dev *rcdev,
+			     unsigned long id, bool assert)
+{
+	struct at91_reset *reset = to_at91_reset(rcdev);
+	unsigned long flags;
+	unsigned int val;
+
+	spin_lock_irqsave(&reset->lock, flags);
+	val = readl_relaxed(reset->dev_base);
+	if (assert)
+		val |= BIT(id);
+	else
+		val &= ~BIT(id);
+
+	writel_relaxed(val, reset->dev_base);
+	spin_unlock_irqrestore(&reset->lock, flags);
+
+	return 0;
+}
+
+static int at91_reset_assert(struct reset_controller_dev *rcdev,
+			     unsigned long id)
+{
+	return at91_reset_update(rcdev, id, true);
+}
+
+static int at91_reset_deassert(struct reset_controller_dev *rcdev,
+			       unsigned long id)
+{
+	return at91_reset_update(rcdev, id, false);
+}
+
+static int at91_reset_dev_status(struct reset_controller_dev *rcdev,
+				 unsigned long id)
+{
+	struct at91_reset *reset = to_at91_reset(rcdev);
+	unsigned long flags;
+	unsigned int val;
+
+	spin_lock_irqsave(&reset->lock, flags);
+	val = readl_relaxed(reset->dev_base);
+	spin_unlock_irqrestore(&reset->lock, flags);
+
+	return !!(val & BIT(id));
+}
+
+static const struct reset_control_ops at91_reset_ops = {
+	.assert = at91_reset_assert,
+	.deassert = at91_reset_deassert,
+	.status = at91_reset_dev_status,
+};
+
+static int at91_reset_of_xlate(struct reset_controller_dev *rcdev,
+			       const struct of_phandle_args *reset_spec)
+{
+	return reset_spec->args[0];
+}
+
+static int at91_rcdev_init(struct at91_reset *reset,
+			   const struct at91_reset_data *data,
+			   struct platform_device *pdev)
+{
+	if (!data->n_device_reset)
+		return 0;
+
+	reset->dev_base = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 1,
+					NULL);
+	if (IS_ERR(reset->rstc_base))
+		return -ENODEV;
+
+	reset->rcdev.ops = &at91_reset_ops;
+	reset->rcdev.owner = THIS_MODULE;
+	reset->rcdev.of_node = pdev->dev.of_node;
+	reset->rcdev.nr_resets = data->n_device_reset;
+	reset->rcdev.of_reset_n_cells = 1;
+	reset->rcdev.of_xlate = at91_reset_of_xlate;
+
+	return devm_reset_controller_register(&pdev->dev, &reset->rcdev);
+}
+
 static int __init at91_reset_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
+	const struct at91_reset_data *data;
 	struct at91_reset *reset;
 	struct device_node *np;
 	int ret, idx = 0;
@@ -213,9 +342,13 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
+	if (!match || !match->data)
+		return -ENODEV;
+
+	data = match->data;
 	reset->nb.notifier_call = at91_reset;
 	reset->nb.priority = 192;
-	reset->args = (u32)match->data;
+	reset->args = data->reset_args;
 
 	reset->sclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(reset->sclk))
@@ -229,22 +362,33 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, reset);
 
+	ret = at91_rcdev_init(reset, data, pdev);
+	if (ret)
+		goto disable_clk;
+
 	if (of_device_is_compatible(pdev->dev.of_node, "microchip,sam9x60-rstc")) {
-		u32 val = readl(reset->rstc_base + AT91_RSTC_MR);
+		unsigned long flags;
+		u32 val;
+
+		spin_lock_irqsave(&reset->lock, flags);
+		val = readl(reset->rstc_base + AT91_RSTC_MR);
 
 		writel(AT91_RSTC_KEY | AT91_RSTC_URSTASYNC | val,
 		       reset->rstc_base + AT91_RSTC_MR);
+		spin_unlock_irqrestore(&reset->lock, flags);
 	}
 
 	ret = register_restart_handler(&reset->nb);
-	if (ret) {
-		clk_disable_unprepare(reset->sclk);
-		return ret;
-	}
+	if (ret)
+		goto disable_clk;
 
-	at91_reset_status(pdev, reset->rstc_base);
+	at91_reset_status(reset, pdev, reset->rstc_base);
 
 	return 0;
+
+disable_clk:
+	clk_disable_unprepare(reset->sclk);
+	return ret;
 }
 
 static int __exit at91_reset_remove(struct platform_device *pdev)
