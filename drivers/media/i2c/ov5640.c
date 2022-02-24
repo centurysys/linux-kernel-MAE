@@ -2005,9 +2005,14 @@ ov5640_find_mode(struct ov5640_dev *sensor, enum ov5640_frame_rate fr,
 	     (mode->width != width || mode->height != height)))
 		return NULL;
 
-	/* Check to see if the current mode exceeds the max frame rate */
+	/*
+	 * Check to see if the current mode exceeds the max frame rate.
+	 * Only DVP mode uses the frame rate set by s_frame_interval, MIPI
+	 * mode controls framerate by setting blankings.
+	 */
 	timings = &mode->dvp_timings;
-	if (ov5640_framerates[fr] > ov5640_framerates[timings->max_fps])
+	if (!ov5640_is_csi2(sensor) &&
+	    ov5640_framerates[fr] > ov5640_framerates[timings->max_fps])
 		return NULL;
 
 	return mode;
@@ -3439,6 +3444,9 @@ static int ov5640_enum_frame_interval(
 	struct v4l2_fract tpf;
 	int ret;
 
+	if (ov5640_is_csi2(sensor))
+		return -EINVAL;
+
 	if (fie->pad != 0)
 		return -EINVAL;
 	if (fie->index >= OV5640_NUM_FRAMERATES)
@@ -3461,6 +3469,9 @@ static int ov5640_g_frame_interval(struct v4l2_subdev *sd,
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
 
+	if (ov5640_is_csi2(sensor))
+		return -EINVAL;
+
 	mutex_lock(&sensor->lock);
 	fi->interval = sensor->frame_interval;
 	mutex_unlock(&sensor->lock);
@@ -3474,6 +3485,9 @@ static int ov5640_s_frame_interval(struct v4l2_subdev *sd,
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
 	const struct ov5640_mode_info *mode;
 	int frame_rate, ret = 0;
+
+	if (ov5640_is_csi2(sensor))
+		return -EINVAL;
 
 	if (fi->pad != 0)
 		return -EINVAL;
