@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 15
 SUBLEVEL = 12
-EXTRAVERSION = -sama7g5-early-4.0-rc1
+EXTRAVERSION = -sama7g5-early-4.0
 NAME = Trick or Treat
 
 # *DOCUMENTATION*
