@@ -570,7 +570,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(isc->ispck);
 	if (ret) {
 		dev_err(dev, "failed to enable ispck: %d\n", ret);
-		goto isc_probe_mc_init_err;
+		goto disable_pm;
 	}
 
 	/* ispck should be greater or equal to hclock */
@@ -586,6 +586,9 @@ static int atmel_isc_probe(struct platform_device *pdev)
 
 unprepare_clk:
 	clk_disable_unprepare(isc->ispck);
+
+disable_pm:
+	pm_runtime_disable(dev);
 
 isc_probe_mc_init_err:
 	isc_mc_cleanup(isc);
