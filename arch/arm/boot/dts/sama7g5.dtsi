@@ -735,6 +735,7 @@
 				     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 37>;
 			clock-names = "pclk";
+			status = "disabled";
 		};
 
 		pit64b0: timer@e1800000 {
