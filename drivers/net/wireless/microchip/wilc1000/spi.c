@@ -276,6 +276,14 @@ static const struct of_device_id wilc_of_match[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, wilc_of_match);
+
+static const struct spi_device_id wilc_spi_id[] = {
+	{"wilc1000", 0},
+	{"wilc3000", 0},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, wilc_spi_id);
+
 static const struct dev_pm_ops wilc_spi_pm_ops = {
 	.suspend = wilc_spi_suspend,
 	.resume = wilc_spi_resume,
@@ -287,6 +295,7 @@ static struct spi_driver wilc_spi_driver = {
 		.of_match_table = wilc_of_match,
 		.pm = &wilc_spi_pm_ops,
 	},
+	.id_table = wilc_spi_id,
 	.probe =  wilc_bus_probe,
 	.remove = wilc_bus_remove,
 };
