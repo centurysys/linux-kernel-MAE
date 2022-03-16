@@ -135,6 +135,20 @@ static void dmaengine_pcm_dma_complete(void *arg)
 	struct snd_pcm_substream *substream = arg;
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
+	/*
+	 * workaround to clear mchp-pdmc's channel index when used as BE with
+	 * mchp-asrc
+	 */
+	if (substream->pcm->internal &&
+	    !strncmp(prtd->dma_chan->slave->driver->name, "mchp-pdmc", sizeof("mchp-pdmc"))) {
+		unsigned int sample_size = samples_to_bytes(substream->runtime, 1);
+		u8 *dma_ptr = substream->runtime->dma_area + prtd->pos;
+		u8 *dma_ptr_end = dma_ptr + snd_pcm_lib_period_bytes(substream);
+
+		for (; dma_ptr < dma_ptr_end; dma_ptr += sample_size)
+			*dma_ptr = 0;
+	}
+
 	prtd->pos += snd_pcm_lib_period_bytes(substream);
 	if (prtd->pos >= snd_pcm_lib_buffer_bytes(substream))
 		prtd->pos = 0;
