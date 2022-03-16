@@ -47,8 +47,6 @@
 #define OV5640_REG_SYS_RESET02		0x3002
 #define OV5640_REG_SYS_CLOCK_ENABLE02	0x3006
 #define OV5640_REG_SYS_CTRL0		0x3008
-#define OV5640_REG_SYS_CTRL0_SW_PWDN	0x42
-#define OV5640_REG_SYS_CTRL0_SW_PWUP	0x02
 #define OV5640_REG_CHIP_ID		0x300a
 #define OV5640_REG_IO_MIPI_CTRL00	0x300e
 #define OV5640_REG_PAD_OUTPUT_ENABLE01	0x3017
@@ -1699,12 +1697,6 @@ static void ov5640_load_regs(struct ov5640_dev *sensor,
 		val = regs->val;
 		mask = regs->mask;
 
-		/* remain in power down mode for DVP */
-		if (regs->reg_addr == OV5640_REG_SYS_CTRL0 &&
-		    val == OV5640_REG_SYS_CTRL0_SW_PWUP &&
-		    !ov5640_is_csi2(sensor))
-			continue;
-
 		if (mask)
 			ret = ov5640_mod_reg(sensor, reg_addr, mask, val);
 		else
@@ -1793,9 +1785,7 @@ static int ov5640_set_autogain(struct ov5640_dev *sensor, bool on)
 
 static int ov5640_set_stream_dvp(struct ov5640_dev *sensor, bool on)
 {
-	return ov5640_write_reg(sensor, OV5640_REG_SYS_CTRL0, on ?
-				OV5640_REG_SYS_CTRL0_SW_PWUP :
-				OV5640_REG_SYS_CTRL0_SW_PWDN);
+	return 0;
 }
 
 static int ov5640_set_stream_mipi(struct ov5640_dev *sensor, bool on)
