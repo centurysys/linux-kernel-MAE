@@ -6,7 +6,7 @@
 //
 // Author: Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
-#include <dt-bindings/sound/mchp,pdmc.h>
+#include <dt-bindings/sound/microchip,pdmc.h>
 
 #include <linux/clk.h>
 #include <linux/module.h>
@@ -16,6 +16,7 @@
 #include <sound/core.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/tlv.h>
 
 /*
  * ---- PDMC Register map ----
@@ -94,6 +95,13 @@
 struct mic_map {
 	int ds_pos;
 	int clk_edge;
+};
+
+struct mchp_pdmc_chmap {
+	struct snd_pcm_chmap_elem *chmap;
+	struct mchp_pdmc *dd;
+	struct snd_pcm *pcm;
+	struct snd_kcontrol *kctl;
 };
 
 struct mchp_pdmc {
@@ -175,7 +183,7 @@ static int mchp_pdmc_af_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct mchp_pdmc *dd = snd_soc_component_get_drvdata(component);
-	bool af = uvalue->value.integer.value ? true : false;
+	bool af = uvalue->value.integer.value[0] ? true : false;
 
 	if (dd->audio_filter_en == af)
 		return 0;
@@ -183,6 +191,172 @@ static int mchp_pdmc_af_put(struct snd_kcontrol *kcontrol,
 	dd->audio_filter_en = af;
 
 	return 1;
+}
+
+static int mchp_pdmc_chmap_ctl_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+{
+	struct mchp_pdmc_chmap *info = snd_kcontrol_chip(kcontrol);
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = info->dd->mic_no;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = SNDRV_CHMAP_RR; /* maxmimum 4 channels */
+	return 0;
+}
+
+static inline struct snd_pcm_substream *
+mchp_pdmc_chmap_substream(struct mchp_pdmc_chmap *info, unsigned int idx)
+{
+	struct snd_pcm_substream *s;
+
+	for (s = info->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream; s; s = s->next)
+		if (s->number == idx)
+			return s;
+	return NULL;
+}
+
+static struct snd_pcm_chmap_elem *mchp_pdmc_chmap_get(struct snd_pcm_substream *substream,
+						      struct mchp_pdmc_chmap *ch_info)
+{
+	struct snd_pcm_chmap_elem *map;
+
+	for (map = ch_info->chmap; map->channels; map++) {
+		if (map->channels == substream->runtime->channels)
+			return map;
+	}
+	return NULL;
+}
+
+static int mchp_pdmc_chmap_ctl_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct mchp_pdmc_chmap *info = snd_kcontrol_chip(kcontrol);
+	struct mchp_pdmc *dd = info->dd;
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	struct snd_pcm_substream *substream;
+	const struct snd_pcm_chmap_elem *map;
+	int i;
+	u32 cfgr_val = 0;
+
+	if (!info->chmap)
+		return -EINVAL;
+	substream = mchp_pdmc_chmap_substream(info, idx);
+	if (!substream)
+		return -ENODEV;
+	memset(ucontrol->value.integer.value, 0, sizeof(long) * info->dd->mic_no);
+	if (!substream->runtime)
+		return 0; /* no channels set */
+
+	map = mchp_pdmc_chmap_get(substream, info);
+	if (!map)
+		return -EINVAL;
+
+	for (i = 0; i < map->channels; i++) {
+		int map_idx = map->channels == 1 ? map->map[i] - SNDRV_CHMAP_MONO :
+						   map->map[i] - SNDRV_CHMAP_FL;
+
+		/* make sure the reported channel map is the real one, so write the map */
+		if (dd->channel_mic_map[map_idx].ds_pos)
+			cfgr_val |= MCHP_PDMC_CFGR_PDMSEL(i);
+		if (dd->channel_mic_map[map_idx].clk_edge)
+			cfgr_val |= MCHP_PDMC_CFGR_BSSEL(i);
+
+		ucontrol->value.integer.value[i] = map->map[i];
+	}
+
+	regmap_write(dd->regmap, MCHP_PDMC_CFGR, cfgr_val);
+
+	return 0;
+}
+
+static int mchp_pdmc_chmap_ctl_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct mchp_pdmc_chmap *info = snd_kcontrol_chip(kcontrol);
+	struct mchp_pdmc *dd = info->dd;
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	struct snd_pcm_substream *substream;
+	struct snd_pcm_chmap_elem *map;
+	u32 cfgr_val = 0;
+	int i;
+
+	if (!info->chmap)
+		return -EINVAL;
+	substream = mchp_pdmc_chmap_substream(info, idx);
+	if (!substream)
+		return -ENODEV;
+
+	map = mchp_pdmc_chmap_get(substream, info);
+	if (!map)
+		return -EINVAL;
+
+	for (i = 0; i < map->channels; i++) {
+		int map_idx;
+
+		map->map[i] = ucontrol->value.integer.value[i];
+		map_idx = map->channels == 1 ? map->map[i] - SNDRV_CHMAP_MONO :
+					       map->map[i] - SNDRV_CHMAP_FL;
+
+		/* configure IP for the desired channel map */
+		if (dd->channel_mic_map[map_idx].ds_pos)
+			cfgr_val |= MCHP_PDMC_CFGR_PDMSEL(i);
+		if (dd->channel_mic_map[map_idx].clk_edge)
+			cfgr_val |= MCHP_PDMC_CFGR_BSSEL(i);
+	}
+
+	regmap_write(dd->regmap, MCHP_PDMC_CFGR, cfgr_val);
+
+	return 0;
+}
+
+static void mchp_pdmc_chmap_ctl_private_free(struct snd_kcontrol *kcontrol)
+{
+	struct mchp_pdmc_chmap *info = snd_kcontrol_chip(kcontrol);
+
+	info->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].chmap_kctl = NULL;
+	kfree(info);
+}
+
+static int mchp_pdmc_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+				   unsigned int size, unsigned int __user *tlv)
+{
+	struct mchp_pdmc_chmap *info = snd_kcontrol_chip(kcontrol);
+	const struct snd_pcm_chmap_elem *map;
+	unsigned int __user *dst;
+	int c, count = 0;
+
+	if (!info->chmap)
+		return -EINVAL;
+	if (size < 8)
+		return -ENOMEM;
+	if (put_user(SNDRV_CTL_TLVT_CONTAINER, tlv))
+		return -EFAULT;
+	size -= 8;
+	dst = tlv + 2;
+	for (map = info->chmap; map->channels; map++) {
+		int chs_bytes = map->channels * 4;
+
+		if (size < 8)
+			return -ENOMEM;
+		if (put_user(SNDRV_CTL_TLVT_CHMAP_VAR, dst) ||
+		    put_user(chs_bytes, dst + 1))
+			return -EFAULT;
+		dst += 2;
+		size -= 8;
+		count += 8;
+		if (size < chs_bytes)
+			return -ENOMEM;
+		size -= chs_bytes;
+		count += chs_bytes;
+		for (c = 0; c < map->channels; c++) {
+			if (put_user(map->map[c], dst))
+				return -EFAULT;
+			dst++;
+		}
+	}
+	if (put_user(count, tlv + 1))
+		return -EFAULT;
+	return 0;
 }
 
 static const struct snd_kcontrol_new mchp_pdmc_snd_controls[] = {
@@ -255,6 +429,7 @@ static const unsigned int mchp_pdmc_1mic[] = {1};
 static const unsigned int mchp_pdmc_2mic[] = {1, 2};
 static const unsigned int mchp_pdmc_3mic[] = {1, 2, 3};
 static const unsigned int mchp_pdmc_4mic[] = {1, 2, 3, 4};
+
 static const struct snd_pcm_hw_constraint_list mchp_pdmc_chan_constr[] = {
 	{
 		.list = mchp_pdmc_1mic,
@@ -369,6 +544,20 @@ static inline int mchp_pdmc_period_to_maxburst(int period_size)
 	return 1;
 }
 
+static struct snd_pcm_chmap_elem mchp_pdmc_std_chmaps[] = {
+	{ .channels = 1,
+	  .map = { SNDRV_CHMAP_MONO } },
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
+	{ .channels = 3,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_RL } },
+	{ .channels = 4,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ }
+};
+
 static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
 			       struct snd_soc_dai *dai)
@@ -380,7 +569,8 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels = params_channels(params);
 	unsigned int osr = 0, osr_start;
 	unsigned int fs = params_rate(params);
-	u32 mr_val = 0, cfgr_val = 0;
+	u32 mr_val = 0;
+	u32 cfgr_val = 0;
 	int i;
 	int ret;
 
@@ -443,6 +633,7 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 
 	dd->addr.maxburst = mchp_pdmc_period_to_maxburst(snd_pcm_lib_period_bytes(substream));
 	mr_val |= MCHP_PDMC_MR_CHUNK(dd->addr.maxburst);
+	dev_dbg(comp->dev, "maxburst set to %d\n", dd->addr.maxburst);
 
 	clk_prepare_enable(dd->gclk);
 	dd->gclk_enabled = 1;
@@ -476,6 +667,9 @@ static int mchp_pdmc_trigger(struct snd_pcm_substream *substream,
 {
 	struct mchp_pdmc *dd = snd_soc_dai_get_drvdata(dai);
 	struct snd_soc_component *cpu = dai->component;
+#ifdef DEBUG
+	u32 val;
+#endif
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -522,6 +716,60 @@ static const struct snd_soc_dai_ops mchp_pdmc_dai_ops = {
 	.trigger	= mchp_pdmc_trigger,
 };
 
+static int mchp_pdmc_add_chmap_ctls(struct snd_pcm *pcm, struct mchp_pdmc *dd)
+{
+	struct mchp_pdmc_chmap *info;
+	struct snd_kcontrol_new knew = {
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+			SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,
+		.info = mchp_pdmc_chmap_ctl_info,
+		.get = mchp_pdmc_chmap_ctl_get,
+		.put = mchp_pdmc_chmap_ctl_put,
+		.tlv.c = mchp_pdmc_chmap_ctl_tlv,
+	};
+	int err;
+
+	if (WARN_ON(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].chmap_kctl))
+		return -EBUSY;
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	info->pcm = pcm;
+	info->dd = dd;
+	info->chmap = mchp_pdmc_std_chmaps;
+	knew.name = "Capture Channel Map";
+	knew.device = pcm->device;
+	knew.count = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream_count;
+	info->kctl = snd_ctl_new1(&knew, info);
+	if (!info->kctl) {
+		kfree(info);
+		return -ENOMEM;
+	}
+	info->kctl->private_free = mchp_pdmc_chmap_ctl_private_free;
+	err = snd_ctl_add(pcm->card, info->kctl);
+	if (err < 0)
+		return err;
+	pcm->streams[SNDRV_PCM_STREAM_CAPTURE].chmap_kctl = info->kctl;
+	return 0;
+}
+
+static int mchp_pdmc_pcm_new(struct snd_soc_pcm_runtime *rtd,
+			     struct snd_soc_dai *dai)
+{
+	struct mchp_pdmc *dd = snd_soc_dai_get_drvdata(dai);
+	int ret;
+
+	ret = mchp_pdmc_add_chmap_ctls(rtd->pcm, dd);
+	if (ret < 0) {
+		dev_err(dd->dev, "failed to add channel map controls: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static struct snd_soc_dai_driver mchp_pdmc_dai = {
 	.probe	= mchp_pdmc_dai_probe,
 	.capture = {
@@ -534,6 +782,7 @@ static struct snd_soc_dai_driver mchp_pdmc_dai = {
 		.formats	= SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops = &mchp_pdmc_dai_ops,
+	.pcm_new = &mchp_pdmc_pcm_new,
 };
 
 /* PDMC interrupt handler */
@@ -643,7 +892,7 @@ static int mchp_pdmc_dt_init(struct mchp_pdmc *dd)
 
 	dd->mic_no /= 2;
 
-	dev_info(dd->dev, "%d PDM microchopnes declared\n", dd->mic_no);
+	dev_info(dd->dev, "%d PDM microphones declared\n", dd->mic_no);
 
 	/* by default, we consider the order of microphones in mchp,mic-pos to
 	 * be the same with the channel mapping; 1st microphone channel 0, 2nd
@@ -738,10 +987,8 @@ static int mchp_pdmc_probe(struct platform_device *pdev)
 		return ret;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to get irq: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	dd->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(dd->pclk)) {
