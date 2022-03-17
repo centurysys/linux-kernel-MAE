@@ -272,7 +272,7 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 	wl->monitor_dev->netdev_ops = &wilc_wfi_netdev_ops;
 	wl->monitor_dev->needs_free_netdev = true;
 
-	if (cfg80211_register_netdevice(wl->monitor_dev)) {
+	if (register_netdevice(wl->monitor_dev)) {
 		PRINT_ER(real_dev, "register_netdevice failed\n");
 		free_netdev(wl->monitor_dev);
 		return NULL;
@@ -293,7 +293,7 @@ void wilc_wfi_deinit_mon_interface(struct wilc *wl, bool rtnl_locked)
 		   "In Deinit monitor interface\n");
 	PRINT_INFO(wl->monitor_dev, HOSTAPD_DBG, "Unregister monitor netdev\n");
 	if (rtnl_locked)
-		cfg80211_unregister_netdevice(wl->monitor_dev);
+		unregister_netdevice(wl->monitor_dev);
 	else
 		unregister_netdev(wl->monitor_dev);
 	PRINT_INFO(wl->monitor_dev, HOSTAPD_DBG,
