@@ -1172,7 +1172,9 @@ int devinet_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr)
 		if (bad_mask(sin->sin_addr.s_addr, 0))
 			break;
 		ret = 0;
-		if (dev->flags & IFF_POINTOPOINT)
+		if ((dev->flags & IFF_POINTOPOINT) &&
+		    (strlen(dev->name) > 4) &&
+		    (strncmp(dev->name, "wwan", 4) == 0))
 			break;
 		if (ifa->ifa_mask != sin->sin_addr.s_addr) {
 			__be32 old_mask = ifa->ifa_mask;
