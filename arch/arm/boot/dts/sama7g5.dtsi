@@ -648,9 +648,9 @@
 			status = "disabled";
 		};
 
-		pdmc0: pdmc@e1608000 {
+		pdmc0: sound@e1608000 {
 			compatible = "microchip,sama7g5-pdmc";
-			reg = <0xe1608000 0x4000>;
+			reg = <0xe1608000 0x1000>;
 			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 			#sound-dai-cells = <0>;
 			dmas = <&dma0 AT91_XDMAC_DT_PERID(37)>;
@@ -660,9 +660,9 @@
 			status = "disabled";
 		};
 
-		pdmc1: pdmc@e160c000 {
+		pdmc1: sound@e160c000 {
 			compatible = "microchip,sama7g5-pdmc";
-			reg = <0xe160c000 0x4000>;
+			reg = <0xe160c000 0x1000>;
 			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 			#sound-dai-cells = <0>;
 			dmas = <&dma0 AT91_XDMAC_DT_PERID(38)>;
