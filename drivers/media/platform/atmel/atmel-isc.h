@@ -63,15 +63,16 @@ struct isc_subdev_entity {
  * @cfa_baycfg:		If this format is RAW BAYER, indicate the type of bayer.
 			this is either BGBG, RGRG, etc.
  * @pfe_cfg0_bps:	Number of hardware data lines connected to the ISC
+ * @raw:		If the format is raw bayer.
  */
 
 struct isc_format {
 	u32	fourcc;
 	u32	mbus_code;
 	u32	cfa_baycfg;
-
-	bool	sd_support;
 	u32	pfe_cfg0_bps;
+
+	bool	raw;
 };
 
 /* Pipeline bitmap */
@@ -183,6 +184,17 @@ struct isc_reg_offsets {
 	u32 his_entry;
 };
 
+enum isc_mc_pads {
+	ISC_PAD_SINK	= 0,
+	ISC_PADS_NUM	= 1,
+};
+
+enum isc_scaler_pads {
+	ISC_SCALER_PAD_SINK	= 0,
+	ISC_SCALER_PAD_SOURCE	= 1,
+	ISC_SCALER_PADS_NUM	= 2,
+};
+
 /*
  * struct isc_device - ISC device driver data/config struct
  * @regmap:		Register map
@@ -205,8 +217,7 @@ struct isc_reg_offsets {
  * @comp:		completion reference that signals frame completion
  *
  * @fmt:		current v42l format
- * @user_formats:	list of formats that are supported and agreed with sd
- * @num_user_formats:	how many formats are in user_formats
+ * @try_fmt:		current v4l2 try format
  *
  * @config:		current ISC format configuration
  * @try_config:		the current ISC try format , not yet activated
@@ -218,6 +229,7 @@ struct isc_reg_offsets {
  *
  * @lock:		lock for serializing userspace file operations
  *			with ISC operations
+ * @awb_mutex:		serialize access to streaming status from awb work queue
  * @awb_lock:		lock for serializing awb work queue operations
  *			with DMA/buffer operations
  *
@@ -258,6 +270,13 @@ struct isc_reg_offsets {
  *			be used as an input to the controller
  * @controller_formats_size:	size of controller_formats array
  * @formats_list_size:	size of formats_list array
+ * @pads:		media controller pads for isc video entity
+ * @mdev:		media device that is registered by the isc
+ * @mpipe:		media device pipeline used by the isc
+ * @remote_pad:		remote pad on the connected subdevice
+ * @scaler_sd:		subdevice for the scaler that isc registers
+ * @scaler_pads:	media controller pads for the scaler subdevice
+ * @scaler_format:	current format for the scaler subdevice
  */
 struct isc_device {
 	struct regmap		*regmap;
@@ -272,7 +291,7 @@ struct isc_device {
 	struct video_device	video_dev;
 
 	struct vb2_queue	vb2_vidq;
-	spinlock_t		dma_queue_lock; /* serialize access to dma queue */
+	spinlock_t		dma_queue_lock;
 	struct list_head	dma_queue;
 	struct isc_buffer	*cur_frm;
 	unsigned int		sequence;
@@ -280,8 +299,7 @@ struct isc_device {
 	struct completion	comp;
 
 	struct v4l2_format	fmt;
-	struct isc_format	**user_formats;
-	unsigned int		num_user_formats;
+	struct v4l2_format	try_fmt;
 
 	struct fmt_config	config;
 	struct fmt_config	try_config;
@@ -289,8 +307,9 @@ struct isc_device {
 	struct isc_ctrls	ctrls;
 	struct work_struct	awb_work;
 
-	struct mutex		lock; /* serialize access to file operations */
-	spinlock_t		awb_lock; /* serialize access to DMA buffers from awb work queue */
+	struct mutex		lock;
+	struct mutex		awb_mutex;
+	spinlock_t		awb_lock;
 
 	struct regmap_field	*pipeline[ISC_PIPE_LINE_NODE_NUM];
 
@@ -346,6 +365,20 @@ struct isc_device {
 	struct isc_format		*formats_list;
 	u32				controller_formats_size;
 	u32				formats_list_size;
+
+	struct {
+		struct media_pad		pads[ISC_PADS_NUM];
+		struct media_device		mdev;
+		struct media_pipeline		mpipe;
+
+		u32				remote_pad;
+	};
+
+	struct {
+		struct v4l2_subdev		scaler_sd;
+		struct media_pad		scaler_pads[ISC_SCALER_PADS_NUM];
+		struct v4l2_mbus_framefmt	scaler_format[ISC_SCALER_PADS_NUM];
+	};
 };
 
 extern const struct regmap_config isc_regmap_config;
@@ -357,4 +390,11 @@ int isc_clk_init(struct isc_device *isc);
 void isc_subdev_cleanup(struct isc_device *isc);
 void isc_clk_cleanup(struct isc_device *isc);
 
+int isc_scaler_link(struct isc_device *isc);
+int isc_scaler_init(struct isc_device *isc);
+int isc_mc_init(struct isc_device *isc, u32 ver);
+void isc_mc_cleanup(struct isc_device *isc);
+
+struct isc_format *isc_find_format_by_code(struct isc_device *isc,
+					   unsigned int code, int *index);
 #endif
