@@ -1203,6 +1203,7 @@
 		xio_3e = &xio_3e;
 		xio_3f = &xio_3f;
 		xio_41 = &xio_41;
+		xio_42 = &xio_42;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1576,6 +1577,19 @@
 			   &gpiox_0x00 &gpiox_0x04_lisa
 			   &gpiox_0x08_rs9116 &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &leds_amp_wlan_ctrl &leds_mobile_wlan &leds_rs9116_ctrl>;
+	};
+
+	/* XIO: (id: 0x42) LCD10 */
+	xio_42: xio@0x42 {
+		#size-cells = <0>;
+		devices = <
+			   &spi1
+			   &uartx2_0x20_WiSUN &uartx2_0x30_lcad
+			   &gpiox_0x00
+			   &gpiox_0x10 &gpiox_0x12_lcad &gpiox_0x14
+			   &gpiox_0x1a
+			   &gpiox_0x04_lcad
+			   &leds_foma &leds_lcad_ctrl>;
 	};
 };
 
