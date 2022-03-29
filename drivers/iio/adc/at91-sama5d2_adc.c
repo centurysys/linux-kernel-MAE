@@ -1600,10 +1600,11 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 	if (fn) {
 		ret = fn(st, chan->channel, &tmp_val);
 		*val = tmp_val;
+		ret = at91_adc_adjust_val_osr(st, val);
 		mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
 
-		return at91_adc_adjust_val_osr(st, val);
+		return ret;
 	}
 
 	/* in this case we have a voltage channel */
@@ -1659,11 +1660,15 @@ static int at91_adc_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_FRACTIONAL_LOG2;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
+		mutex_lock(&st->lock);
 		*val = at91_adc_get_sample_freq(st);
+		mutex_unlock(&st->lock);
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		mutex_lock(&st->lock);
 		*val = st->oversampling_ratio;
+		mutex_unlock(&st->lock);
 		return IIO_VAL_INT;
 
 	default:
@@ -1676,7 +1681,7 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 			      int val, int val2, long mask)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
-	int ret;
+	int ret = 0;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
@@ -1685,19 +1690,22 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		    (val != AT91_OSR_256SAMPLES))
 			return -EINVAL;
 		/* if no change, optimize out */
+		mutex_lock(&st->lock);
 		if (val == st->oversampling_ratio)
-			return 0;
+			goto unlock;
 		/* update ratio */
 		ret = at91_adc_config_emr(st, val);
-		if (ret)
-			return ret;
-		return 0;
+unlock:
+		mutex_unlock(&st->lock);
+		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val < st->soc_info.min_sample_rate ||
 		    val > st->soc_info.max_sample_rate)
 			return -EINVAL;
 
+		mutex_lock(&st->lock);
 		at91_adc_setup_samp_freq(indio_dev, val);
+		mutex_unlock(&st->lock);
 		return 0;
 	default:
 		return -EINVAL;
