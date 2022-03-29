@@ -1683,6 +1683,9 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 	struct at91_adc_state *st = iio_priv(indio_dev);
 	int ret = 0;
 
+	if (iio_buffer_enabled(indio_dev))
+		return -EBUSY;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		if ((val != AT91_OSR_1SAMPLES) && (val != AT91_OSR_4SAMPLES) &&
