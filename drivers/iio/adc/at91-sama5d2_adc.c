@@ -1583,7 +1583,8 @@ static irqreturn_t at91_adc_interrupt(int irq, void *private)
 }
 
 static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
-				  struct iio_chan_spec const *chan, int *val)
+				  struct iio_chan_spec const *chan, int *val,
+				  bool lock)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
 	int (*fn)(struct at91_adc_state *, int, u16 *) = NULL;
@@ -1603,13 +1604,15 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 	ret = iio_device_claim_direct_mode(indio_dev);
 	if (ret)
 		return ret;
-	mutex_lock(&st->lock);
+	if (lock)
+		mutex_lock(&st->lock);
 
 	if (fn) {
 		ret = fn(st, chan->channel, &tmp_val);
 		*val = tmp_val;
 		ret = at91_adc_adjust_val_osr(st, val);
-		mutex_unlock(&st->lock);
+		if (lock)
+			mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
 
 		return ret;
@@ -1645,7 +1648,8 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 	/* Needed to ACK the DRDY interruption */
 	at91_adc_readl(st, LCDR);
 
-	mutex_unlock(&st->lock);
+	if (lock)
+		mutex_unlock(&st->lock);
 
 	iio_device_release_direct_mode(indio_dev);
 	return ret;
@@ -1659,7 +1663,8 @@ static int at91_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		return at91_adc_read_info_raw(indio_dev, chan, val);
+		return at91_adc_read_info_raw(indio_dev, chan, val, true);
+
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->vref_uv / 1000;
 		if (chan->differential)
