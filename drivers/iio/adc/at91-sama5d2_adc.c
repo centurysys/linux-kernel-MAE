@@ -796,6 +796,8 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 
 	at91_adc_writel(st, EMR, emr);
 
+	st->oversampling_ratio = oversampling_ratio;
+
 	return 0;
 }
 
@@ -1689,7 +1691,6 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		ret = at91_adc_config_emr(st, val);
 		if (ret)
 			return ret;
-		st->oversampling_ratio = val;
 		return 0;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val < st->soc_info.min_sample_rate ||
