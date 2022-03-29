@@ -145,6 +145,10 @@ struct at91_adc_reg_layout {
 #define AT91_SAMA5D2_EMR_OSR_64SAMPLES		3
 #define AT91_SAMA5D2_EMR_OSR_256SAMPLES		4
 
+/* Extended Mode Register - TRACKX */
+#define AT91_SAMA5D2_TRACKX_MASK		GENMASK(23, 22)
+#define AT91_SAMA5D2_TRACKX(x)			(((x) << 22) & \
+						 AT91_SAMA5D2_TRACKX_MASK)
 /* Extended Mode Register - Averaging on single trigger event */
 #define AT91_SAMA5D2_EMR_ASTE(V)		((V) << 20)
 
@@ -747,7 +751,7 @@ static void at91_adc_eoc_ena(struct at91_adc_state *st, unsigned int channel)
 }
 
 static int at91_adc_config_emr(struct at91_adc_state *st,
-			       u32 oversampling_ratio)
+			       u32 oversampling_ratio, u32 trackx)
 {
 	/* configure the extended mode register */
 	unsigned int emr = at91_adc_readl(st, EMR);
@@ -758,7 +762,7 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 	emr |= AT91_SAMA5D2_EMR_ASTE(1);
 
 	/* delete leftover content if it's the case */
-	emr &= ~osr_mask;
+	emr &= ~(osr_mask | AT91_SAMA5D2_TRACKX_MASK);
 
 	/* select oversampling ratio from configuration */
 	switch (oversampling_ratio) {
@@ -794,6 +798,8 @@ static int at91_adc_config_emr(struct at91_adc_state *st,
 		break;
 	}
 
+	/* Update trackx. */
+	emr |= AT91_SAMA5D2_TRACKX(trackx);
 	at91_adc_writel(st, EMR, emr);
 
 	st->oversampling_ratio = oversampling_ratio;
@@ -1697,7 +1703,7 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		if (val == st->oversampling_ratio)
 			goto unlock;
 		/* update ratio */
-		ret = at91_adc_config_emr(st, val);
+		ret = at91_adc_config_emr(st, val, 0);
 unlock:
 		mutex_unlock(&st->lock);
 		return ret;
@@ -1873,7 +1879,7 @@ static void at91_adc_hw_init(struct iio_dev *indio_dev)
 	at91_adc_setup_samp_freq(indio_dev, st->soc_info.min_sample_rate);
 
 	/* configure extended mode register */
-	at91_adc_config_emr(st, st->oversampling_ratio);
+	at91_adc_config_emr(st, st->oversampling_ratio, 0);
 }
 
 static ssize_t at91_adc_get_fifo_state(struct device *dev,
