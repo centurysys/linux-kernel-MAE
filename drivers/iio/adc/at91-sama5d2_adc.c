@@ -26,8 +26,12 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/regulator/consumer.h>
+
+#include <dt-bindings/iio/adc/at91-sama5d2_adc.h>
+#include <dt-bindings/nvmem/microchip,otpc.h>
 
 struct at91_adc_reg_layout {
 /* Control Register */
@@ -73,6 +77,8 @@ struct at91_adc_reg_layout {
 /* Startup Time */
 #define	AT91_SAMA5D2_MR_STARTUP(v)	((v) << 16)
 #define AT91_SAMA5D2_MR_STARTUP_MASK	GENMASK(19, 16)
+/* Minimum startup time for temperature sensor */
+#define AT91_SAMA5D2_MR_STARTUP_TS_MIN	(50)
 /* Analog Change */
 #define	AT91_SAMA5D2_MR_ANACH		BIT(23)
 /* Tracking Time */
@@ -149,6 +155,9 @@ struct at91_adc_reg_layout {
 #define AT91_SAMA5D2_TRACKX_MASK		GENMASK(23, 22)
 #define AT91_SAMA5D2_TRACKX(x)			(((x) << 22) & \
 						 AT91_SAMA5D2_TRACKX_MASK)
+/* TRACKX for temperature sensor. */
+#define AT91_SAMA5D2_TRACKX_TS			(1)
+
 /* Extended Mode Register - Averaging on single trigger event */
 #define AT91_SAMA5D2_EMR_ASTE(V)		((V) << 20)
 
@@ -164,6 +173,8 @@ struct at91_adc_reg_layout {
 	u16				ACR;
 /* Analog Control Register - Pen detect sensitivity mask */
 #define AT91_SAMA5D2_ACR_PENDETSENS_MASK        GENMASK(1, 0)
+/* Analog Control Register - Source last channel */
+#define AT91_SAMA5D2_ACR_SRCLCH		BIT(16)
 
 /* Touchscreen Mode Register */
 	u16				TSMR;
@@ -231,6 +242,10 @@ struct at91_adc_reg_layout {
 	u16				WPSR;
 /* Version Register */
 	u16				VERSION;
+/* Temperature Sensor Mode Register */
+	u16				TEMPMR;
+/* Temperature Sensor Mode - Temperature sensor on */
+#define AT91_SAMA5D2_TEMPMR_TEMPON	BIT(0)
 };
 
 static const struct at91_adc_reg_layout sama5d2_layout = {
@@ -285,6 +300,7 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
 	.EOC_IDR =		0x38,
 	.EOC_IMR =		0x3c,
 	.EOC_ISR =		0x40,
+	.TEMPMR =		0x44,
 	.OVER =			0x4c,
 	.EMR =			0x50,
 	.CWR =			0x54,
@@ -390,6 +406,23 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
 		.datasheet_name = name,					\
 	}
 
+#define AT91_SAMA5D2_CHAN_TEMP(num, name, addr)				\
+	{								\
+		.type = IIO_TEMP,					\
+		.channel = num,						\
+		.address =  addr,					\
+		.scan_index = num,					\
+		.scan_type = {						\
+			.sign = 'u',					\
+			.realbits = 16,					\
+			.storagebits = 16,				\
+		},							\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),	\
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_PROCESSED) | \
+					BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),\
+		.datasheet_name = name,					\
+	}
+
 #define at91_adc_readl(st, reg)						\
 	readl_relaxed((st)->base + (st)->soc_info.platform->layout->reg)
 #define at91_adc_read_chan(st, reg)					\
@@ -413,6 +446,7 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
  * @osr_mask:		oversampling ratio bitmask on EMR register
  * @osr_vals:		available oversampling rates
  * @chan_realbits:	realbits for registered channels
+ * @temp_sensor:	temperature sensor supported
  */
 struct at91_adc_platform {
 	const struct at91_adc_reg_layout	*layout;
@@ -427,7 +461,42 @@ struct at91_adc_platform {
 	unsigned int				osr_mask;
 	unsigned int				osr_vals;
 	unsigned int				chan_realbits;
+	bool					temp_sensor;
 };
+
+/**
+ * struct at91_adc_temp_sensor_clb - at91-sama5d2 temperature sensor
+ * calibration data structure
+ * @t3: OTP_T3 calibration temperature
+ * @vtemp: OTP_VTEMP calibration voltage
+ * @vbg2: OTP_VBG2 calibration voltage
+ * @offset: calibration offset
+ */
+struct at91_adc_temp_sensor_clb {
+	u32 t3;
+	u32 vtemp;
+	u32 vbg2;
+	u32 offset;
+};
+
+/**
+ * enum at91_adc_ts_clb_idx - calibration indexes in NVMEM buffer
+ * @AT91_ADC_TS_CLB_IDX_OTP_T3: index for OTP_T3
+ * @AT91_ADC_TS_CLB_IDX_OTP_VTEMP: index for OTP_VTEMP
+ * @AT91_ADC_TS_CLB_IDX_OTP_VBG2: index for OTP_VBG2
+ * @AT91_ADC_TS_CLB_IDX_MAX: max index for temperature calibration packet in OTP
+ */
+enum at91_adc_ts_clb_idx {
+	AT91_ADC_TS_CLB_IDX_OTP_T3 = 2,
+	AT91_ADC_TS_CLB_IDX_OTP_VTEMP = 5,
+	AT91_ADC_TS_CLB_IDX_OTP_VBG2 = 7,
+	AT91_ADC_TS_CLB_IDX_MAX = OTP_PKT_SAMA7G5_TEMP_CALIB_LEN / 4,
+};
+
+/* Temperature sensor calibration - temperature sensor gain. */
+#define AT91_ADC_TS_CLB_TSG		(2080U)
+/* Temperature sensor calibration - ADC Full Scale @256 oversampling rate. */
+#define AT91_ADC_TS_CLB_FS		(65536U)
 
 /**
  * struct at91_adc_soc_info - at91-sama5d2 soc information struct
@@ -435,12 +504,14 @@ struct at91_adc_platform {
  * @min_sample_rate:	minimum sample rate in Hz
  * @max_sample_rate:	maximum sample rate in Hz
  * @platform:		pointer to the platform structure
+ * @temp_sensor_clb:	temperature sensor calibration data structure
  */
 struct at91_adc_soc_info {
 	unsigned			startup_time;
 	unsigned			min_sample_rate;
 	unsigned			max_sample_rate;
 	const struct at91_adc_platform	*platform;
+	struct at91_adc_temp_sensor_clb	temp_sensor_clb;
 };
 
 struct at91_adc_trigger {
@@ -488,6 +559,20 @@ struct at91_adc_touch {
 	struct work_struct		workq;
 };
 
+/**
+ * struct at91_adc_temp - at91-sama5d2 temperature information structure
+ * @sample_period_val:	sample period value
+ * @saved_sample_rate:	saved sample rate
+ * @saved_oversampling:	saved oversampling
+ * @init:		temperature sensor initialized
+ */
+struct at91_adc_temp {
+	u16				sample_period_val;
+	u16				saved_sample_rate;
+	u16				saved_oversampling;
+	bool				init;
+};
+
 /*
  * Buffer size requirements:
  * No channels * bytes_per_channel(2) + timestamp bytes (8)
@@ -515,6 +600,7 @@ struct at91_adc_state {
 	wait_queue_head_t		wq_data_available;
 	struct at91_adc_dma		dma_st;
 	struct at91_adc_touch		touch_st;
+	struct at91_adc_temp		temp_st;
 	struct iio_dev			*indio_dev;
 	/* Ensure naturally aligned timestamp */
 	u16				buffer[AT91_BUFFER_MAX_HWORDS] __aligned(8);
@@ -604,6 +690,7 @@ static const struct iio_chan_spec at91_sama7g5_adc_channels[] = {
 	AT91_SAMA5D2_CHAN_DIFF(22, 12, 13, 0x90),
 	AT91_SAMA5D2_CHAN_DIFF(23, 14, 15, 0x98),
 	IIO_CHAN_SOFT_TIMESTAMP(24),
+	AT91_SAMA5D2_CHAN_TEMP(AT91_SAMA7G5_ADC_TEMP_CHANNEL, "temp", 0xdc),
 };
 
 static const struct at91_adc_platform sama5d2_platform = {
@@ -637,10 +724,13 @@ static const struct at91_adc_platform sama7g5_platform = {
 	.adc_channels = &at91_sama7g5_adc_channels,
 #define AT91_SAMA7G5_SINGLE_CHAN_CNT	16
 #define AT91_SAMA7G5_DIFF_CHAN_CNT	8
+#define AT91_SAMA7G5_TEMP_CHAN_CNT	1
 	.nr_channels = AT91_SAMA7G5_SINGLE_CHAN_CNT +
-		       AT91_SAMA7G5_DIFF_CHAN_CNT,
+		       AT91_SAMA7G5_DIFF_CHAN_CNT +
+		       AT91_SAMA7G5_TEMP_CHAN_CNT,
 #define AT91_SAMA7G5_MAX_CHAN_IDX	(AT91_SAMA7G5_SINGLE_CHAN_CNT + \
-					AT91_SAMA7G5_DIFF_CHAN_CNT)
+					AT91_SAMA7G5_DIFF_CHAN_CNT + \
+					AT91_SAMA7G5_TEMP_CHAN_CNT)
 	.max_channels = ARRAY_SIZE(at91_sama7g5_adc_channels),
 	.max_index = AT91_SAMA7G5_MAX_CHAN_IDX,
 #define AT91_SAMA7G5_HW_TRIG_CNT	3
@@ -652,6 +742,7 @@ static const struct at91_adc_platform sama7g5_platform = {
 		    BIT(AT91_SAMA5D2_EMR_OSR_64SAMPLES) |
 		    BIT(AT91_SAMA5D2_EMR_OSR_256SAMPLES),
 	.chan_realbits = 16,
+	.temp_sensor = true,
 };
 
 static int at91_adc_chan_xlate(struct iio_dev *indio_dev, int chan)
@@ -1193,7 +1284,8 @@ static int at91_adc_buffer_prepare(struct iio_dev *indio_dev)
 			continue;
 		/* these channel types cannot be handled by this trigger */
 		if (chan->type == IIO_POSITIONRELATIVE ||
-		    chan->type == IIO_PRESSURE)
+		    chan->type == IIO_PRESSURE ||
+		    chan->type == IIO_TEMP)
 			continue;
 
 		at91_adc_cor(st, chan);
@@ -1235,7 +1327,8 @@ static int at91_adc_buffer_postdisable(struct iio_dev *indio_dev)
 			continue;
 		/* these channel types are virtual, no need to do anything */
 		if (chan->type == IIO_POSITIONRELATIVE ||
-		    chan->type == IIO_PRESSURE)
+		    chan->type == IIO_PRESSURE ||
+		    chan->type == IIO_TEMP)
 			continue;
 
 		at91_adc_writel(st, CHDR, BIT(chan->channel));
@@ -1618,12 +1711,19 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 		return ret;
 	}
 
-	/* in this case we have a voltage channel */
+	/* in this case we have a voltage or temperature channel */
 
 	st->chan = chan;
 
 	at91_adc_cor(st, chan);
 	at91_adc_writel(st, CHER, BIT(chan->channel));
+	/*
+	 * TEMPMR.TEMPON needs to update after CHER otherwise if none
+	 * of the channels are enabled and TEMPMR.TEMPON = 1 will
+	 * trigger DRDY interruption while preparing for temperature read.
+	 */
+	if (chan->type == IIO_TEMP)
+		at91_adc_writel(st, TEMPMR, AT91_SAMA5D2_TEMPMR_TEMPON);
 	at91_adc_eoc_ena(st, chan->channel);
 	at91_adc_writel(st, CR, AT91_SAMA5D2_CR_START);
 
@@ -1643,6 +1743,8 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 	}
 
 	at91_adc_eoc_dis(st, st->chan->channel);
+	if (chan->type == IIO_TEMP)
+		at91_adc_writel(st, TEMPMR, 0U);
 	at91_adc_writel(st, CHDR, BIT(chan->channel));
 
 	/* Needed to ACK the DRDY interruption */
@@ -1652,6 +1754,93 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&st->lock);
 
 	iio_device_release_direct_mode(indio_dev);
+	return ret;
+}
+
+static void at91_adc_temp_sensor_configure(struct at91_adc_state *st,
+					   bool start)
+{
+	u32 sample_rate, oversampling_ratio;
+	u32 startup_time, tracktim, trackx;
+
+	/*
+	 * Configure the sensor for best accuracy: 10MHz frequency, oversampling
+	 * rate of 256, tracktim=0xf and trackx=1.
+	 */
+
+	if (start) {
+		sample_rate = 10000000U;
+		oversampling_ratio = AT91_OSR_256SAMPLES;
+		startup_time = AT91_SAMA5D2_MR_STARTUP_TS_MIN;
+		tracktim = AT91_SAMA5D2_MR_TRACKTIM_MAX;
+		trackx = AT91_SAMA5D2_TRACKX_TS;
+
+		st->temp_st.saved_sample_rate = st->current_sample_rate;
+		st->temp_st.saved_oversampling = st->oversampling_ratio;
+	} else {
+		sample_rate = st->temp_st.saved_sample_rate;
+		oversampling_ratio = st->temp_st.saved_oversampling;
+		startup_time = st->soc_info.startup_time;
+		tracktim = 0;
+		trackx = 0;
+	}
+
+	at91_adc_setup_samp_freq(st->indio_dev, sample_rate, startup_time,
+				 tracktim);
+	at91_adc_config_emr(st, oversampling_ratio, trackx);
+}
+
+static int at91_adc_read_temp(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan, int *val)
+{
+	struct at91_adc_state *st = iio_priv(indio_dev);
+	struct at91_adc_temp_sensor_clb *clb = &st->soc_info.temp_sensor_clb;
+	u64 div1, div2;
+	u32 tmp;
+	int ret, vbg, vtemp;
+
+	if (!st->soc_info.platform->temp_sensor || !st->temp_st.init)
+		return -EPERM;
+
+	if (iio_buffer_enabled(indio_dev))
+		return -EBUSY;
+
+	mutex_lock(&st->lock);
+
+	at91_adc_temp_sensor_configure(st, true);
+
+	/* Read VBG. */
+	tmp = at91_adc_readl(st, ACR);
+	tmp |= AT91_SAMA5D2_ACR_SRCLCH;
+	at91_adc_writel(st, ACR, tmp);
+	ret = at91_adc_read_info_raw(indio_dev, chan, &vbg, false);
+	if (ret < 0)
+		goto unlock;
+
+	/* Read VTEMP. */
+	tmp &= ~AT91_SAMA5D2_ACR_SRCLCH;
+	at91_adc_writel(st, ACR, tmp);
+	ret = at91_adc_read_info_raw(indio_dev, chan, &vtemp, false);
+
+unlock:
+	/* Revert previous settings. */
+	at91_adc_temp_sensor_configure(st, false);
+	mutex_unlock(&st->lock);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Temp[mili] = t3[mili] + (vref * (vtemp * clb->vbg2 - clb->vtemp * vbg))/
+	 *			   ((clb->offset * clb->vbg2)
+	 */
+	div1 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * vtemp * clb->vbg2),
+				     clb->vbg2);
+	div1 = DIV_ROUND_CLOSEST_ULL((div1 * 1000), clb->offset);
+	div2 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * clb->vtemp * vbg),
+				     clb->vbg2);
+	div2 = DIV_ROUND_CLOSEST_ULL((div2 * 1000), clb->offset);
+	*val = clb->t3 * 1000 + (int)div1 - (int)div2;
+
 	return ret;
 }
 
@@ -1671,6 +1860,11 @@ static int at91_adc_read_raw(struct iio_dev *indio_dev,
 			*val *= 2;
 		*val2 = chan->scan_type.realbits;
 		return IIO_VAL_FRACTIONAL_LOG2;
+
+	case IIO_CHAN_INFO_PROCESSED:
+		if (chan->type != IIO_TEMP)
+			return -EINVAL;
+		return at91_adc_read_temp(indio_dev, chan, val);
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		mutex_lock(&st->lock);
@@ -1988,6 +2182,52 @@ static int at91_adc_buffer_and_trigger_init(struct device *dev,
 	return 0;
 }
 
+static int at91_adc_temp_sensor_init(struct iio_dev *indio_dev)
+{
+	struct at91_adc_state *st = iio_priv(indio_dev);
+	struct at91_adc_temp_sensor_clb *clb = &st->soc_info.temp_sensor_clb;
+	struct nvmem_cell *temp_calib;
+	u32 *buf;
+	size_t len;
+	int ret = 0;
+
+	if (!st->soc_info.platform->temp_sensor)
+		return 0;
+
+	/* Get the calibration data from NVMEM. */
+	temp_calib = devm_nvmem_cell_get(indio_dev->dev.parent,
+					 "temperature_calib");
+	if (IS_ERR(temp_calib)) {
+		ret = PTR_ERR(temp_calib);
+
+		if (ret == -ENOENT) {
+			st->temp_st.init = false;
+			return 0;
+		}
+		return ret;
+	}
+
+	buf = nvmem_cell_read(temp_calib, &len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+	if (len < AT91_ADC_TS_CLB_IDX_MAX * 4) {
+		ret = -EINVAL;
+		goto free_buf;
+	}
+
+	/* Store calibration data for later use. */
+	clb->t3 = buf[AT91_ADC_TS_CLB_IDX_OTP_T3];
+	clb->vtemp = buf[AT91_ADC_TS_CLB_IDX_OTP_VTEMP];
+	clb->vbg2 = buf[AT91_ADC_TS_CLB_IDX_OTP_VBG2];
+	clb->offset = AT91_ADC_TS_CLB_TSG * AT91_ADC_TS_CLB_FS;
+
+	st->temp_st.init = true;
+
+free_buf:
+	kfree(buf);
+	return ret;
+}
+
 static int at91_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
@@ -2120,6 +2360,10 @@ static int at91_adc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(st->per_clk);
 	if (ret)
 		goto vref_disable;
+
+	ret = at91_adc_temp_sensor_init(indio_dev);
+	if (ret)
+		goto per_clk_disable_unprepare;
 
 	at91_adc_hw_init(indio_dev);
 
