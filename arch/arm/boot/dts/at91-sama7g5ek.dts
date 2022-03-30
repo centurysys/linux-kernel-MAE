@@ -557,7 +557,7 @@
 	pinctrl_flx3_default: flx3_default {
 		pinmux = <PIN_PD16__FLEXCOM3_IO0>,
 			 <PIN_PD17__FLEXCOM3_IO1>;
-		bias-disable;
+		bias-pull-up;
 	};
 
 	pinctrl_flx4_default: flx4_default {
@@ -832,7 +832,6 @@
 	mmc-ddr-1_8v;
 	cap-mmc-highspeed;
 	cap-mmc-hw-reset;
-	mmc-hs200-1_8v;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdmmc0_default>;
 	status = "okay";
