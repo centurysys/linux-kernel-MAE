@@ -9,12 +9,15 @@
  *
  */
 
+#include <dt-bindings/iio/adc/at91-sama5d2_adc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/sama7g5-reset.h>
 #include <dt-bindings/clock/at91.h>
 #include <dt-bindings/dma/at91.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/nvmem/microchip,otpc.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	model = "Microchip SAMA7G5 family SoC";
@@ -34,6 +37,7 @@
 			clocks = <&pmc PMC_TYPE_CORE PMC_CPUPLL>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
 
@@ -69,6 +73,47 @@
 			opp-hz = /bits/ 64 <1000000002>;
 			opp-microvolt = <1250000 1225000 1300000>;
 			clock-latency-ns = <320000>;
+		};
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			sustainable-power = <2500>;
+			thermal-sensors = <&thermal_sensor>;
+
+			trips {
+				cpu_normal: cpu-alert0 {
+					temperature = <50000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				cpu_hot: cpu-alert1 {
+					temperature = <65000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				cpu_critical: cpu-critical {
+					temperature = <85000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_normal>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map1 {
+					trip = <&cpu_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 	};
 
@@ -146,6 +191,13 @@
 		regulator-max-microvolt = <2500000>;
 		regulator-boot-on;
 		status = "disabled";
+	};
+
+	thermal_sensor: thermal-sensor {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc AT91_SAMA7G5_ADC_TEMP_CHANNEL>;
+		io-channel-names = "sensor-channel";
 	};
 
 	ns_sram: sram@100000 {
@@ -510,6 +562,9 @@
 			atmel,min-sample-rate-hz = <200000>;
 			atmel,max-sample-rate-hz = <20000000>;
 			atmel,startup-time-ms = <4>;
+			#io-channel-cells = <1>;
+			nvmem-cells = <&temperature_calib>;
+			nvmem-cell-names = "temperature_calib";
 			status = "disabled";
 		};
 
@@ -1129,6 +1184,17 @@
 		ddr3phy: ddr3phy@e3804000 {
 			compatible = "microchip,sama7g5-ddr3phy";
 			reg = <0xe3804000 0x1000>;
+		};
+
+		otpc: otpc@e8c00000 {
+			compatible = "microchip,sama7g5-otpc", "syscon";
+			reg = <0xe8c00000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			temperature_calib: calib@1 {
+				reg = <OTP_PKT(1) OTP_PKT_SAMA7G5_TEMP_CALIB_LEN>;
+			};
 		};
 
 		gic: interrupt-controller@e8c11000 {
