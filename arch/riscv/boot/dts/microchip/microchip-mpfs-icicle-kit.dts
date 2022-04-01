@@ -31,6 +31,54 @@
 		timebase-frequency = <MTIMER_FREQ>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		fabricbuf0ddrc: buffer@80000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x80000000 0x0 0x2000000>;
+		};
+
+		fabricbuf1ddrnc: buffer@c0000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xc0000000 0x0 0x8000000>;
+		};
+
+		fabricbuf2ddrncwcb: buffer@d0000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xd0000000 0x0 0x8000000>;
+		};
+	};
+
+	udmabuf0 {
+		compatible = "ikwzm,u-dma-buf";
+		device-name = "udmabuf-ddr-c0";
+		minor-number = <0>;
+		size = <0x0 0x2000000>;
+		memory-region = <&fabricbuf0ddrc>;
+		sync-mode = <3>;
+	};
+
+	udmabuf1 {
+		compatible = "ikwzm,u-dma-buf";
+		device-name = "udmabuf-ddr-nc0";
+		minor-number = <1>;
+		size = <0x0 0x8000000>;
+		memory-region = <&fabricbuf1ddrnc>;
+		sync-mode = <3>;
+	};
+
+	udmabuf2 {
+		compatible = "ikwzm,u-dma-buf";
+		device-name = "udmabuf-ddr-nc-wcb0";
+		minor-number = <2>;
+		size = <0x0 0x8000000>;
+		memory-region = <&fabricbuf2ddrncwcb>;
+		sync-mode = <3>;
+	};
+
 	ddrc_cache: memory@1000000000 {
 		device_type = "memory";
 		reg = <0x10 0x0 0x0 0x76000000>;
