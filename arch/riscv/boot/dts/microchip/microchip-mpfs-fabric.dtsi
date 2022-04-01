@@ -43,4 +43,20 @@
 		#clock-cells = <0>;
 		clock-frequency = <125000000>;
 	};
+
+	fpgadma: dma-controller@60020000 {
+		compatible = "microchip,mpfs-fpga-dma";
+		reg = <0x0 0x60020000 0x0 0x1000>;
+		interrupt-parent = <&plic>;
+		interrupts = <120>;
+		#dma-cells = <1>;
+		status = "disabled";
+	};
+
+	fpgalsram: uio@61000000 {
+		compatible = "generic-uio";
+		linux,uio-name = "fpga_lsram";
+		reg = <0x0 0x61000000 0x0 0x0001000>;
+		status = "disabled";
+	};
 };

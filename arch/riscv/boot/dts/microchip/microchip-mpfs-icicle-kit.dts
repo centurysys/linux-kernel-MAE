@@ -205,3 +205,11 @@
 &core_pwm0 {
 	status = "okay";
 };
+
+&fpgadma {
+	status = "okay";
+};
+
+&fpgalsram {
+	status = "okay";
+};
