@@ -112,7 +112,6 @@
 
 &mmc {
 	status = "okay";
-
 	bus-width = <4>;
 	disable-wp;
 	cap-sd-highspeed;
