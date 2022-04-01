@@ -1,0 +1,257 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2020-2021 Microchip Technology Inc */
+
+/dts-v1/;
+
+#include "microchip-mpfs.dtsi"
+
+/* Clock frequency (in Hz) of the rtcclk */
+#define RTCCLK_FREQ		1000000
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "Microchip PolarFire-SoC Icicle Kit";
+	compatible = "microchip,mpfs-icicle-kit", "microchip,mpfs";
+
+	aliases {
+		ethernet0 = &mac1;
+		serial0 = &mmuart0;
+		serial1 = &mmuart1;
+		serial2 = &mmuart2;
+		serial3 = &mmuart3;
+		serial4 = &mmuart4;
+	};
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+
+	cpus {
+		timebase-frequency = <RTCCLK_FREQ>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/*
+		* 0x10_75BB_0000 ~ 0x10_75FB_0000 is reserved for context B (BM/RTOS)
+		* Shouldn't be used in Linux (context A)
+		*
+		* 0x10_75FB_0000 ~ 0x10_75FC_0000 is used by context A and context B
+		  RPMsg vrings
+		*/
+
+		fabricbuf0ddrc: buffer@80000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x80000000 0x0 0x2000000>;
+		};
+
+		fabricbuf1ddrnc: buffer@c0000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xc0000000 0x0 0x8000000>;
+		};
+
+		fabricbuf2ddrncwcb: buffer@d0000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xd0000000 0x0 0x8000000>;
+		};
+
+		contextb_reserved: contextb_reserved@1075BB0000 {
+			reg = <0x10 0x75BB0000 0x0 0x400000>;
+		};
+
+		rpmsg_vrings_reserved: rpmsg_vrings@1075FB0000 {
+			reg = <0x10 0x75FB0000 0x0 0x10000>;
+		};
+
+		rpmsg_dma_reserved: rpmsg_dma@1075FC0000 {
+			compatible = "shared-dma-pool";
+			reg = <0x10 0x75FC0000 0x0 0x40000>;
+			label = "rpmsg-ddr";
+		};
+	};
+
+	udmabuf0 {
+		compatible = "ikwzm,u-dma-buf";
+		device-name = "udmabuf-ddr-c0";
+		minor-number = <0>;
+		size = <0x0 0x2000000>;
+		memory-region = <&fabricbuf0ddrc>;
+		sync-mode = <3>;
+	};
+
+	udmabuf1 {
+		compatible = "ikwzm,u-dma-buf";
+		device-name = "udmabuf-ddr-nc0";
+		minor-number = <1>;
+		size = <0x0 0x8000000>;
+		memory-region = <&fabricbuf1ddrnc>;
+		sync-mode = <3>;
+	};
+
+	udmabuf2 {
+		compatible = "ikwzm,u-dma-buf";
+		device-name = "udmabuf-ddr-nc-wcb0";
+		minor-number = <2>;
+		size = <0x0 0x8000000>;
+		memory-region = <&fabricbuf2ddrncwcb>;
+		sync-mode = <3>;
+	};
+
+	ddrc_cache: memory@1000000000 {
+		device_type = "memory";
+		reg = <0x10 0x0 0x0 0x75BB0000>;
+		clocks = <&clkcfg CLK_DDRC>;
+		status = "okay";
+	};
+
+	rpmsg: rpmsg {
+		compatible = "microchip,miv-rpmsg";
+		reg =  <0x10 0x75FB0000 0x0 0x10000>; // 64Kb reserved for vrings
+		memory-region = <&rpmsg_dma_reserved>;
+		mboxes= <&ihc 0>;
+	};
+};
+
+&refclk {
+	clock-frequency = <125000000>;
+};
+
+&mmuart1 {
+	status = "okay";
+};
+
+&mmuart2 {
+	status = "okay";
+};
+
+&mmuart3 {
+	status = "disabled"; // in use by context b
+};
+
+&mmuart4 {
+	status = "okay";
+};
+
+&mmc {
+	status = "okay";
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-mmc-highspeed;
+	card-detect-delay = <200>;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+};
+
+&spi0 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&can0 {
+	status = "okay";
+};
+
+&mac0 {
+	status = "okay";
+	phy-mode = "sgmii";
+	phy-handle = <&phy0>;
+};
+
+&mac1 {
+	status = "okay";
+	phy-mode = "sgmii";
+	phy-handle = <&phy1>;
+	phy1: ethernet-phy@9 {
+		reg = <9>;
+		ti,fifo-depth = <0x1>;
+	};
+	phy0: ethernet-phy@8 {
+		reg = <8>;
+		ti,fifo-depth = <0x1>;
+	};
+};
+
+&gpio2 {
+	interrupts = <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>;
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&usb {
+	status = "okay";
+	dr_mode = "otg";
+};
+
+&mbox {
+	status = "okay";
+};
+
+&syscontroller {
+	status = "okay";
+};
+
+&pcie {
+	status = "okay";
+};
+
+&core_pwm0 {
+	status = "okay";
+};
+
+&fpgadma {
+	status = "okay";
+};
+
+&fpgalsram {
+	status = "okay";
+};
+
+&ihc {
+	status = "okay";
+};
+
+&cpu4 {
+	status = "disabled"; // in use by context b
+};
