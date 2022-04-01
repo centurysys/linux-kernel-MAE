@@ -438,6 +438,14 @@
 				interrupt-controller;
 			};
 		};
+	
+		pdma: dma-controller@3000000 {
+			compatible = "sifive,fu540-c000-pdma";
+			reg = <0x0 0x3000000 0x0 0x8000>;
+			interrupt-parent = <&plic>;
+			interrupts = <5 6>, <7 8>, <9 10>, <11 12>;
+			#dma-cells = <1>;
+		};
 
 		mbox: mailbox@37020000 {
 			compatible = "microchip,mpfs-mailbox";
