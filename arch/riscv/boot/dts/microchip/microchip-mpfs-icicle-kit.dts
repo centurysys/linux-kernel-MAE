@@ -145,7 +145,12 @@
 	status = "okay";
 };
 
+&can0 {
+	status = "okay";
+};
+
 &mac0 {
+	status = "okay";
 	phy-mode = "sgmii";
 	phy-handle = <&phy0>;
 };
