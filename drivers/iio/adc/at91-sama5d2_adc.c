@@ -446,6 +446,7 @@ static const struct at91_adc_reg_layout sama7g5_layout = {
  * @osr_mask:		oversampling ratio bitmask on EMR register
  * @osr_vals:		available oversampling rates
  * @chan_realbits:	realbits for registered channels
+ * @temp_chan:		temperature channel index
  * @temp_sensor:	temperature sensor supported
  */
 struct at91_adc_platform {
@@ -461,6 +462,7 @@ struct at91_adc_platform {
 	unsigned int				osr_mask;
 	unsigned int				osr_vals;
 	unsigned int				chan_realbits;
+	unsigned int				temp_chan;
 	bool					temp_sensor;
 };
 
@@ -743,15 +745,23 @@ static const struct at91_adc_platform sama7g5_platform = {
 		    BIT(AT91_SAMA5D2_EMR_OSR_256SAMPLES),
 	.chan_realbits = 16,
 	.temp_sensor = true,
+	.temp_chan = AT91_SAMA7G5_ADC_TEMP_CHANNEL,
 };
 
 static int at91_adc_chan_xlate(struct iio_dev *indio_dev, int chan)
 {
+	struct at91_adc_state *st = iio_priv(indio_dev);
 	int i;
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
-		if (indio_dev->channels[i].scan_index == chan)
+		if (indio_dev->channels[i].scan_index == chan) {
+			if (st->soc_info.platform->temp_sensor &&
+			    chan == st->soc_info.platform->temp_chan &&
+			    !st->temp_st.init)
+				return -EINVAL;
+
 			return i;
+		}
 	}
 	return -EINVAL;
 }
@@ -2183,36 +2193,34 @@ static int at91_adc_buffer_and_trigger_init(struct device *dev,
 	return 0;
 }
 
-static int at91_adc_temp_sensor_init(struct iio_dev *indio_dev)
+static void at91_adc_temp_sensor_init(struct at91_adc_state *st,
+				      struct device *dev)
 {
-	struct at91_adc_state *st = iio_priv(indio_dev);
 	struct at91_adc_temp_sensor_clb *clb = &st->soc_info.temp_sensor_clb;
 	struct nvmem_cell *temp_calib;
 	u32 *buf;
 	size_t len;
-	int ret = 0;
 
 	if (!st->soc_info.platform->temp_sensor)
-		return 0;
+		return;
+
+	st->temp_st.init = false;
 
 	/* Get the calibration data from NVMEM. */
-	temp_calib = devm_nvmem_cell_get(indio_dev->dev.parent,
-					 "temperature_calib");
+	temp_calib = devm_nvmem_cell_get(dev, "temperature_calib");
 	if (IS_ERR(temp_calib)) {
-		ret = PTR_ERR(temp_calib);
-
-		if (ret == -ENOENT) {
-			st->temp_st.init = false;
-			return 0;
-		}
-		return ret;
+		if (PTR_ERR(temp_calib) != -ENOENT)
+			dev_err(dev, "Failed to get temperature_calib cell!\n");
+		return;
 	}
 
 	buf = nvmem_cell_read(temp_calib, &len);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
+	if (IS_ERR(buf)) {
+		dev_err(dev, "Failed to read calibration data!\n");
+		return;
+	}
 	if (len < AT91_ADC_TS_CLB_IDX_MAX * 4) {
-		ret = -EINVAL;
+		dev_err(dev, "Invalid calibration data!\n");
 		goto free_buf;
 	}
 
@@ -2226,7 +2234,6 @@ static int at91_adc_temp_sensor_init(struct iio_dev *indio_dev)
 
 free_buf:
 	kfree(buf);
-	return ret;
 }
 
 static int at91_adc_probe(struct platform_device *pdev)
@@ -2362,9 +2369,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	if (ret)
 		goto vref_disable;
 
-	ret = at91_adc_temp_sensor_init(indio_dev);
-	if (ret)
-		goto per_clk_disable_unprepare;
+	at91_adc_temp_sensor_init(st, &pdev->dev);
 
 	at91_adc_hw_init(indio_dev);
 
