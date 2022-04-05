@@ -911,6 +911,7 @@ struct snd_pcm_runtime *snd_pcm_runtime_alloc(void)
 	init_waitqueue_head(&runtime->tsleep);
 
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
+	mutex_init(&runtime->buffer_mutex);
 
 	return runtime;
 }
@@ -923,6 +924,8 @@ void snd_pcm_runtime_free(struct snd_pcm_runtime *runtime)
 	free_pages_exact(runtime->control,
 			 PAGE_ALIGN(sizeof(struct snd_pcm_mmap_control)));
 	kfree(runtime->hw_constraints.rules);
+	
+	mutex_destroy(&runtime->buffer_mutex);	
 	kfree(runtime);
 }
 EXPORT_SYMBOL_GPL(snd_pcm_runtime_free);
