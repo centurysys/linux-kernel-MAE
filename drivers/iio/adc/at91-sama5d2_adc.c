@@ -469,29 +469,29 @@ struct at91_adc_platform {
 /**
  * struct at91_adc_temp_sensor_clb - at91-sama5d2 temperature sensor
  * calibration data structure
- * @t3: OTP_T3 calibration temperature
- * @vtemp: OTP_VTEMP calibration voltage
- * @vbg2: OTP_VBG2 calibration voltage
+ * @p1: P1 calibration temperature
+ * @p4: P4 calibration voltage
+ * @p6: P6 calibration voltage
  * @offset: calibration offset
  */
 struct at91_adc_temp_sensor_clb {
-	u32 t3;
-	u32 vtemp;
-	u32 vbg2;
+	u32 p1;
+	u32 p4;
+	u32 p6;
 	u32 offset;
 };
 
 /**
  * enum at91_adc_ts_clb_idx - calibration indexes in NVMEM buffer
- * @AT91_ADC_TS_CLB_IDX_OTP_T3: index for OTP_T3
- * @AT91_ADC_TS_CLB_IDX_OTP_VTEMP: index for OTP_VTEMP
- * @AT91_ADC_TS_CLB_IDX_OTP_VBG2: index for OTP_VBG2
+ * @AT91_ADC_TS_CLB_IDX_P1: index for P1
+ * @AT91_ADC_TS_CLB_IDX_P4: index for P4
+ * @AT91_ADC_TS_CLB_IDX_P6: index for P6
  * @AT91_ADC_TS_CLB_IDX_MAX: max index for temperature calibration packet in OTP
  */
 enum at91_adc_ts_clb_idx {
-	AT91_ADC_TS_CLB_IDX_OTP_T3 = 2,
-	AT91_ADC_TS_CLB_IDX_OTP_VTEMP = 5,
-	AT91_ADC_TS_CLB_IDX_OTP_VBG2 = 7,
+	AT91_ADC_TS_CLB_IDX_P1 = 2,
+	AT91_ADC_TS_CLB_IDX_P4 = 5,
+	AT91_ADC_TS_CLB_IDX_P6 = 7,
 	AT91_ADC_TS_CLB_IDX_MAX = OTP_PKT_SAMA7G5_TEMP_CALIB_LEN / 4,
 };
 
@@ -1841,16 +1841,16 @@ unlock:
 		return ret;
 
 	/*
-	 * Temp[mili] = t3[mili] + (vref * (vtemp * clb->vbg2 - clb->vtemp * vbg))/
-	 *			   ((clb->offset * clb->vbg2)
+	 * Temp[mili] = p1[mili] + (vref * (vtemp * clb->p6 - clb->p4 * vbg))/
+	 *			   ((clb->offset * clb->p6)
 	 */
-	div1 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * vtemp * clb->vbg2),
-				     clb->vbg2);
+	div1 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * vtemp * clb->p6),
+				     clb->p6);
 	div1 = DIV_ROUND_CLOSEST_ULL((div1 * 1000), clb->offset);
-	div2 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * clb->vtemp * vbg),
-				     clb->vbg2);
+	div2 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * clb->p4 * vbg),
+				     clb->p6);
 	div2 = DIV_ROUND_CLOSEST_ULL((div2 * 1000), clb->offset);
-	*val = clb->t3 * 1000 + (int)div1 - (int)div2;
+	*val = clb->p1 * 1000 + (int)div1 - (int)div2;
 
 	return ret;
 }
@@ -2225,9 +2225,9 @@ static void at91_adc_temp_sensor_init(struct at91_adc_state *st,
 	}
 
 	/* Store calibration data for later use. */
-	clb->t3 = buf[AT91_ADC_TS_CLB_IDX_OTP_T3];
-	clb->vtemp = buf[AT91_ADC_TS_CLB_IDX_OTP_VTEMP];
-	clb->vbg2 = buf[AT91_ADC_TS_CLB_IDX_OTP_VBG2];
+	clb->p1 = buf[AT91_ADC_TS_CLB_IDX_P1];
+	clb->p4 = buf[AT91_ADC_TS_CLB_IDX_P4];
+	clb->p6 = buf[AT91_ADC_TS_CLB_IDX_P6];
 	clb->offset = AT91_ADC_TS_CLB_TSG * AT91_ADC_TS_CLB_FS;
 
 	st->temp_st.init = true;
