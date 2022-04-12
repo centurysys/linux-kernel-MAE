@@ -472,13 +472,11 @@ struct at91_adc_platform {
  * @p1: P1 calibration temperature
  * @p4: P4 calibration voltage
  * @p6: P6 calibration voltage
- * @offset: calibration offset
  */
 struct at91_adc_temp_sensor_clb {
 	u32 p1;
 	u32 p4;
 	u32 p6;
-	u32 offset;
 };
 
 /**
@@ -495,10 +493,8 @@ enum at91_adc_ts_clb_idx {
 	AT91_ADC_TS_CLB_IDX_MAX = OTP_PKT_SAMA7G5_TEMP_CALIB_LEN / 4,
 };
 
-/* Temperature sensor calibration - temperature sensor gain. */
-#define AT91_ADC_TS_CLB_TSG		(2080U)
-/* Temperature sensor calibration - ADC Full Scale @256 oversampling rate. */
-#define AT91_ADC_TS_CLB_FS		(65536U)
+/* Temperature sensor calibration - Vtemp voltage sensitivity to temperature. */
+#define AT91_ADC_TS_VTEMP_DT		(2080U)
 
 /**
  * struct at91_adc_soc_info - at91-sama5d2 soc information struct
@@ -1841,16 +1837,14 @@ unlock:
 		return ret;
 
 	/*
-	 * Temp[mili] = p1[mili] + (vref * (vtemp * clb->p6 - clb->p4 * vbg))/
-	 *			   ((clb->offset * clb->p6)
+	 * Temp[milli] = p1[milli] + (vtemp * clb->p6 - clb->p4 * vbg)/
+	 *			     (vbg * AT91_ADC_TS_VTEMP_DT)
 	 */
-	div1 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * vtemp * clb->p6),
-				     clb->p6);
-	div1 = DIV_ROUND_CLOSEST_ULL((div1 * 1000), clb->offset);
-	div2 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * clb->p4 * vbg),
-				     clb->p6);
-	div2 = DIV_ROUND_CLOSEST_ULL((div2 * 1000), clb->offset);
-	*val = clb->p1 * 1000 + (int)div1 - (int)div2;
+	div1 = DIV_ROUND_CLOSEST_ULL(((u64)vtemp * clb->p6), vbg);
+	div1 = DIV_ROUND_CLOSEST_ULL((div1 * 1000), AT91_ADC_TS_VTEMP_DT);
+	div2 = DIV_ROUND_CLOSEST_ULL((u64)clb->p4, AT91_ADC_TS_VTEMP_DT);
+	div2 *= 1000;
+	*val = clb->p1 + (int)div1 - (int)div2;
 
 	return ret;
 }
@@ -2228,7 +2222,13 @@ static void at91_adc_temp_sensor_init(struct at91_adc_state *st,
 	clb->p1 = buf[AT91_ADC_TS_CLB_IDX_P1];
 	clb->p4 = buf[AT91_ADC_TS_CLB_IDX_P4];
 	clb->p6 = buf[AT91_ADC_TS_CLB_IDX_P6];
-	clb->offset = AT91_ADC_TS_CLB_TSG * AT91_ADC_TS_CLB_FS;
+
+	/*
+	 * We prepare here the conversion to milli and also add constant
+	 * factor (5 degrees Celsius) to p1 here to avoid doing it on
+	 * hotpath.
+	 */
+	clb->p1 = clb->p1 * 1000 + 5000;
 
 	st->temp_st.init = true;
 
