@@ -83,6 +83,7 @@ struct at91_adc_reg_layout {
 #define	AT91_SAMA5D2_MR_ANACH		BIT(23)
 /* Tracking Time */
 #define	AT91_SAMA5D2_MR_TRACKTIM(v)	((v) << 24)
+#define	AT91_SAMA5D2_MR_TRACKTIM_TS	6
 #define	AT91_SAMA5D2_MR_TRACKTIM_MAX	0xf
 /* Transfer Time */
 #define	AT91_SAMA5D2_MR_TRANSFER(v)	((v) << 28)
@@ -1779,7 +1780,7 @@ static void at91_adc_temp_sensor_configure(struct at91_adc_state *st,
 		sample_rate = 10000000U;
 		oversampling_ratio = AT91_OSR_256SAMPLES;
 		startup_time = AT91_SAMA5D2_MR_STARTUP_TS_MIN;
-		tracktim = AT91_SAMA5D2_MR_TRACKTIM_MAX;
+		tracktim = AT91_SAMA5D2_MR_TRACKTIM_TS;
 		trackx = AT91_SAMA5D2_TRACKX_TS;
 
 		st->temp_st.saved_sample_rate = st->current_sample_rate;
