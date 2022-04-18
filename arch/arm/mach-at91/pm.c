@@ -1542,6 +1542,7 @@ void __init sama5_pm_init(void)
 	};
 	static const u32 iomaps[] __initconst = {
 		[AT91_PM_ULP0]		= AT91_PM_IOMAP(ETHC),
+		[AT91_PM_ULP0_FAST]	= AT91_PM_IOMAP(ETHC),
 	};
 	int ret;
 
@@ -1558,9 +1559,11 @@ void __init sama5_pm_init(void)
 
 	/* Quirks applies to ULP0 and ULP1 modes. */
 	soc_pm.quirks.eth[AT91_PM_G_ETH].modes = BIT(AT91_PM_ULP0) |
+						 BIT(AT91_PM_ULP0_FAST) |
 						 BIT(AT91_PM_ULP1);
 	/* Do not suspend in ULP0 if GETH is the only wakeup source. */
-	soc_pm.quirks.eth[AT91_PM_G_ETH].dns_modes = BIT(AT91_PM_ULP0);
+	soc_pm.quirks.eth[AT91_PM_G_ETH].dns_modes = BIT(AT91_PM_ULP0) |
+						     BIT(AT91_PM_ULP0_FAST);
 }
 
 void __init sama5d2_pm_init(void)
@@ -1571,6 +1574,7 @@ void __init sama5d2_pm_init(void)
 	};
 	static const u32 iomaps[] __initconst = {
 		[AT91_PM_ULP0]		= AT91_PM_IOMAP(ETHC),
+		[AT91_PM_ULP0_FAST]	= AT91_PM_IOMAP(ETHC),
 		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SHDWC) |
 					  AT91_PM_IOMAP(ETHC),
 		[AT91_PM_BACKUP]	= AT91_PM_IOMAP(SHDWC) |
@@ -1600,9 +1604,11 @@ void __init sama5d2_pm_init(void)
 
 	/* Quirk applies to ULP0 and ULP1 modes. */
 	soc_pm.quirks.eth[AT91_PM_G_ETH].modes = BIT(AT91_PM_ULP0) |
+						 BIT(AT91_PM_ULP0_FAST) |
 						 BIT(AT91_PM_ULP1);
 	/* Do not suspend in ULP0 if GETH is the only wakeup source. */
-	soc_pm.quirks.eth[AT91_PM_G_ETH].dns_modes = BIT(AT91_PM_ULP0);
+	soc_pm.quirks.eth[AT91_PM_G_ETH].dns_modes = BIT(AT91_PM_ULP0) |
+						     BIT(AT91_PM_ULP0_FAST);
 }
 
 void __init sama7_pm_init(void)
