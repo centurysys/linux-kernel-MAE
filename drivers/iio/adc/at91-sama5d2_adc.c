@@ -83,6 +83,7 @@ struct at91_adc_reg_layout {
 #define	AT91_SAMA5D2_MR_ANACH		BIT(23)
 /* Tracking Time */
 #define	AT91_SAMA5D2_MR_TRACKTIM(v)	((v) << 24)
+#define	AT91_SAMA5D2_MR_TRACKTIM_TS	6
 #define	AT91_SAMA5D2_MR_TRACKTIM_MAX	0xf
 /* Transfer Time */
 #define	AT91_SAMA5D2_MR_TRANSFER(v)	((v) << 28)
@@ -469,36 +470,32 @@ struct at91_adc_platform {
 /**
  * struct at91_adc_temp_sensor_clb - at91-sama5d2 temperature sensor
  * calibration data structure
- * @t3: OTP_T3 calibration temperature
- * @vtemp: OTP_VTEMP calibration voltage
- * @vbg2: OTP_VBG2 calibration voltage
- * @offset: calibration offset
+ * @p1: P1 calibration temperature
+ * @p4: P4 calibration voltage
+ * @p6: P6 calibration voltage
  */
 struct at91_adc_temp_sensor_clb {
-	u32 t3;
-	u32 vtemp;
-	u32 vbg2;
-	u32 offset;
+	u32 p1;
+	u32 p4;
+	u32 p6;
 };
 
 /**
  * enum at91_adc_ts_clb_idx - calibration indexes in NVMEM buffer
- * @AT91_ADC_TS_CLB_IDX_OTP_T3: index for OTP_T3
- * @AT91_ADC_TS_CLB_IDX_OTP_VTEMP: index for OTP_VTEMP
- * @AT91_ADC_TS_CLB_IDX_OTP_VBG2: index for OTP_VBG2
+ * @AT91_ADC_TS_CLB_IDX_P1: index for P1
+ * @AT91_ADC_TS_CLB_IDX_P4: index for P4
+ * @AT91_ADC_TS_CLB_IDX_P6: index for P6
  * @AT91_ADC_TS_CLB_IDX_MAX: max index for temperature calibration packet in OTP
  */
 enum at91_adc_ts_clb_idx {
-	AT91_ADC_TS_CLB_IDX_OTP_T3 = 2,
-	AT91_ADC_TS_CLB_IDX_OTP_VTEMP = 5,
-	AT91_ADC_TS_CLB_IDX_OTP_VBG2 = 7,
+	AT91_ADC_TS_CLB_IDX_P1 = 2,
+	AT91_ADC_TS_CLB_IDX_P4 = 5,
+	AT91_ADC_TS_CLB_IDX_P6 = 7,
 	AT91_ADC_TS_CLB_IDX_MAX = OTP_PKT_SAMA7G5_TEMP_CALIB_LEN / 4,
 };
 
-/* Temperature sensor calibration - temperature sensor gain. */
-#define AT91_ADC_TS_CLB_TSG		(2080U)
-/* Temperature sensor calibration - ADC Full Scale @256 oversampling rate. */
-#define AT91_ADC_TS_CLB_FS		(65536U)
+/* Temperature sensor calibration - Vtemp voltage sensitivity to temperature. */
+#define AT91_ADC_TS_VTEMP_DT		(2080U)
 
 /**
  * struct at91_adc_soc_info - at91-sama5d2 soc information struct
@@ -1783,7 +1780,7 @@ static void at91_adc_temp_sensor_configure(struct at91_adc_state *st,
 		sample_rate = 10000000U;
 		oversampling_ratio = AT91_OSR_256SAMPLES;
 		startup_time = AT91_SAMA5D2_MR_STARTUP_TS_MIN;
-		tracktim = AT91_SAMA5D2_MR_TRACKTIM_MAX;
+		tracktim = AT91_SAMA5D2_MR_TRACKTIM_TS;
 		trackx = AT91_SAMA5D2_TRACKX_TS;
 
 		st->temp_st.saved_sample_rate = st->current_sample_rate;
@@ -1841,16 +1838,14 @@ unlock:
 		return ret;
 
 	/*
-	 * Temp[mili] = t3[mili] + (vref * (vtemp * clb->vbg2 - clb->vtemp * vbg))/
-	 *			   ((clb->offset * clb->vbg2)
+	 * Temp[milli] = p1[milli] + (vtemp * clb->p6 - clb->p4 * vbg)/
+	 *			     (vbg * AT91_ADC_TS_VTEMP_DT)
 	 */
-	div1 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * vtemp * clb->vbg2),
-				     clb->vbg2);
-	div1 = DIV_ROUND_CLOSEST_ULL((div1 * 1000), clb->offset);
-	div2 = DIV_ROUND_CLOSEST_ULL(((u64)st->vref_uv * clb->vtemp * vbg),
-				     clb->vbg2);
-	div2 = DIV_ROUND_CLOSEST_ULL((div2 * 1000), clb->offset);
-	*val = clb->t3 * 1000 + (int)div1 - (int)div2;
+	div1 = DIV_ROUND_CLOSEST_ULL(((u64)vtemp * clb->p6), vbg);
+	div1 = DIV_ROUND_CLOSEST_ULL((div1 * 1000), AT91_ADC_TS_VTEMP_DT);
+	div2 = DIV_ROUND_CLOSEST_ULL((u64)clb->p4, AT91_ADC_TS_VTEMP_DT);
+	div2 *= 1000;
+	*val = clb->p1 + (int)div1 - (int)div2;
 
 	return ret;
 }
@@ -2225,10 +2220,16 @@ static void at91_adc_temp_sensor_init(struct at91_adc_state *st,
 	}
 
 	/* Store calibration data for later use. */
-	clb->t3 = buf[AT91_ADC_TS_CLB_IDX_OTP_T3];
-	clb->vtemp = buf[AT91_ADC_TS_CLB_IDX_OTP_VTEMP];
-	clb->vbg2 = buf[AT91_ADC_TS_CLB_IDX_OTP_VBG2];
-	clb->offset = AT91_ADC_TS_CLB_TSG * AT91_ADC_TS_CLB_FS;
+	clb->p1 = buf[AT91_ADC_TS_CLB_IDX_P1];
+	clb->p4 = buf[AT91_ADC_TS_CLB_IDX_P4];
+	clb->p6 = buf[AT91_ADC_TS_CLB_IDX_P6];
+
+	/*
+	 * We prepare here the conversion to milli and also add constant
+	 * factor (5 degrees Celsius) to p1 here to avoid doing it on
+	 * hotpath.
+	 */
+	clb->p1 = clb->p1 * 1000 + 5000;
 
 	st->temp_st.init = true;
 
