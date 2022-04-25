@@ -104,7 +104,6 @@
 	ddrc_cache: memory@1000000000 {
 		device_type = "memory";
 		reg = <0x10 0x0 0x0 0x75BB0000>;
-		clocks = <&clkcfg CLK_DDRC>;
 		status = "okay";
 	};
 
