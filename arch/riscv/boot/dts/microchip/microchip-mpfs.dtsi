@@ -147,6 +147,11 @@
 		#clock-cells = <0>;
 	};
 
+	syscontroller: syscontroller {
+		compatible = "microchip,mpfs-sys-controller";
+		mboxes = <&mbox 0>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -472,11 +477,6 @@
 			interrupts = <96>;
 			#mbox-cells = <1>;
 			status = "disabled";
-		};
-
-		syscontroller: syscontroller {
-			compatible = "microchip,mpfs-sys-controller";
-			mboxes = <&mbox 0>;
 		};
 	};
 };
