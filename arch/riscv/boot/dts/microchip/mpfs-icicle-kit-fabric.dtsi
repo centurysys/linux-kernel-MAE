@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Copyright (c) 2020-2021 Microchip Technology Inc */
 
+#include "dt-bindings/mailbox/miv-ihc.h"
+
 / {
+	compatible = "microchip,mpfs-icicle-reference-rtlv2203";
+
 	core_pwm0: pwm@41000000 {
 		compatible = "microchip,corepwm-rtl-v4";
 		reg = <0x0 0x41000000 0x0 0xF0>;
