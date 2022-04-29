@@ -17,10 +17,12 @@ properties:
   $nodename:
     const: '/'
   compatible:
-    items:
-      - enum:
-          - microchip,mpfs-icicle-kit
-      - const: microchip,mpfs
+    oneOf:
+      - items:
+          - enum:
+              - microchip,mpfs-icicle-kit
+              - microchip,mpfs-icicle-reference-rtlv2203
+          - const: microchip,mpfs
 
 additionalProperties: true
 
