@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-07-overlay.dts - Device Tree Overlay file (xio_id: 0x07)
+ *                                           for Century Systems Gemini board
+ *
+ *  Copyright (C) 2022 Century Systems
+ *                     Takeyoshi Kikuchi <kikuchi@centurysys.co.jp>
+ */
+
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/regulator/active-semi,8945a-regulator.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			vadc_fixed: fixedregulator_adc {
+				compatible = "regulator-fixed";
+				regulator-name = "VADC_5V";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* AD Converter #1 */
+			ltc2487_1: ltc2487@14 {
+				compatible = "lltc,ltc2487";
+				reg = <0x14>;
+				vref-supply = <&vadc_fixed>;
+			};
+
+			/* AD Converter #2 */
+			ltc2487_2: ltc2487@16 {
+				compatible = "lltc,ltc2487";
+				reg = <0x16>;
+				vref-supply = <&vadc_fixed>;
+			};
+
+			tca9538: tca9538@70 {
+				compatible = "nxp,pca9538";
+				reg = <0x70>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#gpio-cells = <2>;
+
+				gpio-line-names = "eFUSE_SHDN_N",
+						  "eFUSE_FLT_N",
+						  "Reserved2",
+						  "Reserved3",
+						  "DISO_PDIS_N",
+						  "Reserved5",
+						  "MSP430_EXT1_RST",
+						  "MSP430_EXT1_TEST";
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&leds>;
+		__overlay__ {
+			tca953x_efuse_shdn_n {
+				label = "VOUT_CTRL";
+				gpios = <&tca9538 0 GPIO_ACTIVE_HIGH>;
+			};
+
+			tca953x_adc_vcc_on {
+				label = "ADC_VCC_ON";
+				gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
+			};
+
+			msp430_ext1_reset {
+				label = "MSP430_EXT1_RST";
+				gpios = <&tca9538 6 GPIO_ACTIVE_HIGH>;
+			};
+
+			msp430_ext1_test {
+				label = "MSP430_EXT1_TEST";
+				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
+			};
+		};
+	};
+};
