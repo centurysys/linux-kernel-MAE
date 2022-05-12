@@ -65,6 +65,25 @@
 						  "MSP430_EXT1_RST",
 						  "MSP430_EXT1_TEST";
 			};
+
+			pca9698: pca9698@3e {
+				compatible = "nxp,pca9698";
+				reg = <0x3e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#gpio-cells = <2>;
+
+				gpio-line-names = "EXT_DI0", "EXT_DI1", "EXT_DI2", "EXT_DI3",
+						  "EXT_DI4", "EXT_DI5", "EXT_DI6", "EXT_DI7",
+						  "EXT_DI8", "EXT_DI9", "EXT_DI10", "EXT_DI11",
+						  "", "", "", "EXT_24V_Fail",
+						  "Filtered_DI0", "Filtered_DI1", "Filtered_DI2", "Filtered_DI3",
+						  "Filtered_DI4", "Filtered_DI5", "Filtered_DI6", "Filtered_DI7",
+						  "Filtered_DI8", "Filtered_DI9", "Filtered_DI10", "Filtered_DI11",
+						  "", "", "", "",
+						  "EXT_DO0", "EXT_DO1", "EXT_DO2", "EXT_DO3",
+						  "", "", "", "EXT_24V_ON";
+			};
 		};
 	};
 
@@ -90,6 +109,31 @@
 			msp430_ext1_test {
 				label = "MSP430_EXT1_TEST";
 				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
+			};
+
+			ext_do0 {
+				label = "EXT_DO0";
+				gpios = <&pca9698 32 GPIO_ACTIVE_HIGH>;
+			};
+
+			ext_do1 {
+				label = "EXT_DO1";
+				gpios = <&pca9698 33 GPIO_ACTIVE_HIGH>;
+			};
+
+			ext_do2 {
+				label = "EXT_DO2";
+				gpios = <&pca9698 34 GPIO_ACTIVE_HIGH>;
+			};
+
+			ext_do3 {
+				label = "EXT_DO3";
+				gpios = <&pca9698 35 GPIO_ACTIVE_HIGH>;
+			};
+
+			ext_24v_on {
+				label = "EXT_24V_ON";
+				gpios = <&pca9698 39 GPIO_ACTIVE_HIGH>;
 			};
 		};
 	};
