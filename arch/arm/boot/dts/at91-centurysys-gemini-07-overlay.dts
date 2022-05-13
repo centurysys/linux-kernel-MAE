@@ -114,26 +114,41 @@
 			ext_do0 {
 				label = "EXT_DO0";
 				gpios = <&pca9698 32 GPIO_ACTIVE_HIGH>;
+				retain-state-suspended;
+				retain-state-shutdown;
+				default-state = "keep";
 			};
 
 			ext_do1 {
 				label = "EXT_DO1";
 				gpios = <&pca9698 33 GPIO_ACTIVE_HIGH>;
+				retain-state-suspended;
+				retain-state-shutdown;
+				default-state = "keep";
 			};
 
 			ext_do2 {
 				label = "EXT_DO2";
 				gpios = <&pca9698 34 GPIO_ACTIVE_HIGH>;
+				retain-state-suspended;
+				retain-state-shutdown;
+				default-state = "keep";
 			};
 
 			ext_do3 {
 				label = "EXT_DO3";
 				gpios = <&pca9698 35 GPIO_ACTIVE_HIGH>;
+				retain-state-suspended;
+				retain-state-shutdown;
+				default-state = "keep";
 			};
 
 			ext_24v_on {
 				label = "EXT_24V_ON";
 				gpios = <&pca9698 39 GPIO_ACTIVE_HIGH>;
+				retain-state-suspended;
+				retain-state-shutdown;
+				default-state = "keep";
 			};
 		};
 	};
