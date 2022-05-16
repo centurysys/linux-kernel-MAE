@@ -22,6 +22,8 @@ properties:
           - enum:
               - microchip,mpfs-icicle-kit
               - microchip,mpfs-icicle-reference-rtlv2203
+              - aries,m100pfsevp-emmc
+              - aries,m100pfsevp-sdcard
           - const: microchip,mpfs
 
 additionalProperties: true
