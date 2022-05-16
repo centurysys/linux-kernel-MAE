@@ -37,6 +37,17 @@ config RPMSG_MIV
 	  This can also be compiled as a module, which will be called
 	  miv_rpmsg.
 
+config RPMSG_MIV_TTY
+	tristate "Mi-V tty driver -- loadable modules only"
+	depends on RPMSG && m
+	help
+	  Build a rpmsg tty sample driver that exposes a standard TTY
+	  interface on top of the rpmsg framework through an rpmsg service.
+	  This client driver demonstrates string transmissions in an AMP
+	  configuration over the rpmsg bus.
+	  This can also be compiled as a module, which will be called
+	  miv_rpmsg_tty.
+
 config RPMSG_MTK_SCP
 	tristate "MediaTek SCP"
 	depends on MTK_SCP
