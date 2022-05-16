@@ -44,6 +44,25 @@ properties:
 
   gpio-controller: true
 
+patternProperties:
+  "^.*$":
+    if:
+      type: object
+    then:
+      properties:
+        gpio-hog: true
+        gpios: true
+        input: true
+        output-high: true
+        output-low: true
+        line-name: true
+
+      required:
+        - gpio-hog
+        - gpios
+
+      additionalProperties: false
+
 required:
   - compatible
   - reg
