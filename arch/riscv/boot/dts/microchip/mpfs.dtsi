@@ -180,6 +180,7 @@
 		};
 
 		plic: interrupt-controller@c000000 {
+			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
 			reg = <0x0 0xc000000 0x0 0x4000000>;
