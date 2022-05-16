@@ -32,6 +32,12 @@
 		timebase-frequency = <RTCCLK_FREQ>;
 	};
 
+	ddrc_cache: memory@1000000000 {
+		device_type = "memory";
+		reg = <0x10 0x0 0x0 0x75BB0000>;
+		status = "okay";
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -75,6 +81,13 @@
 		};
 	};
 
+	rpmsg: rpmsg {
+		compatible = "microchip,miv-rpmsg";
+		reg =  <0x10 0x75FB0000 0x0 0x10000>; // 64Kb reserved for vrings
+		memory-region = <&rpmsg_dma_reserved>;
+		mboxes= <&ihc 0>;
+	};
+
 	udmabuf0 {
 		compatible = "ikwzm,u-dma-buf";
 		device-name = "udmabuf-ddr-c0";
@@ -102,61 +115,18 @@
 		sync-mode = <3>;
 	};
 
-	ddrc_cache: memory@1000000000 {
-		device_type = "memory";
-		reg = <0x10 0x0 0x0 0x75BB0000>;
-		status = "okay";
-	};
-
-	rpmsg: rpmsg {
-		compatible = "microchip,miv-rpmsg";
-		reg =  <0x10 0x75FB0000 0x0 0x10000>; // 64Kb reserved for vrings
-		memory-region = <&rpmsg_dma_reserved>;
-		mboxes= <&ihc 0>;
-	};
 };
 
-&refclk {
-	clock-frequency = <125000000>;
-};
-
-&mmuart1 {
+&can0 {
 	status = "okay";
 };
 
-&mmuart2 {
+&core_pwm0 {
 	status = "okay";
 };
 
-&mmuart3 {
+&cpu4 {
 	status = "disabled"; // in use by context b
-};
-
-&mmuart4 {
-	status = "okay";
-};
-
-&mmc {
-	status = "okay";
-	bus-width = <4>;
-	disable-wp;
-	cap-sd-highspeed;
-	cap-mmc-highspeed;
-	card-detect-delay = <200>;
-	mmc-ddr-1_8v;
-	mmc-hs200-1_8v;
-	sd-uhs-sdr12;
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
-	sd-uhs-sdr104;
-};
-
-&spi0 {
-	status = "okay";
-};
-
-&spi1 {
-	status = "okay";
 };
 
 &i2c0 {
@@ -171,7 +141,35 @@
 	status = "okay";
 };
 
-&can0 {
+&ihc {
+	status = "okay";
+};
+
+&fpgadma {
+	status = "okay";
+};
+
+&fpgalsram {
+	status = "okay";
+};
+
+&gpio2 {
+	interrupts = <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>,
+		     <53>, <53>;
 	status = "okay";
 };
 
@@ -195,40 +193,38 @@
 	};
 };
 
-&gpio2 {
-	interrupts = <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>,
-		     <53>, <53>;
-	status = "okay";
-};
-
-&rtc {
-	status = "okay";
-};
-
-&usb {
-	status = "okay";
-	dr_mode = "otg";
-};
-
 &mbox {
 	status = "okay";
 };
 
-&syscontroller {
+&mmc {
+	status = "okay";
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-mmc-highspeed;
+	card-detect-delay = <200>;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+};
+
+&mmuart1 {
+	status = "okay";
+};
+
+&mmuart2 {
+	status = "okay";
+};
+
+&mmuart3 {
+	status = "disabled"; // in use by context b
+};
+
+&mmuart4 {
 	status = "okay";
 };
 
@@ -236,22 +232,27 @@
 	status = "okay";
 };
 
-&core_pwm0 {
+&refclk {
+	clock-frequency = <125000000>;
+};
+
+&rtc {
 	status = "okay";
 };
 
-&fpgadma {
+&spi0 {
 	status = "okay";
 };
 
-&fpgalsram {
+&spi1 {
 	status = "okay";
 };
 
-&ihc {
+&syscontroller {
 	status = "okay";
 };
 
-&cpu4 {
-	status = "disabled"; // in use by context b
+&usb {
+	status = "okay";
+	dr_mode = "otg";
 };

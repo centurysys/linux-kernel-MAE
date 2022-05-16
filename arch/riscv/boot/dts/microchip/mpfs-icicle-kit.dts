@@ -32,6 +32,12 @@
 		timebase-frequency = <MTIMER_FREQ>;
 	};
 
+	ddrc_cache: memory@1000000000 {
+		device_type = "memory";
+		reg = <0x10 0x0 0x0 0x76000000>;
+		status = "okay";
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -80,56 +86,36 @@
 		sync-mode = <3>;
 	};
 
-	ddrc_cache: memory@1000000000 {
-		device_type = "memory";
-		reg = <0x10 0x0 0x0 0x76000000>;
-		status = "okay";
-	};
-
 	soc {
 	};
 };
 
-&refclk {
-	clock-frequency = <125000000>;
-};
-
-&mmuart1 {
+&can0 {
 	status = "okay";
 };
 
-&mmuart2 {
+&core_pwm0 {
 	status = "okay";
 };
 
-&mmuart3 {
+
+&fpgadma {
 	status = "okay";
 };
 
-&mmuart4 {
+&fpgalsram {
 	status = "okay";
 };
 
-&mmc {
-	status = "okay";
-	bus-width = <4>;
-	disable-wp;
-	cap-sd-highspeed;
-	cap-mmc-highspeed;
-	card-detect-delay = <200>;
-	mmc-ddr-1_8v;
-	mmc-hs200-1_8v;
-	sd-uhs-sdr12;
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
-	sd-uhs-sdr104;
-};
-
-&spi0 {
-	status = "okay";
-};
-
-&spi1 {
+&gpio2 {
+	interrupts = <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>;
 	status = "okay";
 };
 
@@ -142,10 +128,6 @@
 };
 
 &i2c2 {
-	status = "okay";
-};
-
-&can0 {
 	status = "okay";
 };
 
@@ -169,32 +151,38 @@
 	};
 };
 
-&gpio2 {
-	interrupts = <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>;
-	status = "okay";
-};
-
-&rtc {
-	status = "okay";
-};
-
-&usb {
-	status = "okay";
-	dr_mode = "otg";
-};
-
 &mbox {
 	status = "okay";
 };
 
-&syscontroller {
+&mmc {
+	status = "okay";
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-mmc-highspeed;
+	card-detect-delay = <200>;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+};
+
+&mmuart1 {
+	status = "okay";
+};
+
+&mmuart2 {
+	status = "okay";
+};
+
+&mmuart3 {
+	status = "okay";
+};
+
+&mmuart4 {
 	status = "okay";
 };
 
@@ -202,14 +190,27 @@
 	status = "okay";
 };
 
-&core_pwm0 {
+&refclk {
+	clock-frequency = <125000000>;
+};
+
+&rtc {
 	status = "okay";
 };
 
-&fpgadma {
+&spi0 {
 	status = "okay";
 };
 
-&fpgalsram {
+&spi1 {
 	status = "okay";
+};
+
+&syscontroller {
+	status = "okay";
+};
+
+&usb {
+	status = "okay";
+	dr_mode = "otg";
 };
