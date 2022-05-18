@@ -87,7 +87,7 @@ static int mpfs_rtc_readtime(struct device *dev, struct rtc_time *tm)
 
 	time = readl(rtcdev->base + DATETIME_LOWER_REG);
 	time |= ((u64)readl(rtcdev->base + DATETIME_UPPER_REG) & DATETIME_UPPER_MASK) << 32;
-	rtc_time64_to_tm(time + rtcdev->rtc->range_min, tm);
+	rtc_time64_to_tm(time, tm);
 
 	return 0;
 }
@@ -98,7 +98,7 @@ static int mpfs_rtc_settime(struct device *dev, struct rtc_time *tm)
 	u32 ctrl, prog;
 	u64 time;
 
-	time = rtc_tm_to_time64(tm) - rtcdev->rtc->range_min;
+	time = rtc_tm_to_time64(tm);
 
 	writel((u32)time, rtcdev->base + DATETIME_LOWER_REG);
 	writel((u32)(time >> 32) & DATETIME_UPPER_MASK, rtcdev->base + DATETIME_UPPER_REG);
@@ -133,7 +133,7 @@ static int mpfs_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	time = (u64)readl(rtcdev->base + ALARM_LOWER_REG) << 32;
 	time |= (readl(rtcdev->base + ALARM_UPPER_REG) & ALARM_UPPER_MASK);
-	rtc_time64_to_tm(time + rtcdev->rtc->range_min, &alrm->time);
+	rtc_time64_to_tm(time, &alrm->time);
 
 	return 0;
 }
@@ -149,7 +149,7 @@ static int mpfs_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ctrl |= CONTROL_ALARM_OFF_BIT;
 	writel(ctrl, rtcdev->base + CONTROL_REG);
 
-	time = rtc_tm_to_time64(&alrm->time) - rtcdev->rtc->range_min;
+	time = rtc_tm_to_time64(&alrm->time);
 
 	writel((u32)time, rtcdev->base + ALARM_LOWER_REG);
 	writel((u32)(time >> 32) & ALARM_UPPER_MASK, rtcdev->base + ALARM_UPPER_REG);
