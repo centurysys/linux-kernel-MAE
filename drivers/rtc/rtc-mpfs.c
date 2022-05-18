@@ -85,8 +85,8 @@ static int mpfs_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	struct mpfs_rtc_dev *rtcdev = dev_get_drvdata(dev);
 	u64 time;
 
-	time = ((u64)readl(rtcdev->base + DATETIME_UPPER_REG) & DATETIME_UPPER_MASK) << 32;
-	time |= readl(rtcdev->base + DATETIME_LOWER_REG);
+	time = readl(rtcdev->base + DATETIME_LOWER_REG);
+	time |= ((u64)readl(rtcdev->base + DATETIME_UPPER_REG) & DATETIME_UPPER_MASK) << 32;
 	rtc_time64_to_tm(time + rtcdev->rtc->range_min, tm);
 
 	return 0;
