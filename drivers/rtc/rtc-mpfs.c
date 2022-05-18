@@ -54,7 +54,6 @@ struct mpfs_rtc_dev {
 	struct rtc_device *rtc;
 	void __iomem *base;
 	int wakeup_irq;
-	u32 prescaler;
 };
 
 static void mpfs_rtc_start(struct mpfs_rtc_dev *rtcdev)
@@ -238,6 +237,7 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 {
 	struct mpfs_rtc_dev *rtcdev;
 	struct clk *clk;
+	u32 prescaler;
 	int ret;
 
 	rtcdev = devm_kzalloc(&pdev->dev, sizeof(struct mpfs_rtc_dev), GFP_KERNEL);
@@ -278,15 +278,15 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 	}
 
 	// prescaler hardware adds 1 to reg value
-	rtcdev->prescaler = clk_get_rate(devm_clk_get(&pdev->dev, "rtcref")) - 1;
+	prescaler = clk_get_rate(devm_clk_get(&pdev->dev, "rtcref")) - 1;
 
-	if (rtcdev->prescaler > MAX_PRESCALER_COUNT) {
-		dev_dbg(&pdev->dev, "invalid prescaler %d\n", rtcdev->prescaler);
+	if (prescaler > MAX_PRESCALER_COUNT) {
+		dev_dbg(&pdev->dev, "invalid prescaler %d\n", prescaler);
 		return -EPERM;
 	}
 
-	writel(rtcdev->prescaler, rtcdev->base + PRESCALER_REG);
-	dev_info(&pdev->dev, "prescaler set to: 0x%X \r\n", rtcdev->prescaler);
+	writel(prescaler, rtcdev->base + PRESCALER_REG);
+	dev_info(&pdev->dev, "prescaler set to: 0x%X \r\n", prescaler);
 
 	device_init_wakeup(&pdev->dev, true);
 	ret = dev_pm_set_wake_irq(&pdev->dev, rtcdev->wakeup_irq);
