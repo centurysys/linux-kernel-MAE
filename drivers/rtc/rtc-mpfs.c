@@ -210,9 +210,9 @@ static inline struct clk *mpfs_rtc_init_clk(struct device *dev)
 	return clk;
 }
 
-static irqreturn_t mpfs_rtc_wakeup_irq_handler(int irq, void *d)
+static irqreturn_t mpfs_rtc_wakeup_irq_handler(int irq, void *dev)
 {
-	struct mpfs_rtc_dev *rtcdev = d;
+	struct mpfs_rtc_dev *rtcdev = dev;
 	unsigned long pending;
 
 	pending = readl(rtcdev->base + CONTROL_REG);
@@ -297,8 +297,7 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 
 static int mpfs_rtc_remove(struct platform_device *pdev)
 {
-	mpfs_rtc_alarm_irq_enable(&pdev->dev, 0);
-	device_init_wakeup(&pdev->dev, 0);
+	dev_pm_clear_wake_irq(&pdev->dev);
 
 	return 0;
 }
