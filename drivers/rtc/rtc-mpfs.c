@@ -53,7 +53,6 @@
 struct mpfs_rtc_dev {
 	struct rtc_device *rtc;
 	void __iomem *base;
-	int wakeup_irq;
 };
 
 static void mpfs_rtc_start(struct mpfs_rtc_dev *rtcdev)
@@ -238,7 +237,7 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 	struct mpfs_rtc_dev *rtcdev;
 	struct clk *clk;
 	u32 prescaler;
-	int ret;
+	int wakeup_irq, ret;
 
 	rtcdev = devm_kzalloc(&pdev->dev, sizeof(struct mpfs_rtc_dev), GFP_KERNEL);
 	if (!rtcdev)
@@ -265,12 +264,12 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtcdev->base);
 	}
 
-	rtcdev->wakeup_irq = platform_get_irq(pdev, 0);
-	if (rtcdev->wakeup_irq <= 0) {
+	wakeup_irq = platform_get_irq(pdev, 0);
+	if (wakeup_irq <= 0) {
 		dev_dbg(&pdev->dev, "could not get wakeup irq\n");
-		return rtcdev->wakeup_irq;
+		return wakeup_irq;
 	}
-	ret = devm_request_irq(&pdev->dev, rtcdev->wakeup_irq, mpfs_rtc_wakeup_irq_handler, 0,
+	ret = devm_request_irq(&pdev->dev, wakeup_irq, mpfs_rtc_wakeup_irq_handler, 0,
 			       dev_name(&pdev->dev), rtcdev);
 	if (ret) {
 		dev_dbg(&pdev->dev, "could not request wakeup irq\n");
@@ -289,7 +288,7 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "prescaler set to: 0x%X \r\n", prescaler);
 
 	device_init_wakeup(&pdev->dev, true);
-	ret = dev_pm_set_wake_irq(&pdev->dev, rtcdev->wakeup_irq);
+	ret = dev_pm_set_wake_irq(&pdev->dev, wakeup_irq);
 	if (ret)
 		dev_err(&pdev->dev, "failed to enable irq wake\n");
 
