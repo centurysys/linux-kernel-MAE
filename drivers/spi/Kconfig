@@ -505,6 +505,12 @@ config SPI_MESON_SPIFC
 	  This enables master mode support for the SPIFC (SPI flash
 	  controller) available in Amlogic Meson SoCs.
 
+config SPI_MICROCHIP_CORE
+	tristate "Microchip FPGA SPI controllers"
+	depends on SPI_MASTER
+	help
+	  SPI driver for Microchip FPGA SPI controllers.
+
 config SPI_MT65XX
 	tristate "MediaTek SPI controller"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
