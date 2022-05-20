@@ -923,7 +923,7 @@ static int mc_pcie_init_irq_domains(struct mc_port *port)
 }
 
 static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
-				 phys_addr_t axi_addr, phys_addr_t pci_addr,
+				 phys_addr_t pci_addr, phys_addr_t axi_addr,
 				 size_t size)
 {
 	u32 atr_sz = ilog2(size) - 1;
@@ -942,7 +942,7 @@ static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_SRCADDR_PARAM);
 
-	val = upper_32_bits(axi_addr);
+	val = 0;
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_SRC_ADDR);
 
@@ -950,7 +950,7 @@ static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_TRSL_ADDR_LSB);
 
-	val = upper_32_bits(pci_addr);
+	val = 0;
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_TRSL_ADDR_UDW);
 
@@ -1097,8 +1097,8 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	writel_relaxed(GENMASK(31, 0), bridge_base_addr + ISTATUS_HOST);
 
 	/* Configure Address Translation Table 0 for PCIe config space */
-	mc_pcie_setup_window(bridge_base_addr, 0, cfg->res.start & 0xffffffff,
-			     cfg->res.start, resource_size(&cfg->res));
+	mc_pcie_setup_window(bridge_base_addr, 0, cfg->res.start,
+			     cfg->res.start & 0xffffffff, resource_size(&cfg->res));
 
 	return mc_pcie_setup_windows(pdev, port);
 }
