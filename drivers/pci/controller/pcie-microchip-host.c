@@ -1014,6 +1014,10 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	bridge_base_addr = port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	ctrl_base_addr = port->axi_base_addr + MC_PCIE_CTRL_ADDR;
 
+	/* Disable ECC */
+	val = 0x0f000000;
+	writel_relaxed(val, ctrl_base_addr + ECC_CONTROL);
+
 	port->msi.vector_phy = MSI_ADDR;
 	port->msi.num_vectors = MC_NUM_MSI_IRQS;
 	ret = mc_pcie_init_irq_domains(port);
@@ -1069,28 +1073,26 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	val |= PM_MSI_INT_INTX_MASK;
 	writel_relaxed(val, bridge_base_addr + IMASK_LOCAL);
 
-	writel_relaxed(val, ctrl_base_addr + ECC_CONTROL);
-
 	val = PCIE_EVENT_INT_L2_EXIT_INT |
 	      PCIE_EVENT_INT_HOTRST_EXIT_INT |
 	      PCIE_EVENT_INT_DLUP_EXIT_INT;
 	writel_relaxed(val, ctrl_base_addr + PCIE_EVENT_INT);
 
+	writel_relaxed(0, ctrl_base_addr + SEC_ERROR_INT_MASK);
 	val = SEC_ERROR_INT_TX_RAM_SEC_ERR_INT |
 	      SEC_ERROR_INT_RX_RAM_SEC_ERR_INT |
 	      SEC_ERROR_INT_PCIE2AXI_RAM_SEC_ERR_INT |
 	      SEC_ERROR_INT_AXI2PCIE_RAM_SEC_ERR_INT;
 	writel_relaxed(val, ctrl_base_addr + SEC_ERROR_INT);
-	writel_relaxed(0, ctrl_base_addr + SEC_ERROR_INT_MASK);
-	writel_relaxed(0, ctrl_base_addr + SEC_ERROR_CNT);
+	writel_relaxed(0xffffffff, ctrl_base_addr + SEC_ERROR_EVENT_CNT);
 
+	writel_relaxed(0, ctrl_base_addr + DED_ERROR_INT_MASK);
 	val = DED_ERROR_INT_TX_RAM_DED_ERR_INT |
 	      DED_ERROR_INT_RX_RAM_DED_ERR_INT |
 	      DED_ERROR_INT_PCIE2AXI_RAM_DED_ERR_INT |
 	      DED_ERROR_INT_AXI2PCIE_RAM_DED_ERR_INT;
 	writel_relaxed(val, ctrl_base_addr + DED_ERROR_INT);
-	writel_relaxed(0, ctrl_base_addr + DED_ERROR_INT_MASK);
-	writel_relaxed(0, ctrl_base_addr + DED_ERROR_CNT);
+	writel_relaxed(0xffffffff, ctrl_base_addr + DED_ERROR_EVENT_CNT);
 
 	writel_relaxed(0, bridge_base_addr + IMASK_HOST);
 	writel_relaxed(GENMASK(31, 0), bridge_base_addr + ISTATUS_HOST);
