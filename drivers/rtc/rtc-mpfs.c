@@ -53,8 +53,6 @@
 struct mpfs_rtc_dev {
 	struct rtc_device *rtc;
 	void __iomem *base;
-	int wakeup_irq;
-	u32 prescaler;
 };
 
 static void mpfs_rtc_start(struct mpfs_rtc_dev *rtcdev)
@@ -87,9 +85,9 @@ static int mpfs_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	struct mpfs_rtc_dev *rtcdev = dev_get_drvdata(dev);
 	u64 time;
 
-	time = ((u64)readl(rtcdev->base + DATETIME_UPPER_REG) & DATETIME_UPPER_MASK) << 32;
-	time |= readl(rtcdev->base + DATETIME_LOWER_REG);
-	rtc_time64_to_tm(time + rtcdev->rtc->range_min, tm);
+	time = readl(rtcdev->base + DATETIME_LOWER_REG);
+	time |= ((u64)readl(rtcdev->base + DATETIME_UPPER_REG) & DATETIME_UPPER_MASK) << 32;
+	rtc_time64_to_tm(time, tm);
 
 	return 0;
 }
@@ -100,7 +98,7 @@ static int mpfs_rtc_settime(struct device *dev, struct rtc_time *tm)
 	u32 ctrl, prog;
 	u64 time;
 
-	time = rtc_tm_to_time64(tm) - rtcdev->rtc->range_min;
+	time = rtc_tm_to_time64(tm);
 
 	writel((u32)time, rtcdev->base + DATETIME_LOWER_REG);
 	writel((u32)(time >> 32) & DATETIME_UPPER_MASK, rtcdev->base + DATETIME_UPPER_REG);
@@ -135,7 +133,7 @@ static int mpfs_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	time = (u64)readl(rtcdev->base + ALARM_LOWER_REG) << 32;
 	time |= (readl(rtcdev->base + ALARM_UPPER_REG) & ALARM_UPPER_MASK);
-	rtc_time64_to_tm(time + rtcdev->rtc->range_min, &alrm->time);
+	rtc_time64_to_tm(time, &alrm->time);
 
 	return 0;
 }
@@ -151,7 +149,7 @@ static int mpfs_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ctrl |= CONTROL_ALARM_OFF_BIT;
 	writel(ctrl, rtcdev->base + CONTROL_REG);
 
-	time = rtc_tm_to_time64(&alrm->time) - rtcdev->rtc->range_min;
+	time = rtc_tm_to_time64(&alrm->time);
 
 	writel((u32)time, rtcdev->base + ALARM_LOWER_REG);
 	writel((u32)(time >> 32) & ALARM_UPPER_MASK, rtcdev->base + ALARM_UPPER_REG);
@@ -212,9 +210,9 @@ static inline struct clk *mpfs_rtc_init_clk(struct device *dev)
 	return clk;
 }
 
-static irqreturn_t mpfs_rtc_wakeup_irq_handler(int irq, void *d)
+static irqreturn_t mpfs_rtc_wakeup_irq_handler(int irq, void *dev)
 {
-	struct mpfs_rtc_dev *rtcdev = d;
+	struct mpfs_rtc_dev *rtcdev = dev;
 	unsigned long pending;
 
 	pending = readl(rtcdev->base + CONTROL_REG);
@@ -238,7 +236,8 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 {
 	struct mpfs_rtc_dev *rtcdev;
 	struct clk *clk;
-	int ret;
+	u32 prescaler;
+	int wakeup_irq, ret;
 
 	rtcdev = devm_kzalloc(&pdev->dev, sizeof(struct mpfs_rtc_dev), GFP_KERNEL);
 	if (!rtcdev)
@@ -265,12 +264,12 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtcdev->base);
 	}
 
-	rtcdev->wakeup_irq = platform_get_irq(pdev, 0);
-	if (rtcdev->wakeup_irq <= 0) {
+	wakeup_irq = platform_get_irq(pdev, 0);
+	if (wakeup_irq <= 0) {
 		dev_dbg(&pdev->dev, "could not get wakeup irq\n");
-		return rtcdev->wakeup_irq;
+		return wakeup_irq;
 	}
-	ret = devm_request_irq(&pdev->dev, rtcdev->wakeup_irq, mpfs_rtc_wakeup_irq_handler, 0,
+	ret = devm_request_irq(&pdev->dev, wakeup_irq, mpfs_rtc_wakeup_irq_handler, 0,
 			       dev_name(&pdev->dev), rtcdev);
 	if (ret) {
 		dev_dbg(&pdev->dev, "could not request wakeup irq\n");
@@ -278,18 +277,18 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 	}
 
 	// prescaler hardware adds 1 to reg value
-	rtcdev->prescaler = clk_get_rate(devm_clk_get(&pdev->dev, "rtcref")) - 1;
+	prescaler = clk_get_rate(devm_clk_get(&pdev->dev, "rtcref")) - 1;
 
-	if (rtcdev->prescaler > MAX_PRESCALER_COUNT) {
-		dev_dbg(&pdev->dev, "invalid prescaler %d\n", rtcdev->prescaler);
+	if (prescaler > MAX_PRESCALER_COUNT) {
+		dev_dbg(&pdev->dev, "invalid prescaler %d\n", prescaler);
 		return -EPERM;
 	}
 
-	writel(rtcdev->prescaler, rtcdev->base + PRESCALER_REG);
-	dev_info(&pdev->dev, "prescaler set to: 0x%X \r\n", rtcdev->prescaler);
+	writel(prescaler, rtcdev->base + PRESCALER_REG);
+	dev_info(&pdev->dev, "prescaler set to: 0x%X \r\n", prescaler);
 
 	device_init_wakeup(&pdev->dev, true);
-	ret = dev_pm_set_wake_irq(&pdev->dev, rtcdev->wakeup_irq);
+	ret = dev_pm_set_wake_irq(&pdev->dev, wakeup_irq);
 	if (ret)
 		dev_err(&pdev->dev, "failed to enable irq wake\n");
 
@@ -298,8 +297,7 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 
 static int mpfs_rtc_remove(struct platform_device *pdev)
 {
-	mpfs_rtc_alarm_irq_enable(&pdev->dev, 0);
-	device_init_wakeup(&pdev->dev, 0);
+	dev_pm_clear_wake_irq(&pdev->dev);
 
 	return 0;
 }
