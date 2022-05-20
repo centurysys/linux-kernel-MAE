@@ -1017,6 +1017,10 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	val = 0x0f000000;
 	writel_relaxed(val, ctrl_base_addr + ECC_CONTROL);
 
+	/* Disable Local Interrupts */
+	val = 0;
+	writel_relaxed(val, bridge_base_addr + IMASK_LOCAL);
+
 	port->msi.vector_phy = MSI_ADDR;
 	port->msi.num_vectors = MC_NUM_MSI_IRQS;
 	ret = mc_pcie_init_irq_domains(port);
@@ -1068,7 +1072,8 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	/* Hardware doesn't setup MSI by default */
 	mc_pcie_enable_msi(port, cfg->win);
 
-	val = readl_relaxed(bridge_base_addr + IMASK_LOCAL);
+	/* Enable subset of local interrupts */
+	val = 0xe0770000;
 	val |= PM_MSI_INT_INTX_MASK;
 	writel_relaxed(val, bridge_base_addr + IMASK_LOCAL);
 
