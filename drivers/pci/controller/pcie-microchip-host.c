@@ -1072,6 +1072,9 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	/* Hardware doesn't setup MSI by default */
 	mc_pcie_enable_msi(port, cfg->win);
 
+	writel_relaxed(lower_32_bits(MSI_ADDR),
+		       bridge_base_addr + IMSI_ADDR);
+
 	/* Enable subset of local interrupts */
 	val = 0xe0770000;
 	val |= PM_MSI_INT_INTX_MASK;
