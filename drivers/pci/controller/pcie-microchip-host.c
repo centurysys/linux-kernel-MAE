@@ -84,7 +84,7 @@
 
 /* PCIe Master table init defines */
 #define ATR0_PCIE_WIN0_SRCADDR_PARAM		0x600u
-#define  ATR0_PCIE_ATR_SIZE			0x25
+#define  ATR0_PCIE_ATR_SIZE			(4 * 1024 * 1024 * 1024ul)
 #define  ATR0_PCIE_ATR_SIZE_SHIFT		1
 #define ATR0_PCIE_WIN0_SRC_ADDR			0x604u
 #define ATR0_PCIE_WIN0_TRSL_ADDR_LSB		0x608u
@@ -922,6 +922,18 @@ static int mc_pcie_init_irq_domains(struct mc_port *port)
 	return mc_allocate_msi_domains(port);
 }
 
+static void mc_pcie_setup_axim_atr(void __iomem *bridge_base_addr, phys_addr_t atr0_addr,
+				   size_t size)
+{
+	u32 atr_sz = ilog2(size) - 1;
+	u32 val;
+
+	val = readl(bridge_base_addr + ATR0_PCIE_WIN0_SRCADDR_PARAM);
+	val |= (atr_sz << ATR0_PCIE_ATR_SIZE_SHIFT);
+	writel(val, bridge_base_addr + ATR0_PCIE_WIN0_SRCADDR_PARAM);
+	writel(upper_32_bits(atr0_addr), bridge_base_addr + ATR0_PCIE_WIN0_SRC_ADDR);
+}
+
 static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
 				 phys_addr_t pci_addr, phys_addr_t axi_addr,
 				 size_t size)
@@ -953,11 +965,6 @@ static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
 	val = 0;
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_TRSL_ADDR_UDW);
-
-	val = readl(bridge_base_addr + ATR0_PCIE_WIN0_SRCADDR_PARAM);
-	val |= (ATR0_PCIE_ATR_SIZE << ATR0_PCIE_ATR_SIZE_SHIFT);
-	writel(val, bridge_base_addr + ATR0_PCIE_WIN0_SRCADDR_PARAM);
-	writel(0, bridge_base_addr + ATR0_PCIE_WIN0_SRC_ADDR);
 }
 
 static int mc_pcie_setup_windows(struct platform_device *pdev,
@@ -994,6 +1001,7 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	int irq;
 	int i, intx_irq, msi_irq, event_irq;
 	u32 val;
+	u64 atr0_addr;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
@@ -1020,6 +1028,12 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	/* Disable Local Interrupts */
 	val = 0;
 	writel_relaxed(val, bridge_base_addr + IMASK_LOCAL);
+
+	ret = of_property_read_u64(dev->of_node, "microchip,axi-m-atr0", &atr0_addr);
+	if (ret) {
+		dev_err(dev, "missing microchip,axi-m-atr0 property\n");
+		return ret;
+	}
 
 	port->msi.vector_phy = MSI_ADDR;
 	port->msi.num_vectors = MC_NUM_MSI_IRQS;
@@ -1103,6 +1117,9 @@ static int mc_platform_init(struct pci_config_window *cfg)
 
 	writel_relaxed(0, bridge_base_addr + IMASK_HOST);
 	writel_relaxed(GENMASK(31, 0), bridge_base_addr + ISTATUS_HOST);
+
+	/* Configure AXI-M ATR Table */
+	mc_pcie_setup_axim_atr(bridge_base_addr, atr0_addr, ATR0_PCIE_ATR_SIZE);
 
 	/* Configure Address Translation Table 0 for PCIe config space */
 	mc_pcie_setup_window(bridge_base_addr, 0, cfg->res.start,
