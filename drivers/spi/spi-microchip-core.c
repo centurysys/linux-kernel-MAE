@@ -24,9 +24,9 @@
 #define MAX_CS				(8)
 #define DEFAULT_FRAMESIZE		(8)
 #define FIFO_DEPTH			(32)
-#define CLK_GEN_MODE1_DIV_MAX		(255)
-#define CLK_GEN_MODE0_DIV_MAX		(15)
-#define CLK_GEN_DIV_MIN			(0)
+#define CLK_GEN_MODE1_MAX		(255)
+#define CLK_GEN_MODE0_MAX		(15)
+#define CLK_GEN_MIN			(0)
 #define MODE_X_MASK_SHIFT		(24)
 
 #define CONTROL_ENABLE			BIT(0)
@@ -249,8 +249,9 @@ static inline void mchp_corespi_set_framesize(struct mchp_corespi *spi, int bt)
 	mchp_corespi_write(spi, REG_CONTROL, control);
 }
 
-static void mchp_corespi_init(struct mchp_corespi *spi)
+static void mchp_corespi_init(struct spi_master *master, struct mchp_corespi *spi)
 {
+	unsigned long clk_hz;
 	u32 control = mchp_corespi_read(spi, REG_CONTROL);
 
 	control |= CONTROL_MASTER;
@@ -259,7 +260,10 @@ static void mchp_corespi_init(struct mchp_corespi *spi)
 	control |= MOTOROLA_MODE;
 
 	mchp_corespi_set_framesize(spi, DEFAULT_FRAMESIZE);
-	control = mchp_corespi_read(spi, REG_CONTROL);
+
+	/* max. possible spi clock rate is the apb clock rate */
+	clk_hz = clk_get_rate(spi->clk);
+	master->max_speed_hz = clk_hz;
 
 	/*
 	 * The controller must be configured so that it doesn't remove Chip
@@ -269,6 +273,7 @@ static void mchp_corespi_init(struct mchp_corespi *spi)
 	 * BIGFIFO mode is also enabled, which sets the fifo depth to 32 frames
 	 * for the 8 bit transfers that this driver uses.
 	 */
+	control = mchp_corespi_read(spi, REG_CONTROL);
 	control |= CONTROL_SPS | CONTROL_BIGFIFO;
 
 	mchp_corespi_write(spi, REG_CONTROL, control);
@@ -600,12 +605,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 		goto error_release_master;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "spi-max-frequency",
-				   &master->max_speed_hz);
-	if (ret)
-		master->max_speed_hz = 140000000;
-
-	mchp_corespi_init(spi);
+	mchp_corespi_init(master, spi);
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
