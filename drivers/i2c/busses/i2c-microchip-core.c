@@ -309,7 +309,6 @@ static irqreturn_t mchp_corei2c_isr(int irq, void *_dev)
 		ret = mchp_corei2c_handle_isr(idev);
 	}
 
-	/* Clear the si flag */
 	ctrl = readb(idev->base + CORE_I2C_CTRL);
 	ctrl &= ~CTRL_SI;
 	writeb(ctrl, idev->base + CORE_I2C_CTRL);
@@ -414,6 +413,11 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 				     "clock-frequency too high: %d\n",
 				     idev->bus_clk_rate);
 
+	/*
+	 * This driver supports both the hard peripherals & soft FPGA cores.
+	 * The hard peripherals do not have shared IRQs, but we don't have
+	 * control over what way the interrupts are wired for the soft cores.
+	 */
 	ret = devm_request_irq(&pdev->dev, irq, mchp_corei2c_isr, IRQF_SHARED,
 			       pdev->name, idev);
 	if (ret)
