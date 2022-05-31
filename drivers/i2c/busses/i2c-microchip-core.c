@@ -18,8 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#define MICROCHIP_I2C_TIMEOUT (msecs_to_jiffies(1000))
-
 #define CORE_I2C_CTRL	(0x00)
 #define  CTRL_CR0	BIT(0)
 #define  CTRL_CR1	BIT(1)
@@ -336,7 +334,7 @@ static int mchp_corei2c_xfer_msg(struct mchp_corei2c_dev *idev,
 	writeb(ctrl, idev->base + CORE_I2C_CTRL);
 
 	time_left = wait_for_completion_timeout(&idev->msg_complete,
-						MICROCHIP_I2C_TIMEOUT);
+						idev->adapter.timeout);
 	if (!time_left)
 		return -ETIMEDOUT;
 
@@ -437,7 +435,7 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 	idev->adapter.algo = &mchp_corei2c_algo;
 	idev->adapter.dev.parent = &pdev->dev;
 	idev->adapter.dev.of_node = pdev->dev.of_node;
-	idev->adapter.timeout = MICROCHIP_I2C_TIMEOUT;
+	idev->adapter.timeout = HZ;
 
 	platform_set_drvdata(pdev, idev);
 
