@@ -90,34 +90,34 @@
 #define BCLK_DIV_8	(CTRL_CR0 | CTRL_CR1 | CTRL_CR2)
 #define CLK_MASK	(CTRL_CR0 | CTRL_CR1 | CTRL_CR2)
 
-/*
- * mchp_corei2c_dev - I2C device context
- * @base: pointer to register struct
- * @msg: pointer to current message
- * @msg_len: number of bytes transferred in msg
- * @msg_err: error code for completed message
- * @msg_complete: xfer completion object
- * @dev: device reference
- * @adapter: core i2c abstraction
- * @i2c_clk: clock reference for i2c input clock
- * @bus_clk_rate: current i2c bus clock rate
- * @buf: ptr to msg buffer for easier use.
- * @isr_status: cached copy of local ISR status.
- * @lock: spinlock for IRQ synchronization.
+/**
+ * struct mchp_corei2c_dev - Microchip CoreI2C device private data
+ *
+ * @base:		pointer to register struct
+ * @dev:		device reference
+ * @i2c_clk:		clock reference for i2c input clock
+ * @buf:		pointer to msg buffer for easier use
+ * @msg_complete:	xfer completion object
+ * @adapter:		core i2c abstraction
+ * @lock:		spinlock for IRQ synchronization
+ * @msg_err:		error code for completed message
+ * @bus_clk_rate:	current i2c bus clock rate
+ * @isr_status:		cached copy of local ISR status
+ * @msg_len:		number of bytes transferred in msg
+ * @addr:		address of the current slave
  */
 struct mchp_corei2c_dev {
 	void __iomem *base;
-	size_t msg_len;
-	int msg_err;
-	struct completion msg_complete;
 	struct device *dev;
-	struct i2c_adapter adapter;
 	struct clk *i2c_clk;
-	spinlock_t lock; /* IRQ synchronization */
-	u32 bus_clk_rate;
-	u32 msg_read;
-	u32 isr_status;
 	u8 *buf;
+	struct completion msg_complete;
+	struct i2c_adapter adapter;
+	spinlock_t lock; /* IRQ synchronization */
+	int msg_err;
+	u32 bus_clk_rate;
+	u32 isr_status;
+	u16 msg_len;
 	u8 addr;
 };
 
@@ -326,7 +326,6 @@ static int mchp_corei2c_xfer_msg(struct mchp_corei2c_dev *idev,
 	idev->msg_len = msg->len;
 	idev->buf = msg->buf;
 	idev->msg_err = 0;
-	idev->msg_read = (msg->flags & I2C_M_RD);
 
 	reinit_completion(&idev->msg_complete);
 
