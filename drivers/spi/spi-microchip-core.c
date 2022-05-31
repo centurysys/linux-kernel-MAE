@@ -83,7 +83,8 @@
 #define REG_SLAVE_SELECT	(0x1c)
 #define  SSEL_MASK		GENMASK(7, 0)
 #define  SSEL_DIRECT		BIT(8)
-#define  SSELOUT		BIT(9)
+#define  SSELOUT_SHIFT		9
+#define  SSELOUT		BIT(SSELOUT_SHIFT)
 #define REG_MIS			(0x20)
 #define REG_RIS			(0x24)
 #define REG_CONTROL2		(0x28)
@@ -249,10 +250,22 @@ static inline void mchp_corespi_set_framesize(struct mchp_corespi *spi, int bt)
 	mchp_corespi_write(spi, REG_CONTROL, control);
 }
 
+static void mchp_corespi_set_cs(struct spi_device *spi, bool disable)
+{
+	u32 reg;
+	struct mchp_corespi *corespi = spi_master_get_devdata(spi->master);
+
+	reg = mchp_corespi_read(corespi, REG_SLAVE_SELECT);
+	reg &= ~BIT(spi->chip_select);
+	reg |= !disable << spi->chip_select;
+
+	mchp_corespi_write(corespi, REG_SLAVE_SELECT, reg);
+}
+
 static void mchp_corespi_init(struct spi_master *master, struct mchp_corespi *spi)
 {
 	unsigned long clk_hz;
-	u32 control = mchp_corespi_read(spi, REG_CONTROL);
+	u32 reg, control = mchp_corespi_read(spi, REG_CONTROL);
 
 	control |= CONTROL_MASTER;
 
@@ -279,60 +292,20 @@ static void mchp_corespi_init(struct spi_master *master, struct mchp_corespi *sp
 	mchp_corespi_write(spi, REG_CONTROL, control);
 
 	mchp_corespi_enable_ints(spi);
+
+	/*
+	 * It is required to enable direct mode, otherwise control over the chip
+	 * select is relinquished to the hardware. SSELOUT is enabled too so we
+	 * can deal with active high slaves.
+	 */
+	mchp_corespi_write(spi, REG_SLAVE_SELECT, SSELOUT | SSEL_DIRECT);
+
 	control = mchp_corespi_read(spi, REG_CONTROL);
 
 	control &= ~CONTROL_RESET;
 	control |= CONTROL_ENABLE;
 
 	mchp_corespi_write(spi, REG_CONTROL, control);
-}
-
-static void mchp_corespi_set_cs(struct mchp_corespi *spi, int cs)
-{
-	unsigned int value;
-	u32 reg = mchp_corespi_read(spi, REG_SLAVE_SELECT);
-
-	value = 1 << cs;
-	reg &= ~SSEL_MASK;
-	reg |= value;
-
-	mchp_corespi_write(spi, REG_SLAVE_SELECT, reg);
-}
-
-static inline void mchp_corespi_enable_direct_mode(struct mchp_corespi *spi)
-{
-	u32 reg = mchp_corespi_read(spi, REG_SLAVE_SELECT);
-
-	reg |= SSEL_DIRECT;
-
-	mchp_corespi_write(spi, REG_SLAVE_SELECT, reg);
-}
-
-static inline void mchp_corespi_disable_direct_mode(struct mchp_corespi *spi)
-{
-	u32 reg = mchp_corespi_read(spi, REG_SLAVE_SELECT);
-
-	reg &= ~SSEL_DIRECT;
-
-	mchp_corespi_write(spi, REG_SLAVE_SELECT, reg);
-}
-
-static inline void mchp_corespi_activate_cs(struct mchp_corespi *spi)
-{
-	u32 reg = mchp_corespi_read(spi, REG_SLAVE_SELECT);
-
-	reg |= SSELOUT;
-
-	mchp_corespi_write(spi, REG_SLAVE_SELECT, reg);
-}
-
-static inline void mchp_corespi_deactivate_cs(struct mchp_corespi *spi)
-{
-	u32 reg = mchp_corespi_read(spi, REG_SLAVE_SELECT);
-
-	reg &= ~SSELOUT;
-
-	mchp_corespi_write(spi, REG_SLAVE_SELECT, reg);
 }
 
 static inline void mchp_corespi_set_clk_gen(struct mchp_corespi *spi)
@@ -498,7 +471,6 @@ static int mchp_corespi_transfer_one(struct spi_master *master,
 
 	if (spi->tx_len)
 		mchp_corespi_write_fifo(spi);
-
 	return 1;
 }
 
@@ -509,32 +481,9 @@ static int mchp_corespi_prepare_message(struct spi_master *master,
 	struct mchp_corespi *spi = spi_master_get_devdata(master);
 
 	mchp_corespi_set_framesize(spi, DEFAULT_FRAMESIZE);
-	mchp_corespi_set_cs(spi, spi_dev->chip_select);
-	mchp_corespi_enable_direct_mode(spi);
-	mchp_corespi_activate_cs(spi);
 	mchp_corespi_set_mode(spi, spi_dev->mode);
 
 	return 0;
-}
-
-static int mchp_corespi_unprepare_message(struct spi_master *master,
-					  struct spi_message *msg)
-{
-	struct mchp_corespi *spi = spi_master_get_devdata(master);
-
-	mchp_corespi_deactivate_cs(spi);
-	mchp_corespi_disable_direct_mode(spi);
-
-	return 0;
-}
-
-static void mchp_corespi_handle_err(struct spi_master *master,
-				    struct spi_message *msg)
-{
-	struct mchp_corespi *spi = spi_master_get_devdata(master);
-
-	mchp_corespi_deactivate_cs(spi);
-	mchp_corespi_disable_direct_mode(spi);
 }
 
 static int mchp_corespi_probe(struct platform_device *pdev)
@@ -559,9 +508,8 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->transfer_one = mchp_corespi_transfer_one;
-	master->handle_err = mchp_corespi_handle_err;
 	master->prepare_message = mchp_corespi_prepare_message;
-	master->unprepare_message = mchp_corespi_unprepare_message;
+	master->set_cs = mchp_corespi_set_cs;
 	master->dev.of_node = pdev->dev.of_node;
 
 	spi = spi_master_get_devdata(master);
