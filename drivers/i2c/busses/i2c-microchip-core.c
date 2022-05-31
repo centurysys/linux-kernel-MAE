@@ -202,12 +202,6 @@ static int mchp_corei2c_init(struct mchp_corei2c_dev *idev)
 	return 0;
 }
 
-static void mchp_corei2c_transfer(struct mchp_corei2c_dev *idev, u32 data)
-{
-	if (idev->msg_len > 0)
-		writeb(data, idev->base + CORE_I2C_DATA);
-}
-
 static void mchp_corei2c_empty_rx(struct mchp_corei2c_dev *idev)
 {
 	u8 ctrl;
@@ -226,7 +220,8 @@ static void mchp_corei2c_empty_rx(struct mchp_corei2c_dev *idev)
 
 static int mchp_corei2c_fill_tx(struct mchp_corei2c_dev *idev)
 {
-	mchp_corei2c_transfer(idev, *idev->buf++);
+	if (idev->msg_len > 0)
+		writeb(*idev->buf++, idev->base + CORE_I2C_DATA);
 	idev->msg_len--;
 
 	return 0;
