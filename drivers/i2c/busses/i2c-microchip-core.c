@@ -371,10 +371,9 @@ static const struct i2c_algorithm mchp_corei2c_algo = {
 
 static int mchp_corei2c_probe(struct platform_device *pdev)
 {
-	struct mchp_corei2c_dev *idev = NULL;
+	struct mchp_corei2c_dev *idev;
 	struct resource *res;
 	int irq, ret;
-	u32 val;
 
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
 	if (!idev)
@@ -398,9 +397,9 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 	init_completion(&idev->msg_complete);
 	spin_lock_init(&idev->lock);
 
-	val = device_property_read_u32(idev->dev, "clock-frequency",
+	ret = device_property_read_u32(idev->dev, "clock-frequency",
 				       &idev->bus_clk_rate);
-	if (val) {
+	if (ret || !idev->bus_clk_rate) {
 		dev_info(&pdev->dev, "default to 100kHz\n");
 		idev->bus_clk_rate = 100000;
 	}
@@ -434,11 +433,12 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 
 	i2c_set_adapdata(&idev->adapter, idev);
 	snprintf(idev->adapter.name, sizeof(idev->adapter.name),
-		 "Microchip I2C hw bus");
+		 "Microchip I2C hw bus at %08lx", (unsigned long)res->start);
 	idev->adapter.owner = THIS_MODULE;
 	idev->adapter.algo = &mchp_corei2c_algo;
 	idev->adapter.dev.parent = &pdev->dev;
 	idev->adapter.dev.of_node = pdev->dev.of_node;
+	idev->adapter.timeout = MICROCHIP_I2C_TIMEOUT;
 
 	platform_set_drvdata(pdev, idev);
 
@@ -448,7 +448,7 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev_info(&pdev->dev, "Microchip I2C Probe Complete\n");
+	dev_info(&pdev->dev, "registered CoreI2C bus driver\n");
 
 	return 0;
 }
@@ -484,4 +484,4 @@ module_platform_driver(mchp_corei2c_driver);
 MODULE_DESCRIPTION("Microchip CoreI2C bus driver");
 MODULE_AUTHOR("Daire McNamara <daire.mcnamara@microchip.com>");
 MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
