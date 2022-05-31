@@ -322,9 +322,6 @@ static int mchp_corei2c_xfer_msg(struct mchp_corei2c_dev *idev,
 	u8 ctrl;
 	unsigned long time_left;
 
-	if (msg->len == 0)
-		return -EINVAL;
-
 	idev->addr = i2c_8bit_addr_from_msg(msg);
 	idev->msg_len = msg->len;
 	idev->buf = msg->buf;
