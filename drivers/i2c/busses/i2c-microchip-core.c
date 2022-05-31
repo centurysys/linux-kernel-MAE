@@ -231,6 +231,7 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 {
 	u32 status = idev->isr_status;
 	u8 ctrl;
+	bool last_byte = false, finished = false;
 
 	if (!idev->buf)
 		return IRQ_NONE;
@@ -243,23 +244,25 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 		writeb(idev->addr, idev->base + CORE_I2C_DATA);
 		writeb(ctrl, idev->base + CORE_I2C_CTRL);
 		if (idev->msg_len <= 0)
-			goto finished;
+			finished = true;
 		break;
 	case STATUS_M_ARB_LOST:
 		idev->msg_err = -EAGAIN;
-		goto finished;
+		finished = true;
+		break;
 	case STATUS_M_SLAW_ACK:
 	case STATUS_M_TX_DATA_ACK:
 		if (idev->msg_len > 0)
 			mchp_corei2c_fill_tx(idev);
 		else
-			goto last_byte;
+			last_byte = true;
 		break;
 	case STATUS_M_TX_DATA_NACK:
 	case STATUS_M_SLAR_NACK:
 	case STATUS_M_SLAW_NACK:
 		idev->msg_err = -ENXIO;
-		goto last_byte;
+		last_byte = true;
+		break;
 	case STATUS_M_SLAR_ACK:
 		ctrl = readb(idev->base + CORE_I2C_CTRL);
 		if (idev->msg_len == 1u) {
@@ -270,7 +273,7 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 			writeb(ctrl, idev->base + CORE_I2C_CTRL);
 		}
 		if (idev->msg_len < 1u)
-			goto last_byte;
+			last_byte = true;
 		break;
 	case STATUS_M_RX_DATA_ACKED:
 		mchp_corei2c_empty_rx(idev);
@@ -278,19 +281,19 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 	case STATUS_M_RX_DATA_NACKED:
 		mchp_corei2c_empty_rx(idev);
 		if (idev->msg_len == 0)
-			goto last_byte;
+			last_byte = true;
 		break;
 	default:
 		break;
 	}
 
-	return IRQ_HANDLED;
-
-last_byte:
 	/* On the last byte to be transmitted, send STOP */
-	mchp_corei2c_stop(idev);
-finished:
-	complete(&idev->msg_complete);
+	if (last_byte)
+		mchp_corei2c_stop(idev);
+
+	if (last_byte || finished)
+		complete(&idev->msg_complete);
+
 	return IRQ_HANDLED;
 }
 
