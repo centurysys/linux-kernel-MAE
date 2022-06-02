@@ -262,6 +262,24 @@ static void mchp_corespi_set_cs(struct spi_device *spi, bool disable)
 	mchp_corespi_write(corespi, REG_SLAVE_SELECT, reg);
 }
 
+static int mchp_corespi_setup(struct spi_device *spi)
+{
+	struct mchp_corespi *corespi = spi_master_get_devdata(spi->master);
+	u32 reg;
+
+	/*
+	 * Active high slaves need to be specifically set to their inactive
+	 * states during probe by adding them to the "control group" & thus
+	 * driving their select line low.
+	 */
+	if (spi->mode & SPI_CS_HIGH) {
+		reg = mchp_corespi_read(corespi, REG_SLAVE_SELECT);
+		reg |= BIT(spi->chip_select);
+		mchp_corespi_write(corespi, REG_SLAVE_SELECT, reg);
+	}
+	return 0;
+}
+
 static void mchp_corespi_init(struct spi_master *master, struct mchp_corespi *spi)
 {
 	unsigned long clk_hz;
@@ -505,7 +523,8 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 		num_cs = MAX_CS;
 
 	master->num_chipselect = num_cs;
-	master->mode_bits = SPI_CPOL | SPI_CPHA;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	master->setup = mchp_corespi_setup;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->transfer_one = mchp_corespi_transfer_one;
 	master->prepare_message = mchp_corespi_prepare_message;
