@@ -335,8 +335,10 @@ static int mchp_corei2c_xfer_msg(struct mchp_corei2c_dev *idev,
 
 	time_left = wait_for_completion_timeout(&idev->msg_complete,
 						idev->adapter.timeout);
-	if (!time_left)
+	if (!time_left) {
+		mchp_corei2c_reset(idev);
 		return -ETIMEDOUT;
+	}
 
 	return idev->msg_err;
 }
