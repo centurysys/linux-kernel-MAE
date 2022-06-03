@@ -11,11 +11,11 @@
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/iopoll.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 
 #define CORE_I2C_CTRL	(0x00)
