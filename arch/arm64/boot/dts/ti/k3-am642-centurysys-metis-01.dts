@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: GPL-2.0
+/**
+ * DT overlay for AD2488 expansion board on Century Systems MA-X3xx
+ *
+ * Copyright (C) 2022 Century Systems
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/k3.h>
+
+&main_pmx0 {
+	main_spi0_pins_default: main-spi0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0210, PIN_INPUT, 0) /* (D13) SPI0_CLK */
+			AM64X_IOPAD(0x0208, PIN_OUTPUT, 0) /* (D12) SPI0_CS0 */
+			AM64X_IOPAD(0x020c, PIN_OUTPUT, 0) /* (C13) SPI0_CS1 */
+			AM64X_IOPAD(0x0214, PIN_OUTPUT, 0) /* (A13) SPI0_D0 */
+			AM64X_IOPAD(0x0218, PIN_INPUT, 0) /* (A14) SPI0_D1 */
+		>;
+	};
+};
+
+&main_spi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_spi0_pins_default>;
+	ti,pindir-d0-out-d1-in = <1>;
+	status = "okay";
+
+	ads8688@0 {
+		compatible = "ti,ads8688";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-cs-low;
+		data-size = <16>;
+	};
+};
+
+&main_i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c2_pins_default>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	tca9539: tca9539@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+
+		gpio-line-names = "MSP430_EXT1_RST",
+				  "MSP430_EXT1_TEST",
+				  "MSP430_EXT2_RST",
+				  "MSP430_EXT2_TEST",
+				  "",
+				  "ADC_RESETn",
+				  "ADC_PowerFault",
+				  "ADC_PowerCtrl",
+				  "RS232_DTR",
+				  "RS232_DSR",
+				  "RS232_RI",
+				  "RS232_DCD",
+				  "", "", "", "";
+	};
+};
+
+/ {
+	fragment@ext_led {
+		target-path = "/";
+		__overlay__ {
+			leds_ext: leds_ext {
+				compatible = "gpio-leds";
+				status = "okay";
+
+				msp430_ext1_rst {
+					label = "MSP430_EXT1_RST";
+					gpios = <&tca9539 0 GPIO_ACTIVE_HIGH>;
+				};
+
+				msp430_ext1_test {
+					label = "MSP430_EXT1_TEST";
+					gpios = <&tca9539 1 GPIO_ACTIVE_HIGH>;
+				};
+
+				msp430_ext2_rst {
+					label = "MSP430_EXT2_RST";
+					gpios = <&tca9539 2 GPIO_ACTIVE_HIGH>;
+				};
+
+				msp430_ext2_test {
+					label = "MSP430_EXT2_TEST";
+					gpios = <&tca9539 3 GPIO_ACTIVE_HIGH>;
+				};
+
+				adc_reset_n {
+					label = "ADC_RESET";
+					gpios = <&tca9539 5 GPIO_ACTIVE_LOW>;
+					default-trigger = "oneshot";
+				};
+
+				adc_power {
+					label = "ADC_Power";
+					gpios = <&tca9539 7 GPIO_ACTIVE_HIGH>;
+				};
+			};
+		};
+	};
+};
