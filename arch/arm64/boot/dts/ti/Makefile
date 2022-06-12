@@ -40,8 +40,9 @@ dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-nand.dtbo
 
 dtb-$(CONFIG_ARCH_K3) += k3-am642-sk.dtb
 
-dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis.dtb
-dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-01.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-00.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-01.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-01.dtbo
 
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am625-skeleton.dtb

@@ -144,10 +144,15 @@
 			default-state = "on";
 		};
 
+		mobile_power {
+			label = "Modile_Power";
+			gpios = <&main_gpio1 18 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
 		usb_hub_reset {
 			label = "USBHub_Reset";
 			gpios = <&main_gpio1 24 GPIO_ACTIVE_LOW>;
-			default-state = "off";
 		};
 
 		led_drv_enable {
@@ -159,7 +164,6 @@
 		eth_phy0_reset {
 			label = "PHY0_Reset";
 			gpios = <&main_gpio0 47 GPIO_ACTIVE_LOW>;
-			default-state = "off";
 			linux,default-trigger = "oneshot";
 			led-pattern = <10 10>;
 		};
@@ -167,7 +171,6 @@
 		eth_phy1_reset {
 			label = "PHY1_Reset";
 			gpios = <&main_gpio0 48 GPIO_ACTIVE_LOW>;
-			default-state = "off";
 			linux,default-trigger = "oneshot";
 			led-pattern = <10 10>;
 		};
@@ -175,37 +178,51 @@
 		led_g0 {
 			label = "MobileLED:G0";
 			gpios = <&main_gpio1 8 GPIO_ACTIVE_LOW>;
-			default-state = "off";
 		};
 
 		led_g1 {
 			label = "MobileLED:G1";
 			gpios = <&main_gpio1 9 GPIO_ACTIVE_LOW>;
-			default-state = "off";
 		};
 
 		led_g2 {
 			label = "MobileLED:G2";
 			gpios = <&main_gpio1 10 GPIO_ACTIVE_LOW>;
-			default-state = "off";
 		};
 
 		led_r0 {
 			label = "MobileLED:R0";
 			gpios = <&main_gpio1 11 GPIO_ACTIVE_LOW>;
-			default-state = "off";
 		};
 
 		led_r1 {
 			label = "MobileLED:R1";
 			gpios = <&main_gpio1 12 GPIO_ACTIVE_LOW>;
-			default-state = "off";
 		};
 
 		led_r2 {
 			label = "MobileLED:R2";
 			gpios = <&main_gpio1 13 GPIO_ACTIVE_LOW>;
-			default-state = "off";
+		};
+
+		msp430_reset {
+			label = "MSP430_RST";
+			gpios = <&main_gpio1 22 GPIO_ACTIVE_HIGH>;
+		};
+
+		msp430_test {
+			label = "MSP430_TEST";
+			gpios = <&main_gpio1 23 GPIO_ACTIVE_HIGH>;
+		};
+
+		do_s0 {
+			label = "DO_S0";
+			gpios = <&main_gpio1 0 GPIO_ACTIVE_LOW>;
+		};
+
+		do_t0 {
+			label = "DO_T0";
+			gpios = <&main_gpio1 1 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -229,6 +246,15 @@
 };
 
 &main_pmx0 {
+	main_gpio1_pins_default: main-gpio1-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0250, PIN_INPUT_PULLUP, 7) /* (A17) MCAN0_TX.GPIO1_60 */
+			AM64X_IOPAD(0x0254, PIN_INPUT_PULLUP, 7) /* (B17) MCAN0_RX.GPIO1_61 */
+			AM64X_IOPAD(0x0258, PIN_INPUT_PULLUP, 7) /* (C17) MCAN1_TX.GPIO1_62 */
+			AM64X_IOPAD(0x025c, PIN_INPUT_PULLUP, 7) /* (D17) MCAN1_RX.GPIO1_63 */
+		>;
+	};
+
 	main_uart0_pins_default: main-uart0-pins-default {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0238, PIN_INPUT, 0)		/* (B16) UART0_CTSn */
@@ -242,6 +268,32 @@
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0240, PIN_INPUT, 0) 		/* (E15) UART1_RXD */
 			AM64X_IOPAD(0x0244, PIN_OUTPUT, 0)		/* (E14) UART1_TXD */
+		>;
+	};
+
+	main_uart2_pins_default: main-uart2-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x005c, PIN_INPUT, 2)		/* (V19) UART2_CTSn */
+			AM64X_IOPAD(0x0044, PIN_OUTPUT, 2)		/* (T18) UART2_RTSn */
+			AM64X_IOPAD(0x003c, PIN_INPUT, 2) 		/* (T20) UART2_RXD */
+			AM64X_IOPAD(0x0040, PIN_OUTPUT, 2)		/* (U21) UART2_TXD */
+		>;
+	};
+
+	main_uart4_pins_default: main-uart4-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0054, PIN_INPUT, 2) 		/* (V20) UART4_RXD */
+			AM64X_IOPAD(0x0058, PIN_OUTPUT, 2)		/* (V21) UART4_TXD */
+			AM64X_IOPAD(0x007c, PIN_OUTPUT, 2)		/* (R17) UART4_RTSn */
+		>;
+	};
+
+	main_uart5_pins_default: main-uart5-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0068, PIN_INPUT, 2)		/* (W20) UART5_CTSn */
+			AM64X_IOPAD(0x008c, PIN_OUTPUT, 2)		/* (T21) UART5_RTSn */
+			AM64X_IOPAD(0x0084, PIN_INPUT, 2) 		/* (P16) UART5_RXD */
+			AM64X_IOPAD(0x0088, PIN_OUTPUT, 2)		/* (R18) UART5_TXD */
 		>;
 	};
 
@@ -340,18 +392,22 @@
 
 	system_led_pins_default: system-led-pins-default {
 		pinctrl-single,pins = <
-			AM64X_IOPAD(0x0198, PIN_OUTPUT, 7) /* (V4) PRG0_PRU0_GPO14.GPIO1_14 */
-			AM64X_IOPAD(0x019c, PIN_OUTPUT, 7) /* (T5) PRG0_PRU0_GPO15.GPIO1_15 */
-			AM64X_IOPAD(0x01a0, PIN_OUTPUT, 7) /* (U4) PRG0_PRU0_GPO16.GPIO1_16 */
-			AM64X_IOPAD(0x01c0, PIN_OUTPUT, 7) /* (W3) PRG0_PRU1_GPO4.GPIO1_24 */
 			AM64X_IOPAD(0x00c0, PIN_OUTPUT, 7) /* (W8) PRG1_PRU0_GPO2.GPIO0_47 */
 			AM64X_IOPAD(0x00c4, PIN_OUTPUT, 7) /* (V8) PRG1_PRU0_GPO3.GPIO0_48 */
+			AM64X_IOPAD(0x0160, PIN_OUTPUT, 7) /* (Y1) PRG0_PRU0_GPO0.GPIO1_0 */
+			AM64X_IOPAD(0x0164, PIN_OUTPUT, 7) /* (R4) PRG0_PRU0_GPO1.GPIO1_1 */
 			AM64X_IOPAD(0x0180, PIN_OUTPUT, 7) /* (T2) PRG0_PRU0_GPO8.GPIO1_8 */
 			AM64X_IOPAD(0x0184, PIN_OUTPUT, 7) /* (W6) PRG0_PRU0_GPO9.GPIO1_9 */
 			AM64X_IOPAD(0x0188, PIN_OUTPUT, 7) /* (AA5) PRG0_PRU0_GPO10.GPIO1_10 */
 			AM64X_IOPAD(0x018c, PIN_OUTPUT, 7) /* (Y3) PRG0_PRU0_GPO11.GPIO1_11 */
 			AM64X_IOPAD(0x0190, PIN_OUTPUT, 7) /* (AA3) PRG0_PRU0_GPO12.GPIO1_12 */
 			AM64X_IOPAD(0x0194, PIN_OUTPUT, 7) /* (R6) PRG0_PRU0_GPO13.GPIO1_13 */
+			AM64X_IOPAD(0x0198, PIN_OUTPUT, 7) /* (V4) PRG0_PRU0_GPO14.GPIO1_14 */
+			AM64X_IOPAD(0x019c, PIN_OUTPUT, 7) /* (T5) PRG0_PRU0_GPO15.GPIO1_15 */
+			AM64X_IOPAD(0x01a0, PIN_OUTPUT, 7) /* (U4) PRG0_PRU0_GPO16.GPIO1_16 */
+			AM64X_IOPAD(0x01b8, PIN_OUTPUT, 7) /* (V3) PRG0_PRU1_GPO2.GPIO1_22 */
+			AM64X_IOPAD(0x01bc, PIN_OUTPUT, 7) /* (T4) PRG0_PRU1_GPO3.GPIO1_23 */
+			AM64X_IOPAD(0x01c0, PIN_OUTPUT, 7) /* (W3) PRG0_PRU1_GPO4.GPIO1_24 */
 		>;
 	};
 
@@ -392,7 +448,11 @@
 };
 
 &main_uart4 {
-	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart4_pins_default>;
+	linux,rs485-enabled-at-boot-time;
+	rs485-rts-active-low;
+	status = "okay";
 };
 
 &main_uart5 {
@@ -419,11 +479,6 @@
 	dsk324sr: rtc@32 {
 		compatible = "dsk324sr";
 		reg = <0x32>;
-	};
-
-	i2c1_eeprom: eeprom@50 {
-		compatible = "atmel,24c02";
-		reg = <0x50>;
 	};
 
 	tca6507@45 {
@@ -469,6 +524,17 @@
 			reg = <0x6>;
 		};
 	};
+
+	temp_senser: tmp75b@4a {
+		compatible = "ti,tmp75b";
+		reg = <0x4a>;
+	};
+
+	i2c1_eeprom: eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+	};
+
 };
 
 &main_i2c3 {
@@ -498,9 +564,10 @@
 
 &sdhci1 {
 	/* SD/MMC */
-	vmmc-supply = <&vcc_3v3_sys>;
+	/*vmmc-supply = <&vcc_3v3_sys>;*/
 	pinctrl-names = "default";
 	bus-width = <4>;
+	no-1-8-v;
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
@@ -679,7 +746,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ospi0_pins_default>;
 
-	flash@0{
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
 		spi-tx-bus-width = <4>;
@@ -710,4 +777,21 @@
 
 &icssg1_mdio {
 	status = "disabled";
+};
+
+&main_gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_gpio1_pins_default>;
+
+	gpio-line-names = "DOUT_S0", "DOUT_T0", "Mobile_Wakeup_N", "Mobile_RI",
+			  "Mobile_W_Disable", "Mobile_Reset", "Mobile_SIM_Sel", "", /* GPIO1_0 .. 7 */
+			  "MobileLED:G0", "MobileLED:G1", "MobileLED:G2", "MobileLED:R0",
+			  "MobileLED:R1", "MobileLED:R2", "PowerLED:G", "LED_Drv_Enable",
+			  "ConsoleEnable", "eMMC_RST_N", "Mobile_Power_EN", "DIPSW4",
+			  "DDR_VTT_EN", "MSP430_SHDN_N", "MSP430_RST", "MSP430_TEST",
+			  "USBHub_Reset", "INIT_SW_N", "XIO_IRQ_N", /* ..GPIO1_26 */
+			  "", "", "", "", "", "", "", "", "", "", "", /* ..GPIO1_37 */
+			  "", "", "", "", "", "", "", "", "", "XIO_IRQ1_N", /* ..GPIO1_47 */
+			  "XIO_IRQ2_N", "", "", "", "", "", "", "", "", "", /* ..GPIO1_57 */
+			  "", "", "DIN_S0", "DIN_S1", "DIN_T0", "DIN_T1";
 };
