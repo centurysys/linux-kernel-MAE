@@ -142,7 +142,6 @@ static int mpfs_probe(struct platform_device *pdev)
 	struct mpfs_glue *glue;
 	struct platform_device *musb_pdev;
 	struct device *dev = &pdev->dev;
-	struct resource musb_resources[3];
 	struct clk *clk;
 	int ret;
 
@@ -199,26 +198,7 @@ static int mpfs_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, glue);
 
-	memset(musb_resources, 0x00,
-	       sizeof(*musb_resources) * ARRAY_SIZE(musb_resources));
-
-	musb_resources[0].name  = pdev->resource[0].name;
-	musb_resources[0].start = pdev->resource[0].start;
-	musb_resources[0].end   = pdev->resource[0].end;
-	musb_resources[0].flags = pdev->resource[0].flags;
-
-	musb_resources[1].name  = pdev->resource[1].name;
-	musb_resources[1].start = pdev->resource[1].start;
-	musb_resources[1].end   = pdev->resource[1].end;
-	musb_resources[1].flags = pdev->resource[1].flags;
-
-	musb_resources[2].name  = pdev->resource[2].name;
-	musb_resources[2].start = pdev->resource[2].start;
-	musb_resources[2].end   = pdev->resource[2].end;
-	musb_resources[2].flags = pdev->resource[2].flags;
-
-	ret = platform_device_add_resources(musb_pdev, musb_resources,
-					    ARRAY_SIZE(musb_resources));
+	ret = platform_device_add_resources(musb_pdev, pdev->resource, pdev->num_resources);
 	if (ret) {
 		dev_err(dev, "failed to add resources\n");
 		goto err_clk_disable;
