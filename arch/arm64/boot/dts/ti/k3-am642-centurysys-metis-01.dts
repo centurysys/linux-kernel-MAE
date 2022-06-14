@@ -24,7 +24,6 @@
 		device_type = "memory";
 		/* 2G RAM */
 		reg = <0x00000000 0x80000000 0x00000000 0x80000000>;
-
 	};
 
 	reserved-memory {
@@ -764,6 +763,46 @@
 		cdns,phy-mode;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		partition@0 {
+			label = "tiboot3";
+			reg = <0x0 0x100000>;
+		};
+
+		partition@0x100000 {
+			label = "tispl";
+			reg = <0x100000 0x100000>;
+		};
+
+		partition@0x200000 {
+			label = "u-boot";
+			reg = <0x200000 0x200000>;
+		};
+
+		partition@0x400000 {
+			label = "env";
+			reg = <0x400000 0x20000>;
+		};
+
+		partition@0x420000 {
+			label = "env.backup";
+			reg = <0x420000 0x20000>;
+		};
+
+		partition@0x440000 {
+			label = "reserved";
+			reg = <0x440000 0x340000>;
+		};
+
+		partition@0x780000 {
+			label = "hist_firmup";
+			reg = <0x780000 0x40000>;
+		};
+
+		partition@0x7c0000 {
+			label = "hist_boot";
+			reg = <0x7c0000 0x40000>;
+		};
 	};
 };
 
@@ -793,7 +832,7 @@
 			  "MobileLED:R1", "MobileLED:R2", "PowerLED:G", "LED_Drv_Enable",
 			  "ConsoleEnable", "eMMC_RST_N", "PCIe_Power_EN", "DIPSW4",
 			  "DDR_VTT_EN", "MSP430_SHDN_N", "MSP430_RST", "MSP430_TEST",
-			  "USBHub_Reset", "INIT_SW_N", "XIO_IRQ_N", /* ..GPIO1_26 */
+			  "USBHub_Reset", "INIT_SW_N", "XIO_IRQ0_N", /* ..GPIO1_26 */
 			  "", "", "", "", "", "", "", "", "", "", "", /* ..GPIO1_37 */
 			  "", "", "", "", "", "", "", "", "", "XIO_IRQ1_N", /* ..GPIO1_47 */
 			  "XIO_IRQ2_N", "", "", "", "", "", "", "", "", "", /* ..GPIO1_57 */
