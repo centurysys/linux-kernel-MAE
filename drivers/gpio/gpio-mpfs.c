@@ -22,84 +22,79 @@
 #include <linux/spinlock.h>
 
 #define NUM_GPIO			32
-#define MPFS_GPIO_X_CFG_EN_INT		3
-#define MPFS_GPIO_X_CFG_BIT_GPIO_OE	2
-#define MPFS_GPIO_X_CFG_BIT_EN_IN	1
-#define MPFS_GPIO_X_CFG_BIT_EN_OUT	0
+#define BYTE_BOUNDARY			0x04
+#define MPFS_GPIO_EN_INT		3
+#define MPFS_GPIO_EN_OUT_BUF		BIT(2)
+#define MPFS_GPIO_EN_IN			BIT(1)
+#define MPFS_GPIO_EN_OUT		BIT(0)
 
-#define MPFS_GPIO_INTR_EDGE_BOTH_MASK		0x80
-#define MPFS_GPIO_INTR_EDGE_NEGATIVE_MASK	0x60
-#define MPFS_GPIO_INTR_EDGE_POSITIVE_MASK	0x40
-#define MPFS_GPIO_INTR_LEVEL_LOW_MASK		0x20
-#define MPFS_GPIO_INTR_LEVEL_HIGH_MASK		0x00
-#define MPFS_GPIO_IRQ_MASK			GENMASK(31, 0)
-#define IRQ_OFFSET				0x80
-#define INP_OFFSET				0x84
-#define OUTP_OFFSET				0x88
+#define MPFS_GPIO_TYPE_INT_EDGE_BOTH	0x80
+#define MPFS_GPIO_TYPE_INT_EDGE_NEG	0x60
+#define MPFS_GPIO_TYPE_INT_EDGE_POS	0x40
+#define MPFS_GPIO_TYPE_INT_LEVEL_LOW	0x20
+#define MPFS_GPIO_TYPE_INT_LEVEL_HIGH	0x00
+#define MPFS_GPIO_TYPE_INT_MASK		GENMASK(7, 5)
+#define MPFS_IRQ_REG			0x80
+#define MPFS_INP_REG			0x84
+#define MPFS_OUTP_REG			0x88
 
 struct mpfs_gpio_chip {
+	void __iomem *base;
+	struct clk *clk;
 	spinlock_t lock; /* lock */
 	struct gpio_chip gc;
-	struct clk *clk;
-	void __iomem *base;
-	unsigned int irq_parent[NUM_GPIO];
 };
 
-static void mpfs_gpio_assign_bit(void __iomem *base_addr,
-				 int bit_offset, int value)
+static void mpfs_gpio_assign_bit(void __iomem *addr, unsigned int bit_offset, int value)
 {
-	u32 output = readl(base_addr);
+	u32 output = readl(addr);
 
 	if (value)
 		output |= BIT(bit_offset);
 	else
 		output &= ~BIT(bit_offset);
 
-	writel(output, base_addr);
+	writel(output, addr);
 }
 
-static int mpfs_gpio_direction_input(struct gpio_chip *gc,
-				     unsigned int gpio_index)
+static int mpfs_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio_index)
 {
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	u32 gpio_cfg;
 	unsigned long flags;
 
-	if (gpio_index >= gc->ngpio)
+	if (gpio_index >= NUM_GPIO)
 		return -EINVAL;
 
 	spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
-	gpio_cfg = readl(mpfs_gpio->base + (gpio_index << 2));
-	gpio_cfg |= BIT(MPFS_GPIO_X_CFG_BIT_EN_IN);
-	gpio_cfg &= ~(BIT(MPFS_GPIO_X_CFG_BIT_EN_OUT) |
-		BIT(MPFS_GPIO_X_CFG_BIT_GPIO_OE));
-	writel(gpio_cfg, mpfs_gpio->base + (gpio_index << 2));
+	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	gpio_cfg |= MPFS_GPIO_EN_IN;
+	gpio_cfg &= ~(MPFS_GPIO_EN_OUT | MPFS_GPIO_EN_OUT_BUF);
+	writel(gpio_cfg, mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 
 	spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 
 	return 0;
 }
 
-static int mpfs_gpio_direction_output(struct gpio_chip *gc,
-				      unsigned int gpio_index, int value)
+static int mpfs_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio_index, int value)
 {
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	u32 gpio_cfg;
 	unsigned long flags;
 
-	if (gpio_index >= gc->ngpio)
+	if (gpio_index >= NUM_GPIO)
 		return -EINVAL;
 
 	spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
-	gpio_cfg = readl(mpfs_gpio->base + (gpio_index << 2));
-	gpio_cfg |= BIT(MPFS_GPIO_X_CFG_BIT_EN_OUT) |
-		BIT(MPFS_GPIO_X_CFG_BIT_GPIO_OE);
-	gpio_cfg &= ~BIT(MPFS_GPIO_X_CFG_BIT_EN_IN);
-	writel(gpio_cfg, mpfs_gpio->base + (gpio_index << 2));
+	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	gpio_cfg |= MPFS_GPIO_EN_OUT | MPFS_GPIO_EN_OUT_BUF;
+	gpio_cfg &= ~MPFS_GPIO_EN_IN;
+	writel(gpio_cfg, mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 
-	mpfs_gpio_assign_bit(mpfs_gpio->base + OUTP_OFFSET, gpio_index, value);
+	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_OUTP_REG, gpio_index, value);
 
 	spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 
@@ -111,49 +106,46 @@ static int mpfs_gpio_get_direction(struct gpio_chip *gc,
 {
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	u32 gpio_cfg;
-	int result = 0;
 
-	if (gpio_index >= gc->ngpio)
+	if (gpio_index >= NUM_GPIO)
 		return -EINVAL;
 
-	gpio_cfg = readl(mpfs_gpio->base + (gpio_index << 2));
+	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 
-	if (gpio_cfg & BIT(MPFS_GPIO_X_CFG_BIT_EN_IN))
-		result = 1;
+	if (gpio_cfg & MPFS_GPIO_EN_IN)
+		return 1;
 
-	return result;
+	return 0;
 }
 
-static int mpfs_gpio_get_value(struct gpio_chip *gc,
-			       unsigned int gpio_index)
+static int mpfs_gpio_get(struct gpio_chip *gc,
+			 unsigned int gpio_index)
 {
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 
-	if (gpio_index >= gc->ngpio)
+	if (gpio_index >= NUM_GPIO)
 		return -EINVAL;
 
-	return !!(readl(mpfs_gpio->base + INP_OFFSET) & BIT(gpio_index));
+	return !!(readl(mpfs_gpio->base + MPFS_INP_REG) & BIT(gpio_index));
 }
 
-static void mpfs_gpio_set_value(struct gpio_chip *gc,
-				unsigned int gpio_index, int value)
+static void mpfs_gpio_set(struct gpio_chip *gc, unsigned int gpio_index, int value)
 {
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	if (gpio_index >= gc->ngpio)
+	if (gpio_index >= NUM_GPIO)
 		return;
 
 	spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
-	mpfs_gpio_assign_bit(mpfs_gpio->base + OUTP_OFFSET,
+	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_OUTP_REG,
 			     gpio_index, value);
 
 	spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 }
 
-static int microchip_mpfs_gpio_irq_set_type(struct irq_data *data,
-					    unsigned int type)
+static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	int gpio_index = irqd_to_hwirq(data);
@@ -162,37 +154,38 @@ static int microchip_mpfs_gpio_irq_set_type(struct irq_data *data,
 	u32 gpio_cfg;
 	unsigned long flags;
 
-	if (gpio_index >= gc->ngpio)
+	if (gpio_index >= NUM_GPIO)
 		return -EINVAL;
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
-		interrupt_type = MPFS_GPIO_INTR_EDGE_BOTH_MASK;
+		interrupt_type = MPFS_GPIO_TYPE_INT_EDGE_BOTH;
 		break;
 
 	case IRQ_TYPE_EDGE_FALLING:
-		interrupt_type = MPFS_GPIO_INTR_EDGE_NEGATIVE_MASK;
+		interrupt_type = MPFS_GPIO_TYPE_INT_EDGE_NEG;
 		break;
 
 	case IRQ_TYPE_EDGE_RISING:
-		interrupt_type = MPFS_GPIO_INTR_EDGE_POSITIVE_MASK;
+		interrupt_type = MPFS_GPIO_TYPE_INT_EDGE_POS;
 		break;
 
 	case IRQ_TYPE_LEVEL_HIGH:
-		interrupt_type = MPFS_GPIO_INTR_LEVEL_HIGH_MASK;
+		interrupt_type = MPFS_GPIO_TYPE_INT_LEVEL_HIGH;
 		break;
 
 	case IRQ_TYPE_LEVEL_LOW:
 	default:
-		interrupt_type = MPFS_GPIO_INTR_LEVEL_LOW_MASK;
+		interrupt_type = MPFS_GPIO_TYPE_INT_LEVEL_LOW;
 		break;
 	}
 
 	spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
-	gpio_cfg = readl(mpfs_gpio->base + (gpio_index << 2));
+	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	gpio_cfg &= ~MPFS_GPIO_TYPE_INT_MASK;
 	gpio_cfg |= interrupt_type;
-	writel(gpio_cfg, mpfs_gpio->base + (gpio_index << 2));
+	writel(gpio_cfg, mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 
 	spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 
@@ -200,57 +193,57 @@ static int microchip_mpfs_gpio_irq_set_type(struct irq_data *data,
 }
 
 /* chained_irq_{enter,exit} already mask the parent */
-static void microchip_mpfs_gpio_irq_mask(struct irq_data *data)
+static void mpfs_gpio_irq_mask(struct irq_data *data)
 {
 }
 
-static void microchip_mpfs_gpio_irq_unmask(struct irq_data *data)
+static void mpfs_gpio_irq_unmask(struct irq_data *data)
 {
 }
 
-static void microchip_mpfs_gpio_irq_enable(struct irq_data *data)
+static void mpfs_gpio_irq_enable(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	int gpio_index = irqd_to_hwirq(data) % NUM_GPIO;
 
 	mpfs_gpio_direction_input(gc, gpio_index);
-	mpfs_gpio_assign_bit(mpfs_gpio->base + IRQ_OFFSET, gpio_index, 1);
-	mpfs_gpio_assign_bit(mpfs_gpio->base + (gpio_index << 2),
-			     MPFS_GPIO_X_CFG_EN_INT, 1);
+	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_IRQ_REG, gpio_index, 1);
+	mpfs_gpio_assign_bit(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY),
+			     MPFS_GPIO_EN_INT, 1);
 }
 
-static void microchip_mpfs_gpio_irq_disable(struct irq_data *data)
+static void mpfs_gpio_irq_disable(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	int gpio_index = irqd_to_hwirq(data) % NUM_GPIO;
 
-	mpfs_gpio_assign_bit(mpfs_gpio->base + IRQ_OFFSET, gpio_index, 1);
-	mpfs_gpio_assign_bit(mpfs_gpio->base + (gpio_index << 2),
-			     MPFS_GPIO_X_CFG_EN_INT, 0);
+	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_IRQ_REG, gpio_index, 1);
+	mpfs_gpio_assign_bit(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY),
+			     MPFS_GPIO_EN_INT, 0);
 }
 
 static struct irq_chip mpfs_gpio_irqchip = {
-	.name = "microchip_mpfs_gpio",
-	.irq_set_type = microchip_mpfs_gpio_irq_set_type,
-	.irq_mask = microchip_mpfs_gpio_irq_mask,
-	.irq_unmask = microchip_mpfs_gpio_irq_unmask,
-	.irq_enable = microchip_mpfs_gpio_irq_enable,
-	.irq_disable = microchip_mpfs_gpio_irq_disable,
+	.name = "mpfs_gpio_irqchip",
+	.irq_set_type = mpfs_gpio_irq_set_type,
+	.irq_mask = mpfs_gpio_irq_mask,
+	.irq_unmask = mpfs_gpio_irq_unmask,
+	.irq_enable = mpfs_gpio_irq_enable,
+	.irq_disable = mpfs_gpio_irq_disable,
 	.flags = IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static void microchip_mpfs_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct mpfs_gpio_chip *mpfs_gpio =
-	    gpiochip_get_data(irq_desc_get_handler_data(desc));
+		gpiochip_get_data(irq_desc_get_handler_data(desc));
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	unsigned long status;
 	int offset;
 
 	chained_irq_enter(irqchip, desc);
-	status = readl(mpfs_gpio->base + IRQ_OFFSET) & MPFS_GPIO_IRQ_MASK;
+	status = readl(mpfs_gpio->base + MPFS_IRQ_REG);
 	for_each_set_bit(offset, &status, mpfs_gpio->gc.ngpio)
 		generic_handle_irq(irq_find_mapping(mpfs_gpio->gc.irq.domain, offset));
 
@@ -263,10 +256,10 @@ static irqreturn_t mpfs_gpio_irq_handler(int irq, void *mpfs_gpio_data)
 	unsigned long status;
 	int offset;
 
-	status = readl(mpfs_gpio->base + IRQ_OFFSET) & MPFS_GPIO_IRQ_MASK;
+	status = readl(mpfs_gpio->base + MPFS_IRQ_REG);
 
 	for_each_set_bit(offset, &status, mpfs_gpio->gc.ngpio) {
-		mpfs_gpio_assign_bit(mpfs_gpio->base + IRQ_OFFSET, offset, 1);
+		mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_IRQ_REG, offset, 1);
 		generic_handle_irq(irq_find_mapping(mpfs_gpio->gc.irq.domain, offset));
 	}
 	return IRQ_HANDLED;
@@ -274,12 +267,12 @@ static irqreturn_t mpfs_gpio_irq_handler(int irq, void *mpfs_gpio_data)
 
 static int mpfs_gpio_probe(struct platform_device *pdev)
 {
+	struct clk *clk;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
 	struct mpfs_gpio_chip *mpfs_gpio;
 	int gpio_index, irq, ret, ngpio;
 	struct gpio_irq_chip *irq_c;
-	struct clk *clk;
 	int irq_base = 0;
 
 	mpfs_gpio = devm_kzalloc(dev, sizeof(*mpfs_gpio), GFP_KERNEL);
@@ -292,10 +285,8 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(mpfs_gpio->base);
 	}
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
-		return PTR_ERR(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "failed to get clock\n");
 
 	ret = clk_prepare_enable(clk);
 	if (ret)
@@ -313,10 +304,10 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	mpfs_gpio->gc.direction_input = mpfs_gpio_direction_input;
 	mpfs_gpio->gc.direction_output = mpfs_gpio_direction_output;
 	mpfs_gpio->gc.get_direction = mpfs_gpio_get_direction;
-	mpfs_gpio->gc.get = mpfs_gpio_get_value;
-	mpfs_gpio->gc.set = mpfs_gpio_set_value;
+	mpfs_gpio->gc.get = mpfs_gpio_get;
+	mpfs_gpio->gc.set = mpfs_gpio_set;
 	mpfs_gpio->gc.base = -1;
-	mpfs_gpio->gc.ngpio = ngpio;
+	mpfs_gpio->gc.ngpio = NUM_GPIO;
 	mpfs_gpio->gc.label = dev_name(dev);
 	mpfs_gpio->gc.parent = dev;
 	mpfs_gpio->gc.owner = THIS_MODULE;
@@ -356,20 +347,6 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "Microchip MPFS GPIO devm_request_irq failed\n");
 		goto cleanup_gpiochip;
-	}
-
-	/* Disable all GPIO interrupts */
-	for (gpio_index = 0; gpio_index < ngpio; gpio_index++) {
-		u32 gpio_cfg;
-		unsigned long flags;
-
-		spin_lock_irqsave(&mpfs_gpio->lock, flags);
-
-		gpio_cfg = readl(mpfs_gpio->base + (gpio_index << 2));
-		gpio_cfg &= ~(BIT(MPFS_GPIO_X_CFG_EN_INT));
-		writel(gpio_cfg, mpfs_gpio->base + (gpio_index << 2));
-
-		spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 	}
 
 	platform_set_drvdata(pdev, mpfs_gpio);
