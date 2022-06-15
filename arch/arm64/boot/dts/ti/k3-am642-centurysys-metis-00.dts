@@ -144,7 +144,7 @@
 		};
 
 		mobile_power {
-			label = "Modile_Power";
+			label = "Mobile_Power";
 			gpios = <&main_gpio1 18 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
