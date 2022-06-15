@@ -301,7 +301,6 @@
 			interrupt-parent = <&plic>;
 			interrupts = <85>;
 			clocks = <&clkcfg CLK_QSPI>;
-			spi-max-frequency = <25000000>;
 			status = "disabled";
 		};
 
