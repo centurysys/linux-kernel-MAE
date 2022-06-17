@@ -790,8 +790,13 @@
 		};
 
 		partition@0x440000 {
+			label = "boot.scr";
+			reg = <0x440000 0x10000>;
+		};
+
+		partition@0x450000 {
 			label = "reserved";
-			reg = <0x440000 0x340000>;
+			reg = <0x450000 0x330000>;
 		};
 
 		partition@0x780000 {
