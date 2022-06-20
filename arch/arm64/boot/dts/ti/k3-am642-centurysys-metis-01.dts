@@ -175,33 +175,40 @@
 		};
 
 		led_g0 {
-			label = "MobileLED:G0";
+			label = "MobileLED_G0";
 			gpios = <&main_gpio1 8 GPIO_ACTIVE_LOW>;
 		};
 
 		led_g1 {
-			label = "MobileLED:G1";
+			label = "MobileLED_G1";
 			gpios = <&main_gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 
 		led_g2 {
-			label = "MobileLED:G2";
+			label = "MobileLED_G2";
 			gpios = <&main_gpio1 10 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r0 {
-			label = "MobileLED:R0";
+			label = "MobileLED_R0";
 			gpios = <&main_gpio1 11 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r1 {
-			label = "MobileLED:R1";
+			label = "MobileLED_R1";
 			gpios = <&main_gpio1 12 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r2 {
-			label = "MobileLED:R2";
+			label = "MobileLED_R2";
 			gpios = <&main_gpio1 13 GPIO_ACTIVE_LOW>;
+		};
+
+		mobile_reset {
+			label = "Mobile_RESETN";
+			gpios = <&main_gpio1 5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <200 100>;
 		};
 
 		msp430_reset {
@@ -395,6 +402,7 @@
 			AM64X_IOPAD(0x00c4, PIN_OUTPUT, 7) /* (V8) PRG1_PRU0_GPO3.GPIO0_48 */
 			AM64X_IOPAD(0x0160, PIN_OUTPUT, 7) /* (Y1) PRG0_PRU0_GPO0.GPIO1_0 */
 			AM64X_IOPAD(0x0164, PIN_OUTPUT, 7) /* (R4) PRG0_PRU0_GPO1.GPIO1_1 */
+			AM64X_IOPAD(0x0174, PIN_OUTPUT, 7) /* (R3) PRG0_PRU0_GPO5.GPIO1_5 */
 			AM64X_IOPAD(0x0180, PIN_OUTPUT, 7) /* (T2) PRG0_PRU0_GPO8.GPIO1_8 */
 			AM64X_IOPAD(0x0184, PIN_OUTPUT, 7) /* (W6) PRG0_PRU0_GPO9.GPIO1_9 */
 			AM64X_IOPAD(0x0188, PIN_OUTPUT, 7) /* (AA5) PRG0_PRU0_GPO10.GPIO1_10 */
