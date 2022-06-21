@@ -312,7 +312,7 @@
 			AM64X_IOPAD(0x0284, PIN_INPUT, 0) /* (L21) MMC1_DAT1 */
 			AM64X_IOPAD(0x0280, PIN_INPUT, 0) /* (K19) MMC1_DAT2 */
 			AM64X_IOPAD(0x027c, PIN_INPUT, 0) /* (K18) MMC1_DAT3 */
-			AM64X_IOPAD(0x0298, PIN_INPUT, 0) /* (D19) MMC1_SDCD */
+			AM64X_IOPAD(0x0298, PIN_INPUT, 7) /* (D19) MMC1_SDCD.GPIO1_77 */
 		>;
 	};
 
@@ -578,6 +578,8 @@
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
+	ti,fails-without-test-cd;
+	cd-gpio = <&main_gpio1 77 GPIO_ACTIVE_LOW>;
 };
 
 &serdes_ln_ctrl {
