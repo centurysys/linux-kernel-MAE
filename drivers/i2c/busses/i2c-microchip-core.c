@@ -383,8 +383,8 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 		return PTR_ERR(idev->base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return dev_err_probe(&pdev->dev, irq,
+	if (irq <= 0)
+		return dev_err_probe(&pdev->dev, -ENXIO,
 				     "missing interrupt resource\n");
 
 	idev->i2c_clk = devm_clk_get(&pdev->dev, NULL);
