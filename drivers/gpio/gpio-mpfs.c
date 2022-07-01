@@ -234,22 +234,6 @@ static struct irq_chip mpfs_gpio_irqchip = {
 	.flags = IRQCHIP_MASK_ON_SUSPEND,
 };
 
-static void microchip_mpfs_gpio_irq_handler(struct irq_desc *desc)
-{
-	struct mpfs_gpio_chip *mpfs_gpio =
-		gpiochip_get_data(irq_desc_get_handler_data(desc));
-	struct irq_chip *irqchip = irq_desc_get_chip(desc);
-	unsigned long status;
-	int offset;
-
-	chained_irq_enter(irqchip, desc);
-	status = readl(mpfs_gpio->base + MPFS_IRQ_REG);
-	for_each_set_bit(offset, &status, mpfs_gpio->gc.ngpio)
-		generic_handle_irq(irq_find_mapping(mpfs_gpio->gc.irq.domain, offset));
-
-	chained_irq_exit(irqchip, desc);
-}
-
 static irqreturn_t mpfs_gpio_irq_handler(int irq, void *mpfs_gpio_data)
 {
 	struct mpfs_gpio_chip *mpfs_gpio = mpfs_gpio_data;
@@ -271,9 +255,8 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
 	struct mpfs_gpio_chip *mpfs_gpio;
-	int gpio_index, irq, ret, ngpio;
+	int i, ret, ngpio;
 	struct gpio_irq_chip *irq_c;
-	int irq_base = 0;
 
 	mpfs_gpio = devm_kzalloc(dev, sizeof(*mpfs_gpio), GFP_KERNEL);
 	if (!mpfs_gpio)
@@ -293,13 +276,14 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret, "failed to enable clock\n");
 
 	mpfs_gpio->clk = clk;
+
+	spin_lock_init(&mpfs_gpio->lock);
+
 	ngpio = of_irq_count(node);
 	if (ngpio > NUM_GPIO) {
 		dev_err(dev, "too many interrupts\n");
 		goto cleanup_clock;
 	}
-
-	spin_lock_init(&mpfs_gpio->lock);
 
 	mpfs_gpio->gc.direction_input = mpfs_gpio_direction_input;
 	mpfs_gpio->gc.direction_output = mpfs_gpio_direction_output;
@@ -307,7 +291,7 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	mpfs_gpio->gc.get = mpfs_gpio_get;
 	mpfs_gpio->gc.set = mpfs_gpio_set;
 	mpfs_gpio->gc.base = -1;
-	mpfs_gpio->gc.ngpio = NUM_GPIO;
+	mpfs_gpio->gc.ngpio = ngpio;
 	mpfs_gpio->gc.label = dev_name(dev);
 	mpfs_gpio->gc.parent = dev;
 	mpfs_gpio->gc.owner = THIS_MODULE;
@@ -316,45 +300,42 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	irq_c->chip = &mpfs_gpio_irqchip;
 	irq_c->chip->parent_device = dev;
 	irq_c->handler = handle_simple_irq;
-	irq_c->default_type = IRQ_TYPE_NONE;
-	irq_c->num_parents = 0;
-	irq_c->parents = devm_kcalloc(&pdev->dev, 1,
-				      sizeof(*irq_c->parents), GFP_KERNEL);
-	if (!irq_c->parents) {
-		ret = -ENOMEM;
+
+	ret = devm_irq_alloc_descs(&pdev->dev, -1, 0, ngpio, 0);
+	if (ret < 0) {
+		dev_err(dev, "failed to allocate descs\n");
 		goto cleanup_clock;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	irq_c->parents[0] = irq;
+	/*
+	 * Setup the interrupt handlers. Interrupts can be
+	 * direct and/or non-direct mode, based on register value:
+	 * GPIO_INTERRUPT_FAB_CR.
+	 */
+	for (i = 0; i < ngpio; i++) {
+		int irq = platform_get_irq_optional(pdev, i);
 
-	irq_base = devm_irq_alloc_descs(mpfs_gpio->gc.parent,
-					-1, 0, ngpio, 0);
-	if (irq_base < 0) {
-		dev_err(mpfs_gpio->gc.parent, "Couldn't allocate IRQ numbers\n");
-		ret = -ENODEV;
-		goto cleanup_clock;
+		if (irq < 0)
+			continue;
+
+		ret = devm_request_irq(&pdev->dev, irq,
+				       mpfs_gpio_irq_handler,
+				       IRQF_SHARED, mpfs_gpio->gc.label, mpfs_gpio);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request irq %d: %d\n",
+				irq, ret);
+			goto cleanup_clock;
+		}
 	}
-	irq_c->first = irq_base;
 
 	ret = gpiochip_add_data(&mpfs_gpio->gc, mpfs_gpio);
 	if (ret)
 		goto cleanup_clock;
 
-	ret = devm_request_irq(mpfs_gpio->gc.parent, irq,
-			       mpfs_gpio_irq_handler,
-			       IRQF_SHARED, pdev->name, mpfs_gpio);
-	if (ret) {
-		dev_err(dev, "Microchip MPFS GPIO devm_request_irq failed\n");
-		goto cleanup_gpiochip;
-	}
-
 	platform_set_drvdata(pdev, mpfs_gpio);
-	dev_info(dev, "Microchip MPFS GPIO registered %d GPIO%s\n", ngpio, ngpio ? "s" : "");
+	dev_info(dev, "Microchip MPFS GPIO registered %d GPIOs\n", ngpio);
 
 	return 0;
-cleanup_gpiochip:
-	gpiochip_remove(&mpfs_gpio->gc);
 
 cleanup_clock:
 	clk_disable_unprepare(mpfs_gpio->clk);
