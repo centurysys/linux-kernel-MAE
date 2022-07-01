@@ -211,6 +211,13 @@
 			led-pattern = <200 100>;
 		};
 
+		shutdown_req {
+			label = "SHUTDOWN_REQ";
+			gpis = <&main_gpio1 21 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <200 100>;
+		};
+
 		msp430_reset {
 			label = "MSP430_RST";
 			gpios = <&main_gpio1 22 GPIO_ACTIVE_HIGH>;
@@ -412,6 +419,7 @@
 			AM64X_IOPAD(0x0198, PIN_OUTPUT, 7) /* (V4) PRG0_PRU0_GPO14.GPIO1_14 */
 			AM64X_IOPAD(0x019c, PIN_OUTPUT, 7) /* (T5) PRG0_PRU0_GPO15.GPIO1_15 */
 			AM64X_IOPAD(0x01a0, PIN_OUTPUT, 7) /* (U4) PRG0_PRU0_GPO16.GPIO1_16 */
+			AM64X_IOPAD(0x01b4, PIN_OUTPUT, 7) /* (V3) PRG0_PRU1_GPO1.GPIO1_21 */
 			AM64X_IOPAD(0x01b8, PIN_OUTPUT, 7) /* (V3) PRG0_PRU1_GPO2.GPIO1_22 */
 			AM64X_IOPAD(0x01bc, PIN_OUTPUT, 7) /* (T4) PRG0_PRU1_GPO3.GPIO1_23 */
 			AM64X_IOPAD(0x01c0, PIN_OUTPUT, 7) /* (W3) PRG0_PRU1_GPO4.GPIO1_24 */
