@@ -192,15 +192,6 @@ static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	return 0;
 }
 
-/* chained_irq_{enter,exit} already mask the parent */
-static void mpfs_gpio_irq_mask(struct irq_data *data)
-{
-}
-
-static void mpfs_gpio_irq_unmask(struct irq_data *data)
-{
-}
-
 static void mpfs_gpio_irq_enable(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
@@ -227,8 +218,6 @@ static void mpfs_gpio_irq_disable(struct irq_data *data)
 static struct irq_chip mpfs_gpio_irqchip = {
 	.name = "mpfs_gpio_irqchip",
 	.irq_set_type = mpfs_gpio_irq_set_type,
-	.irq_mask = mpfs_gpio_irq_mask,
-	.irq_unmask = mpfs_gpio_irq_unmask,
 	.irq_enable = mpfs_gpio_irq_enable,
 	.irq_disable = mpfs_gpio_irq_disable,
 	.flags = IRQCHIP_MASK_ON_SUSPEND,
