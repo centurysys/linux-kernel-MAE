@@ -97,7 +97,6 @@
  * @buf:		pointer to msg buffer for easier use
  * @msg_complete:	xfer completion object
  * @adapter:		core i2c abstraction
- * @lock:		spinlock for IRQ synchronization
  * @msg_err:		error code for completed message
  * @bus_clk_rate:	current i2c bus clock rate
  * @isr_status:		cached copy of local ISR status
@@ -111,7 +110,6 @@ struct mchp_corei2c_dev {
 	u8 *buf;
 	struct completion msg_complete;
 	struct i2c_adapter adapter;
-	spinlock_t lock; /* IRQ synchronization */
 	int msg_err;
 	u32 bus_clk_rate;
 	u32 isr_status;
@@ -394,7 +392,6 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 
 	idev->dev = &pdev->dev;
 	init_completion(&idev->msg_complete);
-	spin_lock_init(&idev->lock);
 
 	ret = device_property_read_u32(idev->dev, "clock-frequency",
 				       &idev->bus_clk_rate);
