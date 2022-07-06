@@ -1204,6 +1204,7 @@
 		xio_3f = &xio_3f;
 		xio_41 = &xio_41;
 		xio_42 = &xio_42;
+		xio_43 = &xio_3c;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1521,7 +1522,7 @@
 			   &leds_foma &leds_au_wlan_ctrl &leds_poe_ctrl>;
 	};
 
-	/* XIO: (id: 0x3c) MA-E350/LMR */
+	/* XIO: (id: 0x3c/0x43) GNSV, GNSC */
 	xio_3c: xio@0x3c {
 		#size-cells = <0>;
 		devices = <&gpiox_0x00 &gpiox_0x04_lisa
