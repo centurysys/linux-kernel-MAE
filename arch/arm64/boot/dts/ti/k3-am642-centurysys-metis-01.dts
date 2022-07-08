@@ -204,13 +204,6 @@
 			gpios = <&main_gpio1 13 GPIO_ACTIVE_LOW>;
 		};
 
-		mobile_reset {
-			label = "Mobile_RESETN";
-			gpios = <&main_gpio1 5 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "oneshot";
-			led-pattern = <200 100>;
-		};
-
 		shutdown_req {
 			label = "SHUTDOWN_REQ";
 			gpios = <&main_gpio1 21 GPIO_ACTIVE_LOW>;
