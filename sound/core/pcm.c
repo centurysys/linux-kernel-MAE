@@ -912,6 +912,7 @@ struct snd_pcm_runtime *snd_pcm_runtime_alloc(void)
 
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
 	mutex_init(&runtime->buffer_mutex);
+	atomic_set(&runtime->buffer_accessing, 0);
 
 	return runtime;
 }
