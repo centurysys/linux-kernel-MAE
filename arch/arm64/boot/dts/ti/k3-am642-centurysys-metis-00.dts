@@ -539,6 +539,7 @@
 	m41t80: rtc@68 {
 		compatible = "st,m41t80";
 		reg = <0x68>;
+		wakeup-source;
 	};
 };
 
