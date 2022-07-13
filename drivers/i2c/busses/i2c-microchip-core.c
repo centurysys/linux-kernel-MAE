@@ -11,14 +11,12 @@
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/iopoll.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
-
-#define MICROCHIP_I2C_TIMEOUT (msecs_to_jiffies(1000))
 
 #define CORE_I2C_CTRL	(0x00)
 #define  CTRL_CR0	BIT(0)
@@ -90,34 +88,32 @@
 #define BCLK_DIV_8	(CTRL_CR0 | CTRL_CR1 | CTRL_CR2)
 #define CLK_MASK	(CTRL_CR0 | CTRL_CR1 | CTRL_CR2)
 
-/*
- * mchp_corei2c_dev - I2C device context
- * @base: pointer to register struct
- * @msg: pointer to current message
- * @msg_len: number of bytes transferred in msg
- * @msg_err: error code for completed message
- * @msg_complete: xfer completion object
- * @dev: device reference
- * @adapter: core i2c abstraction
- * @i2c_clk: clock reference for i2c input clock
- * @bus_clk_rate: current i2c bus clock rate
- * @buf: ptr to msg buffer for easier use.
- * @isr_status: cached copy of local ISR status.
- * @lock: spinlock for IRQ synchronization.
+/**
+ * struct mchp_corei2c_dev - Microchip CoreI2C device private data
+ *
+ * @base:		pointer to register struct
+ * @dev:		device reference
+ * @i2c_clk:		clock reference for i2c input clock
+ * @buf:		pointer to msg buffer for easier use
+ * @msg_complete:	xfer completion object
+ * @adapter:		core i2c abstraction
+ * @msg_err:		error code for completed message
+ * @bus_clk_rate:	current i2c bus clock rate
+ * @isr_status:		cached copy of local ISR status
+ * @msg_len:		number of bytes transferred in msg
+ * @addr:		address of the current slave
  */
 struct mchp_corei2c_dev {
 	void __iomem *base;
-	size_t msg_len;
-	int msg_err;
-	struct completion msg_complete;
 	struct device *dev;
-	struct i2c_adapter adapter;
 	struct clk *i2c_clk;
-	spinlock_t lock; /* IRQ synchronization */
-	u32 bus_clk_rate;
-	u32 msg_read;
-	u32 isr_status;
 	u8 *buf;
+	struct completion msg_complete;
+	struct i2c_adapter adapter;
+	int msg_err;
+	u32 bus_clk_rate;
+	u32 isr_status;
+	u16 msg_len;
 	u8 addr;
 };
 
@@ -202,12 +198,6 @@ static int mchp_corei2c_init(struct mchp_corei2c_dev *idev)
 	return 0;
 }
 
-static void mchp_corei2c_transfer(struct mchp_corei2c_dev *idev, u32 data)
-{
-	if (idev->msg_len > 0)
-		writeb(data, idev->base + CORE_I2C_DATA);
-}
-
 static void mchp_corei2c_empty_rx(struct mchp_corei2c_dev *idev)
 {
 	u8 ctrl;
@@ -226,7 +216,8 @@ static void mchp_corei2c_empty_rx(struct mchp_corei2c_dev *idev)
 
 static int mchp_corei2c_fill_tx(struct mchp_corei2c_dev *idev)
 {
-	mchp_corei2c_transfer(idev, *idev->buf++);
+	if (idev->msg_len > 0)
+		writeb(*idev->buf++, idev->base + CORE_I2C_DATA);
 	idev->msg_len--;
 
 	return 0;
@@ -236,6 +227,7 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 {
 	u32 status = idev->isr_status;
 	u8 ctrl;
+	bool last_byte = false, finished = false;
 
 	if (!idev->buf)
 		return IRQ_NONE;
@@ -248,23 +240,25 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 		writeb(idev->addr, idev->base + CORE_I2C_DATA);
 		writeb(ctrl, idev->base + CORE_I2C_CTRL);
 		if (idev->msg_len <= 0)
-			goto finished;
+			finished = true;
 		break;
 	case STATUS_M_ARB_LOST:
 		idev->msg_err = -EAGAIN;
-		goto finished;
+		finished = true;
+		break;
 	case STATUS_M_SLAW_ACK:
 	case STATUS_M_TX_DATA_ACK:
 		if (idev->msg_len > 0)
 			mchp_corei2c_fill_tx(idev);
 		else
-			goto last_byte;
+			last_byte = true;
 		break;
 	case STATUS_M_TX_DATA_NACK:
 	case STATUS_M_SLAR_NACK:
 	case STATUS_M_SLAW_NACK:
 		idev->msg_err = -ENXIO;
-		goto last_byte;
+		last_byte = true;
+		break;
 	case STATUS_M_SLAR_ACK:
 		ctrl = readb(idev->base + CORE_I2C_CTRL);
 		if (idev->msg_len == 1u) {
@@ -275,7 +269,7 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 			writeb(ctrl, idev->base + CORE_I2C_CTRL);
 		}
 		if (idev->msg_len < 1u)
-			goto last_byte;
+			last_byte = true;
 		break;
 	case STATUS_M_RX_DATA_ACKED:
 		mchp_corei2c_empty_rx(idev);
@@ -283,19 +277,19 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 	case STATUS_M_RX_DATA_NACKED:
 		mchp_corei2c_empty_rx(idev);
 		if (idev->msg_len == 0)
-			goto last_byte;
+			last_byte = true;
 		break;
 	default:
 		break;
 	}
 
-	return IRQ_HANDLED;
-
-last_byte:
 	/* On the last byte to be transmitted, send STOP */
-	mchp_corei2c_stop(idev);
-finished:
-	complete(&idev->msg_complete);
+	if (last_byte)
+		mchp_corei2c_stop(idev);
+
+	if (last_byte || finished)
+		complete(&idev->msg_complete);
+
 	return IRQ_HANDLED;
 }
 
@@ -311,7 +305,6 @@ static irqreturn_t mchp_corei2c_isr(int irq, void *_dev)
 		ret = mchp_corei2c_handle_isr(idev);
 	}
 
-	/* Clear the si flag */
 	ctrl = readb(idev->base + CORE_I2C_CTRL);
 	ctrl &= ~CTRL_SI;
 	writeb(ctrl, idev->base + CORE_I2C_CTRL);
@@ -325,14 +318,10 @@ static int mchp_corei2c_xfer_msg(struct mchp_corei2c_dev *idev,
 	u8 ctrl;
 	unsigned long time_left;
 
-	if (msg->len == 0)
-		return -EINVAL;
-
 	idev->addr = i2c_8bit_addr_from_msg(msg);
 	idev->msg_len = msg->len;
 	idev->buf = msg->buf;
 	idev->msg_err = 0;
-	idev->msg_read = (msg->flags & I2C_M_RD);
 
 	reinit_completion(&idev->msg_complete);
 
@@ -343,9 +332,11 @@ static int mchp_corei2c_xfer_msg(struct mchp_corei2c_dev *idev,
 	writeb(ctrl, idev->base + CORE_I2C_CTRL);
 
 	time_left = wait_for_completion_timeout(&idev->msg_complete,
-						MICROCHIP_I2C_TIMEOUT);
-	if (!time_left)
+						idev->adapter.timeout);
+	if (!time_left) {
+		mchp_corei2c_reset(idev);
 		return -ETIMEDOUT;
+	}
 
 	return idev->msg_err;
 }
@@ -377,10 +368,9 @@ static const struct i2c_algorithm mchp_corei2c_algo = {
 
 static int mchp_corei2c_probe(struct platform_device *pdev)
 {
-	struct mchp_corei2c_dev *idev = NULL;
+	struct mchp_corei2c_dev *idev;
 	struct resource *res;
 	int irq, ret;
-	u32 val;
 
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
 	if (!idev)
@@ -391,8 +381,8 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 		return PTR_ERR(idev->base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return dev_err_probe(&pdev->dev, irq,
+	if (irq <= 0)
+		return dev_err_probe(&pdev->dev, -ENXIO,
 				     "missing interrupt resource\n");
 
 	idev->i2c_clk = devm_clk_get(&pdev->dev, NULL);
@@ -402,11 +392,10 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 
 	idev->dev = &pdev->dev;
 	init_completion(&idev->msg_complete);
-	spin_lock_init(&idev->lock);
 
-	val = device_property_read_u32(idev->dev, "clock-frequency",
+	ret = device_property_read_u32(idev->dev, "clock-frequency",
 				       &idev->bus_clk_rate);
-	if (val) {
+	if (ret || !idev->bus_clk_rate) {
 		dev_info(&pdev->dev, "default to 100kHz\n");
 		idev->bus_clk_rate = 100000;
 	}
@@ -416,6 +405,11 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 				     "clock-frequency too high: %d\n",
 				     idev->bus_clk_rate);
 
+	/*
+	 * This driver supports both the hard peripherals & soft FPGA cores.
+	 * The hard peripherals do not have shared IRQs, but we don't have
+	 * control over what way the interrupts are wired for the soft cores.
+	 */
 	ret = devm_request_irq(&pdev->dev, irq, mchp_corei2c_isr, IRQF_SHARED,
 			       pdev->name, idev);
 	if (ret)
@@ -435,11 +429,12 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 
 	i2c_set_adapdata(&idev->adapter, idev);
 	snprintf(idev->adapter.name, sizeof(idev->adapter.name),
-		 "Microchip I2C hw bus");
+		 "Microchip I2C hw bus at %08lx", (unsigned long)res->start);
 	idev->adapter.owner = THIS_MODULE;
 	idev->adapter.algo = &mchp_corei2c_algo;
 	idev->adapter.dev.parent = &pdev->dev;
 	idev->adapter.dev.of_node = pdev->dev.of_node;
+	idev->adapter.timeout = HZ;
 
 	platform_set_drvdata(pdev, idev);
 
@@ -449,7 +444,7 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev_info(&pdev->dev, "Microchip I2C Probe Complete\n");
+	dev_info(&pdev->dev, "registered CoreI2C bus driver\n");
 
 	return 0;
 }
@@ -485,4 +480,4 @@ module_platform_driver(mchp_corei2c_driver);
 MODULE_DESCRIPTION("Microchip CoreI2C bus driver");
 MODULE_AUTHOR("Daire McNamara <daire.mcnamara@microchip.com>");
 MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
