@@ -58,6 +58,7 @@ dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-lx2160a-rdb.dtb
 dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-lx2162a-qds.dtb
 dtb-$(CONFIG_ARCH_LAYERSCAPE) += cs-acorn.dtb
 dtb-$(CONFIG_ARCH_LAYERSCAPE) += cs-acorn-v2.dtb
+dtb-$(CONFIG_ARCH_LAYERSCAPE) += cs-acorn-v2t.dtb
 dtb-$(CONFIG_ARCH_LAYERSCAPE) += cs-acorn-v2-dsa.dtb
 dtb-$(CONFIG_ARCH_LAYERSCAPE) += cs-southernx-sdk.dtb
 dtb-$(CONFIG_ARCH_LAYERSCAPE) += cs-southernx-sdk-testing.dtb
