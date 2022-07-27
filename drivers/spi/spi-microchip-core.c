@@ -283,7 +283,7 @@ static int mchp_corespi_setup(struct spi_device *spi)
 static void mchp_corespi_init(struct spi_master *master, struct mchp_corespi *spi)
 {
 	unsigned long clk_hz;
-	u32 reg, control = mchp_corespi_read(spi, REG_CONTROL);
+	u32 control = mchp_corespi_read(spi, REG_CONTROL);
 
 	control |= CONTROL_MASTER;
 
