@@ -58,6 +58,7 @@ obj-$(CONFIG_VIDEO_ROCKCHIP_ISP1)	+= rockchip/rkisp1/
 obj-$(CONFIG_VIDEO_ROCKCHIP_RGA)	+= rockchip/rga/
 
 obj-y	+= omap/
+obj-y	+= microchip/
 
 obj-$(CONFIG_VIDEO_AM437X_VPFE)		+= am437x/
 
