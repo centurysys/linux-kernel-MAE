@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 15
 SUBLEVEL = 53
-EXTRAVERSION =
+EXTRAVERSION = -linux4microchip+sam9x60_curiosity-2022.07-rc1
 NAME = Trick or Treat
 
 # *DOCUMENTATION*
