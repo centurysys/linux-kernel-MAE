@@ -89,7 +89,6 @@
 	phy-handle = <&phy0>;
 	phy0: ethernet-phy@0 {
 		reg = <0>;
-		ti,fifo-depth = <0x1>;
 	};
 };
 
@@ -99,7 +98,6 @@
 	phy-handle = <&phy1>;
 	phy1: ethernet-phy@0 {
 		reg = <0>;
-		ti,fifo-depth = <0x1>;
 	};
 };
 
