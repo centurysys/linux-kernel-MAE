@@ -114,7 +114,6 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;  
-	card-detect-delay = <200>;
 	disable-wp;
 	status = "okay";
 };
