@@ -2241,6 +2241,10 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
+	err = devm_request_irq(&pdev->dev, irq, at_dma_interrupt, 0,
+			       dev_name(&pdev->dev), atdma);
+	if (err)
+		return err;
 
 	/* discover transaction capabilities */
 	atdma->dma_device.cap_mask = plat_dat->cap_mask;
@@ -2256,10 +2260,6 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	/* force dma off, just in case */
 	at_dma_off(atdma);
-
-	err = request_irq(irq, at_dma_interrupt, 0, "at_hdmac", atdma);
-	if (err)
-		goto err_irq;
 
 	platform_set_drvdata(pdev, atdma);
 
@@ -2377,8 +2377,6 @@ err_of_dma_controller_register:
 err_memset_pool_create:
 	dma_pool_destroy(atdma->dma_desc_pool);
 err_desc_pool_create:
-	free_irq(platform_get_irq(pdev, 0), atdma);
-err_irq:
 	clk_disable_unprepare(atdma->clk);
 err_clk_prepare:
 	clk_put(atdma->clk);
@@ -2397,7 +2395,6 @@ static int at_dma_remove(struct platform_device *pdev)
 
 	dma_pool_destroy(atdma->memset_pool);
 	dma_pool_destroy(atdma->dma_desc_pool);
-	free_irq(platform_get_irq(pdev, 0), atdma);
 
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
 			device_node) {
