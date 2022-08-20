@@ -691,6 +691,8 @@ static void atc_dostart(struct at_dma_chan *atchan, struct at_desc *first)
 	channel_writel(atchan, DPIP, FIELD_PREP(ATC_DPIP_HOLE,
 						first->dst_hole) |
 		       FIELD_PREP(ATC_DPIP_BOUNDARY, first->boundary));
+	/* Don't allow CPU to reorder channel enable. */
+	wmb();
 	dma_writel(atdma, CHER, atchan->mask);
 
 	vdbg_dump_regs(atchan);
