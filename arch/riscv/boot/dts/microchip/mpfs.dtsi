@@ -50,6 +50,7 @@
 			riscv,isa = "rv64imafdc";
 			clocks = <&clkcfg CLK_CPU>;
 			tlb-split;
+			next-level-cache = <&cctrllr>;
 			status = "okay";
 
 			cpu1_intc: interrupt-controller {
@@ -77,6 +78,7 @@
 			riscv,isa = "rv64imafdc";
 			clocks = <&clkcfg CLK_CPU>;
 			tlb-split;
+			next-level-cache = <&cctrllr>;
 			status = "okay";
 
 			cpu2_intc: interrupt-controller {
@@ -104,6 +106,7 @@
 			riscv,isa = "rv64imafdc";
 			clocks = <&clkcfg CLK_CPU>;
 			tlb-split;
+			next-level-cache = <&cctrllr>;
 			status = "okay";
 
 			cpu3_intc: interrupt-controller {
@@ -131,11 +134,36 @@
 			riscv,isa = "rv64imafdc";
 			clocks = <&clkcfg CLK_CPU>;
 			tlb-split;
+			next-level-cache = <&cctrllr>;
 			status = "okay";
 			cpu4_intc: interrupt-controller {
 				#interrupt-cells = <1>;
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
+			};
+		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+
+				core1 {
+					cpu = <&cpu1>;
+				};
+
+				core2 {
+					cpu = <&cpu2>;
+				};
+
+				core3 {
+					cpu = <&cpu3>;
+				};
+
+				core4 {
+					cpu = <&cpu4>;
+				};
 			};
 		};
 	};
@@ -294,7 +322,7 @@
 		};
 
 		qspi: spi@21000000 {
-			compatible = "microchip,mpfs-qspi";
+			compatible = "microchip,mpfs-qspi", "microchip,coreqspi-rtl-v2";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x21000000 0x0 0x1000>;
