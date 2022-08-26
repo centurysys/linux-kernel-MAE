@@ -422,7 +422,7 @@ static int mchp_dscmi_restart_capture(struct mchp_dscmi_fpga *mchp_dscmi)
 		mchp_dscmi->state = WAIT_FOR_BUFFER;
 		mchp_dscmi->drop_count++;
 		spin_unlock_irq(&mchp_dscmi->qlock);
-		return -EINVAL;
+		return 0;
 	}
 
 	buf = list_entry(mchp_dscmi->buf_list.next,
