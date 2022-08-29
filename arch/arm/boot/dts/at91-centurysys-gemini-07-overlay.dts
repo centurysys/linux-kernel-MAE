@@ -110,6 +110,13 @@
 				label = "MSP430_EXT1_TEST";
 				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
 			};
+
+			do_0 {
+				label = "REQ_POWEROFF";
+				gpios = <&pioA PIN_PD10 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "cpu0";
+				default-state = "on";
+			};
 		};
 	};
 
