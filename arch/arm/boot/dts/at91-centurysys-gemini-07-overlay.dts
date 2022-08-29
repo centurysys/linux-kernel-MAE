@@ -110,13 +110,6 @@
 				label = "MSP430_EXT1_TEST";
 				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
 			};
-
-			do_0 {
-				label = "REQ_POWEROFF";
-				gpios = <&pioA PIN_PD10 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "cpu0";
-				default-state = "on";
-			};
 		};
 	};
 
@@ -165,42 +158,6 @@
 					retain-state-suspended;
 					retain-state-shutdown;
 					default-state = "keep";
-				};
-			};
-		};
-	};
-
-	fragment@4 {
-		target = <&pioA>;
-		__overlay__ {
-			pinctrl_key_battery_default: key_battery_default {
-				pinmux = <PIN_PD6__GPIO>,
-				         <PIN_PD7__GPIO>;
-				bias-disable;
-				input-schmitt-enable = <1>;
-			};
-		};
-	};
-
-	fragment@5 {
-		target-path = "/";
-		__overlay__ {
-			gpio_keys_battery {
-				compatible = "gpio-keys";
-
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_key_battery_default>;
-
-				sw_di0 {
-					label = "DC_FAIL";
-					gpios = <&pioA PIN_PD6 GPIO_ACTIVE_LOW>;
-					linux,code = <0x102>; /* BTN_2 */
-				};
-
-				sw_di1 {
-					label = "BAT_LOW";
-					gpios = <&pioA PIN_PD7 GPIO_ACTIVE_LOW>;
-					linux,code = <0x103>; /* BTN_3 */
 				};
 			};
 		};
