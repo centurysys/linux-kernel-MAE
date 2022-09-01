@@ -714,6 +714,8 @@ static int wiz_phy_en_refclk_register(struct wiz *wiz)
 	struct device *dev = wiz->dev;
 	struct clk_init_data *init;
 	struct clk *clk;
+	char *clk_name;
+	unsigned int sz;
 
 	wiz_phy_en_refclk = devm_kzalloc(dev, sizeof(*wiz_phy_en_refclk), GFP_KERNEL);
 	if (!wiz_phy_en_refclk)
@@ -723,12 +725,23 @@ static int wiz_phy_en_refclk_register(struct wiz *wiz)
 
 	init->ops = &wiz_phy_en_refclk_ops;
 	init->flags = 0;
-	init->name = output_clk_names[TI_WIZ_PHY_EN_REFCLK];
+
+	sz = strlen(dev_name(dev)) + strlen(output_clk_names[TI_WIZ_PHY_EN_REFCLK]) + 2;
+
+	clk_name = kzalloc(sz, GFP_KERNEL);
+	if (!clk_name)
+		return -ENOMEM;
+
+	snprintf(clk_name, sz, "%s_%s", dev_name(dev), output_clk_names[TI_WIZ_PHY_EN_REFCLK]);
+	init->name = clk_name;
 
 	wiz_phy_en_refclk->phy_en_refclk = wiz->phy_en_refclk;
 	wiz_phy_en_refclk->hw.init = init;
 
 	clk = devm_clk_register(dev, &wiz_phy_en_refclk->hw);
+
+	kfree(clk_name);
+
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
@@ -1187,6 +1200,7 @@ static int wiz_phy_fullrt_div(struct wiz *wiz, int lane)
 		if (wiz->lane_phy_type[lane] == PHY_TYPE_PCIE)
 			return regmap_field_write(wiz->p0_fullrt_div[lane], 0x1);
 		break;
+	case J721E_WIZ_16G:
 	case J721E_WIZ_10G:
 	case J7200_WIZ_10G:
 		if (wiz->lane_phy_type[lane] == PHY_TYPE_SGMII)
