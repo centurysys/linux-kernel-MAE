@@ -14,6 +14,10 @@
 	compatible = "microchip,lan9668-pcb8290", "microchip,lan9668", "microchip,lan966";
 };
 
+&aes {
+	status = "disabled"; /* Reserved by secure OS */
+};
+
 &gpio {
 	udc_pins: ucd-pins {
 		/* VBUS_DET B */
