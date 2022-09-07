@@ -54,8 +54,11 @@ static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 		struct can_frame *cf = (struct can_frame *)skb->data;
 
 		work_done++;
-		stats->rx_packets++;
-		stats->rx_bytes += cf->len;
+		if (!(cf->can_id & CAN_ERR_FLAG)) {
+			stats->rx_packets++;
+			if (!(cf->can_id & CAN_RTR_FLAG))
+				stats->rx_bytes += cf->len;
+		}
 		netif_receive_skb(skb);
 	}
 
@@ -218,7 +221,7 @@ int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload)
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_irq_offload_fifo);
 
-int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
+int can_rx_offload_queue_timestamp(struct can_rx_offload *offload,
 				struct sk_buff *skb, u32 timestamp)
 {
 	struct can_rx_offload_cb *cb;
@@ -237,7 +240,7 @@ int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(can_rx_offload_queue_sorted);
+EXPORT_SYMBOL_GPL(can_rx_offload_queue_timestamp);
 
 unsigned int can_rx_offload_get_echo_skb(struct can_rx_offload *offload,
 					 unsigned int idx, u32 timestamp,
@@ -253,7 +256,7 @@ unsigned int can_rx_offload_get_echo_skb(struct can_rx_offload *offload,
 	if (!skb)
 		return 0;
 
-	err = can_rx_offload_queue_sorted(offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(offload, skb, timestamp);
 	if (err) {
 		stats->rx_errors++;
 		stats->tx_fifo_errors++;
