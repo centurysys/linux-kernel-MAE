@@ -472,10 +472,10 @@
 						  "", "MobileLED_G1", "MobileLED_R1", "MobileLED_G2",
 						  "MobileLED_R2", "PowerLED_G", "", "PHY_RESET_N",
 						  "", "", "DB9_DTR", "DB9_DSR", "DB9_DCD", "DB9_RI",
-						  "DB9_FORCEOFF_N", "XIOUSB_ENABLE",
-						  "", "", "", "", "", "", "", "Mobile_PWRKEY",
-						  "Mobile_RESET_N", "Mobile_SLEEP_N", "Mobile_READY_N",
-						  "Mobile_WAKEUP_N", "", "", "", "",
+						  "DB9_FORCEOFF_N", "XIOUSB_ENABLE", "XIOUSB_OVC",
+						  "XIOIRQ_N", "", "", "", "", "",
+						  "Mobile_PWRKEY", "Mobile_RESET_N", "Mobile_SLEEP_N",
+						  "Mobile_READY_N","Mobile_WAKEUP_N", "", "", "", "",
 						  "", "", "", "", "", "", "DI0", "DI1",
 						  "DI2", "DI3", "DO0", "DO1", "MSP430_RST",
 						  "MSP430_TEST", "", "",
@@ -693,6 +693,12 @@
 						 <PIN_PD9__GPIO>;
 					input-schmitt-enable;
 					input-debounce;
+				};
+
+				pinctrl_xioirq_default: xioirq_default {
+					pinmux = <PIN_PC17__GPIO>;
+					bias-disable;
+					input-schmitt-enable;
 				};
 			};
 
