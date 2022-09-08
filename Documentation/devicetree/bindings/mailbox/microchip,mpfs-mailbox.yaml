@@ -14,9 +14,15 @@ properties:
     const: microchip,mpfs-mailbox
 
   reg:
-    items:
-      - description: mailbox data registers
-      - description: mailbox interrupt registers
+    oneOf:
+      - items:
+          - description: mailbox control & data registers
+          - description: mailbox interrupt registers
+        deprecated: true
+      - items:
+          - description: mailbox control registers
+          - description: mailbox interrupt registers
+          - description: mailbox data registers
 
   interrupts:
     maxItems: 1
