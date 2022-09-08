@@ -1542,7 +1542,7 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 	complete(&data->chg_completion);
 
 	if (data->in_bootloader) {
-		if (data->flash && &data->flash->work)
+		if (data->flash)
 			cancel_delayed_work_sync(&data->flash->work);
 
 		return IRQ_RETVAL(mxt_check_bootloader(data));
