@@ -41,7 +41,7 @@
 struct mpfs_gpio_chip {
 	void __iomem *base;
 	struct clk *clk;
-	spinlock_t lock; /* lock */
+	raw_spinlock_t lock;
 	struct gpio_chip gc;
 };
 
@@ -66,14 +66,14 @@ static int mpfs_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio_ind
 	if (gpio_index >= NUM_GPIO)
 		return -EINVAL;
 
-	spin_lock_irqsave(&mpfs_gpio->lock, flags);
+	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
 	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 	gpio_cfg |= MPFS_GPIO_EN_IN;
 	gpio_cfg &= ~(MPFS_GPIO_EN_OUT | MPFS_GPIO_EN_OUT_BUF);
 	writel(gpio_cfg, mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 
-	spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
+	raw_spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 
 	return 0;
 }
@@ -87,7 +87,7 @@ static int mpfs_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio_in
 	if (gpio_index >= NUM_GPIO)
 		return -EINVAL;
 
-	spin_lock_irqsave(&mpfs_gpio->lock, flags);
+	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
 	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 	gpio_cfg |= MPFS_GPIO_EN_OUT | MPFS_GPIO_EN_OUT_BUF;
@@ -96,7 +96,7 @@ static int mpfs_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio_in
 
 	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_OUTP_REG, gpio_index, value);
 
-	spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
+	raw_spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 
 	return 0;
 }
@@ -137,12 +137,12 @@ static void mpfs_gpio_set(struct gpio_chip *gc, unsigned int gpio_index, int val
 	if (gpio_index >= NUM_GPIO)
 		return;
 
-	spin_lock_irqsave(&mpfs_gpio->lock, flags);
+	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
 	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_OUTP_REG,
 			     gpio_index, value);
 
-	spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
+	raw_spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 }
 
 static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
@@ -180,14 +180,14 @@ static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 		break;
 	}
 
-	spin_lock_irqsave(&mpfs_gpio->lock, flags);
+	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
 	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 	gpio_cfg &= ~MPFS_GPIO_TYPE_INT_MASK;
 	gpio_cfg |= interrupt_type;
 	writel(gpio_cfg, mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
 
-	spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
+	raw_spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 
 	return 0;
 }
@@ -266,7 +266,7 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 
 	mpfs_gpio->clk = clk;
 
-	spin_lock_init(&mpfs_gpio->lock);
+	raw_spin_lock_init(&mpfs_gpio->lock);
 
 	ngpio = of_irq_count(node);
 	if (ngpio > NUM_GPIO) {
