@@ -188,7 +188,7 @@ static void mpfs_gpio_irq_mask(struct irq_data *data)
 			     MPFS_GPIO_EN_INT, 0);
 }
 
-static const struct irq_chip mpfs_gpio_irqchip = {
+static struct irq_chip mpfs_gpio_irqchip = {
 	.name = "mpfs",
 	.irq_set_type = mpfs_gpio_irq_set_type,
 	.irq_mask = mpfs_gpio_irq_mask,
