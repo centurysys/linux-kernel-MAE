@@ -101,9 +101,9 @@ static int mpfs_gpio_get_direction(struct gpio_chip *gc,
 	gpio_cfg = readl(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 
 	if (gpio_cfg & MPFS_GPIO_EN_IN)
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 
-	return 0;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int mpfs_gpio_get(struct gpio_chip *gc,
@@ -130,9 +130,9 @@ static void mpfs_gpio_set(struct gpio_chip *gc, unsigned int gpio_index, int val
 static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	int gpio_index = irqd_to_hwirq(data);
 	u32 interrupt_type;
-	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	u32 gpio_cfg;
 	unsigned long flags;
 
@@ -230,17 +230,16 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpfs_gpio->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(mpfs_gpio->base)) {
-		dev_err(dev, "failed to allocate device memory\n");
-		return PTR_ERR(mpfs_gpio->base);
-	}
-	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mpfs_gpio->base))
+		return dev_err_probe(dev, PTR_ERR(mpfs_gpio->base), "memory allocation failure\n");
+
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "failed to get clock\n");
+		return dev_err_probe(dev, PTR_ERR(clk), "devm_clk_get failed\n");
 
 	ret = clk_prepare_enable(clk);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "failed to enable clock\n");
+		return dev_err_probe(dev, ret, "failed to enable clock\n");
 
 	mpfs_gpio->clk = clk;
 
