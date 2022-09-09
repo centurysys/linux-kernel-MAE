@@ -26,8 +26,9 @@ properties:
           - const: microchip,mpfs
       - items:
           - enum:
-              - microchip,mpfs-sev-kit
+              - aldec,tysom-m-mpfs250t
               - aries,m100pfsevp
+              - microchip,mpfs-sev-kit
               - sundance,polarberry
           - const: microchip,mpfs
 additionalProperties: true
