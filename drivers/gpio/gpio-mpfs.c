@@ -45,16 +45,12 @@ struct mpfs_gpio_chip {
 	struct gpio_chip gc;
 };
 
-static void mpfs_gpio_assign_bit(void __iomem *addr, unsigned int bit_offset, int value)
+static void mpfs_gpio_assign_bit(void __iomem *addr, unsigned int bit_offset, bool value)
 {
-	u32 output = readl(addr);
+	unsigned long reg = readl(addr);
 
-	if (value)
-		output |= BIT(bit_offset);
-	else
-		output &= ~BIT(bit_offset);
-
-	writel(output, addr);
+	__assign_bit(bit_offset, &reg, value);
+	writel(reg, addr);
 }
 
 static int mpfs_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio_index)
