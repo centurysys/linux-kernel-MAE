@@ -99,7 +99,6 @@ static int mpfs_gpio_get_direction(struct gpio_chip *gc,
 	u32 gpio_cfg;
 
 	gpio_cfg = readl(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
-
 	if (gpio_cfg & MPFS_GPIO_EN_IN)
 		return GPIO_LINE_DIRECTION_IN;
 
@@ -140,19 +139,15 @@ static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	case IRQ_TYPE_EDGE_BOTH:
 		interrupt_type = MPFS_GPIO_TYPE_INT_EDGE_BOTH;
 		break;
-
 	case IRQ_TYPE_EDGE_FALLING:
 		interrupt_type = MPFS_GPIO_TYPE_INT_EDGE_NEG;
 		break;
-
 	case IRQ_TYPE_EDGE_RISING:
 		interrupt_type = MPFS_GPIO_TYPE_INT_EDGE_POS;
 		break;
-
 	case IRQ_TYPE_LEVEL_HIGH:
 		interrupt_type = MPFS_GPIO_TYPE_INT_LEVEL_HIGH;
 		break;
-
 	case IRQ_TYPE_LEVEL_LOW:
 		interrupt_type = MPFS_GPIO_TYPE_INT_LEVEL_LOW;
 		break;
@@ -329,5 +324,4 @@ static struct platform_driver mpfs_gpio_driver = {
 	},
 	.remove = mpfs_gpio_remove,
 };
-
 builtin_platform_driver(mpfs_gpio_driver);
