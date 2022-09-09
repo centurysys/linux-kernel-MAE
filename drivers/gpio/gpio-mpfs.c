@@ -59,9 +59,6 @@ static int mpfs_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio_ind
 	u32 gpio_cfg;
 	unsigned long flags;
 
-	if (gpio_index >= NUM_GPIO)
-		return -EINVAL;
-
 	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
 	gpio_cfg = readl(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
@@ -79,9 +76,6 @@ static int mpfs_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio_in
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	u32 gpio_cfg;
 	unsigned long flags;
-
-	if (gpio_index >= NUM_GPIO)
-		return -EINVAL;
 
 	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
@@ -103,9 +97,6 @@ static int mpfs_gpio_get_direction(struct gpio_chip *gc,
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	u32 gpio_cfg;
 
-	if (gpio_index >= NUM_GPIO)
-		return -EINVAL;
-
 	gpio_cfg = readl(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 
 	if (gpio_cfg & MPFS_GPIO_EN_IN)
@@ -119,9 +110,6 @@ static int mpfs_gpio_get(struct gpio_chip *gc,
 {
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 
-	if (gpio_index >= NUM_GPIO)
-		return -EINVAL;
-
 	return !!(readl(mpfs_gpio->base + MPFS_INP_REG) & BIT(gpio_index));
 }
 
@@ -129,9 +117,6 @@ static void mpfs_gpio_set(struct gpio_chip *gc, unsigned int gpio_index, int val
 {
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
-
-	if (gpio_index >= NUM_GPIO)
-		return;
 
 	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
@@ -149,9 +134,6 @@ static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 	u32 gpio_cfg;
 	unsigned long flags;
-
-	if (gpio_index >= NUM_GPIO)
-		return -EINVAL;
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
@@ -171,7 +153,6 @@ static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 		break;
 
 	case IRQ_TYPE_LEVEL_LOW:
-	default:
 		interrupt_type = MPFS_GPIO_TYPE_INT_LEVEL_LOW;
 		break;
 	}
@@ -317,7 +298,6 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 		goto cleanup_clock;
 
 	platform_set_drvdata(pdev, mpfs_gpio);
-	dev_info(dev, "Microchip MPFS GPIO registered %d GPIOs\n", ngpio);
 
 	return 0;
 
