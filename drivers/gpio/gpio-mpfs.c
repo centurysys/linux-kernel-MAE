@@ -21,8 +21,8 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
+#define MPFS_GPIO_CTRL(i)		(0x4 * (i))
 #define NUM_GPIO			32
-#define BYTE_BOUNDARY			0x04
 #define MPFS_GPIO_EN_INT		3
 #define MPFS_GPIO_EN_OUT_BUF		BIT(2)
 #define MPFS_GPIO_EN_IN			BIT(1)
@@ -68,10 +68,10 @@ static int mpfs_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio_ind
 
 	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
-	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	gpio_cfg = readl(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 	gpio_cfg |= MPFS_GPIO_EN_IN;
 	gpio_cfg &= ~(MPFS_GPIO_EN_OUT | MPFS_GPIO_EN_OUT_BUF);
-	writel(gpio_cfg, mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	writel(gpio_cfg, mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 
 	raw_spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 
@@ -89,10 +89,10 @@ static int mpfs_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio_in
 
 	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
-	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	gpio_cfg = readl(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 	gpio_cfg |= MPFS_GPIO_EN_OUT | MPFS_GPIO_EN_OUT_BUF;
 	gpio_cfg &= ~MPFS_GPIO_EN_IN;
-	writel(gpio_cfg, mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	writel(gpio_cfg, mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 
 	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_OUTP_REG, gpio_index, value);
 
@@ -110,7 +110,7 @@ static int mpfs_gpio_get_direction(struct gpio_chip *gc,
 	if (gpio_index >= NUM_GPIO)
 		return -EINVAL;
 
-	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	gpio_cfg = readl(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 
 	if (gpio_cfg & MPFS_GPIO_EN_IN)
 		return 1;
@@ -182,10 +182,10 @@ static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 
 	raw_spin_lock_irqsave(&mpfs_gpio->lock, flags);
 
-	gpio_cfg = readl(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	gpio_cfg = readl(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 	gpio_cfg &= ~MPFS_GPIO_TYPE_INT_MASK;
 	gpio_cfg |= interrupt_type;
-	writel(gpio_cfg, mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY));
+	writel(gpio_cfg, mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index));
 
 	raw_spin_unlock_irqrestore(&mpfs_gpio->lock, flags);
 
@@ -200,7 +200,7 @@ static void mpfs_gpio_irq_enable(struct irq_data *data)
 
 	mpfs_gpio_direction_input(gc, gpio_index);
 	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_IRQ_REG, gpio_index, 1);
-	mpfs_gpio_assign_bit(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY),
+	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index),
 			     MPFS_GPIO_EN_INT, 1);
 }
 
@@ -211,7 +211,7 @@ static void mpfs_gpio_irq_disable(struct irq_data *data)
 	int gpio_index = irqd_to_hwirq(data) % NUM_GPIO;
 
 	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_IRQ_REG, gpio_index, 1);
-	mpfs_gpio_assign_bit(mpfs_gpio->base + (gpio_index * BYTE_BOUNDARY),
+	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index),
 			     MPFS_GPIO_EN_INT, 0);
 }
 
