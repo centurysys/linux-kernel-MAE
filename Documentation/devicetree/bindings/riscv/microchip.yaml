@@ -25,6 +25,7 @@ properties:
               - microchip,mpfs-sev-kit
               - aries,m100pfsevp-emmc
               - aries,m100pfsevp-sdcard
+              - sundance,polarberry
           - const: microchip,mpfs
 
 additionalProperties: true
