@@ -22,7 +22,7 @@
 #include <linux/spinlock.h>
 
 #define MPFS_GPIO_CTRL(i)		(0x4 * (i))
-#define NUM_GPIO			32
+#define MAX_NUM_GPIO			32
 #define MPFS_GPIO_EN_INT		3
 #define MPFS_GPIO_EN_OUT_BUF		BIT(2)
 #define MPFS_GPIO_EN_IN			BIT(1)
@@ -196,7 +196,7 @@ static void mpfs_gpio_irq_enable(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
-	int gpio_index = irqd_to_hwirq(data) % NUM_GPIO;
+	int gpio_index = irqd_to_hwirq(data) % MAX_NUM_GPIO;
 
 	mpfs_gpio_direction_input(gc, gpio_index);
 	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_IRQ_REG, gpio_index, 1);
@@ -208,7 +208,7 @@ static void mpfs_gpio_irq_disable(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
-	int gpio_index = irqd_to_hwirq(data) % NUM_GPIO;
+	int gpio_index = irqd_to_hwirq(data) % MAX_NUM_GPIO;
 
 	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_IRQ_REG, gpio_index, 1);
 	mpfs_gpio_assign_bit(mpfs_gpio->base + MPFS_GPIO_CTRL(gpio_index),
@@ -244,7 +244,7 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
 	struct mpfs_gpio_chip *mpfs_gpio;
-	int i, ret, ngpio;
+	int i, ret, ngpios;
 	struct gpio_irq_chip *irq_c;
 
 	mpfs_gpio = devm_kzalloc(dev, sizeof(*mpfs_gpio), GFP_KERNEL);
@@ -268,11 +268,10 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&mpfs_gpio->lock);
 
-	ngpio = of_irq_count(node);
-	if (ngpio > NUM_GPIO) {
-		dev_err(dev, "too many interrupts\n");
-		goto cleanup_clock;
-	}
+	ngpios = MAX_NUM_GPIO;
+	device_property_read_u32(dev, "ngpios", &ngpios);
+	if (ngpios > MAX_NUM_GPIO)
+		ngpios = MAX_NUM_GPIO;
 
 	mpfs_gpio->gc.direction_input = mpfs_gpio_direction_input;
 	mpfs_gpio->gc.direction_output = mpfs_gpio_direction_output;
@@ -301,7 +300,7 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	 * direct and/or non-direct mode, based on register value:
 	 * GPIO_INTERRUPT_FAB_CR.
 	 */
-	for (i = 0; i < ngpio; i++) {
+	for (i = 0; i < ngpios; i++) {
 		int irq = platform_get_irq_optional(pdev, i);
 
 		if (irq < 0)
