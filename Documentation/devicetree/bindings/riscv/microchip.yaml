@@ -20,14 +20,17 @@ properties:
     oneOf:
       - items:
           - enum:
-              - microchip,mpfs-icicle-kit
               - microchip,mpfs-icicle-reference-rtlv2203
+              - microchip,mpfs-icicle-reference-rtlv2209
+          - const: microchip,mpfs-icicle-kit
+          - const: microchip,mpfs
+      - items:
+          - enum:
               - microchip,mpfs-sev-kit
               - aries,m100pfsevp-emmc
               - aries,m100pfsevp-sdcard
               - sundance,polarberry
           - const: microchip,mpfs
-
 additionalProperties: true
 
 ...
