@@ -18,6 +18,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
@@ -316,16 +317,16 @@ static int mpfs_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id mpfs_gpio_match[] = {
+static const struct of_device_id mpfs_of_ids[] = {
 	{ .compatible = "microchip,mpfs-gpio", },
-	{ /* end of list */ },
+	{ /* end of list */ }
 };
 
 static struct platform_driver mpfs_gpio_driver = {
 	.probe = mpfs_gpio_probe,
 	.driver = {
 		.name = "microchip,mpfs-gpio",
-		.of_match_table = of_match_ptr(mpfs_gpio_match),
+		.of_match_table = mpfs_of_ids,
 	},
 	.remove = mpfs_gpio_remove,
 };
