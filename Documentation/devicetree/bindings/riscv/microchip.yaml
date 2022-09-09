@@ -27,8 +27,7 @@ properties:
       - items:
           - enum:
               - microchip,mpfs-sev-kit
-              - aries,m100pfsevp-emmc
-              - aries,m100pfsevp-sdcard
+              - aries,m100pfsevp
               - sundance,polarberry
           - const: microchip,mpfs
 additionalProperties: true
