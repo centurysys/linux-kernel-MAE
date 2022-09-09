@@ -16,7 +16,7 @@
 
 / {
 	model = "Aries Embedded m100pfs-evp";
-	compatible = "aries,m100pfsevp-emmc", "microchip,mpfs";
+	compatible = "aries,m100pfsevp", "microchip,mpfs";
 
 	aliases {
 		ethernet0 = &mac0;
