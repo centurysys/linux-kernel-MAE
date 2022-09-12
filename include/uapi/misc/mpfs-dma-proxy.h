@@ -10,6 +10,8 @@
 #ifndef _MPFS_DMA_PROXY_H
 #define _MPFS_DMA_PROXY_H
 
+#include <linux/types.h>
+
 #define MPFS_DMA_PROXY_IOC_MAGIC	'u'
 
 #define MPFS_DMA_PROXY_FINISH_XFER	_IOW(MPFS_DMA_PROXY_IOC_MAGIC, \
