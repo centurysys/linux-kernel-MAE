@@ -40,10 +40,12 @@ static void gpio_poweroff_do_poweroff(void)
 	/* drive it active, also inactive->active edge */
 	gpiod_set_value_cansleep(reset_gpio, 1);
 
+#ifndef CONFIG_POWER_RESET_GPIO_PREPARE
 	/* give it some time */
 	mdelay(timeout);
 
 	WARN_ON(1);
+#endif
 }
 
 static int gpio_poweroff_probe(struct platform_device *pdev)
