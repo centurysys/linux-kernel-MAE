@@ -117,11 +117,6 @@
 				label = "MSP430_EXT1_TEST";
 				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
 			};
-
-			do_0 {
-				label = "REQ_POWEROFF";
-				gpios = <&pioA PIN_PD10 GPIO_ACTIVE_LOW>;
-			};
 		};
 	};
 
@@ -171,6 +166,16 @@
 					retain-state-shutdown;
 					default-state = "keep";
 				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target-path = "/";
+		__overlay__ {
+			gpio-poweroff {
+				compatible = "gpio-poweroff";
+				gpios = <&pioA PIN_PD10 GPIO_ACTIVE_LOW>;
 			};
 		};
 	};
