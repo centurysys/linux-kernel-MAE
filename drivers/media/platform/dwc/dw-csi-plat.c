@@ -429,7 +429,7 @@ static const struct of_device_id dw_mipi_csi_of_match[];
 static int dw_csi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id = NULL;
-	struct dw_csih_pdata *pdata;
+	struct dw_csih_pdata *pdata = NULL;
 	struct device *dev = &pdev->dev;
 	struct resource *res = NULL;
 	struct dw_csi *csi;
@@ -494,6 +494,9 @@ static int dw_csi_probe(struct platform_device *pdev)
 			goto csi2host_defer_err;
 		}
 	} else {
+		if (!pdata)
+			goto csi2host_reg_err;
+
 		csi->phy = devm_phy_get(dev, phys[pdata->id].name);
 		if (IS_ERR(csi->phy)) {
 			dev_err(dev, "No '%s' DPHY available\n",
