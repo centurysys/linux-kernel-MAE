@@ -1399,10 +1399,10 @@ static int mchp_dscmi_probe(struct platform_device *pdev)
 	mchp_dscmi->cambuf.size = r.end - r.start;
 
 	mchp_dscmi_reg_write(mchp_dscmi, MCHP_DSCMI_STREAM_ADDR_LOW,
-			     r.start & GENMASK(31, 0));
+			     lower_32_bits(r.start));
 
 	mchp_dscmi_reg_write(mchp_dscmi, MCHP_DSCMI_STREAM_ADDR_HIGH,
-			     (r.start >> 32) & GENMASK(31, 0));
+			     upper_32_bits(r.start));
 
 	mchp_dscmi->irq = platform_get_irq(pdev, 0);
 	if (mchp_dscmi->irq <= 0)
