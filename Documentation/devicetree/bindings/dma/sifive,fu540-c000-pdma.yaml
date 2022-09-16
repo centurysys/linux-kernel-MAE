@@ -24,8 +24,11 @@ description: |
 
 properties:
   compatible:
-    items:
-      - const: sifive,fu540-c000-pdma
+    oneOf:
+      - items:
+          - const: microchip,mpfs-pdma # Microchip out of order DMA transfer
+          - const: sifive,fu540-c000-pdma # Sifive in-order DMA transfer
+      - const: sifive,fu540-c000-pdma # Sifive in-order DMA transfer
 
   reg:
     maxItems: 1
