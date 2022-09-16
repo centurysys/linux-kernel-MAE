@@ -46,9 +46,6 @@
 		/*
 		* 0x10_75BB_0000 ~ 0x10_75FB_0000 is reserved for context B (BM/RTOS)
 		* Shouldn't be used in Linux (context A)
-		*
-		* 0x10_75FB_0000 ~ 0x10_75FC_0000 is used by context A and context B
-		  RPMsg vrings
 		*/
 
 		fabricbuf0ddrc: buffer@80000000 {
@@ -69,23 +66,6 @@
 		contextb_reserved: contextb_reserved@1075BB0000 {
 			reg = <0x10 0x75BB0000 0x0 0x400000>;
 		};
-
-		rpmsg_vrings_reserved: rpmsg_vrings@1075FB0000 {
-			reg = <0x10 0x75FB0000 0x0 0x10000>;
-		};
-
-		rpmsg_dma_reserved: rpmsg_dma@1075FC0000 {
-			compatible = "shared-dma-pool";
-			reg = <0x10 0x75FC0000 0x0 0x40000>;
-			label = "rpmsg-ddr";
-		};
-	};
-
-	rpmsg: rpmsg {
-		compatible = "microchip,miv-rpmsg";
-		reg =  <0x10 0x75FB0000 0x0 0x10000>; // 64Kb reserved for vrings
-		memory-region = <&rpmsg_dma_reserved>;
-		mboxes= <&ihc 0>;
 	};
 
 	udmabuf0 {
