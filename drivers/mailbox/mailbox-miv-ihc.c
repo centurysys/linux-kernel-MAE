@@ -32,9 +32,9 @@ enum {
 };
 
 struct ihc_sbi_msg {
-	u8 irq_type;
 	struct miv_ihc_msg ihc_msg;
-} __packed;
+	u8 irq_type;
+};
 
 static int ihc_sbi_send(u32 command, u32 remote_context_id, dma_addr_t address)
 {
