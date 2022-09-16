@@ -919,6 +919,9 @@ static int at91_adc_adjust_val_osr(struct at91_adc_state *st, int *val)
 		nbits = 15;
 	else if (st->oversampling_ratio == AT91_OSR_256SAMPLES)
 		nbits = 16;
+	else
+		/* Should not happen. */
+		return -EINVAL;
 
 	/*
 	 * We have nbits of real data and channel is registered as
