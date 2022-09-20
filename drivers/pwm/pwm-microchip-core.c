@@ -20,14 +20,12 @@
 
 #define PREG_TO_VAL(PREG) ((PREG) + 1)
 
-#define PRESCALE_REG	0x00u
-#define PERIOD_REG	0x04u
-#define PWM_EN_LOW_REG	0x08u
-#define PWM_EN_HIGH_REG	0x0Cu
-#define SYNC_UPD_REG	0xE4u
-#define POSEDGE_OFFSET	0x10u
-#define NEGEDGE_OFFSET	0x14u
-#define CHANNEL_OFFSET	0x08u
+#define MCHPCOREPWM_PRESCALE	0x00
+#define MCHPCOREPWM_PERIOD	0x04
+#define MCHPCOREPWM_EN(i)	(0x08 + 0x04 * (i)) /* 0x08, 0x0c */
+#define MCHPCOREPWM_POSEDGE(i)	(0x10 + 0x08 * (i)) /* 0x10, 0x18, ..., 0x88 */
+#define MCHPCOREPWM_NEGEDGE(i)	(0x14 + 0x08 * (i)) /* 0x14, 0x1c, ..., 0x8c */
+#define MCHPCOREPWM_SYNC_UPD	0xe4
 
 struct mchp_core_pwm_registers {
 	u8 posedge;
@@ -59,7 +57,7 @@ static void mchp_core_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * 0-7 and the upper reg 8-15. Check if the pwm is in the upper reg
 	 * and if so, offset by the bus width.
 	 */
-	reg_offset = PWM_EN_LOW_REG + (pwm->hwpwm >> 3) * sizeof(u32);
+	reg_offset = MCHPCOREPWM_EN(pwm->hwpwm >> 3);
 	shift = pwm->hwpwm > 7 ? pwm->hwpwm - 8 : pwm->hwpwm;
 
 	channel_enable = readb_relaxed(mchp_core_pwm->base + reg_offset);
@@ -95,17 +93,15 @@ static void mchp_core_pwm_apply_duty(const u8 channel,
 				     struct mchp_core_pwm_chip *pwm_chip,
 				     struct mchp_core_pwm_registers *regs)
 {
-	void __iomem *channel_base = pwm_chip->base + channel * CHANNEL_OFFSET;
-
-	writel_relaxed(regs->posedge, channel_base + POSEDGE_OFFSET);
-	writel_relaxed(regs->negedge, channel_base + NEGEDGE_OFFSET);
+	writel_relaxed(regs->posedge, pwm_chip->base + MCHPCOREPWM_POSEDGE(channel));
+	writel_relaxed(regs->negedge, pwm_chip->base + MCHPCOREPWM_NEGEDGE(channel));
 }
 
 static void mchp_core_pwm_apply_period(struct mchp_core_pwm_chip *pwm_chip,
 				       struct mchp_core_pwm_registers *regs)
 {
-	writel_relaxed(regs->prescale, pwm_chip->base + PRESCALE_REG);
-	writel_relaxed(regs->period_steps, pwm_chip->base + PERIOD_REG);
+	writel_relaxed(regs->prescale, pwm_chip->base + MCHPCOREPWM_PRESCALE);
+	writel_relaxed(regs->period_steps, pwm_chip->base + MCHPCOREPWM_PERIOD);
 }
 
 static int mchp_core_pwm_calculate_base(struct pwm_chip *chip,
@@ -183,23 +179,22 @@ static void mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pw
 				    struct pwm_state *state)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
-	void __iomem *channel_base = mchp_core_pwm->base + pwm->hwpwm * CHANNEL_OFFSET;
 	u64 clk_period = NSEC_PER_SEC;
 	u8 prescale, period_steps, duty_steps;
 	u8 posedge, negedge;
 	u16 channel_enabled;
 
-	channel_enabled = (((u16)readb_relaxed(mchp_core_pwm->base + PWM_EN_HIGH_REG) << 8) |
-		readb_relaxed(mchp_core_pwm->base + PWM_EN_LOW_REG));
+	channel_enabled = (((u16)readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(1)) << 8) |
+		readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(0)));
 
-	posedge = readb_relaxed(channel_base + POSEDGE_OFFSET);
-	negedge = readb_relaxed(channel_base + NEGEDGE_OFFSET);
+	posedge = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_POSEDGE(pwm->hwpwm));
+	negedge = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_NEGEDGE(pwm->hwpwm));
 
 	duty_steps = abs((s8)posedge - (s8)negedge);
 	state->polarity = negedge < posedge ? PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
 
-	prescale = readb_relaxed(mchp_core_pwm->base + PRESCALE_REG);
-	period_steps = readb_relaxed(mchp_core_pwm->base + PERIOD_REG);
+	prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
+	period_steps = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PERIOD);
 
 	do_div(clk_period, clk_get_rate(mchp_core_pwm->clk));
 	state->duty_cycle = PREG_TO_VAL(prescale) * clk_period * duty_steps;
@@ -262,8 +257,8 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
 
-	writel_relaxed(0u, mchp_pwm->base + PWM_EN_LOW_REG);
-	writel_relaxed(0u, mchp_pwm->base + PWM_EN_HIGH_REG);
+	writel_relaxed(0u, mchp_pwm->base + MCHPCOREPWM_EN(0));
+	writel_relaxed(0u, mchp_pwm->base + MCHPCOREPWM_EN(1));
 
 	platform_set_drvdata(pdev, mchp_pwm);
 	dev_info(&pdev->dev, "Successfully registered Microchip corePWM\n");
