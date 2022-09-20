@@ -134,29 +134,46 @@ static void mchp_core_pwm_apply_duty(struct pwm_chip *chip, struct pwm_device *p
 	writel_relaxed(negedge, mchp_core_pwm->base + MCHPCOREPWM_NEGEDGE(pwm->hwpwm));
 }
 
-static void mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_state *state,
-				      u8 *prescale, u8 *period_steps)
+static int mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_state *state,
+				     u8 *prescale, u8 *period_steps)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
-	u64 tmp = state->period;
+	u64 tmp, clk_rate;
 
 	/*
 	 * Calculate the period cycles and prescale values.
 	 * The registers are each 8 bits wide & multiplied to compute the period
-	 * so the maximum period that can be generated is 0xFFFF times the period
-	 * of the input clock.
+	 * using the formula:
+	 * (clock_period) * (prescale + 1) * (period_steps + 1)
+	 * so the maximum period that can be generated is 0x10000 times the
+	 * period of the input clock.
+	 * However, due to the design of the "hardware", it is not possible to
+	 * attain a 100% duty cycle if the full range of period_steps is used.
+	 * Therefore period_steps is restricted to 0xFE and the maximum multiple
+	 * of the clock period attainable is 0xFF00.
 	 */
-	tmp *= clk_get_rate(mchp_core_pwm->clk);
-	do_div(tmp, NSEC_PER_SEC);
+	clk_rate = clk_get_rate(mchp_core_pwm->clk);
 
-	if (tmp > 0xFFFFu) {
+	/*
+	 * If clk_rate is too big, the following multiplication might overflow.
+	 * However this is implausible, as the fabric of current FPGAs cannot
+	 * provide clocks at a rate high enough.
+	 */
+	if (clk_rate >= NSEC_PER_SEC)
+		return -EINVAL;
+
+	tmp = mul_u64_u64_div_u64(state->period, clk_rate, NSEC_PER_SEC);
+
+	if (tmp > 0xFF00) {
 		*prescale = 0xFFu;
-		*period_steps = 0xFFu;
+		*period_steps = 0xFEu;
 	} else {
 		*prescale = tmp >> 8;
 		do_div(tmp, PREG_TO_VAL(*prescale));
 		*period_steps = tmp - 1;
 	}
+
+	return 0;
 }
 
 static inline void mchp_core_pwm_apply_period(struct mchp_core_pwm_chip *mchp_core_pwm,
@@ -208,7 +225,11 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		prescale = hw_prescale;
 		period_steps = hw_period_steps;
 	} else if (!current_state.enabled || current_state.period != state->period) {
-		mchp_core_pwm_calc_period(chip, state, (u8 *)&prescale, &period_steps);
+		int ret;
+
+		ret = mchp_core_pwm_calc_period(chip, state, (u8 *)&prescale, &period_steps);
+		if (ret)
+			return ret;
 		mchp_core_pwm_apply_period(mchp_core_pwm, prescale, period_steps);
 	} else {
 		prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
