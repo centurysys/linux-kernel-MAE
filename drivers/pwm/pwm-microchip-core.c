@@ -123,12 +123,9 @@ static int mchp_core_pwm_calculate_base(struct pwm_chip *chip,
 		dev_err(chip->dev,
 			"requested prescale exceeds the maximum possible\n");
 		return -EINVAL;
-	} else if (tmp <= 256) {
-		*prescale_r = 0;
-		*period_steps_r = tmp - 1;
 	} else {
-		*prescale_r = fls(tmp) - 8;
-		*period_steps_r = (tmp >> *prescale_r) - 1;
+		*prescale_r = tmp >> 8;
+		*period_steps_r = tmp / PREG_TO_VAL(*prescale_r) - 1;
 	}
 
 	return 0;
