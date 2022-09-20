@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * corePWM driver for Microchip FPGAs
+ * corePWM driver for Microchip "soft" FPGA IP cores.
  *
  * Copyright (c) 2021-2022 Microchip Corporation. All rights reserved.
+ * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Documentation:
+ * https://www.microsemi.com/document-portal/doc_download/1245275-corepwm-hb
+ *
  */
 
 #include <linux/clk.h>
