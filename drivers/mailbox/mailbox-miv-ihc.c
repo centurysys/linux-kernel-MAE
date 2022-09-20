@@ -17,8 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/mailbox_controller.h>
-#include <linux/mailbox/miv_ihc_message.h>
+#include <linux/mailbox/miv_ihc.h>
 #include <asm/sbi.h>
 
 #define SBI_EXT_VENDOR_START			0x09000000
@@ -28,30 +27,13 @@
 					MICROCHIP_TECHNOLOGY_MVENDOR_ID)
 
 enum {
-	SBI_EXT_IHC_INIT,
-	SBI_EXT_IHC_TX,
-	SBI_EXT_IHC_RX,
-};
-
-enum {
 	IHC_MP_IRQ,
 	IHC_ACK_IRQ,
 };
 
 struct ihc_sbi_msg {
-	u8 irq_type;
 	struct miv_ihc_msg ihc_msg;
-} __packed;
-
-struct miv_ihc {
-	struct device *dev;
-	void *buf_base;
-	struct dma_pool *pool;
-	struct mbox_controller controller;
-	struct mbox_chan channel;
-	int irq;
-	dma_addr_t dma_addr;
-	u32 remote_context_id;
+	u8 irq_type;
 };
 
 static int ihc_sbi_send(u32 command, u32 remote_context_id, dma_addr_t address)
