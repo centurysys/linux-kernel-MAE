@@ -108,27 +108,29 @@ static void mchp_core_pwm_apply_period(struct mchp_core_pwm_chip *pwm_chip,
 	writel_relaxed(regs->period_steps, pwm_chip->base + MCHPCOREPWM_PERIOD);
 }
 
-static int mchp_core_pwm_calculate_base(struct pwm_chip *chip,
-					const struct pwm_state *desired_state,
-					u8 *period_steps_r, u8 *prescale_r)
+static void mchp_core_pwm_calculate_base(struct pwm_chip *chip,
+					 const struct pwm_state *desired_state,
+					 u8 *period_steps_r, u8 *prescale_r)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
 	u64 tmp = desired_state->period;
 
-	/* Calculate the period cycles and prescale value */
+	/*
+	 * Calculate the period cycles and prescale values.
+	 * The registers are each 8 bits wide & multiplied to compute the period
+	 * so the maximum period that can be generated is 0xFFFF times the period
+	 * of the input clock.
+	 */
 	tmp *= clk_get_rate(mchp_core_pwm->clk);
 	do_div(tmp, NSEC_PER_SEC);
 
-	if (tmp > 65535) {
-		dev_err(chip->dev,
-			"requested prescale exceeds the maximum possible\n");
-		return -EINVAL;
+	if (tmp > 0xFFFFu) {
+		*prescale_r = 0xFFu;
+		*period_steps_r = 0xFFu;
 	} else {
 		*prescale_r = tmp >> 8;
 		*period_steps_r = tmp / PREG_TO_VAL(*prescale_r) - 1;
 	}
-
-	return 0;
 }
 
 static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -137,7 +139,6 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
 	struct pwm_state current_state;
 	u8 period_steps_r, prescale_r;
-	int ret;
 	u8 channel = pwm->hwpwm;
 
 	pwm_get_state(pwm, &current_state);
@@ -149,12 +150,8 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			mchp_core_pwm_calculate_duty(chip, desired_state, mchp_core_pwm->regs);
 			mchp_core_pwm_apply_duty(channel, mchp_core_pwm, mchp_core_pwm->regs);
 		} else {
-			ret = mchp_core_pwm_calculate_base(chip, desired_state, &period_steps_r,
-							   &prescale_r);
-			if (ret) {
-				dev_err(chip->dev, "failed to calculate base\n");
-				return ret;
-			}
+			mchp_core_pwm_calculate_base(chip, desired_state, &period_steps_r,
+						     &prescale_r);
 
 			mchp_core_pwm->regs->period_steps = period_steps_r;
 			mchp_core_pwm->regs->prescale = prescale_r;
