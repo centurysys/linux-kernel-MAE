@@ -53,6 +53,7 @@ struct mchp_core_pwm_chip {
 	struct mutex lock; /* protect the shared period */
 	void __iomem *base;
 	u32 sync_update_mask;
+	u16 channel_enabled;
 };
 
 static inline struct mchp_core_pwm_chip *to_mchp_core_pwm(struct pwm_chip *chip)
@@ -79,6 +80,8 @@ static void mchp_core_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
 	channel_enable |= (enable << shift);
 
 	writel_relaxed(channel_enable, mchp_core_pwm->base + reg_offset);
+	mchp_core_pwm->channel_enabled &= ~BIT(pwm->hwpwm);
+	mchp_core_pwm->channel_enabled |= enable << pwm->hwpwm;
 
 	/*
 	 * Notify the block to update the waveform from the shadow registers.
@@ -201,7 +204,7 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct pwm_state current_state = pwm->state;
 	bool period_locked;
 	u64 duty_steps;
-	u16 channel_enabled, prescale;
+	u16 prescale;
 	u8 period_steps;
 
 	mutex_lock(&mchp_core_pwm->lock);
@@ -221,9 +224,7 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * If the period is locked, it may not be possible to use a period
 	 * less than that requested. In that case, we just abort.
 	 */
-	channel_enabled = (((u16)readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(1)) << 8) |
-		readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(0)));
-	period_locked = channel_enabled & ~(1 << pwm->hwpwm);
+	period_locked = mchp_core_pwm->channel_enabled & ~(1 << pwm->hwpwm);
 
 	if (period_locked) {
 		u16 hw_prescale;
@@ -281,14 +282,10 @@ static void mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pw
 	u64 rate;
 	u16 prescale;
 	u8 period_steps, duty_steps, posedge, negedge;
-	u16 channel_enabled;
 
 	mutex_lock(&mchp_core_pwm->lock);
 
-	channel_enabled = (((u16)readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(1)) << 8) |
-		readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(0)));
-
-	if (channel_enabled & (1 << pwm->hwpwm))
+	if (mchp_core_pwm->channel_enabled & (1 << pwm->hwpwm))
 		state->enabled = true;
 	else
 		state->enabled = false;
@@ -364,6 +361,9 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 	mchp_pwm->chip.dev = &pdev->dev;
 	mchp_pwm->chip.ops = &mchp_core_pwm_ops;
 	mchp_pwm->chip.npwm = 16;
+
+	mchp_pwm->channel_enabled = readb_relaxed(mchp_pwm->base + MCHPCOREPWM_EN(0));
+	mchp_pwm->channel_enabled |= readb_relaxed(mchp_pwm->base + MCHPCOREPWM_EN(1)) << 8;
 
 	ret = devm_pwmchip_add(&pdev->dev, &mchp_pwm->chip);
 	if (ret < 0) {
