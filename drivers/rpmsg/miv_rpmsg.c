@@ -20,13 +20,12 @@
 #include <linux/mailbox_client.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
-#include <linux/mailbox/miv_ihc_message.h>
+#include <linux/mailbox/miv_ihc.h>
 
 /* Remote hart supports name service notifications */
 #define MIV_RPMSG_F_NS		0
 
 #define NUM_VIRTQUEUES		2
-#define VQID_SHIFT		16
 
 /* 32KB of memory for a unidirectional vring struct */
 #define VRING_SIZE		0x8000
@@ -118,7 +117,7 @@ static bool miv_rpmsg_notify(struct virtqueue *vq)
 			return true;
 	}
 
-	mbox_msg.msg[0] = rpvq->vq_id << VQID_SHIFT;
+	mbox_msg.msg[0] = rpvq->vq_id;
 
 	mutex_lock(&rpvq->rpdev->lock);
 
@@ -159,7 +158,6 @@ static int miv_rpmsg_callback(struct notifier_block *this,
 	 * device. If the vq index does not match ours, we can safely
 	 * ignore the message and return NOTIFY_DONE
 	 */
-	msg = msg >> VQID_SHIFT;
 	if (msg < virdev->base_vq_id || msg > virdev->base_vq_id + 1) {
 		dev_info(&vdev->dev, "msg: 0x%x is invalid\n", msg);
 		return NOTIFY_DONE;
