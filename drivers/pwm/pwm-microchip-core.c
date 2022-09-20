@@ -197,8 +197,8 @@ static inline void mchp_core_pwm_apply_period(struct mchp_core_pwm_chip *mchp_co
 	writel_relaxed(period_steps, mchp_core_pwm->base + MCHPCOREPWM_PERIOD);
 }
 
-static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			       const struct pwm_state *state)
+static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
+				      const struct pwm_state *state)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
 	struct pwm_state current_state = pwm->state;
@@ -207,11 +207,8 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u16 prescale;
 	u8 period_steps;
 
-	mutex_lock(&mchp_core_pwm->lock);
-
 	if (!state->enabled) {
 		mchp_core_pwm_enable(chip, pwm, false, current_state.period);
-		mutex_unlock(&mchp_core_pwm->lock);
 		return 0;
 	}
 
@@ -235,10 +232,8 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		hw_period_steps = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PERIOD);
 
 		if ((period_steps + 1) * (prescale + 1) <
-		    (hw_period_steps + 1) * (hw_prescale + 1)) {
-			mutex_unlock(&mchp_core_pwm->lock);
+		    (hw_period_steps + 1) * (hw_prescale + 1))
 			return -EINVAL;
-		}
 
 		/*
 		 * It is possible that something could have set the period_steps
@@ -247,10 +242,8 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		 * mchp_core_pwm_calc_period().
 		 * The period is locked and we cannot change this, so we abort.
 		 */
-		if (hw_period_steps == MCHPCOREPWM_PERIOD_STEPS_MAX) {
-			mutex_unlock(&mchp_core_pwm->lock);
+		if (hw_period_steps == MCHPCOREPWM_PERIOD_STEPS_MAX)
 			return -EINVAL;
-		}
 
 		prescale = hw_prescale;
 		period_steps = hw_period_steps;
@@ -258,10 +251,9 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		int ret;
 
 		ret = mchp_core_pwm_calc_period(chip, state, &prescale, &period_steps);
-		if (ret) {
-			mutex_unlock(&mchp_core_pwm->lock);
+		if (ret)
 			return ret;
-		}
+
 		mchp_core_pwm_apply_period(mchp_core_pwm, prescale, period_steps);
 	} else {
 		prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
@@ -293,9 +285,22 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	mchp_core_pwm_enable(chip, pwm, true, state->period);
 
+	return 0;
+}
+
+static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			       const struct pwm_state *state)
+{
+	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
+	int ret;
+
+	mutex_lock(&mchp_core_pwm->lock);
+
+	ret = mchp_core_pwm_apply_locked(chip, pwm, state);
+
 	mutex_unlock(&mchp_core_pwm->lock);
 
-	return 0;
+	return ret;
 }
 
 static void mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
