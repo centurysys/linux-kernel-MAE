@@ -110,31 +110,28 @@ static u64 mchp_core_pwm_calc_duty(struct pwm_chip *chip, struct pwm_device *pwm
 }
 
 static void mchp_core_pwm_apply_duty(struct pwm_chip *chip, struct pwm_device *pwm,
-				     const struct pwm_state *state, u64 duty_steps)
+				     const struct pwm_state *state, u64 duty_steps, u8 period_steps)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
 	u8 posedge, negedge;
+	u8 period_steps_val = PREG_TO_VAL(period_steps);
 
+	/*
+	 * Setting posedge == negedge doesn't yield a constant output,
+	 * so that's an unsuitable setting to model duty_steps = 0.
+	 * In that case set the unwanted edge to a value that never
+	 * triggers.
+	 */
 	if (state->polarity == PWM_POLARITY_INVERSED) {
-		negedge = 0u;
+		negedge = !duty_steps ? period_steps_val : 0u;
 		posedge = duty_steps;
 	} else {
-		posedge = 0u;
+		posedge = !duty_steps ? period_steps_val : 0u;
 		negedge = duty_steps;
 	}
 
 	writel_relaxed(posedge, mchp_core_pwm->base + MCHPCOREPWM_POSEDGE(pwm->hwpwm));
 	writel_relaxed(negedge, mchp_core_pwm->base + MCHPCOREPWM_NEGEDGE(pwm->hwpwm));
-
-	/*
-	 * Turn the output on unless posedge == negedge, in which case the
-	 * output is intended to be 0, but limitations of the IP block don't
-	 * allow a zero length duty cycle - so just turn it off.
-	 */
-	if (posedge == negedge)
-		mchp_core_pwm_enable(chip, pwm, false, 0);
-	else
-		mchp_core_pwm_enable(chip, pwm, true, 0);
 }
 
 static void mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_state *state,
@@ -227,7 +224,9 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (duty_steps > period_steps)
 		duty_steps = period_steps + 1;
 
-	mchp_core_pwm_apply_duty(chip, pwm, state, duty_steps);
+	mchp_core_pwm_apply_duty(chip, pwm, state, duty_steps, period_steps);
+
+	mchp_core_pwm_enable(chip, pwm, true, state->period);
 
 	return 0;
 }
