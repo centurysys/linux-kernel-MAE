@@ -154,7 +154,8 @@ static void mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_st
 		*period_steps = 0xFFu;
 	} else {
 		*prescale = tmp >> 8;
-		*period_steps = tmp / PREG_TO_VAL(*prescale) - 1;
+		do_div(tmp, PREG_TO_VAL(*prescale));
+		*period_steps = tmp - 1;
 	}
 }
 
