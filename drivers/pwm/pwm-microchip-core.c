@@ -288,7 +288,7 @@ static void mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pw
 	channel_enabled = (((u16)readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(1)) << 8) |
 		readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(0)));
 
-	if (channel_enabled & 1 << pwm->hwpwm)
+	if (channel_enabled & (1 << pwm->hwpwm))
 		state->enabled = true;
 	else
 		state->enabled = false;
