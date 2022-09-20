@@ -32,6 +32,7 @@ struct mchp_core_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clk;
 	void __iomem *base;
+	u32 sync_update_mask;
 };
 
 static inline struct mchp_core_pwm_chip *to_mchp_core_pwm(struct pwm_chip *chip)
@@ -39,7 +40,8 @@ static inline struct mchp_core_pwm_chip *to_mchp_core_pwm(struct pwm_chip *chip)
 	return container_of(chip, struct mchp_core_pwm_chip, chip);
 }
 
-static void mchp_core_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm, bool enable)
+static void mchp_core_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
+				 bool enable, u64 period)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
 	u8 channel_enable, reg_offset, shift;
@@ -57,6 +59,22 @@ static void mchp_core_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm, 
 	channel_enable |= (enable << shift);
 
 	writel_relaxed(channel_enable, mchp_core_pwm->base + reg_offset);
+
+	/*
+	 * Notify the block to update the waveform from the shadow registers.
+	 * The updated values will not appear on the bus until they have been
+	 * applied to the waveform at the beginning of the next period. We must
+	 * write these registers and wait for them to be applied before
+	 * considering the channel enabled.
+	 * If the delay is under 1 us, sleep for at least 1 us anyway.
+	 */
+	if (mchp_core_pwm->sync_update_mask & (1 << pwm->hwpwm)) {
+		u64 delay;
+
+		delay = div_u64(period, 1000u) ? : 1u;
+		writel_relaxed(1U, mchp_core_pwm->base + MCHPCOREPWM_SYNC_UPD);
+		usleep_range(delay, delay * 2);
+	}
 }
 
 static void mchp_core_pwm_apply_duty(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -93,9 +111,9 @@ static void mchp_core_pwm_apply_duty(struct pwm_chip *chip, struct pwm_device *p
 	 * allow a zero length duty cycle - so just turn it off.
 	 */
 	if (posedge == negedge)
-		mchp_core_pwm_enable(chip, pwm, false);
+		mchp_core_pwm_enable(chip, pwm, false, 0);
 	else
-		mchp_core_pwm_enable(chip, pwm, true);
+		mchp_core_pwm_enable(chip, pwm, true, 0);
 }
 
 static void mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_state *state,
@@ -137,7 +155,7 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u8 prescale, period_steps;
 
 	if (!state->enabled) {
-		mchp_core_pwm_enable(chip, pwm, false);
+		mchp_core_pwm_enable(chip, pwm, false, current_state.period);
 		return 0;
 	}
 
@@ -155,12 +173,6 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	mchp_core_pwm_apply_duty(chip, pwm, state, prescale, period_steps);
-
-	/*
-	 * Notify the block to update the waveform from the shadow registers.
-	 * This is a NOP if shadow registers are not enabled.
-	 */
-	writel_relaxed(1U, mchp_core_pwm->base + MCHPCOREPWM_SYNC_UPD);
 
 	return 0;
 }
@@ -227,6 +239,10 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 	mchp_pwm->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mchp_pwm->clk))
 		return PTR_ERR(mchp_pwm->clk);
+
+	if (of_property_read_u32(pdev->dev.of_node, "microchip,sync-update-mask",
+				 &mchp_pwm->sync_update_mask))
+		mchp_pwm->sync_update_mask = 0;
 
 	ret = clk_prepare(mchp_pwm->clk);
 	if (ret)
