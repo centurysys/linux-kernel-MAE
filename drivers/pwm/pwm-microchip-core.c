@@ -72,14 +72,18 @@ static void mchp_core_pwm_calculate_duty(struct pwm_chip *chip,
 					 struct mchp_core_pwm_registers *regs)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
-	u64 clk_period = NSEC_PER_SEC;
-	u64 duty_steps;
+	u64 duty_steps, tmp;
 
-	/* Calculate the clk period and then the duty cycle edges */
-	do_div(clk_period, clk_get_rate(mchp_core_pwm->clk));
+	/*
+	 * Calculate the duty cycle in multiples of the prescaled period:
+	 * duty_steps = duty_in_ns / step_in_ns
+	 * step_in_ns = (prescale * NSEC_PER_SEC) / clk_rate
+	 * The code below is rearranged slightly to only divide once.
+	 */
+	duty_steps = desired_state->duty_cycle * clk_get_rate(mchp_core_pwm->clk);
+	tmp = PREG_TO_VAL(regs->prescale) * NSEC_PER_SEC;
+	duty_steps = div64_u64(duty_steps, tmp);
 
-	duty_steps = desired_state->duty_cycle * PREG_TO_VAL(regs->period_steps);
-	do_div(duty_steps, (clk_period * PREG_TO_VAL(regs->period_steps)));
 	if (desired_state->polarity == PWM_POLARITY_INVERSED) {
 		regs->negedge = 0u;
 		regs->posedge = duty_steps;
