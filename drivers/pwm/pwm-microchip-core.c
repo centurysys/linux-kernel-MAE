@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
@@ -45,6 +46,7 @@
 struct mchp_core_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clk;
+	struct mutex lock; /* protect the shared period */
 	void __iomem *base;
 	u32 sync_update_mask;
 };
@@ -193,8 +195,11 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u16 channel_enabled, prescale;
 	u8 period_steps;
 
+	mutex_lock(&mchp_core_pwm->lock);
+
 	if (!state->enabled) {
 		mchp_core_pwm_enable(chip, pwm, false, current_state.period);
+		mutex_unlock(&mchp_core_pwm->lock);
 		return 0;
 	}
 
@@ -219,8 +224,11 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		hw_prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
 		hw_period_steps = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PERIOD);
 
-		if ((period_steps + 1) * (prescale + 1) < (hw_period_steps + 1) * (hw_prescale + 1))
+		if ((period_steps + 1) * (prescale + 1) <
+		    (hw_period_steps + 1) * (hw_prescale + 1)) {
+			mutex_unlock(&mchp_core_pwm->lock);
 			return -EINVAL;
+		}
 
 		prescale = hw_prescale;
 		period_steps = hw_period_steps;
@@ -228,8 +236,10 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		int ret;
 
 		ret = mchp_core_pwm_calc_period(chip, state, (u8 *)&prescale, &period_steps);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&mchp_core_pwm->lock);
 			return ret;
+		}
 		mchp_core_pwm_apply_period(mchp_core_pwm, prescale, period_steps);
 	} else {
 		prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
@@ -250,6 +260,8 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	mchp_core_pwm_enable(chip, pwm, true, state->period);
 
+	mutex_unlock(&mchp_core_pwm->lock);
+
 	return 0;
 }
 
@@ -261,6 +273,8 @@ static void mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pw
 	u8 prescale, period_steps, duty_steps;
 	u8 posedge, negedge;
 	u16 channel_enabled;
+
+	mutex_lock(&mchp_core_pwm->lock);
 
 	channel_enabled = (((u16)readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(1)) << 8) |
 		readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_EN(0)));
@@ -281,6 +295,8 @@ static void mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pw
 
 	posedge = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_POSEDGE(pwm->hwpwm));
 	negedge = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_NEGEDGE(pwm->hwpwm));
+
+	mutex_unlock(&mchp_core_pwm->lock);
 
 	if (negedge == posedge) {
 		state->duty_cycle = state->period;
@@ -326,13 +342,15 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(mchp_pwm->clk))
 		return PTR_ERR(mchp_pwm->clk);
 
+	ret = clk_prepare_enable(mchp_pwm->clk);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to prepare PWM clock\n");
+
 	if (of_property_read_u32(pdev->dev.of_node, "microchip,sync-update-mask",
 				 &mchp_pwm->sync_update_mask))
 		mchp_pwm->sync_update_mask = 0;
 
-	ret = clk_prepare_enable(mchp_pwm->clk);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "failed to prepare PWM clock\n");
+	mutex_init(&mchp_pwm->lock);
 
 	mchp_pwm->chip.dev = &pdev->dev;
 	mchp_pwm->chip.ops = &mchp_core_pwm_ops;
