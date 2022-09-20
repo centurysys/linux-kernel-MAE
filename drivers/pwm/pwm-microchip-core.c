@@ -144,7 +144,7 @@ static void mchp_core_pwm_apply_duty(struct pwm_chip *chip, struct pwm_device *p
 }
 
 static int mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_state *state,
-				     u8 *prescale, u8 *period_steps)
+				     u16 *prescale, u8 *period_steps)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
 	u64 tmp, clk_rate;
@@ -230,7 +230,7 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		u16 hw_prescale;
 		u8 hw_period_steps;
 
-		mchp_core_pwm_calc_period(chip, state, (u8 *)&prescale, &period_steps);
+		mchp_core_pwm_calc_period(chip, state, &prescale, &period_steps);
 		hw_prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
 		hw_period_steps = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PERIOD);
 
@@ -257,7 +257,7 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	} else if (!current_state.enabled || current_state.period != state->period) {
 		int ret;
 
-		ret = mchp_core_pwm_calc_period(chip, state, (u8 *)&prescale, &period_steps);
+		ret = mchp_core_pwm_calc_period(chip, state, &prescale, &period_steps);
 		if (ret) {
 			mutex_unlock(&mchp_core_pwm->lock);
 			return ret;
