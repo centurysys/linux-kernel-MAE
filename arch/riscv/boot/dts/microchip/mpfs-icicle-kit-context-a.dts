@@ -81,13 +81,13 @@
 			no-map;
 		};
 
-		vdev0buffer: vdev0buff@0x81410000 {
+		vdev0buffer: vdev0buff@81410000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x81410000 0x0 0x40000>;
 			no-map;
 		};
 
-		rsctable: rsc-table@0x814FF000 {
+		rsctable: rsc-table@814FF000 {
 			reg = <0x0 0x814FF000 0x0 0x1000>;
 			no-map;
 		};
