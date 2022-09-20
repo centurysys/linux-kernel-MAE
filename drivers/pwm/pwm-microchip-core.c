@@ -134,41 +134,45 @@ static void mchp_core_pwm_calculate_base(struct pwm_chip *chip,
 }
 
 static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			       const struct pwm_state *desired_state)
+			       const struct pwm_state *state)
 {
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
-	struct pwm_state current_state;
+	struct pwm_state current_state = pwm->state;
 	u8 period_steps_r, prescale_r;
 	u8 channel = pwm->hwpwm;
 
-	pwm_get_state(pwm, &current_state);
-
-	if (desired_state->enabled) {
-		if (current_state.enabled &&
-		    current_state.period == desired_state->period &&
-		    current_state.polarity == desired_state->polarity) {
-			mchp_core_pwm_calculate_duty(chip, desired_state, mchp_core_pwm->regs);
-			mchp_core_pwm_apply_duty(channel, mchp_core_pwm, mchp_core_pwm->regs);
-		} else {
-			mchp_core_pwm_calculate_base(chip, desired_state, &period_steps_r,
-						     &prescale_r);
-
-			mchp_core_pwm->regs->period_steps = period_steps_r;
-			mchp_core_pwm->regs->prescale = prescale_r;
-
-			mchp_core_pwm_calculate_duty(chip, desired_state, mchp_core_pwm->regs);
-			mchp_core_pwm_apply_duty(channel, mchp_core_pwm, mchp_core_pwm->regs);
-			mchp_core_pwm_apply_period(mchp_core_pwm, mchp_core_pwm->regs);
-		}
-
-		if (mchp_core_pwm->regs->posedge == mchp_core_pwm->regs->negedge)
-			mchp_core_pwm_enable(chip, pwm, false);
-		else
-			mchp_core_pwm_enable(chip, pwm, true);
-
-	} else if (!desired_state->enabled) {
+	if (!state->enabled) {
 		mchp_core_pwm_enable(chip, pwm, false);
+		return 0;
 	}
+
+	/*
+	 * If the only thing that has changed is the duty cycle or the polarity,
+	 * we can shortcut the calculations and just compute/apply the new duty
+	 * cycle pos & neg edges
+	 */
+	if (!current_state.enabled || current_state.period != state->period) {
+		mchp_core_pwm_calculate_base(chip, state, &period_steps_r, &prescale_r);
+
+		mchp_core_pwm->regs->period_steps = period_steps_r;
+		mchp_core_pwm->regs->prescale = prescale_r;
+
+		mchp_core_pwm_apply_period(mchp_core_pwm, mchp_core_pwm->regs);
+	}
+
+	mchp_core_pwm_calculate_duty(chip, state, mchp_core_pwm->regs);
+	mchp_core_pwm_apply_duty(channel, mchp_core_pwm, mchp_core_pwm->regs);
+
+	if (mchp_core_pwm->regs->posedge == mchp_core_pwm->regs->negedge)
+		mchp_core_pwm_enable(chip, pwm, false);
+	else
+		mchp_core_pwm_enable(chip, pwm, true);
+
+	/*
+	 * Notify the block to update the waveform from the shadow registers.
+	 * This is a NOP if shadow registers are not enabled.
+	 */
+	writel_relaxed(1U, mchp_core_pwm->base + MCHPCOREPWM_SYNC_UPD);
 
 	return 0;
 }
