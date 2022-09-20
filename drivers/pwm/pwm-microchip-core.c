@@ -240,6 +240,18 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			return -EINVAL;
 		}
 
+		/*
+		 * It is possible that something could have set the period_steps
+		 * register to 0xff, which would prevent us from setting a 100%
+		 * or 0% relative duty cycle, as explained above in
+		 * mchp_core_pwm_calc_period().
+		 * The period is locked and we cannot change this, so we abort.
+		 */
+		if (hw_period_steps == MCHPCOREPWM_PERIOD_STEPS_MAX) {
+			mutex_unlock(&mchp_core_pwm->lock);
+			return -EINVAL;
+		}
+
 		prescale = hw_prescale;
 		period_steps = hw_period_steps;
 	} else if (!current_state.enabled || current_state.period != state->period) {
@@ -254,6 +266,17 @@ static int mchp_core_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	} else {
 		prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
 		period_steps = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PERIOD);
+
+		/*
+		 * As above, it is possible that something has set the
+		 * period_steps register to 0xff, which would prevent us from
+		 * setting a 100% duty cycle, as explained above.
+		 * As the period is not locked, we are free to fix this.
+		 */
+		if (period_steps == MCHPCOREPWM_PERIOD_STEPS_MAX) {
+			period_steps -= 1;
+			mchp_core_pwm_apply_period(mchp_core_pwm, prescale, period_steps);
+		}
 	}
 
 	duty_steps = mchp_core_pwm_calc_duty(chip, pwm, state, prescale, period_steps);
