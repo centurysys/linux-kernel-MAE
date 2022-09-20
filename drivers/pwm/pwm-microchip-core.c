@@ -36,6 +36,10 @@
 
 #define PREG_TO_VAL(PREG) ((PREG) + 1)
 
+#define MCHPCOREPWM_PRESCALE_MAX	0x100
+#define MCHPCOREPWM_PERIOD_STEPS_MAX	0xff
+#define MCHPCOREPWM_PERIOD_MAX		0xff00
+
 #define MCHPCOREPWM_PRESCALE	0x00
 #define MCHPCOREPWM_PERIOD	0x04
 #define MCHPCOREPWM_EN(i)	(0x08 + 0x04 * (i)) /* 0x08, 0x0c */
@@ -166,14 +170,19 @@ static int mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_sta
 
 	tmp = mul_u64_u64_div_u64(state->period, clk_rate, NSEC_PER_SEC);
 
-	if (tmp > 0xFF00) {
-		*prescale = 0xFFu;
-		*period_steps = 0xFEu;
-	} else {
-		*prescale = tmp >> 8;
-		do_div(tmp, PREG_TO_VAL(*prescale));
-		*period_steps = tmp - 1;
+	/*
+	 * The hardware adds one to the register value, so decrement by one to
+	 * account for the offset
+	 */
+	if (tmp >= MCHPCOREPWM_PERIOD_MAX) {
+		*prescale = MCHPCOREPWM_PRESCALE_MAX - 1;
+		*period_steps = MCHPCOREPWM_PERIOD_STEPS_MAX - 1;
+		return 0;
 	}
+
+	*prescale = div_u64(tmp, MCHPCOREPWM_PERIOD_STEPS_MAX);
+	/* PREG_TO_VAL() can produce a value larger than UINT8_MAX */
+	*period_steps = div_u64(tmp, PREG_TO_VAL(*prescale)) - 1;
 
 	return 0;
 }
