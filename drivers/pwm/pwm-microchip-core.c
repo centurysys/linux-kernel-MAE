@@ -247,7 +247,7 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 
 		prescale = hw_prescale;
 		period_steps = hw_period_steps;
-	} else if (!current_state.enabled || current_state.period != state->period) {
+	} else {
 		int ret;
 
 		ret = mchp_core_pwm_calc_period(chip, state, &prescale, &period_steps);
@@ -255,20 +255,6 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 			return ret;
 
 		mchp_core_pwm_apply_period(mchp_core_pwm, prescale, period_steps);
-	} else {
-		prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
-		period_steps = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PERIOD);
-
-		/*
-		 * As above, it is possible that something has set the
-		 * period_steps register to 0xff, which would prevent us from
-		 * setting a 100% duty cycle, as explained above.
-		 * As the period is not locked, we are free to fix this.
-		 */
-		if (period_steps == MCHPCOREPWM_PERIOD_STEPS_MAX) {
-			period_steps -= 1;
-			mchp_core_pwm_apply_period(mchp_core_pwm, prescale, period_steps);
-		}
 	}
 
 	duty_steps = mchp_core_pwm_calc_duty(chip, pwm, state, prescale, period_steps);
