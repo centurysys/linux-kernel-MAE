@@ -72,7 +72,7 @@ static void mchp_core_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * and if so, offset by the bus width.
 	 */
 	reg_offset = MCHPCOREPWM_EN(pwm->hwpwm >> 3);
-	shift = pwm->hwpwm > 7 ? pwm->hwpwm - 8 : pwm->hwpwm;
+	shift = pwm->hwpwm & 7;
 
 	channel_enable = readb_relaxed(mchp_core_pwm->base + reg_offset);
 	channel_enable &= ~(1 << shift);
