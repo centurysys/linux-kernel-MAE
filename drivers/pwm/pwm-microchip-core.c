@@ -244,7 +244,7 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 				 &mchp_pwm->sync_update_mask))
 		mchp_pwm->sync_update_mask = 0;
 
-	ret = clk_prepare(mchp_pwm->clk);
+	ret = clk_prepare_enable(mchp_pwm->clk);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "failed to prepare PWM clock\n");
 
@@ -252,24 +252,25 @@ static int mchp_core_pwm_probe(struct platform_device *pdev)
 	mchp_pwm->chip.ops = &mchp_core_pwm_ops;
 	mchp_pwm->chip.of_xlate = of_pwm_xlate_with_flags;
 	mchp_pwm->chip.of_pwm_n_cells = 3;
-	mchp_pwm->chip.base = -1;
 	mchp_pwm->chip.npwm = 16;
 
-	ret = pwmchip_add(&mchp_pwm->chip);
-	if (ret < 0)
+	ret = devm_pwmchip_add(&pdev->dev, &mchp_pwm->chip);
+	if (ret < 0) {
+		clk_disable_unprepare(mchp_pwm->clk);
 		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
-
-	writel_relaxed(0u, mchp_pwm->base + MCHPCOREPWM_EN(0));
-	writel_relaxed(0u, mchp_pwm->base + MCHPCOREPWM_EN(1));
+	}
 
 	platform_set_drvdata(pdev, mchp_pwm);
-	dev_info(&pdev->dev, "Successfully registered Microchip corePWM\n");
 
 	return 0;
 }
 
 static int mchp_core_pwm_remove(struct platform_device *pdev)
 {
+	struct mchp_core_pwm_chip *mchp_pwm = platform_get_drvdata(pdev);
+
+	clk_disable_unprepare(mchp_pwm->clk);
+
 	return 0;
 }
 
