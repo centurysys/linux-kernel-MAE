@@ -194,6 +194,7 @@ sr_ena_2:
 	cmp	r7, #AT91_PM_BACKUP
 	beq	sr_ena_3
 
+	/* Disable DX DLLs. */
 	ldr	tmp1, [r3, #DDR3PHY_DX0DLLCR]
 	orr	tmp1, tmp1, #DDR3PHY_DXDLLCR_DLLDIS
 	str	tmp1, [r3, #DDR3PHY_DX0DLLCR]
@@ -247,6 +248,7 @@ sr_ena_3:
 	bic	tmp1, tmp1, #DDR3PHY_DSGCR_ODTPDD_ODT0
 	str	tmp1, [r3, #DDR3PHY_DSGCR]
 
+	/* Enable DX DLLs. */
 	ldr	tmp1, [r3, #DDR3PHY_DX0DLLCR]
 	bic	tmp1, tmp1, #DDR3PHY_DXDLLCR_DLLDIS
 	str	tmp1, [r3, #DDR3PHY_DX0DLLCR]
