@@ -203,6 +203,22 @@ sr_ena_2:
 	str	tmp1, [r3, #DDR3PHY_DX1DLLCR]
 
 sr_ena_3:
+	/* Power down DDR PHY data receivers. */
+	ldr	tmp1, [r3, #DDR3PHY_DXCCR]
+	orr	tmp1, tmp1, #DDR3PHY_DXCCR_DXPDR
+	str	tmp1, [r3, #DDR3PHY_DXCCR]
+
+	/* Power down ADDR/CMD IO. */
+	ldr	tmp1, [r3, #DDR3PHY_ACIOCR]
+	orr	tmp1, tmp1, #DDR3PHY_ACIORC_ACPDD
+	orr	tmp1, tmp1, #DDR3PHY_ACIOCR_CKPDD_CK0
+	orr	tmp1, tmp1, #DDR3PHY_ACIOCR_CSPDD_CS0
+	str	tmp1, [r3, #DDR3PHY_ACIOCR]
+
+	/* Power down ODT. */
+	ldr	tmp1, [r3, #DDR3PHY_DSGCR]
+	orr	tmp1, tmp1, #DDR3PHY_DSGCR_ODTPDD_ODT0
+	str	tmp1, [r3, #DDR3PHY_DSGCR]
 .endm
 
 /**
@@ -213,6 +229,23 @@ sr_ena_3:
 .macro at91_sramc_self_refresh_dis
 	ldr	r2, .sramc_base
 	ldr	r3, .sramc_phy_base
+
+	/* Power up DDR PHY data receivers. */
+	ldr	tmp1, [r3, #DDR3PHY_DXCCR]
+	bic	tmp1, tmp1, #DDR3PHY_DXCCR_DXPDR
+	str	tmp1, [r3, #DDR3PHY_DXCCR]
+
+	/* Power up the output of CK and CS pins. */
+	ldr	tmp1, [r3, #DDR3PHY_ACIOCR]
+	bic	tmp1, tmp1, #DDR3PHY_ACIORC_ACPDD
+	bic	tmp1, tmp1, #DDR3PHY_ACIOCR_CKPDD_CK0
+	bic	tmp1, tmp1, #DDR3PHY_ACIOCR_CSPDD_CS0
+	str	tmp1, [r3, #DDR3PHY_ACIOCR]
+
+	/* Power up ODT. */
+	ldr	tmp1, [r3, #DDR3PHY_DSGCR]
+	bic	tmp1, tmp1, #DDR3PHY_DSGCR_ODTPDD_ODT0
+	str	tmp1, [r3, #DDR3PHY_DSGCR]
 
 	ldr	tmp1, [r3, #DDR3PHY_DX0DLLCR]
 	bic	tmp1, tmp1, #DDR3PHY_DXDLLCR_DLLDIS
