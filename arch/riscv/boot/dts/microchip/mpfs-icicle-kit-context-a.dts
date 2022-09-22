@@ -13,7 +13,8 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	model = "Microchip PolarFire-SoC Icicle Kit";
-	compatible = "microchip,mpfs-icicle-kit", "microchip,mpfs";
+	compatible = "microchip,mpfs-icicle-reference-rtlv2209", "microchip,mpfs-icicle-kit",
+		     "microchip,mpfs";
 
 	aliases {
 		ethernet0 = &mac1;
@@ -44,55 +45,68 @@
 		ranges;
 
 		/*
-		* 0x10_75BB_0000 ~ 0x10_75FB_0000 is reserved for context B (BM/RTOS)
-		* Shouldn't be used in Linux (context A)
-		*
-		* 0x10_75FB_0000 ~ 0x10_75FC_0000 is used by context A and context B
-		  RPMsg vrings
-		*/
+		 * 0x8100_0000 ~ 0x8140_0000 is reserved for context B (BM/RTOS)
+		 */
 
 		fabricbuf0ddrc: buffer@80000000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x80000000 0x0 0x2000000>;
+			reg = <0x0 0x80000000 0x0 0x1000000>;
+			no-map;
 		};
 
 		fabricbuf1ddrnc: buffer@c0000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xc0000000 0x0 0x8000000>;
+			no-map;
 		};
 
 		fabricbuf2ddrncwcb: buffer@d0000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xd0000000 0x0 0x8000000>;
+			no-map;
 		};
 
-		contextb_reserved: contextb_reserved@1075BB0000 {
-			reg = <0x10 0x75BB0000 0x0 0x400000>;
+		contextb_reserved: contextb_reserved@81000000 {
+			reg = <0x0 0x81000000 0x0 0x400000>;
+			no-map;
 		};
 
-		rpmsg_vrings_reserved: rpmsg_vrings@1075FB0000 {
-			reg = <0x10 0x75FB0000 0x0 0x10000>;
+		vdev0vring0: vdev0vring0@81400000 {
+			reg = <0x0 0x81400000 0x0 0x8000>;
+			no-map;
 		};
 
-		rpmsg_dma_reserved: rpmsg_dma@1075FC0000 {
+		vdev0vring1: vdev0vring1@81408000 {
+			reg = <0x0 0x81408000 0x0 0x8000>;
+			no-map;
+		};
+
+		vdev0buffer: vdev0buff@81410000 {
 			compatible = "shared-dma-pool";
-			reg = <0x10 0x75FC0000 0x0 0x40000>;
-			label = "rpmsg-ddr";
+			reg = <0x0 0x81410000 0x0 0x40000>;
+			no-map;
+		};
+
+		rsctable: rsc-table@814FF000 {
+			reg = <0x0 0x814FF000 0x0 0x1000>;
+			no-map;
 		};
 	};
 
-	rpmsg: rpmsg {
-		compatible = "microchip,miv-rpmsg";
-		reg =  <0x10 0x75FB0000 0x0 0x10000>; // 64Kb reserved for vrings
-		memory-region = <&rpmsg_dma_reserved>;
+	rproc_contextb: remote-context {
+		compatible = "microchip,miv-remoteproc";
+		memory-region = <&vdev0buffer>, <&rsctable>,
+				<&contextb_reserved>, <&vdev0vring0>,
+				<&vdev0vring1>;
 		mboxes= <&ihc 0>;
+		status = "okay";
 	};
 
 	udmabuf0 {
 		compatible = "ikwzm,u-dma-buf";
 		device-name = "udmabuf-ddr-c0";
 		minor-number = <0>;
-		size = <0x0 0x2000000>;
+		size = <0x0 0x1000000>;
 		memory-region = <&fabricbuf0ddrc>;
 		sync-mode = <3>;
 	};
@@ -185,11 +199,9 @@
 	phy-handle = <&phy1>;
 	phy1: ethernet-phy@9 {
 		reg = <9>;
-		ti,fifo-depth = <0x1>;
 	};
 	phy0: ethernet-phy@8 {
 		reg = <8>;
-		ti,fifo-depth = <0x1>;
 	};
 };
 
@@ -203,7 +215,6 @@
 	disable-wp;
 	cap-sd-highspeed;
 	cap-mmc-highspeed;
-	card-detect-delay = <200>;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	sd-uhs-sdr12;
