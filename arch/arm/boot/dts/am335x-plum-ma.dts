@@ -348,6 +348,36 @@
 		};
 	};
 
+	leds_amm574_ctrl: leds_amm574_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWRKEY {
+			label = "Mobile_PWRKEY";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@UARTBUF {
+			label = "UARTBUF_Enable";
+			gpios = <&gpiox_0x10 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-state-suspended;
+		};
+	};
+
 	leds_amp_wlan_ctrl: leds_amp_wlan_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -1205,6 +1235,7 @@
 		xio_41 = &xio_41;
 		xio_42 = &xio_42;
 		xio_43 = &xio_3c;
+		xio_44 = &xio_44;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1591,6 +1622,14 @@
 			   &gpiox_0x1a
 			   &gpiox_0x04_lcad
 			   &leds_foma &leds_lcad_ctrl>;
+	};
+
+	/* XIO: (id: 0x44) AMM574_LTE */
+	xio_44: xio@0x44 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x04_lisa &uartx2_0x20_LTE
+			   &leds_foma &leds_amm574_ctrl>;
 	};
 };
 
@@ -2214,6 +2253,26 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&uartx3_pins>;
+	};
+
+	uartx2_0x20_LTE: uart@2,0x20_LTE {
+		reg = <2 0x00000020 0x00000010>;
+		compatible = "ns16750";
+
+		status = "disabled";
+
+		current-speed = <115200>;
+		reg-shift = <1>;
+		reg-io-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg-offset = <0x0>;
+		clock-frequency = <7372800>;
+
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <22 8>;
+		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 	};
 
 	uartx2_0x30_WiSUN: uart@2,0x30_WiSUN {
