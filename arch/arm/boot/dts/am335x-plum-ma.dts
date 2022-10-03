@@ -2267,7 +2267,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg-offset = <0x0>;
-		clock-frequency = <7372800>;
+		clock-frequency = <24000000>;
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
