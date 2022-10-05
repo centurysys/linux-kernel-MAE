@@ -276,4 +276,7 @@
 /* Sunplus UART */
 #define PORT_SUNPLUS	123
 
+/* TI 16C750E */
+#define PORT_16750E	124
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
