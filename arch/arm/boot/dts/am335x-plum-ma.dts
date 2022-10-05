@@ -2257,7 +2257,7 @@
 
 	uartx2_0x20_LTE: uart@2,0x20_LTE {
 		reg = <2 0x00000020 0x00000010>;
-		compatible = "ns16750";
+		compatible = "ti16750e";
 
 		status = "disabled";
 
