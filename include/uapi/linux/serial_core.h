@@ -284,4 +284,7 @@
 /* PRU SW UART */
 #define PORT_PSUART     118
 
+/* TI 16C750E */
+#define PORT_16750E	119
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */

@@ -127,6 +127,15 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 16, 32, 56},
 		.flags		= UART_CAP_FIFO | UART_CAP_SLEEP | UART_CAP_AFE,
 	},
+	[PORT_16750E] = {
+		.name		= "TI16750E",
+		.fifo_size	= 128,
+		.tx_loadsz	= 128,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10 |
+				  UART_FCR_T_TRIG_10,
+		.rxtrig_bytes	= {1, 4, 120, 124},
+		.flags		= UART_CAP_FIFO | UART_CAP_SLEEP | UART_CAP_EFR,
+	},
 	[PORT_STARTECH] = {
 		.name		= "Startech",
 		.fifo_size	= 1,
@@ -2205,6 +2214,13 @@ int serial8250_do_startup(struct uart_port *port)
 		serial_port_out(port, UART_LCR, 0);
 	}
 
+	if (port->type == PORT_16750E) {
+		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
+		serial_port_out(port, UART_EFR, UART_EFR_ECB); /* Enable enhanced functions */
+		serial_port_out(port, UART_LCR, 0);
+		serial_port_out(port, UART_IER, 0);
+	}
+
 	if (port->type == PORT_DA830) {
 		/* Reset the port */
 		serial_port_out(port, UART_IER, 0);
@@ -2580,6 +2596,23 @@ static unsigned int npcm_get_divisor(struct uart_8250_port *up,
 	return DIV_ROUND_CLOSEST(port->uartclk, 16 * baud + 2) - 2;
 }
 
+/*
+ * TL16C750E UARTs have an extra fractional divisor register (DLF)
+ * Calculate divisor with extra 6-bit fractional portion
+ */
+static unsigned int tl16750e_get_divisor(struct uart_8250_port *up,
+					 unsigned int baud,
+					 unsigned int *frac)
+{
+	struct uart_port *port = &up->port;
+	unsigned int quot_64;
+
+	quot_64 = DIV_ROUND_CLOSEST(port->uartclk * 4, baud);
+	*frac = quot_64 & 0x3f;
+
+	return quot_64 >> 6;
+}
+
 static unsigned int serial8250_do_get_divisor(struct uart_port *port,
 					      unsigned int baud,
 					      unsigned int *frac)
@@ -2602,6 +2635,8 @@ static unsigned int serial8250_do_get_divisor(struct uart_port *port,
 		quot = xr17v35x_get_divisor(up, baud, frac);
 	else if (up->port.type == PORT_NPCM)
 		quot = npcm_get_divisor(up, baud);
+	else if (up->port.type == PORT_16750E)
+		quot = tl16750e_get_divisor(up, baud, frac);
 	else
 		quot = uart_get_divisor(port, baud);
 
@@ -2692,6 +2727,11 @@ void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
 		/* Preserve bits not related to baudrate; DLD[7:4]. */
 		quot_frac |= serial_port_in(port, 0x2) & 0xf0;
 		serial_port_out(port, 0x2, quot_frac);
+	}
+
+	/* TL16C750E UARTs have an extra fractional divisor register (DLF) */
+	if (up->port.type == PORT_16750E) {
+		serial_port_out(port, 0x7, quot_frac);
 	}
 }
 EXPORT_SYMBOL_GPL(serial8250_do_set_divisor);
@@ -2820,6 +2860,10 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if (up->capabilities & UART_CAP_EFR) {
 		unsigned char efr = 0;
+
+		if (up->port.type == PORT_16750E)
+			efr = UART_EFR_ECB;
+
 		/*
 		 * TI16C752/Startech hardware flow control.  FIXME:
 		 * - TI16C752 requires control thresholds to be set.
