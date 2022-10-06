@@ -259,6 +259,31 @@
 		};
 	};
 
+	leds_dualsim: leds_dualsim {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@x2 {
+			label = "SIM2_G";
+			gpios = <&gpiox_0x16 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x3 {
+			label = "SIM1_G";
+			gpios = <&gpiox_0x16 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x6 {
+			label = "SIM2_R";
+			gpios = <&gpiox_0x16 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led@x7 {
+			label = "SIM1_R";
+			gpios = <&gpiox_0x16 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	leds_foma_ctrl: leds_foma_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -368,6 +393,43 @@
 			label = "UARTBUF_Enable";
 			gpios = <&gpiox_0x10 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-state-suspended;
+		};
+	};
+
+	leds_dualsim_ctrl: leds_dualsim_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWRKEY {
+			label = "Mobile_PWRKEY";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@UARTBUF {
+			label = "UARTBUF_Enable";
+			gpios = <&gpiox_0x10 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led@SIMSEL {
+			label = "SIM2_SEL";
+			gpios = <&gpiox_0x10 2 GPIO_ACTIVE_HIGH>;
+			default-state = "keep";
+			retain-state-suspended;
 		};
 
 		led@MobilePower {
@@ -1236,6 +1298,7 @@
 		xio_42 = &xio_42;
 		xio_43 = &xio_3c;
 		xio_44 = &xio_44;
+		xio_46 = &xio_46;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1630,6 +1693,14 @@
 		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x04_lisa &uartx2_0x20_LTE
 			   &leds_foma &leds_amm574_ctrl>;
+	};
+
+	/* XIO: (id: 0x46) AMM574_2SIM */
+	xio_46: xio@0x46 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x10 &gpiox_0x12_dualsim &gpiox_0x14 &gpiox_0x16
+			   &gpiox_0x04_lisa &uartx2_0x20_LTE
+			   &leds_foma &leds_dualsim &leds_dualsim_ctrl>;
 	};
 };
 
@@ -2804,9 +2875,49 @@
 		};
 	};
 
+	/* Mobile Status */
+	gpiox_0x12_dualsim: gpio@2,0x12_dualsim {
+		reg = <2 0x00000012 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stat@0 {
+			label = "SIM1_CD";
+			reg = <0>;
+		};
+
+		stat@3 {
+			label = "RI";
+			reg = <3>;
+		};
+
+		stat@4 {
+			label = "SIM2_CD";
+			reg = <4>;
+		};
+	};
+
 	/* FOMA LED */
 	gpiox_0x14: gpio@2,0x14 {
 		reg = <2 0x00000014 0x00000001>;
+		#gpio-cells = <2>;
+		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
+		gpio-controller;
+		reg-names = "dat";
+
+		status = "disabled";
+	};
+
+	/* 2-SIM LED */
+	gpiox_0x16: gpio@2,0x16 {
+		reg = <2 0x00000016 0x00000001>;
 		#gpio-cells = <2>;
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
