@@ -2888,19 +2888,12 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		stat@0 {
-			label = "SIM1_CD";
-			reg = <0>;
-		};
+		gpio-line-names = "SIM_CD", "", "", "RI",
+				  "SIM2_CD", "", "", "";
 
 		stat@3 {
 			label = "RI";
 			reg = <3>;
-		};
-
-		stat@4 {
-			label = "SIM2_CD";
-			reg = <4>;
 		};
 	};
 
@@ -3611,7 +3604,6 @@
 			reg = <1>;
 		};
 	};
-
 
 	/* XIO Interrupt Enable/Status (KYM-11) */
 	gpiox_0x04_kym11: gpio@2,0x04_KYM {
