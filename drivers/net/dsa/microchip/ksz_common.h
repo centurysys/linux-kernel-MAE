@@ -13,8 +13,11 @@
 #include <linux/phy.h>
 #include <linux/regmap.h>
 #include <net/dsa.h>
+#include <linux/irq.h>
 
 #define KSZ_MAX_NUM_PORTS 8
+
+struct ksz_device;
 
 struct vlan_table {
 	u32 table[3];
@@ -42,6 +45,7 @@ struct ksz_chip_data {
 	int num_statics;
 	int cpu_ports;
 	int port_cnt;
+	u8 port_nirqs;
 	const struct ksz_dev_ops *ops;
 	bool phy_errata_9477;
 	bool ksz87xx_eee_link_erratum;
@@ -66,6 +70,17 @@ struct ksz_chip_data {
 	const struct regmap_access_table *rd_table;
 };
 
+struct ksz_irq {
+	u16 masked;
+	u16 reg_mask;
+	u16 reg_status;
+	struct irq_domain *domain;
+	int nirqs;
+	int irq_num;
+	char name[16];
+	struct ksz_device *dev;
+};
+
 struct ksz_port {
 	bool remove_tag;		/* Remove Tag flag set, for ksz8795 only */
 	bool learning;
@@ -83,6 +98,9 @@ struct ksz_port {
 	u16 max_frame;
 	u32 rgmii_tx_val;
 	u32 rgmii_rx_val;
+	struct ksz_device *ksz_dev;
+	struct ksz_irq pirq;
+	u8 num;
 };
 
 struct ksz_device {
@@ -100,6 +118,7 @@ struct ksz_device {
 	struct regmap *regmap[3];
 
 	void *priv;
+	int irq;
 
 	struct gpio_desc *reset_gpio;	/* Optional reset GPIO */
 
@@ -120,6 +139,8 @@ struct ksz_device {
 	u16 mirror_rx;
 	u16 mirror_tx;
 	u16 port_mask;
+	struct mutex lock_irq;		/* IRQ Access */
+	struct ksz_irq girq;
 };
 
 /* List of supported models */
@@ -258,6 +279,7 @@ struct alu_struct {
 
 struct ksz_dev_ops {
 	int (*setup)(struct dsa_switch *ds);
+	void (*teardown)(struct dsa_switch *ds);
 	u32 (*get_port_addr)(int port, int offset);
 	void (*cfg_port_member)(struct ksz_device *dev, int port, u8 member);
 	void (*flush_dyn_mac_table)(struct ksz_device *dev, int port);
@@ -554,6 +576,15 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define P_RGMII_ID_EG_ENABLE		BIT(3)
 #define P_MII_MAC_MODE			BIT(2)
 #define P_MII_SEL_M			0x3
+
+/* Interrupt */
+#define REG_SW_PORT_INT_STATUS__1	0x001B
+#define REG_SW_PORT_INT_MASK__1		0x001F
+
+#define REG_PORT_INT_STATUS		0x001B
+#define REG_PORT_INT_MASK		0x001F
+
+#define PORT_SRC_PHY_INT		1
 
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3

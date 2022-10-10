@@ -7,7 +7,6 @@
 #include <linux/iopoll.h>
 #include <linux/phy.h>
 #include <linux/of_net.h>
-#include <linux/of_mdio.h>
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/math.h>
@@ -138,73 +137,6 @@ int lan937x_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 	return lan937x_internal_phy_write(dev, addr, reg, val);
 }
 
-static int lan937x_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
-{
-	struct ksz_device *dev = bus->priv;
-	u16 val;
-	int ret;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
-	ret = lan937x_internal_phy_read(dev, addr, regnum, &val);
-	if (ret < 0)
-		return ret;
-
-	return val;
-}
-
-static int lan937x_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
-				 u16 val)
-{
-	struct ksz_device *dev = bus->priv;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
-	return lan937x_internal_phy_write(dev, addr, regnum, val);
-}
-
-static int lan937x_mdio_register(struct ksz_device *dev)
-{
-	struct dsa_switch *ds = dev->ds;
-	struct device_node *mdio_np;
-	struct mii_bus *bus;
-	int ret;
-
-	mdio_np = of_get_child_by_name(dev->dev->of_node, "mdio");
-	if (!mdio_np) {
-		dev_err(ds->dev, "no MDIO bus node\n");
-		return -ENODEV;
-	}
-
-	bus = devm_mdiobus_alloc(ds->dev);
-	if (!bus) {
-		of_node_put(mdio_np);
-		return -ENOMEM;
-	}
-
-	bus->priv = dev;
-	bus->read = lan937x_sw_mdio_read;
-	bus->write = lan937x_sw_mdio_write;
-	bus->name = "lan937x slave smi";
-	snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
-	bus->parent = ds->dev;
-	bus->phy_mask = ~ds->phys_mii_mask;
-
-	ds->slave_mii_bus = bus;
-
-	ret = devm_of_mdiobus_register(ds->dev, bus, mdio_np);
-	if (ret) {
-		dev_err(ds->dev, "unable to register MDIO bus %s\n",
-			bus->id);
-	}
-
-	of_node_put(mdio_np);
-
-	return ret;
-}
-
 int lan937x_reset_switch(struct ksz_device *dev)
 {
 	u32 data32;
@@ -222,6 +154,10 @@ int lan937x_reset_switch(struct ksz_device *dev)
 
 	/* disable interrupts */
 	ret = ksz_write32(dev, REG_SW_INT_MASK__4, SWITCH_INT_MASK);
+	if (ret < 0)
+		return ret;
+
+	ret = ksz_write32(dev, REG_SW_INT_STATUS__4, POR_READY_INT);
 	if (ret < 0)
 		return ret;
 
@@ -441,6 +377,13 @@ void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port)
 	}
 }
 
+int lan937x_switch_init(struct ksz_device *dev)
+{
+	dev->port_mask = (1 << dev->info->port_cnt) - 1;
+
+	return 0;
+}
+
 int lan937x_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
@@ -450,12 +393,6 @@ int lan937x_setup(struct dsa_switch *ds)
 	ret = lan937x_enable_spi_indirect_access(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to enable spi indirect access");
-		return ret;
-	}
-
-	ret = lan937x_mdio_register(dev);
-	if (ret < 0) {
-		dev_err(dev->dev, "failed to register the mdio");
 		return ret;
 	}
 
@@ -484,11 +421,8 @@ int lan937x_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-int lan937x_switch_init(struct ksz_device *dev)
+void lan937x_teardown(struct dsa_switch *ds)
 {
-	dev->port_mask = (1 << dev->info->port_cnt) - 1;
-
-	return 0;
 }
 
 void lan937x_switch_exit(struct ksz_device *dev)
