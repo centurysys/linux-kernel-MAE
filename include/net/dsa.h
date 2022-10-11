@@ -51,6 +51,7 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_SEVILLE_VALUE		21
 #define DSA_TAG_PROTO_BRCM_LEGACY_VALUE		22
 #define DSA_TAG_PROTO_SJA1110_VALUE		23
+#define DSA_TAG_PROTO_LAN937X_VALUE		24
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
@@ -77,6 +78,7 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_OCELOT_8021Q	= DSA_TAG_PROTO_OCELOT_8021Q_VALUE,
 	DSA_TAG_PROTO_SEVILLE		= DSA_TAG_PROTO_SEVILLE_VALUE,
 	DSA_TAG_PROTO_SJA1110		= DSA_TAG_PROTO_SJA1110_VALUE,
+	DSA_TAG_PROTO_LAN937X		= DSA_TAG_PROTO_LAN937X_VALUE,
 };
 
 struct dsa_switch;
@@ -472,6 +474,34 @@ static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 	return dsa_to_port(ds, p)->type == DSA_PORT_TYPE_USER;
 }
 
+#define dsa_tree_for_each_user_port(_dp, _dst) \
+		list_for_each_entry((_dp), &(_dst)->ports, list) \
+				if (dsa_port_is_user((_dp)))
+
+#define dsa_switch_for_each_port(_dp, _ds) \
+		list_for_each_entry((_dp), &(_ds)->dst->ports, list) \
+				if ((_dp)->ds == (_ds))
+
+#define dsa_switch_for_each_port_safe(_dp, _next, _ds) \
+		list_for_each_entry_safe((_dp), (_next), &(_ds)->dst->ports, list) \
+				if ((_dp)->ds == (_ds))
+
+#define dsa_switch_for_each_port_continue_reverse(_dp, _ds) \
+		list_for_each_entry_continue_reverse((_dp), &(_ds)->dst->ports, list) \
+				if ((_dp)->ds == (_ds))
+
+#define dsa_switch_for_each_available_port(_dp, _ds) \
+		dsa_switch_for_each_port((_dp), (_ds)) \
+				if (!dsa_port_is_unused((_dp)))
+
+#define dsa_switch_for_each_user_port(_dp, _ds) \
+		dsa_switch_for_each_port((_dp), (_ds)) \
+				if (dsa_port_is_user((_dp)))
+
+#define dsa_switch_for_each_cpu_port(_dp, _ds) \
+		dsa_switch_for_each_port((_dp), (_ds)) \
+				if (dsa_port_is_cpu((_dp)))
+
 static inline u32 dsa_user_ports(struct dsa_switch *ds)
 {
 	u32 mask = 0;
@@ -567,6 +597,21 @@ struct net_device *dsa_port_to_bridge_port(const struct dsa_port *dp)
 		return dp->hsr_dev;
 
 	return dp->slave;
+}
+static inline struct net_device *
+dsa_port_bridge_dev_get(const struct dsa_port *dp)
+{
+	return dp->bridge_dev;
+}
+
+static inline bool dsa_port_bridge_same(const struct dsa_port *a,
+					const struct dsa_port *b)
+{
+	struct net_device *br_a = dsa_port_bridge_dev_get(a);
+	struct net_device *br_b = dsa_port_bridge_dev_get(b);
+
+	/* Standalone ports are not in the same bridge with one another */
+	return (!br_a || !br_b) ? false : (br_a == br_b);
 }
 
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
