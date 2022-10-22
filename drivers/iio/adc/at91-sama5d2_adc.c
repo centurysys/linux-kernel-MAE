@@ -2228,11 +2228,9 @@ static void at91_adc_temp_sensor_init(struct at91_adc_state *st,
 	clb->p6 = buf[AT91_ADC_TS_CLB_IDX_P6];
 
 	/*
-	 * We prepare here the conversion to milli and also add constant
-	 * factor (5 degrees Celsius) to p1 here to avoid doing it on
-	 * hotpath.
+	 * We prepare here the conversion to milli to avoid doing it on hotpath.
 	 */
-	clb->p1 = clb->p1 * 1000 + 5000;
+	clb->p1 = clb->p1 * 1000;
 
 	st->temp_st.init = true;
 
