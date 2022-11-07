@@ -30,7 +30,66 @@
 #define MC_PCIE_BRIDGE_ADDR			(MC_PCIE1_BRIDGE_ADDR)
 #define MC_PCIE_CTRL_ADDR			(MC_PCIE1_CTRL_ADDR)
 
+/* PCIe Controller Phy Regs */
+#define SEC_ERROR_CNT				0x20
+#define DED_ERROR_CNT				0x24
+#define SEC_ERROR_INT				0x28
+#define  SEC_ERROR_INT_TX_RAM_SEC_ERR_INT	GENMASK(3, 0)
+#define  SEC_ERROR_INT_RX_RAM_SEC_ERR_INT	GENMASK(7, 4)
+#define  SEC_ERROR_INT_PCIE2AXI_RAM_SEC_ERR_INT	GENMASK(11, 8)
+#define  SEC_ERROR_INT_AXI2PCIE_RAM_SEC_ERR_INT	GENMASK(15, 12)
+#define  NUM_SEC_ERROR_INTS			(4)
+#define SEC_ERROR_INT_MASK			0x2c
+#define DED_ERROR_INT				0x30
+#define  DED_ERROR_INT_TX_RAM_DED_ERR_INT	GENMASK(3, 0)
+#define  DED_ERROR_INT_RX_RAM_DED_ERR_INT	GENMASK(7, 4)
+#define  DED_ERROR_INT_PCIE2AXI_RAM_DED_ERR_INT	GENMASK(11, 8)
+#define  DED_ERROR_INT_AXI2PCIE_RAM_DED_ERR_INT	GENMASK(15, 12)
+#define  NUM_DED_ERROR_INTS			(4)
+#define DED_ERROR_INT_MASK			0x34
+#define ECC_CONTROL				0x38
+#define  ECC_CONTROL_TX_RAM_INJ_ERROR_0		BIT(0)
+#define  ECC_CONTROL_TX_RAM_INJ_ERROR_1		BIT(1)
+#define  ECC_CONTROL_TX_RAM_INJ_ERROR_2		BIT(2)
+#define  ECC_CONTROL_TX_RAM_INJ_ERROR_3		BIT(3)
+#define  ECC_CONTROL_RX_RAM_INJ_ERROR_0		BIT(4)
+#define  ECC_CONTROL_RX_RAM_INJ_ERROR_1		BIT(5)
+#define  ECC_CONTROL_RX_RAM_INJ_ERROR_2		BIT(6)
+#define  ECC_CONTROL_RX_RAM_INJ_ERROR_3		BIT(7)
+#define  ECC_CONTROL_PCIE2AXI_RAM_INJ_ERROR_0	BIT(8)
+#define  ECC_CONTROL_PCIE2AXI_RAM_INJ_ERROR_1	BIT(9)
+#define  ECC_CONTROL_PCIE2AXI_RAM_INJ_ERROR_2	BIT(10)
+#define  ECC_CONTROL_PCIE2AXI_RAM_INJ_ERROR_3	BIT(11)
+#define  ECC_CONTROL_AXI2PCIE_RAM_INJ_ERROR_0	BIT(12)
+#define  ECC_CONTROL_AXI2PCIE_RAM_INJ_ERROR_1	BIT(13)
+#define  ECC_CONTROL_AXI2PCIE_RAM_INJ_ERROR_2	BIT(14)
+#define  ECC_CONTROL_AXI2PCIE_RAM_INJ_ERROR_3	BIT(15)
+#define  ECC_CONTROL_TX_RAM_ECC_BYPASS		BIT(24)
+#define  ECC_CONTROL_RX_RAM_ECC_BYPASS		BIT(25)
+#define  ECC_CONTROL_PCIE2AXI_RAM_ECC_BYPASS	BIT(26)
+#define  ECC_CONTROL_AXI2PCIE_RAM_ECC_BYPASS	BIT(27)
+#define LTSSM_STATE				0x5c
+#define  LTSSM_L0_STATE				0x10
+#define PCIE_EVENT_INT				0x14c
+#define  PCIE_EVENT_INT_L2_EXIT_INT		BIT(0)
+#define  PCIE_EVENT_INT_HOTRST_EXIT_INT		BIT(1)
+#define  PCIE_EVENT_INT_DLUP_EXIT_INT		BIT(2)
+#define  PCIE_EVENT_INT_MASK			GENMASK(2, 0)
+#define  PCIE_EVENT_INT_L2_EXIT_INT_MASK	BIT(16)
+#define  PCIE_EVENT_INT_HOTRST_EXIT_INT_MASK	BIT(17)
+#define  PCIE_EVENT_INT_DLUP_EXIT_INT_MASK	BIT(18)
+#define  PCIE_EVENT_INT_ENB_MASK		GENMASK(18, 16)
+#define  PCIE_EVENT_INT_ENB_SHIFT		16
+#define  NUM_PCIE_EVENTS			(3)
+
 /* PCIe Bridge Phy Regs */
+#define PCIE_PCI_IDS_DW1			0x9c
+
+/* PCIe Config space MSI capability structure */
+#define MC_MSI_CAP_CTRL_OFFSET			0xe0u
+#define  MC_MSI_MAX_Q_AVAIL			(MC_NUM_MSI_IRQS_CODED << 1)
+#define  MC_MSI_Q_SIZE				(MC_NUM_MSI_IRQS_CODED << 4)
+
 #define IMASK_LOCAL				0x180
 #define  DMA_END_ENGINE_0_MASK			0x00000000u
 #define  DMA_END_ENGINE_0_SHIFT			0
@@ -78,13 +137,12 @@
 #define ISTATUS_LOCAL				0x184
 #define IMASK_HOST				0x188
 #define ISTATUS_HOST				0x18c
-#define IMSI_ADDR				0x190
-#define  MSI_ADDR				0x190
+#define MSI_ADDR				0x190
 #define ISTATUS_MSI				0x194
 
 /* PCIe Master table init defines */
 #define ATR0_PCIE_WIN0_SRCADDR_PARAM		0x600u
-#define  ATR0_PCIE_ATR_SIZE			(4 * 1024 * 1024 * 1024ul)
+#define  ATR0_PCIE_ATR_SIZE			0x25
 #define  ATR0_PCIE_ATR_SIZE_SHIFT		1
 #define ATR0_PCIE_WIN0_SRC_ADDR			0x604u
 #define ATR0_PCIE_WIN0_TRSL_ADDR_LSB		0x608u
@@ -104,62 +162,6 @@
 
 #define ATR_ENTRY_SIZE				32
 
-/* PCIe Controller Phy Regs */
-#define SEC_ERROR_EVENT_CNT			0x20
-#define DED_ERROR_EVENT_CNT			0x24
-#define SEC_ERROR_INT				0x28
-#define  SEC_ERROR_INT_TX_RAM_SEC_ERR_INT	GENMASK(3, 0)
-#define  SEC_ERROR_INT_RX_RAM_SEC_ERR_INT	GENMASK(7, 4)
-#define  SEC_ERROR_INT_PCIE2AXI_RAM_SEC_ERR_INT	GENMASK(11, 8)
-#define  SEC_ERROR_INT_AXI2PCIE_RAM_SEC_ERR_INT	GENMASK(15, 12)
-#define  NUM_SEC_ERROR_INTS			(4)
-#define SEC_ERROR_INT_MASK			0x2c
-#define DED_ERROR_INT				0x30
-#define  DED_ERROR_INT_TX_RAM_DED_ERR_INT	GENMASK(3, 0)
-#define  DED_ERROR_INT_RX_RAM_DED_ERR_INT	GENMASK(7, 4)
-#define  DED_ERROR_INT_PCIE2AXI_RAM_DED_ERR_INT	GENMASK(11, 8)
-#define  DED_ERROR_INT_AXI2PCIE_RAM_DED_ERR_INT	GENMASK(15, 12)
-#define  NUM_DED_ERROR_INTS			(4)
-#define DED_ERROR_INT_MASK			0x34
-#define ECC_CONTROL				0x38
-#define  ECC_CONTROL_TX_RAM_INJ_ERROR_0		BIT(0)
-#define  ECC_CONTROL_TX_RAM_INJ_ERROR_1		BIT(1)
-#define  ECC_CONTROL_TX_RAM_INJ_ERROR_2		BIT(2)
-#define  ECC_CONTROL_TX_RAM_INJ_ERROR_3		BIT(3)
-#define  ECC_CONTROL_RX_RAM_INJ_ERROR_0		BIT(4)
-#define  ECC_CONTROL_RX_RAM_INJ_ERROR_1		BIT(5)
-#define  ECC_CONTROL_RX_RAM_INJ_ERROR_2		BIT(6)
-#define  ECC_CONTROL_RX_RAM_INJ_ERROR_3		BIT(7)
-#define  ECC_CONTROL_PCIE2AXI_RAM_INJ_ERROR_0	BIT(8)
-#define  ECC_CONTROL_PCIE2AXI_RAM_INJ_ERROR_1	BIT(9)
-#define  ECC_CONTROL_PCIE2AXI_RAM_INJ_ERROR_2	BIT(10)
-#define  ECC_CONTROL_PCIE2AXI_RAM_INJ_ERROR_3	BIT(11)
-#define  ECC_CONTROL_AXI2PCIE_RAM_INJ_ERROR_0	BIT(12)
-#define  ECC_CONTROL_AXI2PCIE_RAM_INJ_ERROR_1	BIT(13)
-#define  ECC_CONTROL_AXI2PCIE_RAM_INJ_ERROR_2	BIT(14)
-#define  ECC_CONTROL_AXI2PCIE_RAM_INJ_ERROR_3	BIT(15)
-#define  ECC_CONTROL_TX_RAM_ECC_BYPASS		BIT(24)
-#define  ECC_CONTROL_RX_RAM_ECC_BYPASS		BIT(25)
-#define  ECC_CONTROL_PCIE2AXI_RAM_ECC_BYPASS	BIT(26)
-#define  ECC_CONTROL_AXI2PCIE_RAM_ECC_BYPASS	BIT(27)
-#define PCIE_EVENT_INT				0x14c
-#define  PCIE_EVENT_INT_L2_EXIT_INT		BIT(0)
-#define  PCIE_EVENT_INT_HOTRST_EXIT_INT		BIT(1)
-#define  PCIE_EVENT_INT_DLUP_EXIT_INT		BIT(2)
-#define  PCIE_EVENT_INT_MASK			GENMASK(2, 0)
-#define  PCIE_EVENT_INT_L2_EXIT_INT_MASK	BIT(16)
-#define  PCIE_EVENT_INT_HOTRST_EXIT_INT_MASK	BIT(17)
-#define  PCIE_EVENT_INT_DLUP_EXIT_INT_MASK	BIT(18)
-#define  PCIE_EVENT_INT_ENB_MASK		GENMASK(18, 16)
-#define  PCIE_EVENT_INT_ENB_SHIFT		16
-#define  NUM_PCIE_EVENTS			(3)
-
-/* PCIe Config space MSI capability structure */
-#define MC_MSI_CAP_CTRL_OFFSET			0xe0u
-#define  MC_MSI_MAX_Q_AVAIL			(MC_NUM_MSI_IRQS_CODED << 1)
-#define  MC_MSI_Q_SIZE				(MC_NUM_MSI_IRQS_CODED << 4)
-
-/* Events */
 #define EVENT_PCIE_L2_EXIT			0
 #define EVENT_PCIE_HOTRST_EXIT			1
 #define EVENT_PCIE_DLUP_EXIT			2
@@ -260,7 +262,7 @@ struct mc_msi {
 	DECLARE_BITMAP(used, MC_NUM_MSI_IRQS);
 };
 
-struct mc_port {
+struct mc_pcie {
 	void __iomem *axi_base_addr;
 	struct device *dev;
 	struct irq_domain *intx_domain;
@@ -380,7 +382,7 @@ static struct {
 
 static char poss_clks[][5] = { "fic0", "fic1", "fic2", "fic3" };
 
-static void mc_pcie_enable_msi(struct mc_port *port, void __iomem *base)
+static void mc_pcie_enable_msi(struct mc_pcie *port, void __iomem *base)
 {
 	struct mc_msi *msi = &port->msi;
 	u32 cap_offset = MC_MSI_CAP_CTRL_OFFSET;
@@ -403,7 +405,7 @@ static void mc_pcie_enable_msi(struct mc_port *port, void __iomem *base)
 
 static void mc_handle_msi(struct irq_desc *desc)
 {
-	struct mc_port *port = irq_desc_get_handler_data(desc);
+	struct mc_pcie *port = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct device *dev = port->dev;
 	struct mc_msi *msi = &port->msi;
@@ -432,7 +434,7 @@ static void mc_handle_msi(struct irq_desc *desc)
 
 static void mc_msi_bottom_irq_ack(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	u32 bitpos = data->hwirq;
@@ -442,7 +444,7 @@ static void mc_msi_bottom_irq_ack(struct irq_data *data)
 
 static void mc_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	phys_addr_t addr = port->msi.vector_phy;
 
 	msg->address_lo = lower_32_bits(addr);
@@ -469,7 +471,7 @@ static struct irq_chip mc_msi_bottom_irq_chip = {
 static int mc_irq_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				   unsigned int nr_irqs, void *args)
 {
-	struct mc_port *port = domain->host_data;
+	struct mc_pcie *port = domain->host_data;
 	struct mc_msi *msi = &port->msi;
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
@@ -502,7 +504,7 @@ static void mc_irq_msi_domain_free(struct irq_domain *domain, unsigned int virq,
 				   unsigned int nr_irqs)
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
-	struct mc_port *port = irq_data_get_irq_chip_data(d);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(d);
 	struct mc_msi *msi = &port->msi;
 
 	mutex_lock(&msi->lock);
@@ -533,7 +535,7 @@ static struct msi_domain_info mc_msi_domain_info = {
 	.chip = &mc_msi_irq_chip,
 };
 
-static int mc_allocate_msi_domains(struct mc_port *port)
+static int mc_allocate_msi_domains(struct mc_pcie *port)
 {
 	struct device *dev = port->dev;
 	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
@@ -561,7 +563,7 @@ static int mc_allocate_msi_domains(struct mc_port *port)
 
 static void mc_handle_intx(struct irq_desc *desc)
 {
-	struct mc_port *port = irq_desc_get_handler_data(desc);
+	struct mc_pcie *port = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct device *dev = port->dev;
 	void __iomem *bridge_base_addr =
@@ -589,7 +591,7 @@ static void mc_handle_intx(struct irq_desc *desc)
 
 static void mc_ack_intx_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	u32 mask = BIT(data->hwirq + PM_MSI_INT_INTX_SHIFT);
@@ -599,7 +601,7 @@ static void mc_ack_intx_irq(struct irq_data *data)
 
 static void mc_mask_intx_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	unsigned long flags;
@@ -615,7 +617,7 @@ static void mc_mask_intx_irq(struct irq_data *data)
 
 static void mc_unmask_intx_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	unsigned long flags;
@@ -702,7 +704,7 @@ static u32 local_events(void __iomem *addr)
 	return val;
 }
 
-static u32 get_events(struct mc_port *port)
+static u32 get_events(struct mc_pcie *port)
 {
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
@@ -719,7 +721,7 @@ static u32 get_events(struct mc_port *port)
 
 static irqreturn_t mc_event_handler(int irq, void *dev_id)
 {
-	struct mc_port *port = dev_id;
+	struct mc_pcie *port = dev_id;
 	struct device *dev = port->dev;
 	struct irq_data *data;
 
@@ -735,7 +737,7 @@ static irqreturn_t mc_event_handler(int irq, void *dev_id)
 
 static void mc_handle_event(struct irq_desc *desc)
 {
-	struct mc_port *port = irq_desc_get_handler_data(desc);
+	struct mc_pcie *port = irq_desc_get_handler_data(desc);
 	unsigned long events;
 	u32 bit;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -752,7 +754,7 @@ static void mc_handle_event(struct irq_desc *desc)
 
 static void mc_ack_event_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	u32 event = data->hwirq;
 	void __iomem *addr;
 	u32 mask;
@@ -767,7 +769,7 @@ static void mc_ack_event_irq(struct irq_data *data)
 
 static void mc_mask_event_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	u32 event = data->hwirq;
 	void __iomem *addr;
 	u32 mask;
@@ -797,7 +799,7 @@ static void mc_mask_event_irq(struct irq_data *data)
 
 static void mc_unmask_event_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	u32 event = data->hwirq;
 	void __iomem *addr;
 	u32 mask;
@@ -885,7 +887,7 @@ static int mc_pcie_init_clks(struct device *dev)
 	return 0;
 }
 
-static int mc_pcie_init_irq_domains(struct mc_port *port)
+static int mc_pcie_init_irq_domains(struct mc_pcie *port)
 {
 	struct device *dev = port->dev;
 	struct device_node *node = dev->of_node;
@@ -924,20 +926,8 @@ static int mc_pcie_init_irq_domains(struct mc_port *port)
 	return mc_allocate_msi_domains(port);
 }
 
-static void mc_pcie_setup_axim_atr(void __iomem *bridge_base_addr, phys_addr_t atr0_addr,
-				   size_t size)
-{
-	u32 atr_sz = ilog2(size) - 1;
-	u32 val;
-
-	val = readl(bridge_base_addr + ATR0_PCIE_WIN0_SRCADDR_PARAM);
-	val |= (atr_sz << ATR0_PCIE_ATR_SIZE_SHIFT);
-	writel(val, bridge_base_addr + ATR0_PCIE_WIN0_SRCADDR_PARAM);
-	writel(upper_32_bits(atr0_addr), bridge_base_addr + ATR0_PCIE_WIN0_SRC_ADDR);
-}
-
 static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
-				 phys_addr_t pci_addr, phys_addr_t axi_addr,
+				 phys_addr_t axi_addr, phys_addr_t pci_addr,
 				 size_t size)
 {
 	u32 atr_sz = ilog2(size) - 1;
@@ -956,7 +946,7 @@ static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_SRCADDR_PARAM);
 
-	val = 0;
+	val = upper_32_bits(axi_addr);
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_SRC_ADDR);
 
@@ -964,13 +954,18 @@ static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_TRSL_ADDR_LSB);
 
-	val = 0;
+	val = upper_32_bits(pci_addr);
 	writel(val, bridge_base_addr + (index * ATR_ENTRY_SIZE) +
 	       ATR0_AXI4_SLV0_TRSL_ADDR_UDW);
+
+	val = readl(bridge_base_addr + ATR0_PCIE_WIN0_SRCADDR_PARAM);
+	val |= (ATR0_PCIE_ATR_SIZE << ATR0_PCIE_ATR_SIZE_SHIFT);
+	writel(val, bridge_base_addr + ATR0_PCIE_WIN0_SRCADDR_PARAM);
+	writel(0, bridge_base_addr + ATR0_PCIE_WIN0_SRC_ADDR);
 }
 
 static int mc_pcie_setup_windows(struct platform_device *pdev,
-				 struct mc_port *port)
+				 struct mc_pcie *port)
 {
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
@@ -996,14 +991,14 @@ static int mc_platform_init(struct pci_config_window *cfg)
 {
 	struct device *dev = cfg->parent;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct mc_port *port;
+	struct mc_pcie *port;
 	void __iomem *bridge_base_addr;
 	void __iomem *ctrl_base_addr;
 	int ret;
 	int irq;
 	int i, intx_irq, msi_irq, event_irq;
 	u32 val;
-	u64 atr0_addr;
+	int err;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
@@ -1022,20 +1017,6 @@ static int mc_platform_init(struct pci_config_window *cfg)
 
 	bridge_base_addr = port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	ctrl_base_addr = port->axi_base_addr + MC_PCIE_CTRL_ADDR;
-
-	/* Disable ECC */
-	val = 0x0f000000;
-	writel_relaxed(val, ctrl_base_addr + ECC_CONTROL);
-
-	/* Disable Local Interrupts */
-	val = 0;
-	writel_relaxed(val, bridge_base_addr + IMASK_LOCAL);
-
-	ret = of_property_read_u64(dev->of_node, "microchip,axi-m-atr0", &atr0_addr);
-	if (ret) {
-		dev_err(dev, "missing microchip,axi-m-atr0 property\n");
-		return ret;
-	}
 
 	port->msi.vector_phy = MSI_ADDR;
 	port->msi.num_vectors = MC_NUM_MSI_IRQS;
@@ -1056,11 +1037,11 @@ static int mc_platform_init(struct pci_config_window *cfg)
 			return -ENXIO;
 		}
 
-		ret = devm_request_irq(dev, event_irq, mc_event_handler,
+		err = devm_request_irq(dev, event_irq, mc_event_handler,
 				       0, event_cause[i].sym, port);
-		if (ret) {
+		if (err) {
 			dev_err(dev, "failed to request IRQ %d\n", event_irq);
-			return ret;
+			return err;
 		}
 	}
 
@@ -1088,44 +1069,39 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	/* Hardware doesn't setup MSI by default */
 	mc_pcie_enable_msi(port, cfg->win);
 
-	writel_relaxed(lower_32_bits(MSI_ADDR),
-		       bridge_base_addr + IMSI_ADDR);
-
-	/* Enable subset of local interrupts */
-	val = 0xe0770000;
+	val = readl_relaxed(bridge_base_addr + IMASK_LOCAL);
 	val |= PM_MSI_INT_INTX_MASK;
 	writel_relaxed(val, bridge_base_addr + IMASK_LOCAL);
+
+	writel_relaxed(val, ctrl_base_addr + ECC_CONTROL);
 
 	val = PCIE_EVENT_INT_L2_EXIT_INT |
 	      PCIE_EVENT_INT_HOTRST_EXIT_INT |
 	      PCIE_EVENT_INT_DLUP_EXIT_INT;
 	writel_relaxed(val, ctrl_base_addr + PCIE_EVENT_INT);
 
-	writel_relaxed(0, ctrl_base_addr + SEC_ERROR_INT_MASK);
 	val = SEC_ERROR_INT_TX_RAM_SEC_ERR_INT |
 	      SEC_ERROR_INT_RX_RAM_SEC_ERR_INT |
 	      SEC_ERROR_INT_PCIE2AXI_RAM_SEC_ERR_INT |
 	      SEC_ERROR_INT_AXI2PCIE_RAM_SEC_ERR_INT;
 	writel_relaxed(val, ctrl_base_addr + SEC_ERROR_INT);
-	writel_relaxed(0xffffffff, ctrl_base_addr + SEC_ERROR_EVENT_CNT);
+	writel_relaxed(0, ctrl_base_addr + SEC_ERROR_INT_MASK);
+	writel_relaxed(0, ctrl_base_addr + SEC_ERROR_CNT);
 
-	writel_relaxed(0, ctrl_base_addr + DED_ERROR_INT_MASK);
 	val = DED_ERROR_INT_TX_RAM_DED_ERR_INT |
 	      DED_ERROR_INT_RX_RAM_DED_ERR_INT |
 	      DED_ERROR_INT_PCIE2AXI_RAM_DED_ERR_INT |
 	      DED_ERROR_INT_AXI2PCIE_RAM_DED_ERR_INT;
 	writel_relaxed(val, ctrl_base_addr + DED_ERROR_INT);
-	writel_relaxed(0xffffffff, ctrl_base_addr + DED_ERROR_EVENT_CNT);
+	writel_relaxed(0, ctrl_base_addr + DED_ERROR_INT_MASK);
+	writel_relaxed(0, ctrl_base_addr + DED_ERROR_CNT);
 
 	writel_relaxed(0, bridge_base_addr + IMASK_HOST);
 	writel_relaxed(GENMASK(31, 0), bridge_base_addr + ISTATUS_HOST);
 
-	/* Configure AXI-M ATR Table */
-	mc_pcie_setup_axim_atr(bridge_base_addr, atr0_addr, ATR0_PCIE_ATR_SIZE);
-
 	/* Configure Address Translation Table 0 for PCIe config space */
-	mc_pcie_setup_window(bridge_base_addr, 0, cfg->res.start,
-			     cfg->res.start & 0xffffffff, resource_size(&cfg->res));
+	mc_pcie_setup_window(bridge_base_addr, 0, cfg->res.start & 0xffffffff,
+			     cfg->res.start, resource_size(&cfg->res));
 
 	return mc_pcie_setup_windows(pdev, port);
 }
@@ -1147,7 +1123,7 @@ static const struct of_device_id mc_pcie_of_match[] = {
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, mc_pcie_of_match)
+MODULE_DEVICE_TABLE(of, mc_pcie_of_match);
 
 static struct platform_driver mc_pcie_driver = {
 	.probe = pci_host_common_probe,
