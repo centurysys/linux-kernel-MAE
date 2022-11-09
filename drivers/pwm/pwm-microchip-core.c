@@ -100,10 +100,9 @@ static void mchp_core_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 }
 
-static u64 mchp_core_pwm_calc_duty(struct pwm_chip *chip, struct pwm_device *pwm,
-				   const struct pwm_state *state, u8 prescale, u8 period_steps)
+static u64 mchp_core_pwm_calc_duty(const struct pwm_state *state, u64 clk_rate,
+				   u8 prescale, u8 period_steps)
 {
-	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
 	u64 duty_steps, tmp;
 	u16 prescale_val = PREG_TO_VAL(prescale);
 
@@ -113,7 +112,7 @@ static u64 mchp_core_pwm_calc_duty(struct pwm_chip *chip, struct pwm_device *pwm
 	 * step_in_ns = (prescale * NSEC_PER_SEC) / clk_rate
 	 * The code below is rearranged slightly to only divide once.
 	 */
-	duty_steps = state->duty_cycle * clk_get_rate(mchp_core_pwm->clk);
+	duty_steps = state->duty_cycle * clk_rate;
 	tmp = prescale_val * NSEC_PER_SEC;
 	return div64_u64(duty_steps, tmp);
 }
@@ -143,11 +142,10 @@ static void mchp_core_pwm_apply_duty(struct pwm_chip *chip, struct pwm_device *p
 	writel_relaxed(negedge, mchp_core_pwm->base + MCHPCOREPWM_NEGEDGE(pwm->hwpwm));
 }
 
-static int mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_state *state,
+static int mchp_core_pwm_calc_period(const struct pwm_state *state, u64 clk_rate,
 				     u16 *prescale, u8 *period_steps)
 {
-	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
-	u64 tmp, clk_rate;
+	u64 tmp;
 
 	/*
 	 * Calculate the period cycles and prescale values.
@@ -161,7 +159,6 @@ static int mchp_core_pwm_calc_period(struct pwm_chip *chip, const struct pwm_sta
 	 * Therefore period_steps is restricted to 0xFE and the maximum multiple
 	 * of the clock period attainable is 0xFF00.
 	 */
-	clk_rate = clk_get_rate(mchp_core_pwm->clk);
 
 	/*
 	 * If clk_rate is too big, the following multiplication might overflow.
@@ -203,7 +200,7 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 	struct mchp_core_pwm_chip *mchp_core_pwm = to_mchp_core_pwm(chip);
 	struct pwm_state current_state = pwm->state;
 	bool period_locked;
-	u64 duty_steps;
+	u64 duty_steps, clk_rate;
 	u16 prescale;
 	u8 period_steps;
 	int ret;
@@ -213,7 +210,9 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 		return 0;
 	}
 
-	ret = mchp_core_pwm_calc_period(chip, state, &prescale, &period_steps);
+	clk_rate = clk_get_rate(mchp_core_pwm->clk);
+
+	ret = mchp_core_pwm_calc_period(state, clk_rate, &prescale, &period_steps);
 	if (ret)
 		return ret;
 
@@ -255,7 +254,7 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 		mchp_core_pwm_apply_period(mchp_core_pwm, prescale, period_steps);
 	}
 
-	duty_steps = mchp_core_pwm_calc_duty(chip, pwm, state, prescale, period_steps);
+	duty_steps = mchp_core_pwm_calc_duty(state, clk_rate, prescale, period_steps);
 
 	/*
 	 * Because the period is per channel, it is possible that the requested
