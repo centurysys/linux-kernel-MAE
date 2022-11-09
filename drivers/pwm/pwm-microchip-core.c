@@ -206,11 +206,16 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 	u64 duty_steps;
 	u16 prescale;
 	u8 period_steps;
+	int ret;
 
 	if (!state->enabled) {
 		mchp_core_pwm_enable(chip, pwm, false, current_state.period);
 		return 0;
 	}
+
+	ret = mchp_core_pwm_calc_period(chip, state, &prescale, &period_steps);
+	if (ret)
+		return ret;
 
 	/*
 	 * If the only thing that has changed is the duty cycle or the polarity,
@@ -227,7 +232,6 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 		u16 hw_prescale;
 		u8 hw_period_steps;
 
-		mchp_core_pwm_calc_period(chip, state, &prescale, &period_steps);
 		hw_prescale = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PRESCALE);
 		hw_period_steps = readb_relaxed(mchp_core_pwm->base + MCHPCOREPWM_PERIOD);
 
@@ -248,12 +252,6 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 		prescale = hw_prescale;
 		period_steps = hw_period_steps;
 	} else {
-		int ret;
-
-		ret = mchp_core_pwm_calc_period(chip, state, &prescale, &period_steps);
-		if (ret)
-			return ret;
-
 		mchp_core_pwm_apply_period(mchp_core_pwm, prescale, period_steps);
 	}
 
