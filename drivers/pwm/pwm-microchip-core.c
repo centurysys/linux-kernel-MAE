@@ -143,8 +143,8 @@ static void mchp_core_pwm_apply_duty(struct pwm_chip *chip, struct pwm_device *p
 	writel_relaxed(negedge, mchp_core_pwm->base + MCHPCOREPWM_NEGEDGE(pwm->hwpwm));
 }
 
-static int mchp_core_pwm_calc_period(const struct pwm_state *state, u64 clk_rate,
-				     u16 *prescale, u8 *period_steps)
+static void mchp_core_pwm_calc_period(const struct pwm_state *state, u64 clk_rate,
+				      u16 *prescale, u8 *period_steps)
 {
 	u64 tmp;
 
@@ -160,15 +160,6 @@ static int mchp_core_pwm_calc_period(const struct pwm_state *state, u64 clk_rate
 	 * Therefore period_steps is restricted to 0xFE and the maximum multiple
 	 * of the clock period attainable is 0xFF00.
 	 */
-
-	/*
-	 * If clk_rate is too big, the following multiplication might overflow.
-	 * However this is implausible, as the fabric of current FPGAs cannot
-	 * provide clocks at a rate high enough.
-	 */
-	if (clk_rate >= NSEC_PER_SEC)
-		return -EINVAL;
-
 	tmp = mul_u64_u64_div_u64(state->period, clk_rate, NSEC_PER_SEC);
 
 	/*
@@ -178,14 +169,13 @@ static int mchp_core_pwm_calc_period(const struct pwm_state *state, u64 clk_rate
 	if (tmp >= MCHPCOREPWM_PERIOD_MAX) {
 		*prescale = MCHPCOREPWM_PRESCALE_MAX - 1;
 		*period_steps = MCHPCOREPWM_PERIOD_STEPS_MAX - 1;
-		return 0;
+
+		return;
 	}
 
 	*prescale = div_u64(tmp, MCHPCOREPWM_PERIOD_STEPS_MAX);
 	/* PREG_TO_VAL() can produce a value larger than UINT8_MAX */
 	*period_steps = div_u64(tmp, PREG_TO_VAL(*prescale)) - 1;
-
-	return 0;
 }
 
 static inline void mchp_core_pwm_apply_period(struct mchp_core_pwm_chip *mchp_core_pwm,
@@ -204,18 +194,22 @@ static int mchp_core_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *
 	u64 duty_steps, clk_rate;
 	u16 prescale;
 	u8 period_steps;
-	int ret;
 
 	if (!state->enabled) {
 		mchp_core_pwm_enable(chip, pwm, false, current_state.period);
 		return 0;
 	}
 
+	/*
+	 * If clk_rate is too big, the following multiplication might overflow.
+	 * However this is implausible, as the fabric of current FPGAs cannot
+	 * provide clocks at a rate high enough.
+	 */
 	clk_rate = clk_get_rate(mchp_core_pwm->clk);
+	if (clk_rate >= NSEC_PER_SEC)
+		return -EINVAL;
 
-	ret = mchp_core_pwm_calc_period(state, clk_rate, &prescale, &period_steps);
-	if (ret)
-		return ret;
+	mchp_core_pwm_calc_period(state, clk_rate, &prescale, &period_steps);
 
 	/*
 	 * If the only thing that has changed is the duty cycle or the polarity,
