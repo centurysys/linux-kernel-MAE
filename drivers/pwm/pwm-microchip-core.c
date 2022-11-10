@@ -112,9 +112,10 @@ static u64 mchp_core_pwm_calc_duty(const struct pwm_state *state, u64 clk_rate,
 	 * step_in_ns = (prescale * NSEC_PER_SEC) / clk_rate
 	 * The code below is rearranged slightly to only divide once.
 	 */
-	duty_steps = state->duty_cycle * clk_rate;
 	tmp = prescale_val * NSEC_PER_SEC;
-	return div64_u64(duty_steps, tmp);
+	duty_steps = mul_u64_u64_div_u64(state->duty_cycle, clk_rate, tmp);
+
+	return duty_steps;
 }
 
 static void mchp_core_pwm_apply_duty(struct pwm_chip *chip, struct pwm_device *pwm,
