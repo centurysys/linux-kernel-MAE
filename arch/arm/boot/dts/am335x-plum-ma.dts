@@ -440,6 +440,37 @@
 		};
 	};
 
+	leds_rc7630_ctrl: leds_rc7630_ctrl {
+		compatible = "gpio-leds";
+		status = "disabled";
+
+		led@PWRKEY {
+			label = "Mobile_PWRON";
+			gpios = <&gpiox_0x10 7 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+			retain-state-suspended;
+		};
+
+		led@RESETN {
+			label = "Mobile_RESETN";
+			gpios = <&gpiox_0x10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		led@UARTBUF {
+			label = "Mobile_Buf_Enable";
+			gpios = <&gpiox_0x10 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led@MobilePower {
+			label = "Mobile_Power";
+			gpios = <&gpiox_0x10 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			retain-state-suspended;
+		};
+	};
+
 	leds_amp_wlan_ctrl: leds_amp_wlan_ctrl {
 		compatible = "gpio-leds";
 		status = "disabled";
@@ -1299,6 +1330,7 @@
 		xio_43 = &xio_3c;
 		xio_44 = &xio_44;
 		xio_46 = &xio_46;
+		xio_48 = &xio_48;
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
@@ -1701,6 +1733,14 @@
 		devices = <&gpiox_0x10 &gpiox_0x12_dualsim &gpiox_0x14 &gpiox_0x16
 			   &gpiox_0x04_lisa &uartx2_0x20_LTE
 			   &leds_foma &leds_dualsim &leds_dualsim_ctrl>;
+	};
+
+	/* XIO: (id: 0x48) RC7630_LTE */
+	xio_48: xio@0x48 {
+		#size-cells = <0>;
+		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
+			   &gpiox_0x04_lisa &uartx2_0x20_LTE
+			   &leds_foma &leds_rc7630_ctrl>;
 	};
 };
 
