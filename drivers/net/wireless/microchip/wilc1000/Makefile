@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-y += -I$(src)/ -DWILC_DEBUGFS
+ccflags-y += -I$(src)/ -DWILC_DEBUGFS --std=gnu99
 
 wilc-objs := cfg80211.o netdev.o mon.o \
 			hif.o wlan_cfg.o wlan.o sysfs.o power.o bt.o debugfs.o
