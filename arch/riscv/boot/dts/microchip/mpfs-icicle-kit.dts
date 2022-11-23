@@ -47,16 +47,19 @@
 		fabricbuf0ddrc: buffer@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x2000000>;
+			no-map;
 		};
 
 		fabricbuf1ddrnc: buffer@c0000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xc0000000 0x0 0x8000000>;
+			no-map;
 		};
 
 		fabricbuf2ddrncwcb: buffer@d0000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xd0000000 0x0 0x8000000>;
+			no-map;
 		};
 	};
 
