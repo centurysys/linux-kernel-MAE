@@ -4,7 +4,7 @@
 #include "dt-bindings/mailbox/miv-ihc.h"
 
 / {
-	compatible = "microchip,mpfs-icicle-reference-rtlv2203";
+	compatible = "microchip,mpfs-icicle-reference-rtlv2209";
 
 	core_pwm0: pwm@40000000 {
 		compatible = "microchip,corepwm-rtl-v4";
