@@ -244,7 +244,7 @@
 };
 
 &qspi {
-        status = "okay";
+	status = "okay";
 };
 
 &refclk {
