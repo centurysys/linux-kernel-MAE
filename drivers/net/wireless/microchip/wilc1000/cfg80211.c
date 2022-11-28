@@ -364,8 +364,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	vif->connecting = true;
 
 	PRINT_INFO(vif->ndev, CFG80211_DBG,
-		   "Connecting to SSID [%s] on netdev [%p] host if [%x]\n",
-		   sme->ssid, dev, (u32)priv->hif_drv);
+		   "Connecting to SSID [%s] on netdev [%p] host if [%px]\n",
+		   sme->ssid, dev, priv->hif_drv);
 
 	if (sme->auth_type == NL80211_AUTHTYPE_SAE &&
 	    vif->wilc->chip == WILC_3000){
@@ -653,8 +653,8 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 
 	PRINT_INFO(vif->ndev, CFG80211_DBG,
 		   "Adding key with cipher suite = %x\n", params->cipher);
-	PRINT_INFO(vif->ndev, CFG80211_DBG, "%x %x %d\n", (u32)wiphy,
-		   (u32)netdev, key_index);
+	PRINT_INFO(vif->ndev, CFG80211_DBG, "%x %px %d\n", wiphy,
+		   netdev, key_index);
 	PRINT_INFO(vif->ndev, CFG80211_DBG, "key %x %x %x\n", params->key[0],
 		   params->key[1],
 		   params->key[2]);
