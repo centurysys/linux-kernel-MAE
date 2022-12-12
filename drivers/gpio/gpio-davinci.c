@@ -722,7 +722,9 @@ static struct platform_driver davinci_gpio_driver = {
 		.of_match_table	= of_match_ptr(davinci_gpio_ids),
 	},
 };
-
+#if 1
+builtin_platform_driver(davinci_gpio_driver);
+#else
 /**
  * GPIO driver registration needs to be done before machine_init functions
  * access GPIO. Hence davinci_gpio_drv_reg() is a postcore_initcall.
@@ -743,3 +745,4 @@ MODULE_AUTHOR("Jan Kotas <jank@cadence.com>");
 MODULE_DESCRIPTION("DAVINCI GPIO driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:gpio-davinci");
+#endif
