@@ -400,11 +400,6 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 
 	PRINT_INFO(dev, INIT_DBG, "loading firmware %s\n", firmware);
 
-	if (!(&vif->ndev->dev)) {
-		PRINT_ER(dev, "Dev  is NULL\n");
-		return -EINVAL;
-	}
-
 	PRINT_INFO(vif->ndev, INIT_DBG, "WLAN firmware: %s\n", firmware);
 	ret = request_firmware(&wilc_fw, firmware, wilc->dev);
 	if (ret != 0) {
@@ -646,8 +641,7 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 	if (!recovery_on) {
 		PRINT_INFO(vif->ndev, INIT_DBG, "Deinit debug Thread\n");
 		debug_running = false;
-		if (&wl->debug_thread_started)
-			complete(&wl->debug_thread_started);
+		complete(&wl->debug_thread_started);
 		if (wl->debug_thread) {
 			kthread_stop(wl->debug_thread);
 			wl->debug_thread = NULL;
