@@ -1811,6 +1811,8 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	    (port->status & (UPSTAT_AUTOCTS | UPSTAT_AUTORTS)) &&
 	    !(up->ier & (UART_IER_RLSI | UART_IER_RDI)))
 		skip_rx = true;
+	if (!(up->ier & UART_IER_RDI))
+		skip_rx = true;
 
 	if (status & (UART_LSR_DR | UART_LSR_BI) && !skip_rx) {
 		struct irq_data *d;
