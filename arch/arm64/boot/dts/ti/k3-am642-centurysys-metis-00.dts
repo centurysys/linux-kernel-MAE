@@ -216,7 +216,7 @@
 
 		do_s0 {
 			label = "DO_S0";
-			gpios = <&main_gpio1 0 GPIO_ACTIVE_LOW>;
+			gpios = <&main_gpio1 0 GPIO_ACTIVE_HIGH>;
 		};
 
 		do_t0 {
