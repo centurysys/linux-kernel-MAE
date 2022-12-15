@@ -418,8 +418,12 @@ static irqreturn_t atmel_twi_interrupt(int irq, void *dev_id)
 		 * and w/o FIFO. With FIFO enabled we could also read RXFL and
 		 * avoid polling RXRDY.
 		 */
+		volatile int count = 0;
 		do {
 			at91_twi_read_next_byte(dev);
+			if (++count > I2C_SMBUS_BLOCK_MAX)
+				/* client device stuck ? */
+				break;
 		} while (at91_twi_read(dev, AT91_TWI_SR) & AT91_TWI_RXRDY);
 	}
 
