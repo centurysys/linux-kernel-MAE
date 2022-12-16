@@ -581,7 +581,7 @@
 	/*vmmc-supply = <&vcc_3v3_sys>;*/
 	pinctrl-names = "default";
 	bus-width = <4>;
-	no-1-8-v;
+	/*no-1-8-v;*/
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
