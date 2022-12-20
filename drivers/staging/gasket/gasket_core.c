@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/pid_namespace.h>
+#include <linux/platform_device.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
 
@@ -101,6 +102,16 @@ enum gasket_sysfs_attribute_type {
 	ATTR_RESET_COUNT,
 	ATTR_USER_MEM_RANGES
 };
+
+/* On some arm64 systems pcie dma controller can only access lower 4GB of
+ * addresses. Unfortunately vendor BSP isn't providing any means of determining
+ * this limitation and there're no errors reported if access to higher addresses
+ * if being done. This parameter allows to workaround this issue by pretending
+ * that our device only supports 32 bit addresses. This in turn will cause
+ * dma driver to use shadow buffers located in low 32 bit address space.
+ */
+static int dma_bit_mask = 64;
+module_param(dma_bit_mask, int, 0644);
 
 /* Perform a standard Gasket callback. */
 static inline int
@@ -214,6 +225,7 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 	gasket_dev->dev_idx = dev_idx;
 	snprintf(gasket_dev->kobj_name, GASKET_NAME_MAX, "%s", parent_name);
 	gasket_dev->dev = get_device(parent);
+	gasket_dev->dma_dev = get_device(parent);
 	/* gasket_bar_data is uninitialized. */
 	gasket_dev->num_page_tables = driver_desc->num_page_tables;
 	/* max_page_table_size and *page table are uninit'ed */
@@ -246,6 +258,7 @@ static void gasket_free_dev(struct gasket_dev *gasket_dev)
 	internal_desc->devs[gasket_dev->dev_idx] = NULL;
 	mutex_unlock(&internal_desc->mutex);
 	put_device(gasket_dev->dev);
+	put_device(gasket_dev->dma_dev);
 	kfree(gasket_dev);
 }
 
@@ -261,7 +274,6 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 	const struct gasket_driver_desc *driver_desc =
 		internal_desc->driver_desc;
 	ulong desc_bytes = driver_desc->bar_descriptions[bar_num].size;
-	struct gasket_bar_data *data;
 	int ret;
 
 	if (desc_bytes == 0)
@@ -271,32 +283,31 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 		/* not PCI: skip this entry */
 		return 0;
 	}
-
-	data = &gasket_dev->bar_data[bar_num];
-
 	/*
 	 * pci_resource_start and pci_resource_len return a "resource_size_t",
 	 * which is safely castable to ulong (which itself is the arg to
 	 * request_mem_region).
 	 */
-	data->phys_base =
+	gasket_dev->bar_data[bar_num].phys_base =
 		(ulong)pci_resource_start(gasket_dev->pci_dev, bar_num);
-	if (!data->phys_base) {
+	if (!gasket_dev->bar_data[bar_num].phys_base) {
 		dev_err(gasket_dev->dev, "Cannot get BAR%u base address\n",
 			bar_num);
 		return -EINVAL;
 	}
 
-	data->length_bytes =
+	gasket_dev->bar_data[bar_num].length_bytes =
 		(ulong)pci_resource_len(gasket_dev->pci_dev, bar_num);
-	if (data->length_bytes < desc_bytes) {
+	if (gasket_dev->bar_data[bar_num].length_bytes < desc_bytes) {
 		dev_err(gasket_dev->dev,
 			"PCI BAR %u space is too small: %lu; expected >= %lu\n",
-			bar_num, data->length_bytes, desc_bytes);
+			bar_num, gasket_dev->bar_data[bar_num].length_bytes,
+			desc_bytes);
 		return -ENOMEM;
 	}
 
-	if (!request_mem_region(data->phys_base, data->length_bytes,
+	if (!request_mem_region(gasket_dev->bar_data[bar_num].phys_base,
+				gasket_dev->bar_data[bar_num].length_bytes,
 				gasket_dev->dev_info.name)) {
 		dev_err(gasket_dev->dev,
 			"Cannot get BAR %d memory region %p\n",
@@ -304,8 +315,10 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 		return -EINVAL;
 	}
 
-	data->virt_base = ioremap(data->phys_base, data->length_bytes);
-	if (!data->virt_base) {
+	gasket_dev->bar_data[bar_num].virt_base =
+		ioremap(gasket_dev->bar_data[bar_num].phys_base,
+			gasket_dev->bar_data[bar_num].length_bytes);
+	if (!gasket_dev->bar_data[bar_num].virt_base) {
 		dev_err(gasket_dev->dev,
 			"Cannot remap BAR %d memory region %p\n",
 			bar_num, &gasket_dev->pci_dev->resource[bar_num]);
@@ -313,14 +326,16 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 		goto fail;
 	}
 
-	dma_set_mask(&gasket_dev->pci_dev->dev, DMA_BIT_MASK(64));
-	dma_set_coherent_mask(&gasket_dev->pci_dev->dev, DMA_BIT_MASK(64));
+	dma_set_mask(&gasket_dev->pci_dev->dev, DMA_BIT_MASK(dma_bit_mask));
+	dma_set_coherent_mask(&gasket_dev->pci_dev->dev,
+			      DMA_BIT_MASK(dma_bit_mask));
 
 	return 0;
 
 fail:
-	iounmap(data->virt_base);
-	release_mem_region(data->phys_base, data->length_bytes);
+	iounmap(gasket_dev->bar_data[bar_num].virt_base);
+	release_mem_region(gasket_dev->bar_data[bar_num].phys_base,
+			   gasket_dev->bar_data[bar_num].length_bytes);
 	return ret;
 }
 
@@ -370,7 +385,7 @@ static int gasket_setup_pci(struct pci_dev *pci_dev,
 {
 	int i, mapped_bars, ret;
 
-	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
+	for (i = 0; i < GASKET_NUM_BARS; i++) {
 		ret = gasket_map_pci_bar(gasket_dev, i);
 		if (ret) {
 			mapped_bars = i;
@@ -392,7 +407,7 @@ static void gasket_cleanup_pci(struct gasket_dev *gasket_dev)
 {
 	int i;
 
-	for (i = 0; i < PCI_STD_NUM_BARS; i++)
+	for (i = 0; i < GASKET_NUM_BARS; i++)
 		gasket_unmap_pci_bar(gasket_dev, i);
 }
 
@@ -492,7 +507,7 @@ static ssize_t gasket_sysfs_data_show(struct device *device,
 		(enum gasket_sysfs_attribute_type)gasket_attr->data.attr_type;
 	switch (sysfs_type) {
 	case ATTR_BAR_OFFSETS:
-		for (i = 0; i < PCI_STD_NUM_BARS; i++) {
+		for (i = 0; i < GASKET_NUM_BARS; i++) {
 			bar_desc = &driver_desc->bar_descriptions[i];
 			if (bar_desc->size == 0)
 				continue;
@@ -504,7 +519,7 @@ static ssize_t gasket_sysfs_data_show(struct device *device,
 		}
 		break;
 	case ATTR_BAR_SIZES:
-		for (i = 0; i < PCI_STD_NUM_BARS; i++) {
+		for (i = 0; i < GASKET_NUM_BARS; i++) {
 			bar_desc = &driver_desc->bar_descriptions[i];
 			if (bar_desc->size == 0)
 				continue;
@@ -555,7 +570,7 @@ static ssize_t gasket_sysfs_data_show(struct device *device,
 		ret = snprintf(buf, PAGE_SIZE, "%d\n", gasket_dev->reset_count);
 		break;
 	case ATTR_USER_MEM_RANGES:
-		for (i = 0; i < PCI_STD_NUM_BARS; ++i) {
+		for (i = 0; i < GASKET_NUM_BARS; ++i) {
 			current_written =
 				gasket_write_mappable_regions(buf, driver_desc,
 							      i);
@@ -627,6 +642,7 @@ void gasket_disable_device(struct gasket_dev *gasket_dev)
 		gasket_dev->internal_desc->driver_desc;
 	int i;
 
+	dev_dbg(gasket_dev->dev, "disabling device\n");
 	/* Only delete the device if it has been successfully added. */
 	if (gasket_dev->dev_info.cdev_added)
 		cdev_del(&gasket_dev->dev_info.cdev);
@@ -667,6 +683,25 @@ lookup_pci_internal_desc(struct pci_dev *pci_dev)
 }
 
 /*
+ * Registered driver descriptor lookup for platform devices.
+ * Caller must hold g_mutex.
+ */
+static struct gasket_internal_desc *
+lookup_platform_internal_desc(struct platform_device *pdev)
+{
+	int i;
+
+	__must_hold(&g_mutex);
+	for (i = 0; i < GASKET_FRAMEWORK_DESC_MAX; i++) {
+		if (g_descs[i].driver_desc &&
+		    strcmp(g_descs[i].driver_desc->name, pdev->name) == 0)
+			return &g_descs[i];
+	}
+
+	return NULL;
+}
+
+/*
  * Verifies that the user has permissions to perform the requested mapping and
  * that the provided descriptor/range is of adequate size to hold the range to
  * be mapped.
@@ -688,10 +723,11 @@ static bool gasket_mmap_has_permissions(struct gasket_dev *gasket_dev,
 
 	/* Make sure that no wrong flags are set. */
 	requested_permissions =
-		(vma->vm_flags & VM_ACCESS_FLAGS);
+		(vma->vm_flags & (VM_WRITE | VM_READ | VM_EXEC));
 	if (requested_permissions & ~(bar_permissions)) {
 		dev_dbg(gasket_dev->dev,
-			"Attempting to map a region with requested permissions 0x%x, but region has permissions 0x%x.\n",
+			"Attempting to map a region with requested permissions "
+			"0x%x, but region has permissions 0x%x.\n",
 			requested_permissions, bar_permissions);
 		return false;
 	}
@@ -700,7 +736,8 @@ static bool gasket_mmap_has_permissions(struct gasket_dev *gasket_dev,
 	if ((vma->vm_flags & VM_WRITE) &&
 	    !gasket_owned_by_current_tgid(&gasket_dev->dev_info)) {
 		dev_dbg(gasket_dev->dev,
-			"Attempting to mmap a region for write without owning device.\n");
+			"Attempting to mmap a region for write without owning "
+			"device.\n");
 		return false;
 	}
 
@@ -734,7 +771,7 @@ static int gasket_get_bar_index(const struct gasket_dev *gasket_dev,
 	const struct gasket_driver_desc *driver_desc;
 
 	driver_desc = gasket_dev->internal_desc->driver_desc;
-	for (i = 0; i < PCI_STD_NUM_BARS; ++i) {
+	for (i = 0; i < GASKET_NUM_BARS; ++i) {
 		struct gasket_bar_desc bar_desc =
 			driver_desc->bar_descriptions[i];
 
@@ -924,10 +961,6 @@ do_map_region(const struct gasket_dev *gasket_dev, struct vm_area_struct *vma,
 		gasket_get_bar_index(gasket_dev,
 				     (vma->vm_pgoff << PAGE_SHIFT) +
 				     driver_desc->legacy_mmap_address_offset);
-
-	if (bar_index < 0)
-		return DO_MAP_REGION_INVALID;
-
 	phys_base = gasket_dev->bar_data[bar_index].phys_base + phys_offset;
 	while (mapped_bytes < map_length) {
 		/*
@@ -987,13 +1020,14 @@ static int gasket_mmap_coherent(struct gasket_dev *gasket_dev,
 	}
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	ret = remap_pfn_range(vma, vma->vm_start,
-			      (gasket_dev->coherent_buffer.phys_base) >>
-			      PAGE_SHIFT, requested_length, vma->vm_page_prot);
+	vma->vm_pgoff = 0;
+	ret = dma_mmap_coherent(gasket_dev->dma_dev, vma,
+				gasket_dev->coherent_buffer.virt_base,
+				gasket_dev->coherent_buffer.phys_base,
+				requested_length);
 	if (ret) {
-		dev_err(gasket_dev->dev, "Error remapping PFN range err=%d.\n",
-			ret);
+		dev_err(gasket_dev->dev,
+			"Error mmapping coherent buffer err=%d.\n", ret);
 		trace_gasket_mmap_exit(ret);
 		return ret;
 	}
@@ -1055,7 +1089,8 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 	if (bar_index > 0 && is_coherent_region) {
 		dev_err(gasket_dev->dev,
-			"double matching bar and coherent buffers for address 0x%lx\n",
+			"double matching bar and coherent buffers for address "
+			"0x%lx\n",
 			raw_offset);
 		trace_gasket_mmap_exit(bar_index);
 		return -EINVAL;
@@ -1182,7 +1217,8 @@ static int gasket_open(struct inode *inode, struct file *filp)
 	inode->i_size = 0;
 
 	dev_dbg(gasket_dev->dev,
-		"Attempting to open with tgid %u (%s) (f_mode: 0%03o, fmode_write: %d is_root: %u)\n",
+		"Attempting to open with tgid %u (%s) (f_mode: 0%03o, "
+		"fmode_write: %d is_root: %u)\n",
 		current->tgid, task_name, filp->f_mode,
 		(filp->f_mode & FMODE_WRITE), is_root);
 
@@ -1259,7 +1295,8 @@ static int gasket_release(struct inode *inode, struct file *file)
 	mutex_lock(&gasket_dev->mutex);
 
 	dev_dbg(gasket_dev->dev,
-		"Releasing device node. Call origin: tgid %u (%s) (f_mode: 0%03o, fmode_write: %d, is_root: %u)\n",
+		"Releasing device node. Call origin: tgid %u (%s) "
+		"(f_mode: 0%03o, fmode_write: %d, is_root: %u)\n",
 		current->tgid, task_name, file->f_mode,
 		(file->f_mode & FMODE_WRITE), is_root);
 	dev_dbg(gasket_dev->dev, "Current open count (owning tgid %u): %d\n",
@@ -1340,6 +1377,7 @@ static const struct file_operations gasket_file_ops = {
 	.open = gasket_open,
 	.release = gasket_release,
 	.unlocked_ioctl = gasket_ioctl,
+	.compat_ioctl = gasket_ioctl,
 };
 
 /* Perform final init and marks the device as active. */
@@ -1350,6 +1388,7 @@ int gasket_enable_device(struct gasket_dev *gasket_dev)
 	const struct gasket_driver_desc *driver_desc =
 		gasket_dev->internal_desc->driver_desc;
 
+	dev_dbg(gasket_dev->dev, "enabling device\n");
 	ret = gasket_interrupt_init(gasket_dev);
 	if (ret) {
 		dev_err(gasket_dev->dev,
@@ -1551,6 +1590,80 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 	__gasket_remove_device(internal_desc, gasket_dev);
 }
 EXPORT_SYMBOL(gasket_pci_remove_device);
+
+/* Add platform gasket device. Called by Gasket device probe function. */
+int gasket_platform_add_device(struct platform_device *pdev,
+			       struct gasket_dev **gasket_devp)
+{
+	int ret;
+	struct gasket_internal_desc *internal_desc;
+	struct gasket_dev *gasket_dev;
+	struct device *parent;
+
+	dev_dbg(&pdev->dev, "add platform gasket device\n");
+
+	mutex_lock(&g_mutex);
+	internal_desc = lookup_platform_internal_desc(pdev);
+	mutex_unlock(&g_mutex);
+	if (!internal_desc) {
+		dev_err(&pdev->dev,
+			"%s called for unknown driver type\n", __func__);
+		return -ENODEV;
+	}
+
+	parent = &pdev->dev;
+	ret = __gasket_add_device(parent, internal_desc, &gasket_dev);
+	if (ret)
+		return ret;
+
+	gasket_dev->platform_dev = pdev;
+	*gasket_devp = gasket_dev;
+	return 0;
+}
+EXPORT_SYMBOL(gasket_platform_add_device);
+
+/* Remove a platform gasket device. */
+void gasket_platform_remove_device(struct platform_device *pdev)
+{
+	int i;
+	struct gasket_internal_desc *internal_desc;
+	struct gasket_dev *gasket_dev = NULL;
+
+	/* Find the device desc. */
+	mutex_lock(&g_mutex);
+	internal_desc = lookup_platform_internal_desc(pdev);
+	mutex_unlock(&g_mutex);
+	if (!internal_desc)
+		return;
+
+	/* Now find the specific device */
+	mutex_lock(&internal_desc->mutex);
+	for (i = 0; i < GASKET_DEV_MAX; i++) {
+		if (internal_desc->devs[i] &&
+		    internal_desc->devs[i]->platform_dev == pdev) {
+			gasket_dev = internal_desc->devs[i];
+			break;
+		}
+	}
+	mutex_unlock(&internal_desc->mutex);
+
+	if (!gasket_dev)
+		return;
+
+	dev_dbg(gasket_dev->dev, "remove %s platform gasket device\n",
+		internal_desc->driver_desc->name);
+
+	__gasket_remove_device(internal_desc, gasket_dev);
+}
+EXPORT_SYMBOL(gasket_platform_remove_device);
+
+void gasket_set_dma_device(struct gasket_dev *gasket_dev,
+			   struct device *dma_dev)
+{
+	put_device(gasket_dev->dma_dev);
+	gasket_dev->dma_dev = get_device(dma_dev);
+}
+EXPORT_SYMBOL(gasket_set_dma_device);
 
 /**
  * Lookup a name by number in a num_name table.

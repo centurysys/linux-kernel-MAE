@@ -3,7 +3,7 @@
 #ifndef __GASKET_CONSTANTS_H__
 #define __GASKET_CONSTANTS_H__
 
-#define GASKET_FRAMEWORK_VERSION "1.1.2"
+#define GASKET_FRAMEWORK_VERSION "1.1.4"
 
 /*
  * The maximum number of simultaneous device types supported by the framework.
@@ -12,6 +12,9 @@
 
 /* The maximum devices per each type. */
 #define GASKET_DEV_MAX 256
+
+/* The number of supported (and possible) PCI BARs. */
+#define GASKET_NUM_BARS 6
 
 /* The number of supported Gasket page tables per device. */
 #define GASKET_MAX_NUM_PAGE_TABLES 1
