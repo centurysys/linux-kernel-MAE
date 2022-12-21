@@ -653,7 +653,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 
 	PRINT_INFO(vif->ndev, CFG80211_DBG,
 		   "Adding key with cipher suite = %x\n", params->cipher);
-	PRINT_INFO(vif->ndev, CFG80211_DBG, "%x %px %d\n", wiphy,
+	PRINT_INFO(vif->ndev, CFG80211_DBG, "%px %px %d\n", wiphy,
 		   netdev, key_index);
 	PRINT_INFO(vif->ndev, CFG80211_DBG, "key %x %x %x\n", params->key[0],
 		   params->key[1],
