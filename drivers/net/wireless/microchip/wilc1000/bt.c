@@ -685,8 +685,7 @@ void wilc_bt_deinit(void)
 {
 	pr_info("at_pwr_dev: deinit\n");
 
-	if (&wilc_bt->cs != NULL)
-		mutex_destroy(&wilc_bt->cs);
+	mutex_destroy(&wilc_bt->cs);
 
 	cdev_del(&str_chc_dev);
 	device_created = 0;

@@ -273,8 +273,8 @@ static void miv_rpmsg_del_vqs(struct virtio_device *vdev)
 		iounmap(rpvq->addr);
 		vring_del_virtqueue(vq);
 	}
-	if (&virdev->nb)
-		blocking_notifier_chain_unregister(&rpdev->notifier, &virdev->nb);
+
+	blocking_notifier_chain_unregister(&rpdev->notifier, &virdev->nb);
 }
 
 static int miv_rpmsg_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
