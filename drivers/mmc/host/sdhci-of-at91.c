@@ -47,8 +47,8 @@ struct sdhci_at91_soc_data {
 	bool baseclk_is_generated_internally;
 	unsigned int divider_for_baseclk;
 	unsigned int max_sdr104_clk;
-	bool hs200_broken;
 	bool pm_runtime_disable_clks;
+	u32 quirks2;
 };
 
 struct sdhci_at91_priv {
@@ -216,8 +216,8 @@ static const struct sdhci_at91_soc_data soc_data_sama5d2 = {
 	.pdata = &sdhci_sama5d2_pdata,
 	.baseclk_is_generated_internally = false,
 	.max_sdr104_clk = 120000000,
-	.hs200_broken = true,
 	.pm_runtime_disable_clks = true,
+	.quirks2 = SDHCI_QUIRK2_BROKEN_HS200,
 };
 
 static const struct sdhci_at91_soc_data soc_data_sam9x60 = {
@@ -232,6 +232,7 @@ static const struct sdhci_at91_soc_data soc_data_sama7g5 = {
 	.baseclk_is_generated_internally = true,
 	.divider_for_baseclk = 2,
 	.max_sdr104_clk = 200000000,
+	.quirks2 = SDHCI_QUIRK2_AT91_HS400_PRESET,
 };
 
 static const struct of_device_id sdhci_at91_dt_match[] = {
@@ -507,9 +508,7 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
 
-	/* check if HS200 is broken on this platform */
-	if (priv->soc_data->hs200_broken)
-		host->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
+	host->quirks2 |= priv->soc_data->quirks2;
 
 	ret = sdhci_add_host(host);
 	if (ret)
