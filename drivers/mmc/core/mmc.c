@@ -1530,7 +1530,9 @@ static int mmc_select_timing(struct mmc_card *card)
 	if (!mmc_can_ext_csd(card))
 		goto bus_speed;
 
-	mmc_set_bus_speed(card);
+	if (of_device_is_compatible(mmc_dev(card->host)->of_node,
+	    "microchip,sama7g5-sdhci"))
+		mmc_set_bus_speed(card);
 
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400ES)
 		err = mmc_select_hs400es(card);
