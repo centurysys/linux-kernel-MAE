@@ -140,7 +140,7 @@
 	pinctrl-0 = <&pinctrl_usb_default>;
 	atmel,vbus-gpio = <0
 			   &pioA PIN_PA31 GPIO_ACTIVE_HIGH
-			   0
+			   &pioA PIN_PC15 GPIO_ACTIVE_HIGH
 			  >;
 	status = "okay";
 };
