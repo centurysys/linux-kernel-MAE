@@ -79,6 +79,9 @@
 #include <linux/gpio/driver.h>
 #include <linux/property.h>
 #include <linux/workqueue.h>
+#ifdef CONFIG_TCA6507_RESET_GPIO
+#include <linux/of_gpio.h>
+#endif
 
 /* LED select registers determine the source that drives LED outputs */
 #define TCA6507_LS_LED_OFF	0x0	/* Output HI-Z (off) */
@@ -94,6 +97,9 @@ struct tca6507_platform_data {
 	struct led_platform_data leds;
 #ifdef CONFIG_GPIOLIB
 	int gpio_base;
+#endif
+#ifdef CONFIG_TCA6507_RESET_GPIO
+	int gpio_reset;
 #endif
 };
 
@@ -673,10 +679,28 @@ tca6507_led_dt_init(struct device *dev)
 	struct fwnode_handle *child;
 	struct led_info *tca_leds;
 	int count;
+#ifdef CONFIG_TCA6507_RESET_GPIO
+	struct device_node *np = dev->of_node;
+	int gpio_reset;
+#endif
 
 	count = device_get_child_node_count(dev);
 	if (!count || count > NUM_LEDS)
 		return ERR_PTR(-ENODEV);
+
+#ifdef CONFIG_TCA6507_RESET_GPIO
+	gpio_reset = of_get_named_gpio(np, "reset-gpio", 0);
+
+	if (gpio_reset == -EPROBE_DEFER)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	if (gpio_is_valid(gpio_reset)) {
+		gpio_request(gpio_reset, "tca6507-reset");
+		gpio_direction_output(gpio_reset, 1);
+	} else {
+		gpio_reset = -1;
+	}
+#endif
 
 	tca_leds = devm_kcalloc(dev, NUM_LEDS, sizeof(struct led_info),
 				GFP_KERNEL);
@@ -715,6 +739,9 @@ tca6507_led_dt_init(struct device *dev)
 
 	pdata->leds.leds = tca_leds;
 	pdata->leds.num_leds = NUM_LEDS;
+#ifdef CONFIG_TCA6507_RESET_GPIO
+	pdata->gpio_reset = gpio_reset;
+#endif
 #ifdef CONFIG_GPIOLIB
 	pdata->gpio_base = -1;
 #endif
