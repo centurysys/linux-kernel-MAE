@@ -179,6 +179,9 @@ struct gpio_desc {
 	/* debounce period in microseconds */
 	unsigned int		debounce_period_us;
 #endif
+#ifdef CONFIG_GPIO_COUNTER
+	unsigned long counter;
+#endif
 };
 
 #define gpiod_not_found(desc)		(IS_ERR(desc) && PTR_ERR(desc) == -ENOENT)
