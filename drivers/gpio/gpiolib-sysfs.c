@@ -142,6 +142,281 @@ static ssize_t value_store(struct device *dev,
 }
 static DEVICE_ATTR_PREALLOC(value, S_IWUSR | S_IRUGO, value_show, value_store);
 
+#ifdef CONFIG_GPIO_COUNTER
+static ssize_t counter_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	ssize_t			status;
+
+	mutex_lock(&data->mutex);
+
+	status = sprintf(buf, "%lu\n", desc->counter);
+
+	mutex_unlock(&data->mutex);
+
+	return status;
+}
+
+static ssize_t counter_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	ssize_t			status;
+
+	mutex_lock(&data->mutex);
+
+	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
+		status = -EPERM;
+	} else {
+		long		counter;
+
+		status = kstrtol(buf, 0, &counter);
+		if (status == 0) {
+			desc->counter = counter;
+			status = size;
+		}
+	}
+
+	mutex_unlock(&data->mutex);
+
+	return status;
+}
+static DEVICE_ATTR_RW(counter);
+#endif /* CONFIG_GPIO_COUNTER */
+
+#ifdef CONFIG_GPIO_HWCOUNTER
+static ssize_t hwcounter_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+	unsigned		debounce;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->get_hwcounter) {
+		status = -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		debounce = chip->get_hwcounter(chip, offset);
+		status = sprintf(buf, "%lu\n", (unsigned long) debounce);
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t hwcounter_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->set_hwcounter) {
+		status = -ENOTSUPP;
+	} else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			offset = gpio_chip_hwgpio(desc);
+			chip->set_hwcounter(chip, offset, value);
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+static DEVICE_ATTR_RW(hwcounter);
+
+static ssize_t hwcounter_enable_show(struct device *dev,
+									 struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset, enable;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->get_hwcounter_enable) {
+		status = -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		enable = chip->get_hwcounter_enable(chip, offset);
+		status = sprintf(buf, "%d\n", enable);
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t hwcounter_enable_store(struct device *dev,
+									  struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->set_hwcounter_enable) {
+		status = -ENOTSUPP;
+	} else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			offset = gpio_chip_hwgpio(desc);
+			chip->set_hwcounter_enable(chip, offset, value);
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+static DEVICE_ATTR_RW(hwcounter_enable);
+
+static ssize_t wakeup_enable_show(struct device *dev,
+								  struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset, enable;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->get_hwcounter_enable) {
+		status = -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		enable = chip->get_wakeup_enable(chip, offset);
+		status = sprintf(buf, "%d\n", enable);
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t wakeup_enable_store(struct device *dev,
+								   struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->set_wakeup_enable) {
+		status = -ENOTSUPP;
+	} else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			offset = gpio_chip_hwgpio(desc);
+			chip->set_wakeup_enable(chip, offset, value);
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+static DEVICE_ATTR_RW(wakeup_enable);
+#endif /* CONFIG_GPIO_HWCOUNTER */
+
+#ifdef CONFIG_GPIO_FILTER
+static ssize_t debounce_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+	unsigned		debounce;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->get_debounce) {
+		status = -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		debounce = chip->get_debounce(chip, offset);
+		status = sprintf(buf, "%lu ms\n", (unsigned long) debounce);
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+
+static ssize_t debounce_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip	*chip;
+	int			offset;
+	ssize_t		status;
+
+	mutex_lock(&sysfs_lock);
+
+	chip = desc->gdev->chip;
+
+	if (!chip->set_debounce) {
+		status = -ENOTSUPP;
+	} else {
+		unsigned long		value;
+
+		status = kstrtoul(buf, 0, &value);
+		if (status == 0) {
+			offset = gpio_chip_hwgpio(desc);
+			chip->set_debounce(chip, offset, value);
+			status = size;
+		}
+	}
+
+	mutex_unlock(&sysfs_lock);
+	return status;
+}
+static DEVICE_ATTR_RW(debounce);
+#endif /* CONFIG_GPIO_FILTER */
+
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
 	struct gpiod_data *data = priv;
@@ -365,6 +640,17 @@ static struct attribute *gpio_attrs[] = {
 	&dev_attr_edge.attr,
 	&dev_attr_value.attr,
 	&dev_attr_active_low.attr,
+#ifdef CONFIG_GPIO_COUNTER
+	&dev_attr_counter.attr,
+#endif
+#ifdef CONFIG_GPIO_FILTER
+	&dev_attr_debounce.attr,
+#endif
+#ifdef CONFIG_GPIO_HWCOUNTER
+	&dev_attr_hwcounter.attr,
+	&dev_attr_hwcounter_enable.attr,
+	&dev_attr_wakeup_enable.attr,
+#endif
 	NULL,
 };
 
@@ -606,6 +892,10 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	offset = gpio_chip_hwgpio(desc);
 	if (chip->names && chip->names[offset])
 		ioname = chip->names[offset];
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	else if (chip->bgpio_names && chip->bgpio_names[offset])
+		ioname = chip->bgpio_names[offset];
+#endif
 
 	dev = device_create_with_groups(&gpio_class, &gdev->dev,
 					MKDEV(0, 0), data, gpio_groups,

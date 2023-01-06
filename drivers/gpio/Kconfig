@@ -69,6 +69,24 @@ config GPIO_SYSFS
 	  use the character device /dev/gpiochipN with the appropriate
 	  ioctl() operations instead.
 
+config GPIO_COUNTER
+	bool "GPIO counter support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a counter node on sysfs interface.
+
+config GPIO_HWCOUNTER
+	bool "GPIO hardware counter support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a hardware counter node on sysfs interface.
+
+config GPIO_FILTER
+	bool "GPIO filter (debounce) support"
+	depends on GPIO_SYSFS
+	help
+	  Say Y here to add a filter (debounce) node on sysfs interface.
+
 config GPIO_CDEV
 	bool
 	prompt "Character device (/dev/gpiochipN) support" if EXPERT
@@ -298,6 +316,10 @@ config GPIO_GENERIC_PLATFORM
 	select GPIO_GENERIC
 	help
 	  Say yes here to support basic platform_device memory-mapped GPIO controllers.
+
+config GPIO_GENERIC_EXPORT_BY_DT
+	bool "Export GPIO by device-tree"
+	depends on GPIO_GENERIC_PLATFORM
 
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"
@@ -822,6 +844,16 @@ config GPIO_IDT3243X
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called gpio-idt3243x.
+
+config GPIO_XIOIRQ
+	tristate "MA-E3xx eXternal I/O (XIO) GPIO support"
+	depends on OF
+	select OF_GPIO
+
+config GPIO_PLUM_DI
+	tristate "MA-E3xx external DI GPIO support"
+	depends on OF
+	select OF_GPIO
 
 endmenu
 
