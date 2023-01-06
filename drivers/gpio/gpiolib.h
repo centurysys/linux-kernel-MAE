@@ -128,6 +128,9 @@ struct gpio_desc {
 	/* debounce period in microseconds */
 	unsigned int		debounce_period_us;
 #endif
+#ifdef CONFIG_GPIO_COUNTER
+	unsigned long counter;
+#endif
 };
 
 int gpiod_request(struct gpio_desc *desc, const char *label);
