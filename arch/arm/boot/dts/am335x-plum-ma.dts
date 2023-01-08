@@ -1284,14 +1284,14 @@
 	};
 
 	/* XIO: (id: 0x02) FOMA only */
-	xio_02: xio@0x02 {
+	xio_02: xio_02 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &leds_foma &leds_foma_ctrl>;
 	};
 
 	/* XIO: (id: 0x03/0x1f) FOMA/UARTx2/DIO (+SATA) */
-	xio_03_1f: xio@0x03_1f {
+	xio_03_1f: xio_03_1f {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20 &uartx2_0x30
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
@@ -1302,7 +1302,7 @@
 	};
 
 	/* XIO: (id: 0x04) UARTx2/DIO */
-	xio_04: xio@0x04 {
+	xio_04: xio_04 {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20 &uartx2_0x30
 			   &gpiox_0x14
@@ -1312,7 +1312,7 @@
 	};
 
 	/* XIO: (id: 0x06) KYM11 */
-	xio_06: xio@0x06 {
+	xio_06: xio_06 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x08 &gpiox_0x0a &gpiox_0x0c &gpiox_0x0e
 			   &gpiox_0x04_kym11
@@ -1321,7 +1321,7 @@
 	};
 
 	/* XIO: (id: 0x07 .. 0x0a) FOMA/DIO(2x2) */
-	xio_07_0a: xio@0x07_0a {
+	xio_07_0a: xio_07_0a {
 		#size-cells = <0>;
 		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x40 &gpiox_0x80
@@ -1330,7 +1330,7 @@
 	};
 
 	/* XIO: (id: 0x0b) KYM11_AD */
-	xio_0b: xio@0x0b {
+	xio_0b: xio_0b {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1344,7 +1344,7 @@
 	};
 
 	/* XIO: (id: 0x0c) UM03_AD */
-	xio_0c: xio@0x0c {
+	xio_0c: xio_0c {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1358,7 +1358,7 @@
 	};
 
 	/* XIO: (id: 0x0d .. 0x0e) LTE/DIO(2x2) */
-	xio_0d_0e: xio@0x0d_0e {
+	xio_0d_0e: xio_0d_0e {
 		#size-cells = <0>;
 		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x40 &gpiox_0x80
@@ -1367,7 +1367,7 @@
 	};
 
 	/* XIO: (id: 0x0f .. 0x10) FOMA/RM-92x */
-	xio_0f_10: xio@0x0f_10 {
+	xio_0f_10: xio_0f_10 {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
@@ -1377,7 +1377,7 @@
 	};
 
 	/* XIO: (id: 0x12/0x30) KYM_WLAN (Atheros) */
-	xio_12_30: xio@0x12_30 {
+	xio_12_30: xio_12_30 {
 		#size-cells = <0>;
 		devices = <&xio_hub_ctrl
 			   &gpiox_0x00 &gpiox_0x04_kym11
@@ -1387,7 +1387,7 @@
 	};
 
 	/* XIO: (id: 0x13/0x14) AMP_WLAN (Atheros) */
-	xio_13_14: xio@0x13_14 {
+	xio_13_14: xio_13_14 {
 		#size-cells = <0>;
 		devices = <&xio_hub_ctrl
 			   &gpiox_0x00 &gpiox_0x04_lisa
@@ -1396,7 +1396,7 @@
 	};
 
 	/* XIO: (id: 0x15) KYM_WLAN (Mediatek) */
-	xio_15: xio@0x15 {
+	xio_15: xio_15 {
 		#size-cells = <0>;
 		devices = <&xio_hub_ctrl
 			   &gpiox_0x00 &gpiox_0x04_kym11
@@ -1406,7 +1406,7 @@
 	};
 
 	/* XIO: (id: 0x16/0x17) AMP_WLAN (Mediatek) */
-	xio_16_17: xio@0x16_17 {
+	xio_16_17: xio_16_17 {
 		#size-cells = <0>;
 		devices = <&xio_hub_ctrl
 			   &gpiox_0x00 &gpiox_0x04_lisa
@@ -1415,7 +1415,7 @@
 	};
 
 	/* XIO: (id: 0x1d/0x1e) AMP_AD */
-	xio_1d_1e: xio@0x1d_1e {
+	xio_1d_1e: xio_1d_1e {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1429,7 +1429,7 @@
 	};
 
 	/* XIO: (id: 0x21) SIM7100/OKI920MHz */
-	xio_21: xio@0x21 {
+	xio_21: xio_21 {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20
 			   &gpiox_0x10 &gpiox_0x12_SIM7100 &gpiox_0x14
@@ -1439,7 +1439,7 @@
 	};
 
 	/* XIO: (id: 0x22/0x23) FXS_AMP */
-	xio_22_23: xio@0x22_23 {
+	xio_22_23: xio_22_23 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x04_lisa
 			   &gpiox_0x10 &gpiox_0x12_FXS &gpiox_0x14 &gpiox_0x22
@@ -1449,7 +1449,7 @@
 	};
 
 	/* XIO: (id: 0x24) Panasonic WiGig */
-	xio_24: xio@0x24 {
+	xio_24: xio_24 {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20
 			   &gpiox_0x10 &gpiox_0x12_wigig
@@ -1461,7 +1461,7 @@
 	};
 
 	/* XIO: (id: 0x27) WiSUN + BLE */
-	xio_27: xio@0x27 {
+	xio_27: xio_27 {
 		#size-cells = <0>;
 		devices = <&uartx2_0x20_WiSUN &uartx2_0x30_WiSUN
 			   &gpiox_0x04_llo
@@ -1473,7 +1473,7 @@
 	};
 
 	/* XIO: (id: 0x28) MRB-50 (/LW+DIO) */
-	xio_28: xio@0x28 {
+	xio_28: xio_28 {
 		#size-cells = <0>;
 		devices = <&xio_hub_ctrl
 			   &gpiox_0x00 &gpiox_0x04_lisa
@@ -1484,7 +1484,7 @@
 	};
 
 	/* XIO: (id: 0x2a) Telit_AD (/GLAD) */
-	xio_2a: xio@0x2a {
+	xio_2a: xio_2a {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1498,7 +1498,7 @@
 	};
 
 	/* XIO: (id: 0x2c) MA-E380 */
-	xio_2c: xio@0x2c {
+	xio_2c: xio_2c {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl_380 &xio_di_supply
 			   &gpiox_0x00
@@ -1508,7 +1508,7 @@
 	};
 
 	/* XIO: (id: 0x2d) EM7430_AD (/??AD) */
-	xio_2d: xio@0x2d {
+	xio_2d: xio_2d {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1522,7 +1522,7 @@
 	};
 
 	/* XIO: (id: 0x2e/0x2f) LD32/LAD36 */
-	xio_2e_2f: xio@0x2e_2f {
+	xio_2e_2f: xio_2e_2f {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1536,7 +1536,7 @@
 	};
 
 	/* XIO: (id: 0x32) WiSUN + AI */
-	xio_32: xio@0x32 {
+	xio_32: xio_32 {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl_wisun &xio_adc_supply
 			   &spi1
@@ -1546,7 +1546,7 @@
 	};
 
 	/* XIO: (id: 0x33) LAD40 */
-	xio_33: xio@0x33 {
+	xio_33: xio_33 {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1560,7 +1560,7 @@
 	};
 
 	/* XIO: (id: 0x35) LCAD */
-	xio_35: xio@0x35 {
+	xio_35: xio_35 {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1574,7 +1574,7 @@
 	};
 
 	/* XIO: (id: 0x36) LOCAD */
-	xio_36: xio@0x36 {
+	xio_36: xio_36 {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1588,7 +1588,7 @@
 	};	
 
 	/* XIO: (id: 0x38) MA-E395 */
-	xio_38: xio@0x38 {
+	xio_38: xio_38 {
 		#size-cells = <0>;
 		devices = <&xio_uart_ctrl
 			   &uartx2_0x20 &uartx2_0x30
@@ -1599,7 +1599,7 @@
 	};
 
 	/* XIO: (id: 0x3c/0x43) GNSV, GNSC */
-	xio_3c: xio@0x3c {
+	xio_3c: xio_3c {
 		#size-cells = <0>;
 		devices = <&gpiox_0x00 &gpiox_0x04_lisa
 			   &gpiox_0x10 &gpiox_0x12_WiSUN &gpiox_0x14
@@ -1609,7 +1609,7 @@
 	};
 
 	/* XIO: (id: 0x3d) MA-E360/LLO */
-	xio_3d: xio@0x3d {
+	xio_3d: xio_3d {
 		#size-cells = <0>;
 		devices = <&uartx2_0xa0_locad
 			   &gpiox_0x04_llo
@@ -1622,7 +1622,7 @@
 
 
 	/* XIO: (id: 0x3e) KCCS 7/11 */
-	xio_3e: xio@0x3e {
+	xio_3e: xio_3e {
 		#size-cells = <0>;
 		devices = <&xio_711_ctrl &xio_di_supply
 			   &uartx2_0x20 &uartx2_0x30
@@ -1634,7 +1634,7 @@
 	};
 
 	/* XIO: (id: 0x3f) AMM_AD (/LAD rev2) */
-	xio_3f: xio@0x3f {
+	xio_3f: xio_3f {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
 			   &spi1
@@ -1648,7 +1648,7 @@
 	};
 
 	/* XIO: (id: 0x41) AMT_WLAN_RS9116 (Redpine) */
-	xio_41: xio@0x41 {
+	xio_41: xio_41 {
 		#size-cells = <0>;
 		devices = <&xio_hub_ctrl
 			   &gpiox_0x00 &gpiox_0x04_lisa
@@ -1657,7 +1657,7 @@
 	};
 
 	/* XIO: (id: 0x42) LCD10 */
-	xio_42: xio@0x42 {
+	xio_42: xio_42 {
 		#size-cells = <0>;
 		devices = <
 			   &spi1
@@ -1670,7 +1670,7 @@
 	};
 
 	/* XIO: (id: 0x44) AMM574_LTE */
-	xio_44: xio@0x44 {
+	xio_44: xio_44 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x10 &gpiox_0x12 &gpiox_0x14
 			   &gpiox_0x04_lisa &uartx2_0x20_LTE
@@ -1678,7 +1678,7 @@
 	};
 
 	/* XIO: (id: 0x46) AMM574_2SIM */
-	xio_46: xio@0x46 {
+	xio_46: xio_46 {
 		#size-cells = <0>;
 		devices = <&gpiox_0x10 &gpiox_0x12_dualsim &gpiox_0x14 &gpiox_0x16
 			   &gpiox_0x04_lisa &uartx2_0x20_LTE
