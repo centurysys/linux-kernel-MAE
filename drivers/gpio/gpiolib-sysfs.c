@@ -338,6 +338,95 @@ static ssize_t active_low_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(active_low);
 
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+static ssize_t wakeup_pol_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip *chip;
+	int offset;
+	ssize_t status;
+	unsigned type;
+	const char *polarity;
+
+	chip = desc->gdev->chip;
+
+	if (!chip->get_wakeup) {
+		status = -ENOTSUPP;
+	} else {
+		offset = gpio_chip_hwgpio(desc);
+		type = chip->get_wakeup(chip, offset);
+
+		switch (type) {
+		case IRQ_TYPE_EDGE_RISING:
+			polarity = "rising";
+			break;
+
+		case IRQ_TYPE_EDGE_FALLING:
+			polarity = "falling";
+			break;
+
+		default:
+			polarity = "none";
+			break;
+		}
+
+		status = sprintf(buf, "%s\n", polarity);
+	}
+
+	return status;
+}
+
+static ssize_t wakeup_pol_store(struct device *dev,
+				struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	struct gpio_chip *chip;
+	unsigned type;
+	int i, offset;
+	ssize_t status;
+
+	chip = desc->gdev->chip;
+
+	if (!chip->set_wakeup) {
+		return -ENOTSUPP;
+	} else {
+		for (i = 0; i < ARRAY_SIZE(trigger_names); i++) {
+			if (sysfs_streq(trigger_names[i], buf))
+				break;
+		}
+
+		if (i == ARRAY_SIZE(trigger_names))
+			return -EINVAL;
+
+		switch (i) {
+		case GPIO_IRQF_TRIGGER_RISING:
+			type = IRQ_TYPE_EDGE_RISING;
+			break;
+
+		case GPIO_IRQF_TRIGGER_FALLING:
+			type = IRQ_TYPE_EDGE_FALLING;
+			break;
+
+		default:
+			type = 0;
+			break;
+		}
+
+		offset = gpio_chip_hwgpio(desc);
+		status = chip->set_wakeup(chip, offset, type);
+
+		if (!status)
+			status = size;
+	}
+
+	return status;
+}
+static DEVICE_ATTR_RW(wakeup_pol);
+#endif
+
 static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 			       int n)
 {
@@ -355,6 +444,12 @@ static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 			mode = 0;
 		if (!show_direction && test_bit(FLAG_IS_OUT, &desc->flags))
 			mode = 0;
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+	} else if (attr == &dev_attr_wakeup_pol.attr) {
+		if (!desc->gdev->chip->get_wakeup ||
+		    !desc->gdev->chip->set_wakeup)
+			mode = 0;
+#endif
 	}
 
 	return mode;
@@ -365,6 +460,9 @@ static struct attribute *gpio_attrs[] = {
 	&dev_attr_edge.attr,
 	&dev_attr_value.attr,
 	&dev_attr_active_low.attr,
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+	&dev_attr_wakeup_pol.attr,
+#endif
 	NULL,
 };
 
