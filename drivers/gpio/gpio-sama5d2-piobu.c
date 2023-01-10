@@ -16,6 +16,14 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include "gpiolib.h"
+#endif
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+#include <linux/power/at91-sama5d2_shdwc.h>
+#endif
 
 #define PIOBU_NUM 8
 #define PIOBU_REG_SIZE 4
@@ -180,10 +188,43 @@ static void sama5d2_piobu_set(struct gpio_chip *chip, unsigned int pin,
 	sama5d2_piobu_write_value(chip, pin, PIOBU_SOD, value);
 }
 
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+/**
+ * sama5d2_piobu_get_wakeup() - gpio get wakeup
+ */
+static unsigned int sama5d2_piobu_get_wakeup(struct gpio_chip *chip, unsigned int pin)
+{
+	unsigned int type = IRQ_TYPE_NONE;
+	int ret;
+
+	ret = at91_shdwc_get_wakeup(pin, &type);
+
+	return type;
+}
+
+/**
+ * sama5d2_piobu_set_wakeup() - gpio set wakeup
+ */
+static int sama5d2_piobu_set_wakeup(struct gpio_chip *chip, unsigned int pin,
+				    unsigned int config)
+{
+	int ret;
+
+	ret = at91_shdwc_set_wakeup(pin, config);
+
+	return ret;
+}
+#endif
+
 static int sama5d2_piobu_probe(struct platform_device *pdev)
 {
 	struct sama5d2_piobu *piobu;
 	int ret, i;
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	struct device_node *np = pdev->dev.of_node, *child;
+	struct gpio_chip *gc;
+	struct gpio_device *gpiodev;
+#endif
 
 	piobu = devm_kzalloc(&pdev->dev, sizeof(*piobu), GFP_KERNEL);
 	if (!piobu)
@@ -198,6 +239,10 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 	piobu->chip.direction_output = sama5d2_piobu_direction_output,
 	piobu->chip.get = sama5d2_piobu_get,
 	piobu->chip.set = sama5d2_piobu_set,
+#ifdef CONFIG_GPIO_WAKEUP_POLARITY
+	piobu->chip.get_wakeup = sama5d2_piobu_get_wakeup,
+	piobu->chip.set_wakeup = sama5d2_piobu_set_wakeup,
+#endif
 	piobu->chip.base = -1,
 	piobu->chip.ngpio = PIOBU_NUM,
 	piobu->chip.can_sleep = 0,
@@ -223,6 +268,30 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+	gc = &piobu->chip;
+	gpiodev = gc->gpiodev;
+
+	for_each_child_of_node(np, child) {
+		u32 reg;
+		int ret, status, gpio;
+
+		ret = of_property_read_u32(child, "reg", &reg);
+
+		if (ret == 0 && reg >= 0 && reg < gc->ngpio) {
+			gpio = gc->base + reg;
+			status = gpio_request(gpio, gpiodev->descs[reg].name);
+
+			if (status == 0) {
+				status = gpio_export(gpio, false);
+
+				if (status < 0)
+					gpio_free(gpio);
+			}
+		}
+	}
+#endif
 
 	return 0;
 }
