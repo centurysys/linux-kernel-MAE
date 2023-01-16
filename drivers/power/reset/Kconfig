@@ -98,6 +98,10 @@ config POWER_RESET_GPIO
 	  If your board needs a GPIO high/low to power down, say Y and
 	  create a binding in your devicetree.
 
+config POWER_RESET_GPIO_PREPARE
+	bool "Install to pm_power_off_prepare() instead of pm_power_off()"
+	depends on POWER_RESET_GPIO
+
 config POWER_RESET_GPIO_RESTART
 	bool "GPIO restart driver"
 	depends on OF_GPIO
