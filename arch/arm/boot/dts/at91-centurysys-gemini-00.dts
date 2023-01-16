@@ -512,7 +512,7 @@
 			  "", "", "", "", "", "", "", "", /* PB8  .. 15 */
 			  "", "", "", "", "", "", "", "", /* PB16 .. 23 */
 			  "SW_INIT_N", "SW_OPT", "", "", "", "", "", "",
-			  "", "MobileLED_G1", "MobileLED_R1", "MobileLED_G2",
+			  "", "MobileLED_G3", "MobileLED_R3", "MobileLED_G2",
 			  "MobileLED_R2", "PowerLED_G", "", "PHY_RESET_N",
 			  "", "", "DB9_DTR", "DB9_DSR", "DB9_DCD", "DB9_RI",
 			  "DB9_FORCEOFF_N", "XIOUSB_ENABLE", "XIOUSB_OVC",
