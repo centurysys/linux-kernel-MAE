@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "am33xx.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Century Systems Plum-MA";
@@ -1216,8 +1217,8 @@
 	};
 
 	aliases {
-		ethernet0 = &cpsw_port1;
-		ethernet1 = &cpsw_port2;
+		ethernet0 = &cpsw_emac0;
+		ethernet1 = &cpsw_emac1;
 
 		xio_02 = &xio_02;
 		xio_03 = &xio_03_1f;
@@ -1913,9 +1914,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
 
-	dtr-gpio = <&gpio2 22 GPIO_ACTIVE_LOW>;
-	dsr-gpio = <&gpio2 23 GPIO_ACTIVE_LOW>;
-	dcd-gpio = <&gpio2 24 GPIO_ACTIVE_LOW>;
+	dtr-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>;
+	dsr-gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
+	dcd-gpios = <&gpio2 24 GPIO_ACTIVE_LOW>;
 
 	status = "okay";
 };
@@ -1924,13 +1925,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins>;
 
-	dtr-gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
-	dsr-gpio = <&gpio1 13 GPIO_ACTIVE_LOW>;
-	dcd-gpio = <&gpio1 14 GPIO_ACTIVE_LOW>;
-	ri-gpio  = <&gpio0 27 GPIO_ACTIVE_LOW>;
+	dtr-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+	dsr-gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+	dcd-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+	ri-gpios  = <&gpio0 27 GPIO_ACTIVE_LOW>;
 
-	txe-gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
-	rxe-gpio = <&gpio3 21 GPIO_ACTIVE_LOW>;
+	txe-gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+	rxe-gpios = <&gpio3 21 GPIO_ACTIVE_LOW>;
 
 	status = "okay";
 };
@@ -2034,10 +2035,13 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
-		nand-bus-width = <8>;
-		ti,nand-ecc-opt = "bch8";
-		ti,nand-xfer-type = "polled";
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>; /* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>;  /* gpmc_wait0 */
+		ti,nand-xfer-type = "prefetch-dma";
+		ti,nand-ecc-opt = "bch8";
+		ti,elm-id = <&elm>;
+		nand-bus-width = <8>;
 
 		gpmc,device-nand = "true";
 		gpmc,device-width = <1>;
@@ -2066,7 +2070,6 @@
 
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ti,elm-id = <&elm>;
 
 		/* MTD partition table */
 		partition@0 {
@@ -3258,7 +3261,6 @@
 		interrupt-controller;
 
 		reg-names = "dat";
-
 		status = "disabled";
 
 		#address-cells = <1>;
@@ -3289,7 +3291,6 @@
 		interrupt-controller;
 
 		reg-names = "dat";
-
 		status = "disabled";
 
 		#address-cells = <1>;
@@ -3803,6 +3804,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins>;
+	ti,spi-num-cs = <1>;
 
 	/* spi0.0: Micron 16Mbit NOR Flash (M25P16) */
 	spi_nor: flash@0 {
@@ -3872,4 +3874,12 @@
 
 		vcc-supply = <&xio_adc_supply>;
 	};
+};
+
+&rtc {
+	system-power-controller;
+};
+
+&gpio0 {
+	wakeup-source;
 };
