@@ -1192,13 +1192,9 @@ static int macb_tx_complete(struct macb_queue *queue, int budget)
 			/* First, update TX stats if needed */
 			if (skb) {
 				if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
-				    !ptp_one_step_sync(skb) &&
-				    gem_ptp_do_txstamp(queue, skb, desc) == 0) {
-					/* skb now belongs to timestamp buffer
-					 * and will be removed later
-					 */
-					tx_skb->skb = NULL;
-				}
+				    !ptp_one_step_sync(skb))
+					gem_ptp_do_txstamp(bp, skb, desc);
+
 				netdev_vdbg(bp->dev, "skb %u (data %p) TX complete\n",
 					    macb_tx_ring_wrap(bp, tail),
 					    skb->data);
@@ -2188,7 +2184,6 @@ static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 	bool cloned = skb_cloned(*skb) || skb_header_cloned(*skb) ||
 		      skb_is_nonlinear(*skb);
 	int padlen = ETH_ZLEN - (*skb)->len;
-	int headroom = skb_headroom(*skb);
 	int tailroom = skb_tailroom(*skb);
 	struct sk_buff *nskb;
 	u32 fcs;
@@ -2202,9 +2197,6 @@ static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 		/* FCS could be appeded to tailroom. */
 		if (tailroom >= ETH_FCS_LEN)
 			goto add_fcs;
-		/* FCS could be appeded by moving data to headroom. */
-		else if (!cloned && headroom + tailroom >= ETH_FCS_LEN)
-			padlen = 0;
 		/* No room for FCS, need to reallocate skb. */
 		else
 			padlen = ETH_FCS_LEN;
@@ -2213,10 +2205,7 @@ static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 		padlen += ETH_FCS_LEN;
 	}
 
-	if (!cloned && headroom + tailroom >= padlen) {
-		(*skb)->data = memmove((*skb)->head, (*skb)->data, (*skb)->len);
-		skb_set_tail_pointer(*skb, (*skb)->len);
-	} else {
+	if (cloned || tailroom < padlen) {
 		nskb = skb_copy_expand(*skb, 0, padlen, GFP_ATOMIC);
 		if (!nskb)
 			return -ENOMEM;
@@ -2260,6 +2249,12 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb_any(skb);
 		return ret;
 	}
+
+#ifdef CONFIG_MACB_USE_HWSTAMP
+	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+	    (bp->hw_dma_cap & HW_DMA_CAP_PTP))
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+#endif
 
 	is_lso = (skb_shinfo(skb)->gso_size != 0);
 
@@ -2944,6 +2939,18 @@ static int macb_change_mtu(struct net_device *dev, int new_mtu)
 
 	dev->mtu = new_mtu;
 
+	return 0;
+}
+
+static int macb_set_mac_addr(struct net_device *dev, void *addr)
+{
+	int err;
+
+	err = eth_mac_addr(dev, addr);
+	if (err < 0)
+		return err;
+
+	macb_set_hwaddr(netdev_priv(dev));
 	return 0;
 }
 
@@ -3786,7 +3793,7 @@ static const struct net_device_ops macb_netdev_ops = {
 	.ndo_eth_ioctl		= macb_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= macb_change_mtu,
-	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_mac_address	= macb_set_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= macb_poll_controller,
 #endif
@@ -4048,6 +4055,8 @@ static int macb_init(struct platform_device *pdev)
 		bp->macbgem_ops.mog_rx = macb_rx;
 		dev->ethtool_ops = &macb_ethtool_ops;
 	}
+
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	/* Set features */
 	dev->hw_features = NETIF_F_SG;
@@ -4826,6 +4835,7 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "microchip,mpfs-macb", .data = &mpfs_config },
 	{ .compatible = "microchip,sama7g5-gem", .data = &sama7g5_gem_config },
 	{ .compatible = "microchip,sama7g5-emac", .data = &sama7g5_emac_config },
+	{ .compatible = "microchip,sam9x7-gem", .data = &sama7g5_gem_config },
 	{ .compatible = "xlnx,zynqmp-gem", .data = &zynqmp_config},
 	{ .compatible = "xlnx,zynq-gem", .data = &zynq_config },
 	{ .compatible = "xlnx,versal-gem", .data = &versal_config},
@@ -5225,6 +5235,7 @@ static int __maybe_unused macb_resume(struct device *dev)
 	if (!device_may_wakeup(&bp->dev->dev))
 		phy_init(bp->sgmii_phy);
 
+	phylink_init_phydev(bp->phylink);
 	phylink_start(bp->phylink);
 	rtnl_unlock();
 
