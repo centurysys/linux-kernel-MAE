@@ -23,6 +23,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am654-evm-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-base-board.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-bb-csi2-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-bb-rpi-cam-imx219.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-fpdlink-fusion.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-som-ddr_mem_carveout.dtbo
 
 dtb-$(CONFIG_ARCH_K3) += k3-j721e-common-proc-board.dtb
@@ -45,6 +46,11 @@ dtb-$(CONFIG_ARCH_K3) += k3-j721s2-common-proc-board.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-j721s2-gesi-exp-board.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-j721s2-cpb-csi2-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-j721s2-fpdlink-cpb-fusion.dtbo
+
+dtb-$(CONFIG_ARCH_K3) += k3-am69-sk.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am69-sk-csi2-ov5640.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am69-sk-ddr-mem-carveout.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am69-sk-rpi-cam-imx219.dtbo
 
 dtb-$(CONFIG_ARCH_K3) += k3-j784s4-evm.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-j784s4-quad-port-eth1-exp.dtbo
