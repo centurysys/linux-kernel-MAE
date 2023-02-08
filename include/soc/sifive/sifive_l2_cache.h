@@ -9,6 +9,7 @@
 
 extern int register_sifive_l2_error_notifier(struct notifier_block *nb);
 extern int unregister_sifive_l2_error_notifier(struct notifier_block *nb);
+void sifive_l2_dma_cache_wback_inv(phys_addr_t start, unsigned long sz);
 
 #define SIFIVE_L2_ERR_TYPE_CE 0
 #define SIFIVE_L2_ERR_TYPE_UE 1

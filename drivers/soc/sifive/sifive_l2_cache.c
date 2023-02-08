@@ -33,6 +33,9 @@
 #define SIFIVE_L2_WAYENABLE 0x08
 #define SIFIVE_L2_ECCINJECTERR 0x40
 
+#define SIFIVE_L2_FLUSH64 0x200
+#define SIFIVE_L2_FLUSH32 0x240
+
 #define SIFIVE_L2_MAX_ECCINTR 4
 
 static void __iomem *l2_base;
@@ -191,6 +194,24 @@ static irqreturn_t l2_int_handler(int irq, void *device)
 
 	return IRQ_HANDLED;
 }
+
+void sifive_l2_dma_cache_wback_inv(phys_addr_t start, unsigned long sz)
+{
+	u64 addr;
+	void * __iomem flush = l2_base + SIFIVE_L2_FLUSH64;
+	phys_addr_t aligned_start = start & ~0x3f;
+	u64 end;
+	u64 aligned_end;
+
+	sz += start - aligned_start;
+	end = start + sz;
+	aligned_end = end + 0x3f;
+	aligned_end &= ~0x3f;
+
+	for (addr = aligned_start; addr < aligned_end; addr += 64)
+		writeq(addr, flush);
+}
+EXPORT_SYMBOL(sifive_l2_dma_cache_wback_inv);
 
 static int __init sifive_l2_init(void)
 {
