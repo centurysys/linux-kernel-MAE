@@ -6,25 +6,52 @@
 / {
 	compatible = "microchip,mpfs-icicle-reference-rtlv2209";
 
-	core_pwm0: pwm@40000000 {
-		compatible = "microchip,corepwm-rtl-v4";
-		reg = <0x0 0x40000000 0x0 0xF0>;
-		microchip,sync-update-mask = /bits/ 32 <0>;
-		#pwm-cells = <3>;
-		clocks = <&ccc_nw CLK_CCC_PLL0_OUT3>;
-		status = "disabled";
-	};
+	fabric-bus {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x40000000 0x0 0x40000000 0x0 0x20000000>, /* FIC3-FAB */
+			 <0x0 0x60000000 0x0 0x60000000 0x0 0x20000000>, /* FIC0, LO */
+			 <0x0 0xe0000000 0x0 0xe0000000 0x0 0x20000000>, /* FIC1, LO */
+			 <0x20 0x0 0x20 0x0 0x10 0x0>, /* FIC0,HI */
+			 <0x30 0x0 0x30 0x0 0x10 0x0>; /* FIC1,HI */
 
-	i2c2: i2c@40000200 {
-		compatible = "microchip,corei2c-rtl-v7";
-		reg = <0x0 0x40000200 0x0 0x100>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		clocks = <&ccc_nw CLK_CCC_PLL0_OUT3>;
-		interrupt-parent = <&plic>;
-		interrupts = <122>;
-		clock-frequency = <100000>;
-		status = "disabled";
+		core_pwm0: pwm@40000000 {
+			compatible = "microchip,corepwm-rtl-v4";
+			reg = <0x0 0x40000000 0x0 0xF0>;
+			microchip,sync-update-mask = /bits/ 32 <0>;
+			#pwm-cells = <3>;
+			clocks = <&ccc_nw CLK_CCC_PLL0_OUT3>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@40000200 {
+			compatible = "microchip,corei2c-rtl-v7";
+			reg = <0x0 0x40000200 0x0 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&ccc_nw CLK_CCC_PLL0_OUT3>;
+			interrupt-parent = <&plic>;
+			interrupts = <122>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		fpgadma: dma-controller@60010000 {
+			compatible = "microchip,mpfs-fpga-dma";
+			reg = <0x0 0x60010000 0x0 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <120>;
+			#dma-cells = <1>;
+			status = "disabled";
+		};
+
+		fpgalsram: uio@60000000 {
+			compatible = "generic-uio";
+			linux,uio-name = "fpga_lsram";
+			reg = <0x0 0x60000000 0x0 0x1000>;
+			status = "disabled";
+		};
 	};
 
 	ihc: mailbox {
@@ -33,22 +60,6 @@
 		interrupts = <IHC_HART1_INT>;
 		microchip,miv-ihc-remote-context-id = <IHC_CONTEXT_B>;
 		#mbox-cells = <1>;
-		status = "disabled";
-	};
-
-	fpgadma: dma-controller@60010000 {
-		compatible = "microchip,mpfs-fpga-dma";
-		reg = <0x0 0x60010000 0x0 0x1000>;
-		interrupt-parent = <&plic>;
-		interrupts = <120>;
-		#dma-cells = <1>;
-		status = "disabled";
-	};
-
-	fpgalsram: uio@60000000 {
-		compatible = "generic-uio";
-		linux,uio-name = "fpga_lsram";
-		reg = <0x0 0x60000000 0x0 0x0001000>;
 		status = "disabled";
 	};
 
