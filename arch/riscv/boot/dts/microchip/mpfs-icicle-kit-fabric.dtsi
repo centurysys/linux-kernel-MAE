@@ -6,7 +6,7 @@
 / {
 	compatible = "microchip,mpfs-icicle-reference-rtlv2209";
 
-	fabric-bus {
+	fabric-bus@40000000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
