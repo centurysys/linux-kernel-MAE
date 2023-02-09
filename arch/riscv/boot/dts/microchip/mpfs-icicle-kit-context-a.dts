@@ -44,31 +44,26 @@
 	kernel: memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x4000000>;
-		label = "kernel";
 	};
 
 	ddr_cached_low: memory@8a000000 {
 		device_type = "memory";
 		reg = <0x0 0x8a000000 0x0 0x8000000>;
-		label = "cached-low";
 	};
 
 	ddr_non_cached_low: memory@c4000000 {
 		device_type = "memory";
 		reg = <0x0 0xc4000000 0x0 0x6000000>;
-		label = "non-cached-low";
 	};
 
 	ddr_cached_high: memory@1022000000 {
 		device_type = "memory";
 		reg = <0x10 0x22000000 0x0 0x5e000000>;
-		label = "cached-high";
 	};
 
 	ddr_non_cached_high: memory@1412000000 {
 		device_type = "memory";
 		reg = <0x14 0x12000000 0x0 0x10000000>;
-		label = "non-cached-high";
 	};
 
 	reserved-memory {
