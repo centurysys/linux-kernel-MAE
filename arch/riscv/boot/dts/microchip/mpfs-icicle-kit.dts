@@ -13,7 +13,7 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	model = "Microchip PolarFire-SoC Icicle Kit";
-	compatible = "microchip,mpfs-icicle-reference-rtlv2211", "microchip,mpfs-icicle-kit",
+	compatible = "microchip,mpfs-icicle-reference-rtlv2210", "microchip,mpfs-icicle-kit",
 		     "microchip,mpfs";
 
 	soc {
