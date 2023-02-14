@@ -7,7 +7,7 @@
 #include "mpfs-icicle-kit-fabric.dtsi"
 
 /* Clock frequency (in Hz) of the rtcclk */
-#define RTCCLK_FREQ		1000000
+#define MTIMER_FREQ		1000000
 
 / {
 	#address-cells = <2>;
@@ -38,7 +38,7 @@
 	};
 
 	cpus {
-		timebase-frequency = <RTCCLK_FREQ>;
+		timebase-frequency = <MTIMER_FREQ>;
 	};
 
 	kernel: memory@80000000 {
