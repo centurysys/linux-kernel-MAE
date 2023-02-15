@@ -203,6 +203,9 @@ void sifive_l2_dma_cache_wback_inv(phys_addr_t start, unsigned long sz)
 	phys_addr_t aligned_start = start & ~0x3f;
 	u64 aligned_end;
 
+	if (!sz)
+		return;
+
 	aligned_end = end + 0x3f;
 	aligned_end &= ~0x3f;
 
