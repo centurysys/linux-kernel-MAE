@@ -243,4 +243,16 @@ config FPGA_MGR_VERSAL_FPGA
 	  configure the programmable logic(PL).
 
 	  To compile this as a module, choose M here.
+
+config FPGA_MGR_MICROCHIP_AUTO_UPDATE
+	tristate "Microchip PolarFire SoC AUTO UPDATE"
+	depends on POLARFIRE_SOC_SYS_CTRL
+	help
+	  Select this option to enable FPGA manager driver support for
+	  Auto Update on Microchip Polarfire SoC. The System Controller
+	  interface is used to reprogram the FPGA, and changes take effect
+	  after a device reset.
+
+	  Chose M here to build as a module.
+
 endif # FPGA
