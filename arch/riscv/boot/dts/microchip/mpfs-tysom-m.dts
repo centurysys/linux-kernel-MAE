@@ -18,6 +18,10 @@
 	model = "Aldec TySOM-M-MPFS250T";
 	compatible = "aldec,tysom-m-mpfs250t", "microchip,mpfs";
 
+	soc {
+		dma-ranges = <0 0 0 0 0x40 0>;
+	};
+
 	aliases {
 		ethernet0 = &mac0;
 		ethernet1 = &mac1;
