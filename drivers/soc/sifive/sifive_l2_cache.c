@@ -199,12 +199,13 @@ void sifive_l2_dma_cache_wback_inv(phys_addr_t start, unsigned long sz)
 {
 	u64 addr;
 	void * __iomem flush = l2_base + SIFIVE_L2_FLUSH64;
+	u64 end = start + sz;
 	phys_addr_t aligned_start = start & ~0x3f;
-	u64 end;
 	u64 aligned_end;
 
-	sz += start - aligned_start;
-	end = start + sz;
+	if (!sz)
+		return;
+
 	aligned_end = end + 0x3f;
 	aligned_end &= ~0x3f;
 
