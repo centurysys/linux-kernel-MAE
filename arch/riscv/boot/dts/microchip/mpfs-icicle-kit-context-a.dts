@@ -7,7 +7,7 @@
 #include "mpfs-icicle-kit-fabric.dtsi"
 
 /* Clock frequency (in Hz) of the rtcclk */
-#define RTCCLK_FREQ		1000000
+#define MTIMER_FREQ		1000000
 
 / {
 	#address-cells = <2>;
@@ -38,7 +38,7 @@
 	};
 
 	cpus {
-		timebase-frequency = <RTCCLK_FREQ>;
+		timebase-frequency = <MTIMER_FREQ>;
 	};
 
 	kernel: memory@80000000 {
@@ -82,7 +82,7 @@
 			size = <0x0 0x4000000>;
 			no-map;
 			linux,dma-default;
-			alloc-ranges = <0x0 0xc4000000 0x4000000>;
+			alloc-ranges = <0x0 0xc4000000 0x0 0x4000000>;
 		};
 
 		dma_non_cached_high: non-cached-high-buffer {
@@ -90,7 +90,7 @@
 			size = <0x0 0x10000000>;
 			no-map;
 			linux,dma-default;
-			alloc-ranges = <0x14 0x12000000 0x10000000>;
+			alloc-ranges = <0x14 0x12000000 0x0 0x10000000>;
 		};
 
 		fabricbuf0ddrc: buffer@88000000 {
@@ -313,6 +313,27 @@
 
 &syscontroller {
 	status = "okay";
+};
+
+&syscontroller_qspi {
+	/*
+	 * The flash *is* there, but Icicle kits that have engineering sample
+	 * silicon where access to this flash to non-functional. The system
+	 * controller itself can actually access it, but the MSS cannot write
+	 * an image there. Instantiating a coreQSPI in the fabric & connecting
+	 * it to the flash instead should work though. Pre-production or later
+	 * silicon does not have this issue.
+	 */
+	status = "disabled";
+
+	sys_ctrl_flash: flash@0 { // MT25QL01GBBB8ESF-0SIT
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <1>;
+		reg = <0>;
+	};
 };
 
 &usb {
