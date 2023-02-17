@@ -419,7 +419,7 @@ static ssize_t mpfs_auto_update_exec(struct file *file,
 	if (ret)
 		dev_err_probe(mpfs_auto_update_debug_dev, ret, "Auto Update failed");
 
-	return ret;
+	return count;
 }
 
 static const struct file_operations mpfs_auto_update_fops = {
