@@ -9,12 +9,16 @@
  *
  */
 
+#include <dt-bindings/iio/adc/at91-sama5d2_adc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/sama7g5-reset.h>
 #include <dt-bindings/clock/at91.h>
 #include <dt-bindings/dma/at91.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/mfd/at91-usart.h>
+#include <dt-bindings/nvmem/microchip,sama7g5-otpc.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	model = "Microchip SAMA7G5 family SoC";
@@ -34,6 +38,7 @@
 			clocks = <&pmc PMC_TYPE_CORE PMC_CPUPLL>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
 
@@ -72,6 +77,46 @@
 		};
 	};
 
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&thermal_sensor>;
+
+			trips {
+				cpu_normal: cpu-alert0 {
+					temperature = <90000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				cpu_hot: cpu-alert1 {
+					temperature = <95000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				cpu_critical: cpu-critical {
+					temperature = <100000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_normal>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map1 {
+					trip = <&cpu_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+	};
+
 	clocks {
 		slow_xtal: slow_xtal {
 			compatible = "fixed-clock";
@@ -90,6 +135,54 @@
 		};
 	};
 
+	utmi_clk: utmi-clk {
+		compatible = "microchip,sama7g5-utmi-clk";
+		sfr-phandle = <&sfr>;
+		#clock-cells = <1>;
+		clocks = <&pmc PMC_TYPE_CORE PMC_UTMI>;
+		clock-names = "utmi_clk";
+		resets = <&reset_controller SAMA7G5_RESET_USB_PHY1>,
+			 <&reset_controller SAMA7G5_RESET_USB_PHY2>,
+			 <&reset_controller SAMA7G5_RESET_USB_PHY3>;
+		reset-names = "usb0_reset", "usb1_reset", "usb2_reset";
+	};
+
+	utmi {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb_phy0: phy@0 {
+			compatible = "microchip,sama7g5-usb-phy";
+			sfr-phandle = <&sfr>;
+			reg = <0>;
+			clocks = <&utmi_clk UTMI1>;
+			clock-names = "utmi_clk";
+			status = "disabled";
+			#phy-cells = <0>;
+		};
+
+		usb_phy1: phy@1 {
+			compatible = "microchip,sama7g5-usb-phy";
+			sfr-phandle = <&sfr>;
+			reg = <1>;
+			clocks = <&utmi_clk UTMI2>;
+			clock-names = "utmi_clk";
+			status = "disabled";
+			#phy-cells = <0>;
+		};
+
+		usb_phy2: phy@2 {
+			compatible = "microchip,sama7g5-usb-phy";
+			sfr-phandle = <&sfr>;
+			reg = <2>;
+			clocks = <&utmi_clk UTMI3>;
+			clock-names = "utmi_clk";
+			status = "disabled";
+			#phy-cells = <0>;
+		};
+	};
+
 	vddout25: fixed-regulator-vddout25 {
 		compatible = "regulator-fixed";
 
@@ -104,8 +197,15 @@
 		compatible = "mmio-sram";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <0x100000 0x20000>;
+		reg = <0x100000 0x3400>;
 		ranges;
+	};
+
+	thermal_sensor: thermal-sensor {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc AT91_SAMA7G5_ADC_TEMP_CHANNEL>;
+		io-channel-names = "sensor-channel";
 	};
 
 	soc {
@@ -113,6 +213,48 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		usb0: gadget@200000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "microchip,sama7g5-udc";
+			reg = <0x00200000 0x100000
+			       0xe0814000 0x400>;
+			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 104>, <&usb_clk>;
+			clock-names = "pclk", "hclk";
+			status = "disabled";
+		};
+
+		usb1: gadget@300000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "microchip,sama7g5-udc";
+			reg = <0x00300000 0x100000
+			       0xe0818000 0x400>;
+			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 105>, <&usb_clk>;
+			clock-names = "pclk", "hclk";
+			status = "disabled";
+		};
+
+		usb2: ohci@400000 {
+			compatible = "microchip,sama7g5-ohci", "usb-ohci";
+			reg = <0x00400000 0x100000>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 106>, <&utmi_clk UTMI1>, <&usb_clk>;
+			clock-names = "ohci_clk", "hclk", "uhpck";
+			status = "disabled";
+		};
+
+		usb3: ehci@500000 {
+			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
+			reg = <0x00500000 0x100000>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usb_clk>, <&pmc PMC_TYPE_PERIPHERAL 106>;
+			clock-names = "usb_clk", "ehci_clk";
+			status = "disabled";
+		};
 
 		nfc_sram: sram@600000 {
 			compatible = "mmio-sram";
@@ -153,7 +295,7 @@
 			};
 		};
 
-		securam: securam@e0000000 {
+		securam: sram@e0000000 {
 			compatible = "microchip,sama7g5-securam", "atmel,sama5d2-securam", "mmio-sram";
 			reg = <0xe0000000 0x4000>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 18>;
@@ -420,6 +562,9 @@
 			atmel,min-sample-rate-hz = <200000>;
 			atmel,max-sample-rate-hz = <20000000>;
 			atmel,startup-time-ms = <4>;
+			#io-channel-cells = <1>;
+			nvmem-cells = <&temperature_calib>;
+			nvmem-cell-names = "temperature_calib";
 			status = "disabled";
 		};
 
@@ -568,6 +713,7 @@
 			dma-names = "rx";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 68>, <&pmc PMC_TYPE_GCK 68>;
 			clock-names = "pclk", "gclk";
+			sound-name-prefix = "PDMC0";
 			status = "disabled";
 		};
 
@@ -580,6 +726,32 @@
 			dma-names = "rx";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 69>, <&pmc PMC_TYPE_GCK 69>;
 			clock-names = "pclk", "gclk";
+			sound-name-prefix = "PDMC1";
+			status = "disabled";
+		};
+
+		asrc: sound@e1610000 {
+			compatible = "microchip,sama7g5-asrc";
+			reg = <0xe1610000 0x1000>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			#sound-dai-cells = <1>;
+			dmas = <&dma0 AT91_XDMAC_DT_PERID(55)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(56)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(57)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(58)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(59)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(60)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(61)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(62)>;
+			dma-names = "rx0", "tx0", "rx1", "tx1",
+				    "rx2", "tx2", "rx3", "tx3";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 30>, <&pmc PMC_TYPE_GCK 30>;
+			clock-names = "pclk", "gclk";
+			microchip,triggers = <&i2s0>, <&i2s1>, <&pdmc0>, <&pdmc1>,
+					     <&ssc0>, <&ssc1>, <&spdiftx>, <&spdifrx>;
+			microchip,trigger-indexes = <1>, <2>, <3>, <4>, <5>, <8>, <9>, <10>;
+			assigned-clocks = <&pmc PMC_TYPE_GCK 30>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_AUDIOPMCPLL>;
 			status = "disabled";
 		};
 
@@ -593,6 +765,7 @@
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 84>, <&pmc PMC_TYPE_GCK 84>;
 			clock-names = "pclk", "gclk";
 			status = "disabled";
+			sound-name-prefix = "SPDIFRX0";
 		};
 
 		spdiftx: spdiftx@e1618000 {
@@ -604,6 +777,7 @@
 			dma-names = "tx";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 85>, <&pmc PMC_TYPE_GCK 85>;
 			clock-names = "pclk", "gclk";
+			sound-name-prefix = "SPDIFTX0";
 		};
 
 		i2s0: i2s@e161c000 {
@@ -615,6 +789,7 @@
 			dma-names = "tx", "rx";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 57>, <&pmc PMC_TYPE_GCK 57>;
 			clock-names = "pclk", "gclk";
+			sound-name-prefix = "I2SMCC0";
 			status = "disabled";
 		};
 
@@ -627,7 +802,13 @@
 			dma-names = "tx", "rx";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 58>, <&pmc PMC_TYPE_GCK 58>;
 			clock-names = "pclk", "gclk";
+			sound-name-prefix = "I2SMCC1";
 			status = "disabled";
+		};
+
+		sfr: sfr@e1624000 {
+			compatible = "microchip,sama7g5-sfr", "syscon";
+			reg = <0xe1624000 0x4000>;
 		};
 
 		eic: interrupt-controller@e1628000 {
@@ -657,6 +838,20 @@
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 71>, <&pmc PMC_TYPE_GCK 71>;
 			clock-names = "pclk", "gclk";
+		};
+
+		ssc0: sound@e180c000 {
+			compatible = "atmel,at91sam9g45-ssc";
+			reg = <0xe180c000 0x1000>;
+			#sound-dai-cells = <0>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dma0 AT91_XDMAC_DT_PERID(44)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(45)>;
+			dma-names = "rx", "tx";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 86>;
+			clock-names = "pclk";
+			sound-name-prefix = "SSC0";
+			status = "disabled";
 		};
 
 		aes: crypto@e1810000 {
@@ -754,6 +949,20 @@
 			};
 		};
 
+		ssc1: sound@e200c000 {
+			compatible = "atmel,at91sam9g45-ssc";
+			reg = <0xe200c000 0x1000>;
+			#sound-dai-cells = <0>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dma0 AT91_XDMAC_DT_PERID(46)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(47)>;
+			dma-names = "rx", "tx";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 87>;
+			clock-names = "pclk";
+			sound-name-prefix = "SSC1";
+			status = "disabled";
+		};
+
 		trng: rng@e2010000 {
 			compatible = "microchip,sama7g5-trng", "atmel,at91sam9g45-trng";
 			reg = <0xe2010000 0x100>;
@@ -836,8 +1045,8 @@
 				      GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 51>, <&pmc PMC_TYPE_PERIPHERAL 51>, <&pmc PMC_TYPE_GCK 51>, <&pmc PMC_TYPE_GCK 53>;
 			clock-names = "pclk", "hclk", "tx_clk", "tsu_clk";
-			assigned-clocks = <&pmc PMC_TYPE_GCK 51>;
-			assigned-clock-rates = <125000000>;
+			assigned-clocks = <&pmc PMC_TYPE_GCK 51>, <&pmc PMC_TYPE_GCK 53>;
+			assigned-clock-rates = <125000000>, <200000000>;
 			status = "disabled";
 		};
 
@@ -846,8 +1055,10 @@
 			reg = <0xe2804000 0x1000>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&pmc PMC_TYPE_PERIPHERAL 52>, <&pmc PMC_TYPE_PERIPHERAL 52>;
-			clock-names = "pclk", "hclk";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 52>, <&pmc PMC_TYPE_PERIPHERAL 52>, <&pmc PMC_TYPE_GCK 54>;
+			clock-names = "pclk", "hclk", "tsu_clk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 54>;
+			assigned-clock-rates = <200000000>;
 			status = "disabled";
 		};
 
@@ -974,6 +1185,17 @@
 		ddr3phy: ddr3phy@e3804000 {
 			compatible = "microchip,sama7g5-ddr3phy";
 			reg = <0xe3804000 0x1000>;
+		};
+
+		otpc: efuse@e8c00000 {
+			compatible = "microchip,sama7g5-otpc", "syscon";
+			reg = <0xe8c00000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			temperature_calib: calib@1 {
+				reg = <OTP_PKT(1) 76>;
+			};
 		};
 
 		gic: interrupt-controller@e8c11000 {
