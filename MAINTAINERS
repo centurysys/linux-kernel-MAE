@@ -7281,7 +7281,7 @@ F:	Documentation/locking/*futex*
 F:	include/asm-generic/futex.h
 F:	include/linux/futex.h
 F:	include/uapi/linux/futex.h
-F:	kernel/futex.c
+F:	kernel/futex/*
 F:	tools/perf/bench/futex*
 F:	tools/testing/selftests/futex/
 
@@ -18931,7 +18931,7 @@ M:	Robert Beckett <bob.beckett@collabora.com>
 M:	Sebastian Fricke <sebastian.fricke@collabora.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/staging/media/cnm,wave.yaml
+F:	Documentation/devicetree/bindings/media/cnm,wave5.yaml
 F:	drivers/media/platform/chips-media/wave5/
 
 WHISKEYCOVE PMIC GPIO DRIVER
