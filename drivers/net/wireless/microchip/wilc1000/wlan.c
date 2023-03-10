@@ -902,7 +902,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	int ret = 0;
 	int counter;
 	int timeout;
-	u32 vmm_table[WILC_VMM_TBL_SIZE];
+	u32 *vmm_table = wilc->vmm_table;
 	u8 ac_pkt_num_to_chip[NQUEUES] = {0, 0, 0, 0};
 	const struct wilc_hif_func *func;
 	int srcu_idx;
