@@ -909,6 +909,9 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_PERSIST_STATE:
 			return -ENOTSUPP;
+		case PIN_CONFIG_DRIVE_PUSH_PULL:
+			/* ignore */
+			break;
 		default:
 			dev_warn(pctldev->dev,
 				 "unsupported configuration parameter: %u\n",
