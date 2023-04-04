@@ -455,7 +455,7 @@ static int am33xx_pm_rtc_setup(void)
 			goto err_clk_put;
 		}
 
-		omap_rtc = rtc_class_open("rtc1");
+		omap_rtc = rtc_class_open("rtc0");
 		if (!omap_rtc) {
 			pr_warn("PM: rtc1 not available");
 			error = -EPROBE_DEFER;
