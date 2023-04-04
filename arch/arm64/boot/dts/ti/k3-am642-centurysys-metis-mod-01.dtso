@@ -11,22 +11,17 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/k3.h>
 
-/ {
-	fragment@lte_led {
-		target = <&leds>;
-		__overlay__ {
-			mobile_power {
-				label = "Mobile_Power";
-				gpios = <&main_gpio1 18 GPIO_ACTIVE_HIGH>;
-				default-state = "on";
-			};
+&leds {
+	mobile_power {
+		label = "Mobile_Power";
+		gpios = <&main_gpio1 18 GPIO_ACTIVE_HIGH>;
+		default-state = "on";
+	};
 
-			mobile_reset {
-				label = "Mobile_RESETN";
-				gpios = <&main_gpio1 5 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "oneshot";
-				led-pattern = <200 100>;
-			};
-		};
+	mobile_reset {
+		label = "Mobile_RESETN";
+		gpios = <&main_gpio1 5 GPIO_ACTIVE_HIGH>;
+		linux,default-trigger = "oneshot";
+		led-pattern = <200 100>;
 	};
 };
