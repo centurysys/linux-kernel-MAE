@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
+/**
+ * DT overlay for LTE module (Module Code: 0x02)
+ *
+ * Copyright (C) 2022 Century Systems
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/k3.h>
+
+/ {
+	fragment@lte_led {
+		target = <&leds>;
+		__overlay__ {
+			mobile_power {
+				label = "Mobile_Power";
+				gpios = <&main_gpio1 18 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
+			};
+
+			mobile_reset {
+				label = "Mobile_RESETN";
+				gpios = <&main_gpio1 5 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "oneshot";
+				led-pattern = <200 100>;
+			};
+		};
+	};
+};
