@@ -717,7 +717,9 @@ static struct platform_driver davinci_gpio_driver = {
 		.of_match_table	= of_match_ptr(davinci_gpio_ids),
 	},
 };
-
+#if 1
+builtin_platform_driver(davinci_gpio_driver);
+#else
 /**
  * GPIO driver registration needs to be done before machine_init functions
  * access GPIO. Hence davinci_gpio_drv_reg() is a postcore_initcall.
@@ -727,3 +729,4 @@ static int __init davinci_gpio_drv_reg(void)
 	return platform_driver_register(&davinci_gpio_driver);
 }
 postcore_initcall(davinci_gpio_drv_reg);
+#endif
