@@ -736,6 +736,7 @@
 	phys = <&serdes0_pcie_link>;
 	phy-names = "pcie-phy";
 	num-lanes = <1>;
+	status = "okay";
 };
 
 &pcie0_ep {
