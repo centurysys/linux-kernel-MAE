@@ -153,6 +153,9 @@
 /* FLD_THR_CFG */
 #define DP83867_FLD_THR_CFG_ENERGY_LOST_THR_MASK	0x7
 
+/* PROG_GAIN bits */
+#define DP83867_PROG_GAIN_UNF_FUNC_MODE	BIT(3)
+
 enum {
 	DP83867_PORT_MIRROING_KEEP,
 	DP83867_PORT_MIRROING_EN,
@@ -710,6 +713,18 @@ static int dp83867_probe(struct phy_device *phydev)
 	return dp83867_of_init(phydev);
 }
 
+static int dp83867_set_swing_level(struct phy_device *phydev)
+{
+	u16 val;
+
+	/* Sets required swing level for compliance testing */
+	val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_PROG_GAIN);
+	val |= DP83867_PROG_GAIN_UNF_FUNC_MODE;
+
+	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_PROG_GAIN, val);
+	return 0;
+}
+
 static int dp83867_config_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
@@ -909,6 +924,7 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 
 	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_LEDCR1, 0x6b50);
 	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_GPIO_MUX_CTRL, 0x0006); /* GPIO_1: LED_3 */
+	dp83867_set_swing_level(phydev);
 
 	err = phy_write(phydev, DP83867_CTRL, DP83867_SW_RESTART);
 	if (err < 0)
