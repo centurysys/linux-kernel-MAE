@@ -3864,7 +3864,7 @@
 	phy-handle = <&ethphy0>;
 
 	phy-mode = "rgmii-txid";
-	dual_emac_res_vlan = <1>;
+	dual_emac_res_vlan = <4094>;
 	led-fast-gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
 	led-giga-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
 };
@@ -3873,7 +3873,7 @@
 	phy-handle = <&ethphy1>;
 
 	phy-mode = "rgmii-txid";
-	dual_emac_res_vlan = <2>;
+	dual_emac_res_vlan = <4095>;
 	led-fast-gpio = <&gpio2 16 GPIO_ACTIVE_LOW>;
 	led-giga-gpio = <&gpio2 17 GPIO_ACTIVE_LOW>;
 };
