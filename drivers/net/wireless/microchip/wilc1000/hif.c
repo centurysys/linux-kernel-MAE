@@ -642,7 +642,9 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 		int rsn_ie_len = sizeof(struct element) + rsn_ie[1];
 		int offset = 8;
 
-		/* extract RSN capabilities */
+		param->mode_802_11i = 2;
+		param->rsn_found = true;
+
 		if (offset < rsn_ie_len) {
 			/* skip over pairwise suites */
 			offset += (rsn_ie[offset] * 4) + 2;
@@ -651,11 +653,8 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 				/* skip over authentication suites */
 				offset += (rsn_ie[offset] * 4) + 2;
 
-				if (offset + 1 < rsn_ie_len) {
-					param->mode_802_11i = 2;
-					param->rsn_found = true;
+				if (offset + 1 < rsn_ie_len)
 					memcpy(param->rsn_cap, &rsn_ie[offset], 2);
-				}
 			}
 		}
 	}
@@ -874,6 +873,10 @@ static void handle_rcvd_gnrl_async_info(struct work_struct *work)
 						     GFP_KERNEL);
 		hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
 	} else if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
+		/* check connecting state before parsing the ASSOC response */
+		if (!vif->connecting)
+			goto free_msg;
+
 		host_int_parse_assoc_resp_info(vif, mac_info->status);
 	} else if (mac_info->status == WILC_MAC_STATUS_DISCONNECTED) {
 		if (hif_drv->hif_state == HOST_IF_CONNECTED) {
