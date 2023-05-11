@@ -1,31 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 	1. Redistributions of source code must retain the above copyright
- * 	   notice, this list of conditions and the following disclaimer.
- *
- * 	2. Redistributions in binary form must reproduce the above copyright
- * 	   notice, this list of conditions and the following disclaimer in the
- * 	   documentation and/or other materials provided with the distribution.
- *
- * 	3. Neither the name of the copyright holder nor the names of its
- * 	   contributors may be used to endorse or promote products derived from
- * 	   this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2020-2023 Silicon Labs, Inc.
  */
 
 #include <linux/cdev.h>
@@ -88,9 +63,6 @@ static int hci_device_open(struct rsi_hci_adapter *h_adapter)
 		rsi_dbg(ERR_ZONE, "%s: Failed to get hci dev", __func__);
 		return -ENODEV;
 	}
-
-
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 	if (test_bit(HCI_UNREGISTER, hdev->dev_flags)) {
 #else
@@ -115,7 +87,7 @@ done:
 	return ret;
 }
 
-static int rsi_btchr_open(struct inode *inode_p, struct file  *file_p)
+static int rsi_btchr_open(struct inode *inode_p, struct file *file_p)
 {
 	struct rsi_hci_adapter *h_adapter = gh_adapter;
 	struct hci_dev *hdev = NULL;
@@ -138,7 +110,7 @@ static int rsi_btchr_open(struct inode *inode_p, struct file  *file_p)
 	return nonseekable_open(inode_p, file_p);
 }
 
-static int rsi_btchr_close(struct inode  *inode_p, struct file   *file_p)
+static int rsi_btchr_close(struct inode *inode_p, struct file *file_p)
 {
 	struct hci_dev *hdev = NULL;
 	struct rsi_hci_adapter *h_adapter;
@@ -163,7 +135,7 @@ static int rsi_btchr_close(struct inode  *inode_p, struct file   *file_p)
 static void rsi_enqueue(struct rsi_common *common, struct sk_buff *skb)
 {
 	if (common->rsi_skb_queue_front ==
-			(common->rsi_skb_queue_rear + 1) % QUEUE_SIZE) {
+	    (common->rsi_skb_queue_rear + 1) % QUEUE_SIZE) {
 		/*
 		 * If queue is full, current solution is to drop
 		 * the following entries.
@@ -219,9 +191,9 @@ void rsi_send_to_stack(struct rsi_common *common, struct sk_buff *skb)
 	return;
 }
 
-static struct sk_buff *rsi_dequeue(struct rsi_common *common, unsigned int deq_len)
+static struct sk_buff *rsi_dequeue(struct rsi_common *common,
+				   unsigned int deq_len)
 {
-
 
 	struct sk_buff *skb;
 	struct sk_buff *skb_copy;
@@ -241,8 +213,8 @@ static struct sk_buff *rsi_dequeue(struct rsi_common *common, unsigned int deq_l
 			common->rsi_skb_queue_front %= QUEUE_SIZE;
 		}
 		/*  Return skb addr to be dequeued, and the caller
-		    should free the skb eventually.
-		*/
+		   should free the skb eventually.
+		 */
 		return skb;
 	} else {
 		skb_copy = pskb_copy(skb, GFP_ATOMIC);
@@ -256,15 +228,12 @@ static struct sk_buff *rsi_dequeue(struct rsi_common *common, unsigned int deq_l
 int is_queue_empty(struct rsi_common *common)
 {
 	rsi_dbg(INFO_ZONE, "Queue front value is: %d\n",
-			common->rsi_skb_queue_front);
+		common->rsi_skb_queue_front);
 	return (common->rsi_skb_queue_front == -1) ? 1 : 0;
 }
 
-
-static ssize_t rsi_btchr_read(struct file *file_p,
-			      char __user *buf_p,
-			      size_t count,
-			      loff_t *pos_p)
+static ssize_t rsi_btchr_read(struct file *file_p, char __user * buf_p,
+			      size_t count, loff_t * pos_p)
 {
 	struct rsi_hci_adapter *h_adapter = NULL;
 	struct rsi_common *common = NULL;
@@ -286,7 +255,8 @@ static ssize_t rsi_btchr_read(struct file *file_p,
 	while (count) {
 		hdev = h_adapter->hdev;
 		if (!hdev) {
-			rsi_dbg(ERR_ZONE, "%s: Failed to get hci dev\n", __func__);
+			rsi_dbg(ERR_ZONE, "%s: Failed to get hci dev\n",
+				__func__);
 			ret = -EINVAL;
 			break;
 		}
@@ -294,9 +264,13 @@ static ssize_t rsi_btchr_read(struct file *file_p,
 		if (is_queue_empty(common)) {
 			rsi_dbg(ERR_ZONE, " Queue is empty\n");
 			rsi_reset_event(&common->chan_set_event);
-			ret = rsi_wait_event(&common->rsi_btchr_read_wait, !is_queue_empty(common));
+			ret =
+			    rsi_wait_event(&common->rsi_btchr_read_wait,
+					   !is_queue_empty(common));
 			if (ret < 0) {
-				rsi_dbg(ERR_ZONE, "%s: wait event is signaled ret value is %d\n", __func__, ret);
+				rsi_dbg(ERR_ZONE,
+					"%s: wait event is signaled ret value is %d\n",
+					__func__, ret);
 				ret = -EINVAL;
 				break;
 			}
@@ -304,10 +278,13 @@ static ssize_t rsi_btchr_read(struct file *file_p,
 
 		skb = rsi_dequeue(common, count);
 		if (skb) {
-			rsi_hex_dump(DATA_RX_ZONE, "RX BT Pkt", skb->data, skb->len);
+			rsi_hex_dump(DATA_RX_ZONE, "RX BT Pkt", skb->data,
+				     skb->len);
 			len = min_t(unsigned int, skb->len, count);
 			if (copy_to_user(buf_p, skb->data, len)) {
-				rsi_dbg(ERR_ZONE, "%s: Failed to put data to user space", __func__);
+				rsi_dbg(ERR_ZONE,
+					"%s: Failed to put data to user space",
+					__func__);
 				dev_kfree_skb(skb);
 				ret = -EINVAL;
 				break;
@@ -321,7 +298,6 @@ static ssize_t rsi_btchr_read(struct file *file_p,
 
 	return ret;
 }
-
 
 static ssize_t rsi_btchr_write(struct kiocb *iocb, struct iov_iter *from)
 {
@@ -353,7 +329,7 @@ static ssize_t rsi_btchr_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	skb->dev = (void *)hdev;
-	bt_cb(skb)->pkt_type = *((__u8 *)skb->data);
+	bt_cb(skb)->pkt_type = *((__u8 *) skb->data);
 	skb_pull(skb, 1);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -365,8 +341,7 @@ static ssize_t rsi_btchr_write(struct kiocb *iocb, struct iov_iter *from)
 	return len;
 }
 
-
-static unsigned int rsi_btchr_poll(struct file *file_p, poll_table *wait)
+static unsigned int rsi_btchr_poll(struct file *file_p, poll_table * wait)
 {
 	struct rsi_hci_adapter *h_adapter = NULL;
 	struct rsi_common *common = NULL;
@@ -395,12 +370,11 @@ static unsigned int rsi_btchr_poll(struct file *file_p, poll_table *wait)
 	return 0;
 }
 
-static struct file_operations rsi_btdev_ops  = {
-	.open      = rsi_btchr_open,
-	.release   = rsi_btchr_close,
-	.read      = rsi_btchr_read,
+static struct file_operations rsi_btdev_ops = {.open = rsi_btchr_open,
+	.release = rsi_btchr_close,
+	.read = rsi_btchr_read,
 	.write_iter = rsi_btchr_write,
-	.poll      = rsi_btchr_poll
+	.poll = rsi_btchr_poll
 };
 
 /**
@@ -430,8 +404,9 @@ int rsi_bdroid_init(struct rsi_common *common)
 		goto err_alloc;
 	}
 
-	dev = device_create(common->bt_char_class, NULL,
-				common->bt_devid, NULL, BT_CHAR_DEVICE_NAME);
+	dev =
+	    device_create(common->bt_char_class, NULL, common->bt_devid, NULL,
+			  BT_CHAR_DEVICE_NAME);
 	if (IS_ERR(dev)) {
 		rsi_dbg(ERR_ZONE, "Failed to create bt char device\n");
 		res = PTR_ERR(dev);
@@ -457,6 +432,7 @@ err_alloc:
 	class_destroy(common->bt_char_class);
 	return res;
 }
+
 /**
  * unregisters with the bluedroid interface
  *
