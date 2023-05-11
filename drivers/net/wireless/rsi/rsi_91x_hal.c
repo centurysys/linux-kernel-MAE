@@ -1898,15 +1898,7 @@ int rsi_validate_oper_mode(u16 oper_mode)
 #endif
 	switch (oper_mode) {
 	case 1:
-#if defined(CONFIG_RSI_BT_ALONE)
-		rsi_dbg(ERR_ZONE,
-			"Operating mode %d not supported with"
-			"build flag 'CONFIG_RSI_BT_ALONE enabled'\n",
-			oper_mode);
-		return -EINVAL;
-#else
 		return 0;
-#endif
 	case 4:
 	case 8:
 	case 12:
