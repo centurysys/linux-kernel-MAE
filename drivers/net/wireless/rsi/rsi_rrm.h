@@ -1,31 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 	1. Redistributions of source code must retain the above copyright
- * 	   notice, this list of conditions and the following disclaimer.
- *
- * 	2. Redistributions in binary form must reproduce the above copyright
- * 	   notice, this list of conditions and the following disclaimer in the
- * 	   documentation and/or other materials provided with the distribution.
- *
- * 	3. Neither the name of the copyright holder nor the names of its
- * 	   contributors may be used to endorse or promote products derived from
- * 	   this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2020-2023 Silicon Labs, Inc.
  */
 
 #ifndef __RSI_RRM_H__
@@ -33,32 +8,32 @@
 
 #include "rsi_main.h"
 
-#define RRM_MIN_CHLOAD_FRM_LEN			6
-#define RRM_MIN_FRM_REQ_LEN			13
-#define RRM_MIN_BEACON_FRM_LEN			13
+#define RRM_MIN_CHLOAD_FRM_LEN 6
+#define RRM_MIN_FRM_REQ_LEN    13
+#define RRM_MIN_BEACON_FRM_LEN 13
 
-#define MAX_RRM_REQ				5
+#define MAX_RRM_REQ 5
 
 /* RRM FSM States */
-#define RRM_IDLE				0
-#define RRM_REQ_SENT				1
-#define RRM_RESP_RCVD				2
+#define RRM_IDLE      0
+#define RRM_REQ_SENT  1
+#define RRM_RESP_RCVD 2
 
-#define MAX_OPT_SUB_ELM_SIZE			128
-#define DRV_HDR_SIZE				(FRAME_DESC_SZ + 64)
+#define MAX_OPT_SUB_ELM_SIZE 128
+#define DRV_HDR_SIZE         (FRAME_DESC_SZ + 64)
 
-#define WLAN_ACTION_RADIO_MEASUREMENT		5
-#define WLAN_ACTION_SPECTRUM_MANAGEMENT		0
-#define MEAS_REQ				38
-#define MEAS_RPT				39
+#define WLAN_ACTION_RADIO_MEASUREMENT   5
+#define WLAN_ACTION_SPECTRUM_MANAGEMENT 0
+#define MEAS_REQ                        38
+#define MEAS_RPT                        39
 
 /* 11k Actions */
-#define IEEE80211_ACTION_RADIO_MEAS_REQ		0
-#define IEEE80211_ACTION_RADIO_MEAS_RPT		1
-#define IEEE80211_ACTION_LINK_MEAS_REQ		2
-#define IEEE80211_ACTION_LINK_MEAS_REP		3
-#define IEEE80211_ACTION_NG_RPT_REQ		4
-#define IEEE80211_ACTION_NG_RPT_RSP		5
+#define IEEE80211_ACTION_RADIO_MEAS_REQ 0
+#define IEEE80211_ACTION_RADIO_MEAS_RPT 1
+#define IEEE80211_ACTION_LINK_MEAS_REQ  2
+#define IEEE80211_ACTION_LINK_MEAS_REP  3
+#define IEEE80211_ACTION_NG_RPT_REQ     4
+#define IEEE80211_ACTION_NG_RPT_RSP     5
 
 struct ieee80211_basic_hdr {
 	__le16 frame_control;
@@ -70,25 +45,25 @@ struct ieee80211_basic_hdr {
 } __packed;
 
 /* Radio Measurement types */
-#define RRM_TYPE_CHANNEL_LOAD			3
-#define RRM_TYPE_FRAME				6
-#define RRM_TYPE_BEACON				5
+#define RRM_TYPE_CHANNEL_LOAD 3
+#define RRM_TYPE_FRAME        6
+#define RRM_TYPE_BEACON       5
 
 /* Element ID Fields  */
-#define SSID_ELEM_ID				0
-#define SSID_LEN				32
-#define BEACON_REPORT_INFO			1
-#define REPORTING_DETAIL			2
-#define AP_CHANNEL_RPT				51
-#define VENDOR_SPECIFIC				221
+#define SSID_ELEM_ID       0
+#define SSID_LEN           32
+#define BEACON_REPORT_INFO 1
+#define REPORTING_DETAIL   2
+#define AP_CHANNEL_RPT     51
+#define VENDOR_SPECIFIC    221
 
-#define MAX_REGIONS				4
-#define MAX_REG_CLASS				255
-#define RSI_BW_5				5
-#define RSI_BW_10				10
-#define RSI_BW_20				20
-#define RSI_BW_25				25
-#define RSI_BW_40				40
+#define MAX_REGIONS   4
+#define MAX_REG_CLASS 255
+#define RSI_BW_5      5
+#define RSI_BW_10     10
+#define RSI_BW_20     20
+#define RSI_BW_25     25
+#define RSI_BW_40     40
 
 struct dot11_elem {
 	u8 elem_id;
@@ -204,17 +179,17 @@ struct beacon_report {
 int rsi_rrm_send_channel_load_req(struct rsi_common *common);
 int rsi_rrm_send_frame_req(struct rsi_common *common);
 int rsi_rrm_send_beacon_req(struct rsi_common *common);
-int rsi_rrm_parse_radio_action_frame(struct rsi_common *common, u8 *rx_rrm,
+int rsi_rrm_parse_radio_action_frame(struct rsi_common *common, u8 * rx_rrm,
 				     s32 msg_len);
 int rsi_rrm_parse_spectrum_action_frame(struct rsi_common *common,
 					struct ieee80211_hdr *tmp_hdr,
-					u8 *data);
+					u8 * data);
 int rsi_rrm_parse_channel_load_req(struct rsi_common *common,
 				   struct sk_buff *skb,
 				   struct rsi_meas_params *params);
 int rsi_rrm_sched_req(struct rsi_common *common);
-void rsi_rrm_recv_cmd_frame(struct rsi_common *common, u8 *msg, int len);
-int rsi_prepare_channel_load_rpt(struct rsi_common *common, u8 *msg, int len);
-int rsi_prepare_frame_rpt(struct rsi_common *common, u8 *msg, int len);
-int rsi_prepare_beacon_rpt(struct rsi_common *common, u8 *msg, int len);
+void rsi_rrm_recv_cmd_frame(struct rsi_common *common, u8 * msg, int len);
+int rsi_prepare_channel_load_rpt(struct rsi_common *common, u8 * msg, int len);
+int rsi_prepare_frame_rpt(struct rsi_common *common, u8 * msg, int len);
+int rsi_prepare_beacon_rpt(struct rsi_common *common, u8 * msg, int len);
 #endif
