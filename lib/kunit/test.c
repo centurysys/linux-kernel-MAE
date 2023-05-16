@@ -17,17 +17,14 @@
 #include <linux/sched.h>
 
 #include "debugfs.h"
+#include "hooks-impl.h"
 #include "string-stream.h"
 #include "try-catch-impl.h"
 
-DEFINE_STATIC_KEY_FALSE(kunit_running);
-EXPORT_SYMBOL_GPL(kunit_running);
-
-#if IS_BUILTIN(CONFIG_KUNIT)
 /*
- * Fail the current test and print an error message to the log.
+ * Hook to fail the current test and print an error message to the log.
  */
-void __kunit_fail_current_test(const char *file, int line, const char *fmt, ...)
+void __printf(3, 4) __kunit_fail_current_test_impl(const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
 	int len;
@@ -54,8 +51,6 @@ void __kunit_fail_current_test(const char *file, int line, const char *fmt, ...)
 	kunit_err(current->kunit_test, "%s:%d: %s", file, line, buffer);
 	kunit_kfree(current->kunit_test, buffer);
 }
-EXPORT_SYMBOL_GPL(__kunit_fail_current_test);
-#endif
 
 /*
  * Enable KUnit tests to run.
@@ -152,10 +147,18 @@ EXPORT_SYMBOL_GPL(kunit_suite_num_test_cases);
 
 static void kunit_print_suite_start(struct kunit_suite *suite)
 {
-	kunit_log(KERN_INFO, suite, KUNIT_SUBTEST_INDENT "KTAP version 1\n");
-	kunit_log(KERN_INFO, suite, KUNIT_SUBTEST_INDENT "# Subtest: %s",
+	/*
+	 * We do not log the test suite header as doing so would
+	 * mean debugfs display would consist of the test suite
+	 * header prior to individual test results.
+	 * Hence directly printk the suite status, and we will
+	 * separately seq_printf() the suite header for the debugfs
+	 * representation.
+	 */
+	pr_info(KUNIT_SUBTEST_INDENT "KTAP version 1\n");
+	pr_info(KUNIT_SUBTEST_INDENT "# Subtest: %s\n",
 		  suite->name);
-	kunit_log(KERN_INFO, suite, KUNIT_SUBTEST_INDENT "1..%zd",
+	pr_info(KUNIT_SUBTEST_INDENT "1..%zd\n",
 		  kunit_suite_num_test_cases(suite));
 }
 
@@ -172,10 +175,9 @@ static void kunit_print_ok_not_ok(void *test_or_suite,
 
 	/*
 	 * We do not log the test suite results as doing so would
-	 * mean debugfs display would consist of the test suite
-	 * description and status prior to individual test results.
-	 * Hence directly printk the suite status, and we will
-	 * separately seq_printf() the suite status for the debugfs
+	 * mean debugfs display would consist of an incorrect test
+	 * number. Hence directly printk the suite result, and we will
+	 * separately seq_printf() the suite results for the debugfs
 	 * representation.
 	 */
 	if (suite)
@@ -778,6 +780,9 @@ EXPORT_SYMBOL_GPL(kunit_cleanup);
 
 static int __init kunit_init(void)
 {
+	/* Install the KUnit hook functions. */
+	kunit_install_hooks();
+
 	kunit_debugfs_init();
 #ifdef CONFIG_MODULES
 	return register_module_notifier(&kunit_mod_nb);
@@ -789,6 +794,7 @@ late_initcall(kunit_init);
 
 static void __exit kunit_exit(void)
 {
+	memset(&kunit_hooks, 0, sizeof(kunit_hooks));
 #ifdef CONFIG_MODULES
 	unregister_module_notifier(&kunit_mod_nb);
 #endif

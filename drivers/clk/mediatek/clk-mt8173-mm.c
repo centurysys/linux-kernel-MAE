@@ -25,23 +25,11 @@ static const struct mtk_gate_regs mm1_cg_regs = {
 	.sta_ofs = 0x0110,
 };
 
-#define GATE_MM0(_id, _name, _parent, _shift) {			\
-		.id = _id,					\
-		.name = _name,					\
-		.parent_name = _parent,				\
-		.regs = &mm0_cg_regs,				\
-		.shift = _shift,				\
-		.ops = &mtk_clk_gate_ops_setclr,		\
-	}
+#define GATE_MM0(_id, _name, _parent, _shift)	\
+	GATE_MTK(_id, _name, _parent, &mm0_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_MM1(_id, _name, _parent, _shift) {			\
-		.id = _id,					\
-		.name = _name,					\
-		.parent_name = _parent,				\
-		.regs = &mm1_cg_regs,				\
-		.shift = _shift,				\
-		.ops = &mtk_clk_gate_ops_setclr,		\
-	}
+#define GATE_MM1(_id, _name, _parent, _shift)	\
+	GATE_MTK(_id, _name, _parent, &mm1_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 static const struct mtk_gate mt8173_mm_clks[] = {
 	/* MM0 */
@@ -124,8 +112,8 @@ static int clk_mt8173_mm_probe(struct platform_device *pdev)
 
 	data = &mt8173_mmsys_driver_data;
 
-	ret = mtk_clk_register_gates(node, data->gates_clk, data->gates_num,
-				     clk_data);
+	ret = mtk_clk_register_gates(&pdev->dev, node, data->gates_clk,
+				     data->gates_num, clk_data);
 	if (ret)
 		return ret;
 
@@ -136,11 +124,29 @@ static int clk_mt8173_mm_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int clk_mt8173_mm_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *node = dev->parent->of_node;
+	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
+	const struct clk_mt8173_mm_driver_data *data = &mt8173_mmsys_driver_data;
+
+	of_clk_del_provider(node);
+	mtk_clk_unregister_gates(data->gates_clk, data->gates_num, clk_data);
+	mtk_free_clk_data(clk_data);
+
+	return 0;
+}
+
 static struct platform_driver clk_mt8173_mm_drv = {
 	.driver = {
 		.name = "clk-mt8173-mm",
 	},
 	.probe = clk_mt8173_mm_probe,
+	.remove = clk_mt8173_mm_remove,
 };
 
 builtin_platform_driver(clk_mt8173_mm_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8173 MultiMedia clocks driver");
+MODULE_LICENSE("GPL");

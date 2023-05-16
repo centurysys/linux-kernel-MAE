@@ -778,22 +778,6 @@ unlock:
  * DAI routines
  */
 
-static int intel_startup(struct snd_pcm_substream *substream,
-			 struct snd_soc_dai *dai)
-{
-	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
-	int ret;
-
-	ret = pm_runtime_resume_and_get(cdns->dev);
-	if (ret < 0 && ret != -EACCES) {
-		dev_err_ratelimited(cdns->dev,
-				    "pm_runtime_resume_and_get failed in %s, ret %d\n",
-				    __func__, ret);
-		return ret;
-	}
-	return 0;
-}
-
 static int intel_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params,
 			   struct snd_soc_dai *dai)
@@ -833,7 +817,6 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	dai_runtime->paused = false;
 	dai_runtime->suspended = false;
 	dai_runtime->pdi = pdi;
-	dai_runtime->hw_params = params;
 
 	/* Inform DSP about PDI stream number */
 	ret = intel_params_stream(sdw, substream->stream, dai, params,
@@ -886,6 +869,11 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 	}
 
 	if (dai_runtime->suspended) {
+		struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+		struct snd_pcm_hw_params *hw_params;
+
+		hw_params = &rtd->dpcm[substream->stream].hw_params;
+
 		dai_runtime->suspended = false;
 
 		/*
@@ -897,7 +885,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 		 */
 
 		/* configure stream */
-		ch = params_channels(dai_runtime->hw_params);
+		ch = params_channels(hw_params);
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 			dir = SDW_DATA_DIR_RX;
 		else
@@ -909,7 +897,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 
 		/* Inform DSP about PDI stream number */
 		ret = intel_params_stream(sdw, substream->stream, dai,
-					  dai_runtime->hw_params,
+					  hw_params,
 					  sdw->instance,
 					  dai_runtime->pdi->intel_alh_id);
 	}
@@ -948,19 +936,9 @@ intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 		return ret;
 	}
 
-	dai_runtime->hw_params = NULL;
 	dai_runtime->pdi = NULL;
 
 	return 0;
-}
-
-static void intel_shutdown(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
-{
-	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
-
-	pm_runtime_mark_last_busy(cdns->dev);
-	pm_runtime_put_autosuspend(cdns->dev);
 }
 
 static int intel_pcm_set_sdw_stream(struct snd_soc_dai *dai,
@@ -1088,12 +1066,10 @@ static int intel_component_dais_suspend(struct snd_soc_component *component)
 }
 
 static const struct snd_soc_dai_ops intel_pcm_dai_ops = {
-	.startup = intel_startup,
 	.hw_params = intel_hw_params,
 	.prepare = intel_prepare,
 	.hw_free = intel_hw_free,
 	.trigger = intel_trigger,
-	.shutdown = intel_shutdown,
 	.set_stream = intel_pcm_set_sdw_stream,
 	.get_stream = intel_get_sdw_stream,
 };

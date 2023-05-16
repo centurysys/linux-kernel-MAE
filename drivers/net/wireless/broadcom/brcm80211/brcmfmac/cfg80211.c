@@ -6494,17 +6494,19 @@ static s32 brcmf_notify_rssi(struct brcmf_if *ifp,
 {
 	struct brcmf_cfg80211_vif *vif = ifp->vif;
 	struct brcmf_rssi_be *info = data;
-	s32 rssi, snr, noise;
+	s32 rssi, snr = 0, noise = 0;
 	s32 low, high, last;
 
-	if (e->datalen < sizeof(*info)) {
+	if (e->datalen >= sizeof(*info)) {
+		rssi = be32_to_cpu(info->rssi);
+		snr = be32_to_cpu(info->snr);
+		noise = be32_to_cpu(info->noise);
+	} else if (e->datalen >= sizeof(rssi)) {
+		rssi = be32_to_cpu(*(__be32 *)data);
+	} else {
 		brcmf_err("insufficient RSSI event data\n");
 		return 0;
 	}
-
-	rssi = be32_to_cpu(info->rssi);
-	snr = be32_to_cpu(info->snr);
-	noise = be32_to_cpu(info->noise);
 
 	low = vif->cqm_rssi_low;
 	high = vif->cqm_rssi_high;
@@ -7933,13 +7935,10 @@ exit:
 }
 
 static s32
-cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
-		     struct ieee80211_channel *chan,
-		     enum nl80211_channel_type channel_type)
+brcmf_set_channel(struct brcmf_cfg80211_info *cfg, struct ieee80211_channel *chan)
 {
 	u16 chspec = 0;
 	int err = 0;
-	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 
 	if (chan->flags & IEEE80211_CHAN_DISABLED)
@@ -7999,7 +7998,7 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 
 	/* Setting current channel to the requested channel */
 	info->filled = 0;
-	if (cfg80211_set_channel(wiphy, ndev, info->channel, NL80211_CHAN_HT20))
+	if (brcmf_set_channel(cfg, info->channel))
 		return 0;
 
 	/* Disable mpc */
