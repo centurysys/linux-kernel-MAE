@@ -73,7 +73,7 @@ static const char *check[] = {
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
 	"camellia", "seed", "salsa20", "rmd128", "rmd160", "rmd256", "rmd320",
 	"lzo", "lzo-rle", "cts", "sha3-224", "sha3-256", "sha3-384",
-	"sha3-512", "streebog256", "streebog512",
+	"sha3-512", "streebog256", "streebog512", "crc64",
 	NULL
 };
 
@@ -1287,15 +1287,6 @@ static void test_mb_skcipher_speed(const char *algo, int enc, int secs,
 			goto out_free_tfm;
 		}
 
-
-	for (i = 0; i < num_mb; ++i)
-		if (testmgr_alloc_buf(data[i].xbuf)) {
-			while (i--)
-				testmgr_free_buf(data[i].xbuf);
-			goto out_free_tfm;
-		}
-
-
 	for (i = 0; i < num_mb; ++i) {
 		data[i].req = skcipher_request_alloc(tfm, GFP_KERNEL);
 		if (!data[i].req) {
@@ -2469,6 +2460,11 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		test_hash_speed("streebog512", sec,
 				generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
+		fallthrough;
+	case 329:
+		test_hash_speed("crc64", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400)
+			break;
 		fallthrough;
 	case 399:
 		break;
