@@ -9,7 +9,7 @@
 /plugin/;
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/pinctrl/k3.h>
+#include "k3-pinctrl.h"
 
 &main_pmx0 {
 	main_spi0_pins_default: main-spi0-pins-default {
