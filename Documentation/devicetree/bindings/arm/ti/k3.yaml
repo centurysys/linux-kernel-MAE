@@ -28,7 +28,9 @@ properties:
       - description: K3 AM625 SoC
         items:
           - enum:
+              - beagle,am625-beagleplay
               - ti,am625-sk
+              - ti,am62-lp-sk
           - const: ti,am625
 
       - description: K3 AM642 SoC
@@ -68,6 +70,7 @@ properties:
       - description: K3 J721s2 SoC
         items:
           - enum:
+              - ti,am68-sk
               - ti,j721s2-evm
           - const: ti,j721s2
 
