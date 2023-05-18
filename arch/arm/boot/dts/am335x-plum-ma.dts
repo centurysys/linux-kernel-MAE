@@ -3885,3 +3885,7 @@
 &gpio0 {
 	wakeup-source;
 };
+
+&gpu_target {
+	status = "disabled";
+};
