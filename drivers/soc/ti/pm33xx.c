@@ -253,7 +253,8 @@ static int am33xx_pm_suspend(suspend_state_t suspend_state)
 		}
 	}
 
-	clk_disable_unprepare(rtc_fck);
+	if (suspend_state == PM_SUSPEND_MEM && pm_ops->check_off_mode_enable())
+		clk_disable_unprepare(rtc_fck);
 
 	return ret;
 }
