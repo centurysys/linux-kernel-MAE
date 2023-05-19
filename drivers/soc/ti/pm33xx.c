@@ -213,6 +213,12 @@ static int am33xx_pm_suspend(suspend_state_t suspend_state)
 			am33xx_push_sram_idle();
 		}
 	} else {
+		ret = clk_prepare_enable(rtc_fck);
+		if (ret) {
+			dev_err(pm33xx_dev, "Failed to enable clock: %i\n", ret);
+			return ret;
+		}
+
 		ret = pm_ops->soc_suspend(suspend_state, am33xx_do_wfi_sram,
 					  suspend_wfi_flags);
 	}
