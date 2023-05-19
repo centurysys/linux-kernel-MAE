@@ -37,6 +37,7 @@ struct ltc185x_state {
 	struct spi_transfer		scan_single_xfer[2];
 	struct spi_message		ring_msg;
 	struct spi_message		scan_single_msg;
+	struct mutex			lock;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -151,12 +152,12 @@ static int ltc185x_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
 		else
 			ret = ltc185x_scan_direct(st, chan->address, &raw_val);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 
 		if (ret < 0)
 			return ret;
@@ -210,14 +211,14 @@ static int ltc185x_set_range(struct iio_dev *indio_dev,
 	struct ltc185x_state *st = iio_priv(indio_dev);
 	u8 uni, gain;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	uni = (mode & 0x02) >> 1;
 	gain = mode & 0x01;
 
 	st->chan_setting[chan->channel].uni = uni;
 	st->chan_setting[chan->channel].gain = gain;
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return 0;
 }
@@ -286,6 +287,7 @@ static int ltc185x_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
+	mutex_init(&st->lock);
 
 	/* set default range: 0V to 5V */
 	for (i = 0; i < 4; i++) {
