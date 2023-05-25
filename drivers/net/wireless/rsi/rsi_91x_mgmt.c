@@ -1,32 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 	1. Redistributions of source code must retain the above copyright
- * 	   notice, this list of conditions and the following disclaimer.
- *
- * 	2. Redistributions in binary form must reproduce the above copyright
- * 	   notice, this list of conditions and the following disclaimer in the
- * 	   documentation and/or other materials provided with the distribution.
- *
- * 	3. Neither the name of the copyright holder nor the names of its
- * 	   contributors may be used to endorse or promote products derived
- * 	   from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2020-2023 Silicon Labs, Inc.
  */
 
 #include <linux/etherdevice.h>
@@ -44,153 +18,183 @@
 #if 0
 static struct rsi_config_vals dev_config_vals[] = {
 	{
-		.lp_ps_handshake = 0,
-		.ulp_ps_handshake = 0,
-		.sleep_config_params = 0,
-		.ext_pa_or_bt_coex_en = 0,
-	},
+	 .lp_ps_handshake = 0,
+	 .ulp_ps_handshake = 0,
+	 .sleep_config_params = 0,
+	 .ext_pa_or_bt_coex_en = 0,
+	  },
 };
 #endif
 
+struct ieee80211_channel rsi_2ghz_acx_channels[] = {
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2412,.max_power = 27,.hw_value = 1 },	/* Channel 1 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2417,.max_power = 27,.hw_value = 2 },	/* Channel 2 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2422,.max_power = 27,.hw_value = 3 },	/* Channel 3 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2427,.max_power = 27,.hw_value = 4 },	/* Channel 4 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2432,.max_power = 27,.hw_value = 5 },	/* Channel 5 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2437,.max_power = 27,.hw_value = 6 },	/* Channel 6 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2442,.max_power = 27,.hw_value = 7 },	/* Channel 7 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2447,.max_power = 27,.hw_value = 8 },	/* Channel 8 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2452,.max_power = 27,.hw_value = 9 },	/* Channel 9 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2457,.max_power = 27,.hw_value = 10 },	/* Channel 10 */
+	{.band = NL80211_BAND_2GHZ,.center_freq = 2462,.max_power = 27,.hw_value = 11 },	/* Channel 11 */
+	{.band = NL80211_BAND_2GHZ,
+	 .center_freq = 2467,
+	 .max_power = 27,
+	 .hw_value = 12,
+	 .flags = IEEE80211_CHAN_NO_IR },	/* Channel 12 */
+	{.band = NL80211_BAND_2GHZ,
+	 .center_freq = 2472,
+	 .max_power = 27,
+	 .hw_value = 13,
+	 .flags = IEEE80211_CHAN_NO_IR },	/* Channel 13 */
+};
+
 #ifdef CONFIG_RSI_11K
-struct reg_class reg_db[MAX_REGIONS][MAX_REG_CLASS] = { {
-	{ 1, 20, {36, 40, 44, 48} },
-	{ 2, 20, {52, 56, 60, 64} },
-	{ 3, 20, {149, 153, 157, 161} },
-	{ 4, 20, {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140} },
-	{ 5, 20, {149, 153, 157, 161, 165} },
-	{ 6, 5, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} },
-	{ 7, 5, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} },
-	{ 8, 10, {11, 13, 15, 17, 19} },
-	{ 9, 10, {11, 13, 15, 17, 19} },
-	{ 10, 20, {21, 25} },
-	{ 11, 20, {21, 25} },
-	{ 12, 25, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} },
-	{ 13, 20, {133, 137} },
-	{ 14, 10, {132, 134, 136, 138} },
-	{ 15, 5, {131, 132, 133, 134, 135, 136, 137, 138} },
-	{ 22, 40, {36, 44} },
-	{ 23, 40, {52, 60} },
-	{ 24, 40, {100, 108, 116, 124, 132} },
-	{ 25, 40, {149, 157} },
-	{ 26, 40, {149, 157} },
-	{ 27, 40, {40, 48} },
-	{ 28, 40, {56, 64} },
-	{ 29, 40, {104, 112, 120, 128, 136} },
-	{ 30, 40, {153, 161} },
-	{ 31, 40, {153, 161} },
-	{ 32, 40, {1, 2, 3, 4, 5, 6, 7} },
-	{ 33, 40, {5, 6, 7, 8, 9, 10, 11 } }
-	}, {
-	{ 1, 20, {36, 40, 44, 48} },
-	{ 2, 20, {52, 56, 60, 64} },
-	{ 3, 20, {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140} },
-	{ 4, 25, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13} },
-	{ 5, 40, {36, 44} },
-	{ 6, 40, {52, 60} },
-	{ 7, 40, {100, 108, 116, 124, 132} },
-	{ 8, 40, {40, 48} },
-	{ 9, 40, {56, 64} },
-	{ 10, 40, {104, 112, 120, 128, 136} },
-	{ 11, 40, {1, 2, 3, 4, 5, 6, 7, 8, 9} },
-	{ 12, 40, {5, 6, 7, 8, 9, 10, 11, 12, 13} },
-	{ 16, 20, {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140} },
-	{ 17, 20, {149, 153, 157, 161, 165, 169} }
-	}, {
-	{ 1, 20, {34, 38, 42, 46, 36, 40, 44, 48} },
-	{ 2, 20, {8, 12, 16} },
-	{ 3, 20, {8, 12, 16} },
-	{ 4, 20, {8, 12, 16} },
-	{ 5, 20, {8, 12, 16} },
-	{ 6, 20, {8, 12, 16} },
-	{ 7, 20, {184, 188, 192, 196} },
-	{ 8, 20, {184, 188, 192, 196} },
-	{ 9, 20, {184, 188, 192, 196} },
-	{ 10, 20, {184, 188, 192, 196} },
-	{ 11, 20, {184, 188, 192, 196} },
-	{ 12, 10, {7, 8, 9, 11} },
-	{ 13, 10, {7, 8, 9, 11} },
-	{ 14, 10, {7, 8, 9, 11} },
-	{ 15, 10, {7, 8, 9, 11} },
-	{ 16, 10, {183, 184, 185, 187, 188, 189} },
-	{ 17, 10, {183, 184, 185, 187, 188, 189} },
-	{ 18, 10, {183, 184, 185, 187, 188, 189} },
-	{ 19, 10, {183, 184, 185, 187, 188, 189} },
-	{ 20, 10, {183, 184, 185, 187, 188, 189} },
-	{ 21, 5, {6, 7, 8, 9, 10, 11} },
-	{ 22, 5, {6, 7, 8, 9, 10, 11} },
-	{ 23, 5, {6, 7, 8, 9, 10, 11} },
-	{ 24, 5, {6, 7, 8, 9, 10, 11} },
-	{ 25, 5, {182, 183, 184, 185, 186, 187, 188, 189} },
-	{ 26, 5, {182, 183, 184, 185, 186, 187, 188, 189} },
-	{ 27, 5, {182, 183, 184, 185, 186, 187, 188, 189} },
-	{ 28, 5, {182, 183, 184, 185, 186, 187, 188, 189} },
-	{ 29, 5, {182, 183, 184, 185, 186, 187, 188, 189} },
-	{ 30, 25, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13} },
-	{ 31, 25, {14} },
-	{ 32, 20, {52, 56, 60, 64} },
-	{ 33, 20, {52, 56, 60, 64} },
-	{ 34, 20, {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140} },
-	{ 35, 20, {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140} },
-	{ 36, 40, {36, 44} },
-	{ 37, 40, {52, 60} },
-	{ 38, 40, {52, 60} },
-	{ 39, 40, {100, 108, 116, 124, 132} },
-	{ 40, 40, {100, 108, 116, 124, 132} },
-	{ 41, 40, {40, 48} },
-	{ 42, 40, {56, 64} },
-	{ 43, 40, {56, 64} },
-	{ 44, 40, {104, 112, 120, 128, 136} },
-	{ 45, 40, {104, 112, 120, 128, 136} },
-	{ 46, 40, {184, 192} },
-	{ 47, 40, {184, 192} },
-	{ 48, 40, {184, 192} },
-	{ 49, 40, {184, 192} },
-	{ 50, 40, {184, 192} },
-	{ 51, 40, {188, 196} },
-	{ 52, 40, {188, 196} },
-	{ 53, 40, {188, 196} },
-	{ 54, 40, {188, 196} },
-	{ 55, 40, {188, 196} },
-	{ 56, 40, {1, 2, 3, 4, 5, 6, 7, 8, 9} },
-	{ 57, 40, {5, 6, 7, 8, 9, 10, 11, 12, 13} },
-	{ 58, 20, {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140} },
-	}, {
-	{ 81, 25, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13} },
-	{ 82, 25, {14} },
-	{ 83, 40, {1, 2, 3, 4, 5, 6, 7, 8, 9} },
-	{ 84, 40, {5, 6, 7, 8, 9, 10, 11, 12, 13} },
-	{ 94, 20, {133, 137} },
-	{ 95, 10, {132, 134, 136, 138} },
-	{ 96, 5, {131, 132, 133, 134, 135, 136, 137, 138} },
-	{ 101, 20, {21, 25} },
-	{ 102, 10, {11, 13, 15, 17, 19} },
-	{ 103, 5, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} },
-	{ 104, 40, {184, 192} },
-	{ 105, 40, {188, 196} },
-	{ 106, 20, {191, 195} },
-	{ 107, 10, {189, 191, 193, 195, 197} },
-	{ 108, 5, {188, 189, 190, 191, 192, 193, 194, 195, 196, 197} },
-	{ 109, 20, {184, 188, 192, 196} },
-	{ 110, 10, {183, 184, 185, 186, 187, 188, 189} },
-	{ 111, 5, {183, 184, 185, 186, 187, 188, 189} },
-	{ 112, 20, {8, 12, 16} },
-	{ 113, 10, {7, 8, 9, 10, 11} },
-	{ 114, 5, {6, 7, 8, 9, 10, 11} },
-	{ 115, 20, {36, 40, 44, 48} },
-	{ 116, 40, {36, 44} },
-	{ 117, 40, {40, 48} },
-	{ 118, 20, {52, 56, 60, 64} },
-	{ 119, 40, {52, 60}, },
-	{ 120, 40, {56, 64}, },
-	{ 121, 20, {100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140} },
-	{ 122, 40, {100, 108, 116, 124, 132} },
-	{ 123, 40, {104, 112, 120, 128, 136} },
-	{ 124, 20, {149, 153, 157, 161} },
-	{ 125, 20, {149, 153, 157, 161, 165, 169} },
-	{ 126, 40, {149, 157} },
-	{ 127, 40, {153, 161} }
-	}
+struct reg_class reg_db[MAX_REGIONS][MAX_REG_CLASS] = {
+	{ { 1, 20, { 36, 40, 44, 48}},
+	 { 2, 20, { 52, 56, 60, 64}},
+	 { 3, 20, { 149, 153, 157, 161}},
+	 { 4, 20, { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}},
+	 { 5, 20, { 149, 153, 157, 161, 165}},
+	 { 6, 5, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+	 { 7, 5, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+	 { 8, 10, { 11, 13, 15, 17, 19}},
+	 { 9, 10, { 11, 13, 15, 17, 19}},
+	 { 10, 20, { 21, 25}},
+	 { 11, 20, { 21, 25}},
+	 { 12, 25, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+	 { 13, 20, { 133, 137}},
+	 { 14, 10, { 132, 134, 136, 138}},
+	 { 15, 5, { 131, 132, 133, 134, 135, 136, 137, 138}},
+	 { 22, 40, { 36, 44}},
+	 { 23, 40, { 52, 60}},
+	 { 24, 40, { 100, 108, 116, 124, 132}},
+	 { 25, 40, { 149, 157}},
+	 { 26, 40, { 149, 157}},
+	 { 27, 40, { 40, 48}},
+	 { 28, 40, { 56, 64}},
+	 { 29, 40, { 104, 112, 120, 128, 136}},
+	 { 30, 40, { 153, 161}},
+	 { 31, 40, { 153, 161}},
+	 { 32, 40, { 1, 2, 3, 4, 5, 6, 7}},
+	 { 33, 40, { 5, 6, 7, 8, 9, 10, 11}} },
+	{ { 1, 20, { 36, 40, 44, 48}},
+	 { 2, 20, { 52, 56, 60, 64}},
+	 { 3, 20, { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}},
+	 { 4, 25, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}},
+	 { 5, 40, { 36, 44}},
+	 { 6, 40, { 52, 60}},
+	 { 7, 40, { 100, 108, 116, 124, 132}},
+	 { 8, 40, { 40, 48}},
+	 { 9, 40, { 56, 64}},
+	 { 10, 40, { 104, 112, 120, 128, 136}},
+	 { 11, 40, { 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+	 { 12, 40, { 5, 6, 7, 8, 9, 10, 11, 12, 13}},
+	 { 16, 20, { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}},
+	 { 17, 20, { 149, 153, 157, 161, 165, 169}} },
+	{
+	 { 1, 20, { 34, 38, 42, 46, 36, 40, 44, 48}},
+	 { 2, 20, { 8, 12, 16}},
+	 { 3, 20, { 8, 12, 16}},
+	 { 4, 20, { 8, 12, 16}},
+	 { 5, 20, { 8, 12, 16}},
+	 { 6, 20, { 8, 12, 16}},
+	 { 7, 20, { 184, 188, 192, 196}},
+	 { 8, 20, { 184, 188, 192, 196}},
+	 { 9, 20, { 184, 188, 192, 196}},
+	 { 10, 20, { 184, 188, 192, 196}},
+	 { 11, 20, { 184, 188, 192, 196}},
+	 { 12, 10, { 7, 8, 9, 11}},
+	 { 13, 10, { 7, 8, 9, 11}},
+	 { 14, 10, { 7, 8, 9, 11}},
+	 { 15, 10, { 7, 8, 9, 11}},
+	 { 16, 10, { 183, 184, 185, 187, 188, 189}},
+	 { 17, 10, { 183, 184, 185, 187, 188, 189}},
+	 { 18, 10, { 183, 184, 185, 187, 188, 189}},
+	 { 19, 10, { 183, 184, 185, 187, 188, 189}},
+	 { 20, 10, { 183, 184, 185, 187, 188, 189}},
+	 { 21, 5, { 6, 7, 8, 9, 10, 11}},
+	 { 22, 5, { 6, 7, 8, 9, 10, 11}},
+	 { 23, 5, { 6, 7, 8, 9, 10, 11}},
+	 { 24, 5, { 6, 7, 8, 9, 10, 11}},
+	 { 25, 5, { 182, 183, 184, 185, 186, 187, 188, 189}},
+	 { 26, 5, { 182, 183, 184, 185, 186, 187, 188, 189}},
+	 { 27, 5, { 182, 183, 184, 185, 186, 187, 188, 189}},
+	 { 28, 5, { 182, 183, 184, 185, 186, 187, 188, 189}},
+	 { 29, 5, { 182, 183, 184, 185, 186, 187, 188, 189}},
+	 { 30, 25, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}},
+	 { 31, 25, { 14}},
+	 { 32, 20, { 52, 56, 60, 64}},
+	 { 33, 20, { 52, 56, 60, 64}},
+	 { 34, 20, { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}},
+	 { 35, 20, { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}},
+	 { 36, 40, { 36, 44}},
+	 { 37, 40, { 52, 60}},
+	 { 38, 40, { 52, 60}},
+	 { 39, 40, { 100, 108, 116, 124, 132}},
+	 { 40, 40, { 100, 108, 116, 124, 132}},
+	 { 41, 40, { 40, 48}},
+	 { 42, 40, { 56, 64}},
+	 { 43, 40, { 56, 64}},
+	 { 44, 40, { 104, 112, 120, 128, 136}},
+	 { 45, 40, { 104, 112, 120, 128, 136}},
+	 { 46, 40, { 184, 192}},
+	 { 47, 40, { 184, 192}},
+	 { 48, 40, { 184, 192}},
+	 { 49, 40, { 184, 192}},
+	 { 50, 40, { 184, 192}},
+	 { 51, 40, { 188, 196}},
+	 { 52, 40, { 188, 196}},
+	 { 53, 40, { 188, 196}},
+	 { 54, 40, { 188, 196}},
+	 { 55, 40, { 188, 196}},
+	 { 56, 40, { 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+	 { 57, 40, { 5, 6, 7, 8, 9, 10, 11, 12, 13}},
+	 { 58, 20, { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}},
+	  },
+	{ { 81, 25, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}},
+	 { 82, 25, { 14}},
+	 { 83, 40, { 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+	 { 84, 40, { 5, 6, 7, 8, 9, 10, 11, 12, 13}},
+	 { 94, 20, { 133, 137}},
+	 { 95, 10, { 132, 134, 136, 138}},
+	 { 96, 5, { 131, 132, 133, 134, 135, 136, 137, 138}},
+	 { 101, 20, { 21, 25}},
+	 { 102, 10, { 11, 13, 15, 17, 19}},
+	 { 103, 5, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+	 { 104, 40, { 184, 192}},
+	 { 105, 40, { 188, 196}},
+	 { 106, 20, { 191, 195}},
+	 { 107, 10, { 189, 191, 193, 195, 197}},
+	 { 108, 5, { 188, 189, 190, 191, 192, 193, 194, 195, 196, 197}},
+	 { 109, 20, { 184, 188, 192, 196}},
+	 { 110, 10, { 183, 184, 185, 186, 187, 188, 189}},
+	 { 111, 5, { 183, 184, 185, 186, 187, 188, 189}},
+	 { 112, 20, { 8, 12, 16}},
+	 { 113, 10, { 7, 8, 9, 10, 11}},
+	 { 114, 5, { 6, 7, 8, 9, 10, 11}},
+	 { 115, 20, { 36, 40, 44, 48}},
+	 { 116, 40, { 36, 44}},
+	 { 117, 40, { 40, 48}},
+	 { 118, 20, { 52, 56, 60, 64}},
+	 {
+	  119,
+	  40,
+	  { 52, 60},
+	  },
+	 {
+	  120,
+	  40,
+	  { 56, 64},
+	  },
+	 { 121, 20, { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}},
+	 { 122, 40, { 100, 108, 116, 124, 132}},
+	 { 123, 40, { 104, 112, 120, 128, 136}},
+	 { 124, 20, { 149, 153, 157, 161}},
+	 { 125, 20, { 149, 153, 157, 161, 165, 169}},
+	 { 126, 40, { 149, 157}},
+	 { 127, 40, { 153, 161}} }
 };
 #endif
 
@@ -204,100 +208,119 @@ static struct bootup_params boot_params_20 = {
 	.digital_loop_back_params = 0x0,
 	.rtls_timestamp_en = 0x0,
 	.host_spi_intr_cfg = 0x0,
-	.device_clk_info = {{
-		/* WLAN params */
-		.pll_config_g = {
-			.tapll_info_g = {
-				.pll_reg_1 = cpu_to_le16((TAPLL_N_VAL_20 << 8) |
-							 (TAPLL_M_VAL_20)),
-				.pll_reg_2 = cpu_to_le16(TAPLL_P_VAL_20),
-			},
-			.pll960_info_g = {
-				.pll_reg_1 =
-					cpu_to_le16((PLL960_P_VAL_20 << 8) |
-						    (PLL960_N_VAL_20)),
-				.pll_reg_2 = cpu_to_le16(PLL960_M_VAL_20),
-				.pll_reg_3 = 0x0,
-			},
-			.afepll_info_g = {
-				.pll_reg = cpu_to_le16(0x9f0),
-			}
-		},
-		.switch_clk_g = {
-			.switch_umac_clk = 0x1,
-			.switch_qspi_clk = 0x1,
-			.switch_slp_clk_2_32 = 0x0,
-			.switch_bbp_lmac_clk_reg = 0x1,
-			.switch_mem_ctrl_cfg = 0x0,
-			.reserved = 0x0,
-			.bbp_lmac_clk_reg_val = cpu_to_le16(0x111),
-			.umac_clock_reg_config = cpu_to_le16(0x48),
-			.qspi_uart_clock_reg_config = cpu_to_le16(0x1211)
-		}
-	},
-	/* Bluetooth params */
-	{
-		.pll_config_g = {
-			.tapll_info_g = {
-				.pll_reg_1 = cpu_to_le16((TAPLL_N_VAL_20 << 8) |
-							 (TAPLL_M_VAL_20)),
-				.pll_reg_2 = cpu_to_le16(TAPLL_P_VAL_20),
-			},
-			.pll960_info_g = {
-				.pll_reg_1 =
-					cpu_to_le16((PLL960_P_VAL_20 << 8) |
-						    (PLL960_N_VAL_20)),
-				.pll_reg_2 = cpu_to_le16(PLL960_M_VAL_20),
-				.pll_reg_3 = 0x0,
-			},
-			.afepll_info_g = {
-				.pll_reg = cpu_to_le16(0x9f0),
-			}
-		},
-		.switch_clk_g = {
-			.switch_umac_clk = 0x0,
-			.switch_qspi_clk = 0x0,
-			.switch_slp_clk_2_32 = 0x0,
-			.switch_bbp_lmac_clk_reg = 0x0,
-			.switch_mem_ctrl_cfg = 0x0,
-			.reserved = 0x0,
-			.bbp_lmac_clk_reg_val = 0x0,
-			.umac_clock_reg_config = 0x0,
-			.qspi_uart_clock_reg_config = 0x0
-		}
-	},
-	/* Zigbee params */
-	{
-		.pll_config_g = {
-			.tapll_info_g = {
-				.pll_reg_1 = cpu_to_le16((TAPLL_N_VAL_20 << 8) |
-							 (TAPLL_M_VAL_20)),
-				.pll_reg_2 = cpu_to_le16(TAPLL_P_VAL_20),
-			},
-			.pll960_info_g = {
-				.pll_reg_1 =
-					cpu_to_le16((PLL960_P_VAL_20 << 8) |
-						    (PLL960_N_VAL_20)),
-				.pll_reg_2 = cpu_to_le16(PLL960_M_VAL_20),
-				.pll_reg_3 = 0x0,
-			},
-			.afepll_info_g = {
-				.pll_reg = cpu_to_le16(0x9f0),
-			}
-		},
-		.switch_clk_g = {
-			.switch_umac_clk = 0x0,
-			.switch_qspi_clk = 0x0,
-			.switch_slp_clk_2_32 = 0x0,
-			.switch_bbp_lmac_clk_reg = 0x0,
-			.switch_mem_ctrl_cfg = 0x0,
-			.reserved = 0x0,
-			.bbp_lmac_clk_reg_val = 0x0,
-			.umac_clock_reg_config = 0x0,
-			.qspi_uart_clock_reg_config = 0x0
-		}
-	}
-	},
+	.device_clk_info = { {
+			      /* WLAN params */
+			      .pll_config_g = {
+					       .tapll_info_g = {
+								.pll_reg_1 =
+								cpu_to_le16((TAPLL_N_VAL_20 << 8) | (TAPLL_M_VAL_20)),
+								.pll_reg_2 =
+								cpu_to_le16
+								(TAPLL_P_VAL_20),
+								},
+					       .pll960_info_g = {
+								 .pll_reg_1 =
+								 cpu_to_le16((PLL960_P_VAL_20 << 8) | (PLL960_N_VAL_20)),
+								 .pll_reg_2 =
+								 cpu_to_le16
+								 (PLL960_M_VAL_20),
+								 .pll_reg_3 =
+								 0x0,
+								 },
+					       .afepll_info_g = {
+								 .pll_reg =
+								 cpu_to_le16
+								 (0x9f0),
+								 }
+					       },
+			      .switch_clk_g = {
+					       .switch_umac_clk = 0x1,
+					       .switch_qspi_clk = 0x1,
+					       .switch_slp_clk_2_32 = 0x0,
+					       .switch_bbp_lmac_clk_reg = 0x1,
+					       .switch_mem_ctrl_cfg = 0x0,
+					       .reserved = 0x0,
+					       .bbp_lmac_clk_reg_val =
+					       cpu_to_le16(0x111),
+					       .umac_clock_reg_config =
+					       cpu_to_le16(0x48),
+					       .qspi_uart_clock_reg_config =
+					       cpu_to_le16(0x1211)
+					       }
+			      },
+			    /* Bluetooth params */
+			    {
+			     .pll_config_g = {
+					      .tapll_info_g = {
+							       .pll_reg_1 =
+							       cpu_to_le16((TAPLL_N_VAL_20 << 8) | (TAPLL_M_VAL_20)),
+							       .pll_reg_2 =
+							       cpu_to_le16
+							       (TAPLL_P_VAL_20),
+							       },
+					      .pll960_info_g = {
+								.pll_reg_1 =
+								cpu_to_le16((PLL960_P_VAL_20 << 8) | (PLL960_N_VAL_20)),
+								.pll_reg_2 =
+								cpu_to_le16
+								(PLL960_M_VAL_20),
+								.pll_reg_3 =
+								0x0,
+								},
+					      .afepll_info_g = {
+								.pll_reg =
+								cpu_to_le16
+								(0x9f0),
+								}
+					      },
+			     .switch_clk_g = {
+					      .switch_umac_clk = 0x0,
+					      .switch_qspi_clk = 0x0,
+					      .switch_slp_clk_2_32 = 0x0,
+					      .switch_bbp_lmac_clk_reg = 0x0,
+					      .switch_mem_ctrl_cfg = 0x0,
+					      .reserved = 0x0,
+					      .bbp_lmac_clk_reg_val = 0x0,
+					      .umac_clock_reg_config = 0x0,
+					      .qspi_uart_clock_reg_config = 0x0}
+			     },
+			    /* Zigbee params */
+			    {
+			     .pll_config_g = {
+					      .tapll_info_g = {
+							       .pll_reg_1 =
+							       cpu_to_le16((TAPLL_N_VAL_20 << 8) | (TAPLL_M_VAL_20)),
+							       .pll_reg_2 =
+							       cpu_to_le16
+							       (TAPLL_P_VAL_20),
+							       },
+					      .pll960_info_g = {
+								.pll_reg_1 =
+								cpu_to_le16((PLL960_P_VAL_20 << 8) | (PLL960_N_VAL_20)),
+								.pll_reg_2 =
+								cpu_to_le16
+								(PLL960_M_VAL_20),
+								.pll_reg_3 =
+								0x0,
+								},
+					      .afepll_info_g = {
+								.pll_reg =
+								cpu_to_le16
+								(0x9f0),
+								}
+					      },
+			     .switch_clk_g = {
+					      .switch_umac_clk = 0x0,
+					      .switch_qspi_clk = 0x0,
+					      .switch_slp_clk_2_32 = 0x0,
+					      .switch_bbp_lmac_clk_reg = 0x0,
+					      .switch_mem_ctrl_cfg = 0x0,
+					      .reserved = 0x0,
+					      .bbp_lmac_clk_reg_val = 0x0,
+					      .umac_clock_reg_config = 0x0,
+					      .qspi_uart_clock_reg_config = 0x0}
+			     }
+			     },
 	/* ULP Params */
 	.buckboost_wakeup_cnt = 0x0,
 	.pmu_wakeup_wait = 0x0,
@@ -322,28 +345,40 @@ static struct bootup_params_9116 boot_params_9116_20 = {
 	.digital_loop_back_params = 0x0,
 	.rtls_timestamp_en = 0x0,
 	.host_spi_intr_cfg = 0x0,
-	.device_clk_info_9116 = {{
-		/* WLAN params */
-		.pll_config_9116_g = {
-			.pll_ctrl_set_reg = 0xd518,
-			.pll_ctrl_clr_reg = 0x2ae7,
-			.pll_modem_conig_reg = 0x2000,
-			.soc_clk_config_reg = 0x0C18,
-			.adc_dac_strm1_config_reg = 0x1100,
-			.adc_dac_strm2_config_reg = 0x6600,
-		},
-		.switch_clk_9116_g = {
-			.switch_clk_info =
-				cpu_to_le32((RSI_SWITCH_TASS_CLK |
-					    RSI_SWITCH_WLAN_BBP_LMAC_CLK_REG |
-					    RSI_SWITCH_BBP_LMAC_CLK_REG)),
-			.tass_clock_reg = 0x083C0503,
-			.wlan_bbp_lmac_clk_reg_val = 0x01042001,
-			.zbbt_bbp_lmac_clk_reg_val = 0x02010001,
-			.bbp_lmac_clk_en_val = 0x0000003b,
-		}
-	},
-	},
+	.device_clk_info_9116 = { {
+				   /* WLAN params */
+				   .pll_config_9116_g = {
+							 .pll_ctrl_set_reg =
+							 0xd518,
+							 .pll_ctrl_clr_reg =
+							 0x2ae7,
+							 .pll_modem_conig_reg =
+							 0x2000,
+							 .soc_clk_config_reg =
+							 0x0C18,
+							 .
+							 adc_dac_strm1_config_reg
+							 = 0x1100,
+							 .
+							 adc_dac_strm2_config_reg
+							 = 0x6600,
+							 },
+				   .switch_clk_9116_g = {
+							 .switch_clk_info =
+							 cpu_to_le32((RSI_SWITCH_TASS_CLK | RSI_SWITCH_WLAN_BBP_LMAC_CLK_REG | RSI_SWITCH_BBP_LMAC_CLK_REG)),
+							 .tass_clock_reg =
+							 0x083C0503,
+							 .
+							 wlan_bbp_lmac_clk_reg_val
+							 = 0x01042001,
+							 .
+							 zbbt_bbp_lmac_clk_reg_val
+							 = 0x02010001,
+							 .bbp_lmac_clk_en_val =
+							 0x0000003b,
+							 }
+				   },
+				  },
 	/* ULP Params */
 	.buckboost_wakeup_cnt = 0x0,
 	.pmu_wakeup_wait = 0x0,
@@ -368,100 +403,119 @@ static struct bootup_params boot_params_40 = {
 	.digital_loop_back_params = 0x0,
 	.rtls_timestamp_en = 0x0,
 	.host_spi_intr_cfg = 0x0,
-	.device_clk_info = {{
-		/* WLAN params */
-		.pll_config_g = {
-			.tapll_info_g = {
-				.pll_reg_1 = cpu_to_le16((TAPLL_N_VAL_40 << 8) |
-							 (TAPLL_M_VAL_40)),
-				.pll_reg_2 = cpu_to_le16(TAPLL_P_VAL_40),
-			},
-			.pll960_info_g = {
-				.pll_reg_1 =
-					cpu_to_le16((PLL960_P_VAL_40 << 8) |
-						    (PLL960_N_VAL_40)),
-				.pll_reg_2 = cpu_to_le16(PLL960_M_VAL_40),
-				.pll_reg_3 = 0x0,
-			},
-			.afepll_info_g = {
-				.pll_reg = cpu_to_le16(0x9f0),
-			}
-		},
-		.switch_clk_g = {
-			.switch_umac_clk = 0x1,
-			.switch_qspi_clk = 0x1,
-			.switch_slp_clk_2_32 = 0x0,
-			.switch_bbp_lmac_clk_reg = 0x1,
-			.switch_mem_ctrl_cfg = 0x0,
-			.reserved = 0x0,
-			.bbp_lmac_clk_reg_val = cpu_to_le16(0x1121),
-			.umac_clock_reg_config = cpu_to_le16(0x48),
-			.qspi_uart_clock_reg_config = cpu_to_le16(0x1211)
-		}
-	},
-	/* Bluetooth Params */
-	{
-		.pll_config_g = {
-			.tapll_info_g = {
-				.pll_reg_1 = cpu_to_le16((TAPLL_N_VAL_40 << 8) |
-							 (TAPLL_M_VAL_40)),
-				.pll_reg_2 = cpu_to_le16(TAPLL_P_VAL_40),
-			},
-			.pll960_info_g = {
-				.pll_reg_1 =
-					cpu_to_le16((PLL960_P_VAL_40 << 8) |
-						    (PLL960_N_VAL_40)),
-				.pll_reg_2 = cpu_to_le16(PLL960_M_VAL_40),
-				.pll_reg_3 = 0x0,
-			},
-			.afepll_info_g = {
-				.pll_reg = cpu_to_le16(0x9f0),
-			}
-		},
-		.switch_clk_g = {
-			.switch_umac_clk = 0x0,
-			.switch_qspi_clk = 0x0,
-			.switch_slp_clk_2_32 = 0x0,
-			.switch_bbp_lmac_clk_reg = 0x0,
-			.switch_mem_ctrl_cfg = 0x0,
-			.reserved = 0x0,
-			.bbp_lmac_clk_reg_val = 0x0,
-			.umac_clock_reg_config = 0x0,
-			.qspi_uart_clock_reg_config = 0x0
-		}
-	},
-	/* Zigbee Params */
-	{
-		.pll_config_g = {
-			.tapll_info_g = {
-				.pll_reg_1 = cpu_to_le16((TAPLL_N_VAL_40 << 8) |
-							 (TAPLL_M_VAL_40)),
-				.pll_reg_2 = cpu_to_le16(TAPLL_P_VAL_40),
-			},
-			.pll960_info_g = {
-				.pll_reg_1 =
-					cpu_to_le16((PLL960_P_VAL_40 << 8) |
-						    (PLL960_N_VAL_40)),
-				.pll_reg_2 = cpu_to_le16(PLL960_M_VAL_40),
-				.pll_reg_3 = 0x0,
-			},
-			.afepll_info_g = {
-				.pll_reg = cpu_to_le16(0x9f0),
-			}
-		},
-		.switch_clk_g = {
-			.switch_umac_clk = 0x0,
-			.switch_qspi_clk = 0x0,
-			.switch_slp_clk_2_32 = 0x0,
-			.switch_bbp_lmac_clk_reg = 0x0,
-			.switch_mem_ctrl_cfg = 0x0,
-			.reserved = 0x0,
-			.bbp_lmac_clk_reg_val = 0x0,
-			.umac_clock_reg_config = 0x0,
-			.qspi_uart_clock_reg_config = 0x0
-		}
-	}
-	},
+	.device_clk_info = { {
+			      /* WLAN params */
+			      .pll_config_g = {
+					       .tapll_info_g = {
+								.pll_reg_1 =
+								cpu_to_le16((TAPLL_N_VAL_40 << 8) | (TAPLL_M_VAL_40)),
+								.pll_reg_2 =
+								cpu_to_le16
+								(TAPLL_P_VAL_40),
+								},
+					       .pll960_info_g = {
+								 .pll_reg_1 =
+								 cpu_to_le16((PLL960_P_VAL_40 << 8) | (PLL960_N_VAL_40)),
+								 .pll_reg_2 =
+								 cpu_to_le16
+								 (PLL960_M_VAL_40),
+								 .pll_reg_3 =
+								 0x0,
+								 },
+					       .afepll_info_g = {
+								 .pll_reg =
+								 cpu_to_le16
+								 (0x9f0),
+								 }
+					       },
+			      .switch_clk_g = {
+					       .switch_umac_clk = 0x1,
+					       .switch_qspi_clk = 0x1,
+					       .switch_slp_clk_2_32 = 0x0,
+					       .switch_bbp_lmac_clk_reg = 0x1,
+					       .switch_mem_ctrl_cfg = 0x0,
+					       .reserved = 0x0,
+					       .bbp_lmac_clk_reg_val =
+					       cpu_to_le16(0x1121),
+					       .umac_clock_reg_config =
+					       cpu_to_le16(0x48),
+					       .qspi_uart_clock_reg_config =
+					       cpu_to_le16(0x1211)
+					       }
+			      },
+			    /* Bluetooth Params */
+			    {
+			     .pll_config_g = {
+					      .tapll_info_g = {
+							       .pll_reg_1 =
+							       cpu_to_le16((TAPLL_N_VAL_40 << 8) | (TAPLL_M_VAL_40)),
+							       .pll_reg_2 =
+							       cpu_to_le16
+							       (TAPLL_P_VAL_40),
+							       },
+					      .pll960_info_g = {
+								.pll_reg_1 =
+								cpu_to_le16((PLL960_P_VAL_40 << 8) | (PLL960_N_VAL_40)),
+								.pll_reg_2 =
+								cpu_to_le16
+								(PLL960_M_VAL_40),
+								.pll_reg_3 =
+								0x0,
+								},
+					      .afepll_info_g = {
+								.pll_reg =
+								cpu_to_le16
+								(0x9f0),
+								}
+					      },
+			     .switch_clk_g = {
+					      .switch_umac_clk = 0x0,
+					      .switch_qspi_clk = 0x0,
+					      .switch_slp_clk_2_32 = 0x0,
+					      .switch_bbp_lmac_clk_reg = 0x0,
+					      .switch_mem_ctrl_cfg = 0x0,
+					      .reserved = 0x0,
+					      .bbp_lmac_clk_reg_val = 0x0,
+					      .umac_clock_reg_config = 0x0,
+					      .qspi_uart_clock_reg_config = 0x0}
+			     },
+			    /* Zigbee Params */
+			    {
+			     .pll_config_g = {
+					      .tapll_info_g = {
+							       .pll_reg_1 =
+							       cpu_to_le16((TAPLL_N_VAL_40 << 8) | (TAPLL_M_VAL_40)),
+							       .pll_reg_2 =
+							       cpu_to_le16
+							       (TAPLL_P_VAL_40),
+							       },
+					      .pll960_info_g = {
+								.pll_reg_1 =
+								cpu_to_le16((PLL960_P_VAL_40 << 8) | (PLL960_N_VAL_40)),
+								.pll_reg_2 =
+								cpu_to_le16
+								(PLL960_M_VAL_40),
+								.pll_reg_3 =
+								0x0,
+								},
+					      .afepll_info_g = {
+								.pll_reg =
+								cpu_to_le16
+								(0x9f0),
+								}
+					      },
+			     .switch_clk_g = {
+					      .switch_umac_clk = 0x0,
+					      .switch_qspi_clk = 0x0,
+					      .switch_slp_clk_2_32 = 0x0,
+					      .switch_bbp_lmac_clk_reg = 0x0,
+					      .switch_mem_ctrl_cfg = 0x0,
+					      .reserved = 0x0,
+					      .bbp_lmac_clk_reg_val = 0x0,
+					      .umac_clock_reg_config = 0x0,
+					      .qspi_uart_clock_reg_config = 0x0}
+			     }
+			     },
 	/* ULP Params */
 	.buckboost_wakeup_cnt = 0x0,
 	.pmu_wakeup_wait = 0x0,
@@ -486,33 +540,46 @@ static struct bootup_params_9116 boot_params_9116_40 = {
 	.digital_loop_back_params = 0x0,
 	.rtls_timestamp_en = 0x0,
 	.host_spi_intr_cfg = 0x0,
-	.device_clk_info_9116 = {{
-		/* WLAN params */
-		.pll_config_9116_g = {
-			.pll_ctrl_set_reg = 0xd518,
-			.pll_ctrl_clr_reg = 0x2ae7,
-			.pll_modem_conig_reg = 0x3000,
-			.soc_clk_config_reg = 0x0C18,
-			.adc_dac_strm1_config_reg = 0x0000,
-			.adc_dac_strm2_config_reg = 0x6600,
-		},
-		.switch_clk_9116_g = {
-			.switch_clk_info =
-				cpu_to_le32((RSI_SWITCH_TASS_CLK |
-					    RSI_SWITCH_WLAN_BBP_LMAC_CLK_REG |
-					    RSI_SWITCH_BBP_LMAC_CLK_REG |
-					    RSI_MODEM_CLK_160MHZ)),
-			.tass_clock_reg = 0x083C0503,
+	.device_clk_info_9116 = { {
+				   /* WLAN params */
+				   .pll_config_9116_g = {
+							 .pll_ctrl_set_reg =
+							 0xd518,
+							 .pll_ctrl_clr_reg =
+							 0x2ae7,
+							 .pll_modem_conig_reg =
+							 0x3000,
+							 .soc_clk_config_reg =
+							 0x0C18,
+							 .
+							 adc_dac_strm1_config_reg
+							 = 0x0000,
+							 .
+							 adc_dac_strm2_config_reg
+							 = 0x6600,
+							 },
+				   .switch_clk_9116_g = {
+							 .switch_clk_info =
+							 cpu_to_le32((RSI_SWITCH_TASS_CLK | RSI_SWITCH_WLAN_BBP_LMAC_CLK_REG | RSI_SWITCH_BBP_LMAC_CLK_REG | RSI_MODEM_CLK_160MHZ)),
+							 .tass_clock_reg =
+							 0x083C0503,
 #ifdef CONFIG_FPGA_40MHZ
-			.wlan_bbp_lmac_clk_reg_val = 0x01081002,
+							 .
+							 wlan_bbp_lmac_clk_reg_val
+							 = 0x01081002,
 #else
-			.wlan_bbp_lmac_clk_reg_val = 0x01042002,
+							 .
+							 wlan_bbp_lmac_clk_reg_val
+							 = 0x01042002,
 #endif
-			.zbbt_bbp_lmac_clk_reg_val = 0x04010002,
-			.bbp_lmac_clk_en_val = 0x0000003b,
-		}
-	},
-	},
+							 .
+							 zbbt_bbp_lmac_clk_reg_val
+							 = 0x04010002,
+							 .bbp_lmac_clk_en_val =
+							 0x0000003b,
+							 }
+				   },
+				  },
 	/* ULP Params */
 	.buckboost_wakeup_cnt = 0x0,
 	.pmu_wakeup_wait = 0x0,
@@ -527,8 +594,8 @@ static struct bootup_params_9116 boot_params_9116_40 = {
 	.beacon_resedue_alg_en = 0,
 };
 
-#define UNUSED_GPIO	1
-#define USED_GPIO	0
+#define UNUSED_GPIO 1
+#define USED_GPIO   0
 static struct rsi_ulp_gpio_vals unused_ulp_gpio_bitmap = {
 	.motion_sensor_gpio_ulp_wakeup = UNUSED_GPIO,
 	.sleep_ind_from_device = UNUSED_GPIO,
@@ -537,31 +604,31 @@ static struct rsi_ulp_gpio_vals unused_ulp_gpio_bitmap = {
 };
 
 struct rsi_soc_gpio_vals unused_soc_gpio_bitmap = {
-	.pspi_csn_0		= USED_GPIO,	//GPIO_0
-	.pspi_csn_1		= USED_GPIO,	//GPIO_1
-	.host_wakeup_intr	= USED_GPIO,	//GPIO_2
-	.pspi_data_0		= USED_GPIO,	//GPIO_3
-	.pspi_data_1		= USED_GPIO,	//GPIO_4
-	.pspi_data_2		= USED_GPIO,	//GPIO_5
-	.pspi_data_3		= USED_GPIO,	//GPIO_6
-	.i2c_scl		= USED_GPIO,	//GPIO_7
-	.i2c_sda		= USED_GPIO,	//GPIO_8
-	.uart1_rx		= UNUSED_GPIO,	//GPIO_9
-	.uart1_tx		= UNUSED_GPIO,	//GPIO_10
-	.uart1_rts_i2s_clk	= UNUSED_GPIO,	//GPIO_11
-	.uart1_cts_i2s_ws	= UNUSED_GPIO,	//GPIO_12
-	.dbg_uart_rx_i2s_din	= UNUSED_GPIO,	//GPIO_13
-	.dbg_uart_tx_i2s_dout	= UNUSED_GPIO,	//GPIO_14
-	.lp_wakeup_boot_bypass	= UNUSED_GPIO,	//GPIO_15
-	.led_0			= USED_GPIO,	//GPIO_16
-	.btcoex_wlan_active_ext_pa_ant_sel_A = UNUSED_GPIO, //GPIO_17
-	.btcoex_bt_priority_ext_pa_ant_sel_B = UNUSED_GPIO, //GPIO_18
-	.btcoex_bt_active_ext_pa_on_off = UNUSED_GPIO, //GPIO_19
-	.rf_reset		= USED_GPIO, //GPIO_20
-	.sleep_ind_from_device	= UNUSED_GPIO,
+	.pspi_csn_0 = USED_GPIO,	//GPIO_0
+	.pspi_csn_1 = USED_GPIO,	//GPIO_1
+	.host_wakeup_intr = USED_GPIO,	//GPIO_2
+	.pspi_data_0 = USED_GPIO,	//GPIO_3
+	.pspi_data_1 = USED_GPIO,	//GPIO_4
+	.pspi_data_2 = USED_GPIO,	//GPIO_5
+	.pspi_data_3 = USED_GPIO,	//GPIO_6
+	.i2c_scl = USED_GPIO,	//GPIO_7
+	.i2c_sda = USED_GPIO,	//GPIO_8
+	.uart1_rx = UNUSED_GPIO,	//GPIO_9
+	.uart1_tx = UNUSED_GPIO,	//GPIO_10
+	.uart1_rts_i2s_clk = UNUSED_GPIO,	//GPIO_11
+	.uart1_cts_i2s_ws = UNUSED_GPIO,	//GPIO_12
+	.dbg_uart_rx_i2s_din = UNUSED_GPIO,	//GPIO_13
+	.dbg_uart_tx_i2s_dout = UNUSED_GPIO,	//GPIO_14
+	.lp_wakeup_boot_bypass = UNUSED_GPIO,	//GPIO_15
+	.led_0 = USED_GPIO,	//GPIO_16
+	.btcoex_wlan_active_ext_pa_ant_sel_A = UNUSED_GPIO,	//GPIO_17
+	.btcoex_bt_priority_ext_pa_ant_sel_B = UNUSED_GPIO,	//GPIO_18
+	.btcoex_bt_active_ext_pa_on_off = UNUSED_GPIO,	//GPIO_19
+	.rf_reset = USED_GPIO,	//GPIO_20
+	.sleep_ind_from_device = UNUSED_GPIO,
 };
 
-static u16 mcs[] = {13, 26, 39, 52, 78, 104, 117, 130};
+static u16 mcs[] = { 13, 26, 39, 52, 78, 104, 117, 130 };
 
 #ifdef CONFIG_RSI_11K
 int ieee80211_chan_to_bw(struct rsi_hw *adapter, u8 op_class, u8 channel_num)
@@ -572,7 +639,7 @@ int ieee80211_chan_to_bw(struct rsi_hw *adapter, u8 op_class, u8 channel_num)
 	for (i = 0; i < ARRAY_SIZE(reg_db[region - 1]); i++) {
 		if (reg_db[region - 1][i].op_class == op_class) {
 			for (j = 0; j < ARRAY_SIZE(reg_db[region - 1][i].chans);
-					j++) {
+			     j++) {
 				if (reg_db[region - 1][i].chans[j] ==
 				    channel_num)
 					return reg_db[region - 1][i].bandwidth;
@@ -594,8 +661,8 @@ int is_dfs_channel(struct rsi_hw *adapter, int channel)
 		ch = &sband->channels[i];
 		if (ch->flags & IEEE80211_CHAN_DISABLED)
 			continue;
-		if ((ch->hw_value == channel) &&
-		    (ch->flags & IEEE80211_CHAN_RADAR))
+		if ((ch->hw_value == channel)
+		    && (ch->flags & IEEE80211_CHAN_RADAR))
 			return 1;
 	}
 	return 0;
@@ -619,10 +686,10 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->iface_down = true;
 	common->endpoint = EP_2GHZ_20MHZ;
 	common->ta_aggr = 3;
-	common->skip_fw_load = 0; /* Default disable skipping fw loading */
-	common->rf_power_val = 0; /* Default 1.9V */
-	common->device_gpio_type = TA_GPIO; /* Default TA GPIO */
-	common->country_code = 840; /* Default US */
+	common->skip_fw_load = 0;	/* Default disable skipping fw loading */
+	common->rf_power_val = 0;	/* Default 1.9V */
+	common->device_gpio_type = TA_GPIO;	/* Default TA GPIO */
+	common->country_code = 840;	/* Default US */
 	common->wlan_rf_power_mode = 0;
 	common->bt_rf_power_mode = 0;
 	common->tx_power = RSI_TXPOWER_MAX;
@@ -630,13 +697,15 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->beacon_interval = 100;
 	common->antenna_gain[0] = 0;
 	common->antenna_gain[1] = 0;
-	common->w9116_features.pll_mode = 0x0 ;
+	common->w9116_features.pll_mode = 0x0;
 	common->w9116_features.rf_type = 1;
 	common->w9116_features.wireless_mode = 0;
 	common->w9116_features.enable_ppe = 0;
 	common->w9116_features.afe_type = 1;
 	common->w9116_features.dpd = 0;
 	common->w9116_features.sifs_tx_enable = 0;
+	common->hw_bmiss_threshold = HW_BMISS_THRESHOLD;
+	common->keep_alive_period = DEFAULT_KEEP_ALIVE_PERIOD;
 }
 
 void init_bgscan_params(struct rsi_common *common)
@@ -659,9 +728,9 @@ void init_bgscan_params(struct rsi_common *common)
 	common->bgscan_info.channels2scan[8] = 9;
 	common->bgscan_info.channels2scan[9] = 10;
 	common->bgscan_info.channels2scan[10] = 11;
-//	common->bgscan_info.channels2scan[11] = 12;
-//	common->bgscan_info.channels2scan[12] = 13;
-//	common->bgscan_info.channels2scan[13] = 14;
+//      common->bgscan_info.channels2scan[11] = 12;
+//      common->bgscan_info.channels2scan[12] = 13;
+//      common->bgscan_info.channels2scan[13] = 14;
 #if 0
 	common->bgscan_info.channels2scan[11] = 36;
 	common->bgscan_info.channels2scan[12] = 40;
@@ -689,9 +758,9 @@ static void rsi_set_contention_vals(struct rsi_common *common)
 
 	for (; ii < NUM_EDCA_QUEUES; ii++) {
 		common->tx_qinfo[ii].wme_params =
-			(((common->edca_params[ii].cw_min / 2) +
-			  (common->edca_params[ii].aifs)) *
-			  WMM_SHORT_SLOT_TIME + SIFS_DURATION);
+		    (((common->edca_params[ii].cw_min / 2) +
+		      (common->edca_params[ii].aifs)) * WMM_SHORT_SLOT_TIME +
+		     SIFS_DURATION);
 		common->tx_qinfo[ii].weight = common->tx_qinfo[ii].wme_params;
 		common->tx_qinfo[ii].pkt_contended = 0;
 	}
@@ -706,8 +775,7 @@ static void rsi_set_contention_vals(struct rsi_common *common)
  *
  * Return: 0 on success, -1 on failure.
  */
-static int rsi_send_internal_mgmt_frame(struct rsi_common *common,
-					struct sk_buff *skb)
+int rsi_send_internal_mgmt_frame(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct skb_info *tx_params;
 
@@ -738,17 +806,10 @@ int rsi_load_radio_caps(struct rsi_common *common)
 {
 	struct rsi_radio_caps *radio_caps;
 	struct rsi_hw *adapter = common->priv;
-	u16 inx = 0;
 	u16 value;
 	u8 ii, jj = 0;
 	u8 radio_id = 0;
-	u16 gc[20] = {0xf0, 0xf0, 0xf0, 0xf0,
-		      0xf0, 0xf0, 0xf0, 0xf0,
-		      0xf0, 0xf0, 0xf0, 0xf0,
-		      0xf0, 0xf0, 0xf0, 0xf0,
-		      0xf0, 0xf0, 0xf0, 0xf0};
 	struct sk_buff *skb;
-
 	rsi_dbg(INT_MGMT_ZONE, "<===== SENDING RADIO_CAPABILITIES =====>\n");
 
 	skb = dev_alloc_skb(sizeof(struct rsi_radio_caps));
@@ -765,26 +826,35 @@ int rsi_load_radio_caps(struct rsi_common *common)
 	radio_caps->desc_word[7] |= cpu_to_le16(RSI_LMAC_CLOCK_80MHZ);
 	if (common->channel_width == BW_40MHZ) {
 		radio_caps->desc_word[7] |= cpu_to_le16(RSI_ENABLE_40MHZ);
+		if (common->driver_mode != RF_EVAL_MODE_ON) {
+			if (common->fsm_state == FSM_MAC_INIT_DONE) {
+				struct ieee80211_hw *hw = adapter->hw;
+				struct ieee80211_conf *conf = &hw->conf;
 
-		if (common->fsm_state == FSM_MAC_INIT_DONE) {
-			struct ieee80211_hw *hw = adapter->hw;
-			struct ieee80211_conf *conf = &hw->conf;
-
-			if (conf_is_ht40_plus(conf)) {
+				if (conf_is_ht40_plus(conf)) {
+					radio_caps->desc_word[5] =
+					    cpu_to_le16(LOWER_20_ENABLE);
+					radio_caps->desc_word[5] |=
+					    cpu_to_le16(LOWER_20_ENABLE >> 12);
+				} else if (conf_is_ht40_minus(conf)) {
+					radio_caps->desc_word[5] =
+					    cpu_to_le16(UPPER_20_ENABLE);
+					radio_caps->desc_word[5] |=
+					    cpu_to_le16(UPPER_20_ENABLE >> 12);
+				} else {
+					radio_caps->desc_word[5] =
+					    cpu_to_le16(BW_40MHZ << 12);
+					radio_caps->desc_word[5] |=
+					    cpu_to_le16(FULL40M_ENABLE);
+				}
+			}
+		} else {
+			if (adapter->per_params.per_ch_bw) {
 				radio_caps->desc_word[5] =
-					cpu_to_le16(LOWER_20_ENABLE);
+				    cpu_to_le16(adapter->per_params.
+						per_ch_bw << 12);
 				radio_caps->desc_word[5] |=
-					cpu_to_le16(LOWER_20_ENABLE >> 12);
-			} else if (conf_is_ht40_minus(conf)) {
-				radio_caps->desc_word[5] =
-					cpu_to_le16(UPPER_20_ENABLE);
-				radio_caps->desc_word[5] |=
-					cpu_to_le16(UPPER_20_ENABLE >> 12);
-			} else {
-				radio_caps->desc_word[5] =
-					cpu_to_le16(BW_40MHZ << 12);
-				radio_caps->desc_word[5] |=
-					cpu_to_le16(FULL40M_ENABLE);
+				    cpu_to_le16(FULL40M_ENABLE);
 			}
 		}
 	}
@@ -809,21 +879,21 @@ int rsi_load_radio_caps(struct rsi_common *common)
 		if (ii > 5)
 			jj = 1;
 		radio_caps->qos_params[ii].cont_win_min_q =
-			cpu_to_le16(common->edca_params[ii%4].cw_min + jj);
+		    cpu_to_le16(common->edca_params[ii % 4].cw_min + jj);
 		radio_caps->qos_params[ii].cont_win_max_q =
-			cpu_to_le16(common->edca_params[ii%4].cw_max + jj);
+		    cpu_to_le16(common->edca_params[ii % 4].cw_max + jj);
 		radio_caps->qos_params[ii].aifsn_val_q =
-			cpu_to_le16(common->edca_params[ii%4].aifs);
+		    cpu_to_le16(common->edca_params[ii % 4].aifs);
 		radio_caps->qos_params[ii].txop_q =
-			cpu_to_le16(common->edca_params[ii%4].txop << 5);
+		    cpu_to_le16(common->edca_params[ii % 4].txop << 5);
 	}
 
 	for (ii = 0; ii < MAX_HW_QUEUES; ii++) {
 		if (!(radio_caps->qos_params[ii].cont_win_min_q)) {
 			radio_caps->qos_params[ii].cont_win_min_q =
-							cpu_to_le16(7);
+			    cpu_to_le16(7);
 			radio_caps->qos_params[ii].cont_win_max_q =
-							cpu_to_le16(0x3f);
+			    cpu_to_le16(0x3f);
 			radio_caps->qos_params[ii].aifsn_val_q = cpu_to_le16(2);
 			radio_caps->qos_params[ii].txop_q = 0;
 		}
@@ -831,15 +901,9 @@ int rsi_load_radio_caps(struct rsi_common *common)
 	radio_caps->qos_params[BROADCAST_HW_Q].txop_q = 0xffff;
 	radio_caps->qos_params[MGMT_HW_Q].txop_q = 0;
 	radio_caps->qos_params[BEACON_HW_Q].txop_q = 0xffff;
-
-	memcpy(&common->rate_pwr[0], &gc[0], 40);
-	for (ii = 0; ii < 20; ii++)
-		radio_caps->gcpd_per_rate[inx++] =
-			cpu_to_le16(common->rate_pwr[ii]  & 0x00FF);
-
-	radio_caps->desc_word[0] = cpu_to_le16((sizeof(struct rsi_radio_caps) -
-						FRAME_DESC_SZ) |
-						(RSI_WIFI_MGMT_Q << 12));
+	radio_caps->desc_word[0] =
+	    cpu_to_le16((sizeof(struct rsi_radio_caps) -
+			 FRAME_DESC_SZ) | (RSI_WIFI_MGMT_Q << 12));
 
 	skb_put(skb, (sizeof(struct rsi_radio_caps)));
 	rsi_hex_dump(INT_MGMT_ZONE, "RADIO-CAP FRAME", skb->data, skb->len);
@@ -856,8 +920,7 @@ int rsi_load_radio_caps(struct rsi_common *common)
  *
  * Return: 0 on success, -1 on failure.
  */
-static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
-				u8 *msg,
+static int rsi_mgmt_pkt_to_core(struct rsi_common *common, u8 * msg,
 				s32 msg_len)
 {
 	struct rsi_hw *adapter = common->priv;
@@ -879,32 +942,29 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 
 	msg_len -= pad_bytes;
 	if ((msg_len <= 0) || (!msg)) {
-		rsi_dbg(MGMT_RX_ZONE,
-			"%s: Invalid rx msg of len = %d\n",
+		rsi_dbg(MGMT_RX_ZONE, "%s: Invalid rx msg of len = %d\n",
 			__func__, msg_len);
 		return -EINVAL;
 	}
 #ifdef CONFIG_RSI_11K
 	wlh = (struct ieee80211_hdr *)&msg[FRAME_DESC_SZ + pad_bytes];
-	rsi_hex_dump(ERR_ZONE, "RX RRM packet", (u8 *)wlh, msg_len);
+	rsi_hex_dump(ERR_ZONE, "RX RRM packet", (u8 *) wlh, msg_len);
 
 	if (ieee80211_is_action(wlh->frame_control)) {
-		data = (u8 *)wlh + MIN_802_11_HDR_LEN;
+		data = (u8 *) wlh + MIN_802_11_HDR_LEN;
 		if (data[0] == WLAN_ACTION_RADIO_MEASUREMENT) {
 			rsi_dbg(MGMT_RX_ZONE,
 				"%s: Received Radio Measurement Request\n",
 				__func__);
-			if (!rsi_rrm_parse_radio_action_frame(common,
-							      (u8 *)wlh,
-							      msg_len))
+			if (!rsi_rrm_parse_radio_action_frame
+			    (common, (u8 *) wlh, msg_len))
 				return 0;
 		} else if (data[0] == WLAN_ACTION_SPECTRUM_MANAGEMENT) {
 			rsi_dbg(MGMT_RX_ZONE,
 				"%s: Received spectrum Measurement Request\n",
 				__func__);
-			rsi_rrm_parse_spectrum_action_frame(common, wlh,
-							    data);
-				return 0;
+			rsi_rrm_parse_spectrum_action_frame(common, wlh, data);
+			return 0;
 		} else {
 			rsi_dbg(MGMT_RX_ZONE,
 				"%s: Received invalid category code\n",
@@ -919,9 +979,7 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 
 	buffer = skb_put(skb, msg_len);
 
-	memcpy(buffer,
-		(u8 *)(msg +  FRAME_DESC_SZ + pad_bytes),
-		msg_len);
+	memcpy(buffer, (u8 *) (msg + FRAME_DESC_SZ + pad_bytes), msg_len);
 
 	pkt_recv = buffer[0];
 
@@ -929,29 +987,26 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 	rx_params = (struct skb_info *)info->driver_data;
 	rx_params->rssi = rsi_get_rssi(msg);
 	rx_params->channel = rsi_get_channel(msg);
-	rsi_dbg(MGMT_RX_ZONE,
-		"%s: rssi=%d channel=%d\n",
-		__func__, rx_params->rssi, rx_params->channel);
+	rsi_dbg(MGMT_RX_ZONE, "%s: rssi=%d channel=%d\n", __func__,
+		rx_params->rssi, rx_params->channel);
 	wlh = (struct ieee80211_hdr *)skb->data;
 	rsi_dbg(MGMT_RX_ZONE, "RX Dot11 Mgmt Pkt Type: %s\n",
 		dot11_pkt_type(wlh->frame_control));
 	if (ieee80211_is_auth(wlh->frame_control)) {
 		rsi_dbg(MGMT_DEBUG_ZONE,
 			"<==== Recvd AUTHENTICATION Packet ====>\n");
-		rsi_hex_dump(MGMT_DEBUG_ZONE, "AUTH-FRAME",
-					      skb->data, skb->len);
+		rsi_hex_dump(MGMT_DEBUG_ZONE, "AUTH-FRAME", skb->data,
+			     skb->len);
 	} else if (ieee80211_is_assoc_resp(wlh->frame_control)) {
 		rsi_dbg(MGMT_DEBUG_ZONE,
 			"<==== Recvd ASSOCIATION RESPONSE Packet ====>\n");
-		rsi_hex_dump(MGMT_DEBUG_ZONE, "ASSOC-RESP",
-					       skb->data, skb->len);
+		rsi_hex_dump(MGMT_DEBUG_ZONE, "ASSOC-RESP", skb->data,
+			     skb->len);
 	} else if (ieee80211_is_deauth(wlh->frame_control)) {
-		rsi_dbg(MGMT_DEBUG_ZONE,
-			"<==== Recvd DE-AUTH Packet ====>\n");
-		rsi_hex_dump(MGMT_DEBUG_ZONE, "DE-AUTH FRAME",
-					      skb->data, skb->len);
+		rsi_dbg(MGMT_DEBUG_ZONE, "<==== Recvd DE-AUTH Packet ====>\n");
+		rsi_hex_dump(MGMT_DEBUG_ZONE, "DE-AUTH FRAME", skb->data,
+			     skb->len);
 	}
-
 	rsi_indicate_pkt_to_os(common, skb);
 
 	return 0;
@@ -973,22 +1028,26 @@ int rsi_send_sta_notify_frame(struct rsi_common *common,
 			      enum opmode opmode,
 			      u8 notify_event,
 			      const unsigned char *bssid,
-			      u8 qos_enable,
-			      u16 aid,
+			      u8 qos_enable, u16 aid,
+#ifndef CONFIG_STA_PLUS_AP
 			      u16 sta_id)
+#else
+			      u16 sta_id, struct ieee80211_vif *vif)
+#endif
 {
 	struct rsi_hw *adapter = common->priv;
+#ifndef CONFIG_STA_PLUS_AP
 	struct ieee80211_vif *vif = adapter->vifs[adapter->sc_nvifs - 1];
+#endif
 	struct sk_buff *skb = NULL;
 	struct rsi_peer_notify *peer_notify;
 	int status;
-	u16 vap_id = 0;
+	u16 vap_id = ((struct vif_priv *)vif->drv_priv)->vap_id;
 	int frame_len = sizeof(*peer_notify);
 	struct ieee80211_sta *sta;
-	u8 mpdu_density_map[] = {0,1,1,1,2,4,8,16};
+	u8 mpdu_density_map[] = { 0, 1, 1, 1, 2, 4, 8, 16 };
 
-	rsi_dbg(INT_MGMT_ZONE,
-		"<==== Sending Peer Notify Packet ====>\n");
+	rsi_dbg(INT_MGMT_ZONE, "<==== Sending Peer Notify Packet ====>\n");
 
 	skb = dev_alloc_skb(frame_len);
 	if (!skb) {
@@ -1000,7 +1059,11 @@ int rsi_send_sta_notify_frame(struct rsi_common *common,
 
 	peer_notify = (struct rsi_peer_notify *)skb->data;
 
+#ifndef CONFIG_STA_PLUS_AP
 	sta = common->stations[RSI_MAX_ASSOC_STAS].sta;
+#else
+	sta = common->stations[STA_PEER].sta;
+#endif
 	if (opmode == STA_OPMODE)
 		peer_notify->command = cpu_to_le16(PEER_TYPE_AP << 1);
 	else if (opmode == AP_OPMODE) {
@@ -1012,9 +1075,14 @@ int rsi_send_sta_notify_frame(struct rsi_common *common,
 	case STA_CONNECTED:
 		peer_notify->command |= cpu_to_le16(RSI_ADD_PEER);
 		common->peer_notify_state = true;
-		if(sta != NULL) {
-			peer_notify->mpdu_density = cpu_to_le16(mpdu_density_map[sta->ht_cap.ampdu_density]); 
-			peer_notify->sta_flags = cpu_to_le32((sta->ht_cap.ampdu_factor << 2) | ((qos_enable) ? 1 : 0));
+		if (sta != NULL) {
+			peer_notify->mpdu_density =
+			    cpu_to_le16(mpdu_density_map
+					[sta->ht_cap.ampdu_density]);
+			peer_notify->sta_flags =
+			    cpu_to_le32((sta->ht_cap.
+					 ampdu_factor << 2) | ((qos_enable) ? 1
+							       : 0));
 		}
 		break;
 	case STA_DISCONNECTED:
@@ -1028,23 +1096,22 @@ int rsi_send_sta_notify_frame(struct rsi_common *common,
 	peer_notify->command |= cpu_to_le16((aid & 0xfff) << 4);
 	ether_addr_copy(peer_notify->mac_addr, bssid);
 	ether_addr_copy(common->sta_bssid, bssid);
-	peer_notify->desc_word[0] = cpu_to_le16((frame_len - FRAME_DESC_SZ) |
-						(RSI_WIFI_MGMT_Q << 12));
+	peer_notify->desc_word[0] =
+	    cpu_to_le16((frame_len - FRAME_DESC_SZ) | (RSI_WIFI_MGMT_Q << 12));
 	peer_notify->desc_word[1] = cpu_to_le16(PEER_NOTIFY);
 	peer_notify->desc_word[7] |= cpu_to_le16(sta_id | vap_id << 8);
 
 	skb_put(skb, frame_len);
 	if (notify_event == STA_CONNECTED) {
-		rsi_hex_dump(INT_MGMT_ZONE, "ADD PEER FRAME",
-						skb->data, skb->len);
+		rsi_hex_dump(INT_MGMT_ZONE, "ADD PEER FRAME", skb->data,
+			     skb->len);
 	} else {
-		rsi_hex_dump(INT_MGMT_ZONE, "DELETE PEER FRAME",
-						skb->data, skb->len);
+		rsi_hex_dump(INT_MGMT_ZONE, "DELETE PEER FRAME", skb->data,
+			     skb->len);
 	}
 	status = rsi_send_internal_mgmt_frame(common, skb);
 
-	if ((vif->type == NL80211_IFTYPE_STATION) &&
-	    (!status) && qos_enable) {
+	if ((vif->type == NL80211_IFTYPE_STATION) && (!status) && qos_enable) {
 		rsi_set_contention_vals(common);
 		mdelay(1);
 		status = rsi_load_radio_caps(common);
@@ -1064,17 +1131,13 @@ int rsi_send_sta_notify_frame(struct rsi_common *common,
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
-int rsi_send_aggr_params_frame(struct rsi_common *common,
-			       u16 tid,
-			       u16 ssn,
-			       u8 buf_size,
-			       u8 event,
-			       u8 sta_id)
+int rsi_send_aggr_params_frame(struct rsi_common *common, u16 tid, u16 ssn,
+			       u8 buf_size, u8 event, u8 sta_id)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_mac_frame *mgmt_frame;
 	u8 peer_id = 0;
-//	u8 window_size = 1;
+	//    u8 window_size = 1;
 
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
 	if (!skb) {
@@ -1086,35 +1149,35 @@ int rsi_send_aggr_params_frame(struct rsi_common *common,
 	memset(skb->data, 0, FRAME_DESC_SZ);
 	mgmt_frame = (struct rsi_mac_frame *)skb->data;
 
-	rsi_dbg(INT_MGMT_ZONE,
-		"<===== SENDING AMPDU_IND FRAME =====>\n");
+	rsi_dbg(INT_MGMT_ZONE, "<===== SENDING AMPDU_IND FRAME =====>\n");
 
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(AMPDU_IND);
 
 	if (event == STA_TX_ADDBA_DONE) {
 		mgmt_frame->desc_word[4] = cpu_to_le16(ssn);
-		mgmt_frame->desc_word[5] = cpu_to_le16(buf_size);
+		mgmt_frame->desc_word[5] = cpu_to_le16(TX_AGGR_LIMIT_FOR_11N);
 		//mgmt_frame->desc_word[5] = cpu_to_le16(window_size);
 		mgmt_frame->desc_word[7] =
-			cpu_to_le16((tid |
-				    (START_AMPDU_AGGR << 4) |
-				    (peer_id << 8)));
+		    cpu_to_le16((tid | (START_AMPDU_AGGR << 4) |
+				 (peer_id << 8)));
 	} else if (event == STA_RX_ADDBA_DONE) {
 		mgmt_frame->desc_word[4] = cpu_to_le16(ssn);
-		mgmt_frame->desc_word[7] = cpu_to_le16(tid |
-						       (START_AMPDU_AGGR << 4) |
-						       (RX_BA_INDICATION << 5) |
-						       (peer_id << 8));
+		mgmt_frame->desc_word[7] =
+		    cpu_to_le16(tid | (START_AMPDU_AGGR << 4) |
+				(RX_BA_INDICATION << 5) | (peer_id << 8));
 	} else if (event == STA_TX_DELBA) {
-		mgmt_frame->desc_word[7] = cpu_to_le16(tid |
-						       (STOP_AMPDU_AGGR << 4) |
-						       (peer_id << 8));
+		mgmt_frame->desc_word[7] =
+		    cpu_to_le16(tid | (STOP_AMPDU_AGGR << 4) | (peer_id << 8));
+#ifndef CONFIG_STA_PLUS_AP
+		common->stations[RSI_MAX_ASSOC_STAS].start_tx_aggr[tid] = false;
+#else
+		common->stations[STA_PEER].start_tx_aggr[tid] = false;
+#endif
 	} else if (event == STA_RX_DELBA) {
-		mgmt_frame->desc_word[7] = cpu_to_le16(tid |
-						       (STOP_AMPDU_AGGR << 4) |
-						       (RX_BA_INDICATION << 5) |
-						       (peer_id << 8));
+		mgmt_frame->desc_word[7] =
+		    cpu_to_le16(tid | (STOP_AMPDU_AGGR << 4) |
+				(RX_BA_INDICATION << 5) | (peer_id << 8));
 	}
 
 	skb_put(skb, FRAME_DESC_SZ);
@@ -1153,14 +1216,14 @@ int rsi_program_bb_rf(struct rsi_common *common)
 	mgmt_frame->desc_word[3] = cpu_to_le16(common->rf_pwr_mode);
 
 	if (common->rf_reset) {
-		mgmt_frame->desc_word[7] =  cpu_to_le16(RF_RESET_ENABLE);
+		mgmt_frame->desc_word[7] = cpu_to_le16(RF_RESET_ENABLE);
 		rsi_dbg(MGMT_TX_ZONE, "%s: ===> RF RESET REQUEST SENT <===\n",
 			__func__);
 		common->rf_reset = 0;
 	}
 	common->bb_rf_prog_count = 1;
-	mgmt_frame->desc_word[7] |= cpu_to_le16(PUT_BBP_RESET |
-				     BBP_REG_WRITE | (RSI_RF_TYPE << 4));
+	mgmt_frame->desc_word[7] |=
+	    cpu_to_le16(PUT_BBP_RESET | BBP_REG_WRITE | (RSI_RF_TYPE << 4));
 
 	skb_put(skb, FRAME_DESC_SZ);
 	rsi_hex_dump(INT_MGMT_ZONE, "BBP_PROG_IN_TA", skb->data, skb->len);
@@ -1175,11 +1238,8 @@ int rsi_program_bb_rf(struct rsi_common *common)
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
-int rsi_set_vap_capabilities(struct rsi_common *common,
-			     enum opmode mode,
-			     u8 *mac_addr,
-			     u8 vap_id,
-			     u8 vap_status)
+int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode,
+			     u8 * mac_addr, u8 vap_id, u8 vap_status)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_vap_caps *vap_caps;
@@ -1190,8 +1250,8 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	rsi_dbg(INT_MGMT_ZONE,
 		"<===== SENDING VAP_CAPABILITIES FRAME =====>\n");
 
-	rsi_dbg(INFO_ZONE, "Config VAP: id=%d mode=%d status=%d ",
-		vap_id, mode, vap_status);
+	rsi_dbg(INFO_ZONE, "Config VAP: id=%d mode=%d status=%d ", vap_id, mode,
+		vap_status);
 	rsi_hex_dump(INFO_ZONE, "mac", mac_addr, 6);
 	skb = dev_alloc_skb(sizeof(struct rsi_vap_caps));
 	if (!skb) {
@@ -1203,16 +1263,16 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	memset(skb->data, 0, sizeof(struct rsi_vap_caps));
 	vap_caps = (struct rsi_vap_caps *)skb->data;
 
-	vap_caps->desc_word[0] = cpu_to_le16((sizeof(struct rsi_vap_caps) -
-					     FRAME_DESC_SZ) |
-					     (RSI_WIFI_MGMT_Q << 12));
+	vap_caps->desc_word[0] =
+	    cpu_to_le16((sizeof(struct rsi_vap_caps) -
+			 FRAME_DESC_SZ) | (RSI_WIFI_MGMT_Q << 12));
 	vap_caps->desc_word[1] = cpu_to_le16(VAP_CAPABILITIES);
 	vap_caps->desc_word[2] = cpu_to_le16(vap_status << 8);
-	vap_caps->desc_word[4] = cpu_to_le16(mode |
-					     (common->channel_width << 8));
-	vap_caps->desc_word[7] = cpu_to_le16((vap_id << 8) |
-					     (common->mac_id << 4) |
-					     common->radio_id);
+	vap_caps->desc_word[4] =
+	    cpu_to_le16(mode | (common->channel_width << 8));
+	vap_caps->desc_word[7] =
+	    cpu_to_le16((vap_id << 8) | (common->mac_id << 4) | common->
+			radio_id);
 
 	memcpy(vap_caps->mac_addr, mac_addr, IEEE80211_ADDR_LEN);
 	vap_caps->keep_alive_period = cpu_to_le16(90);
@@ -1227,20 +1287,20 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 		if (common->p2p_enabled) {
 			vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_6);
 		} else {
-		vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_1);
-	}
+			vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_1);
+		}
 	}
 
 	if (conf_is_ht40(conf)) {
 		if (conf_is_ht40_minus(conf))
 			vap_caps->default_ctrl_rate |=
-				cpu_to_le32(UPPER_20_ENABLE << 16);
+			    cpu_to_le32(UPPER_20_ENABLE << 16);
 		else if (conf_is_ht40_plus(conf))
 			vap_caps->default_ctrl_rate |=
-				cpu_to_le32(LOWER_20_ENABLE << 16);
+			    cpu_to_le32(LOWER_20_ENABLE << 16);
 		else
 			vap_caps->default_ctrl_rate |=
-				cpu_to_le32(FULL40M_ENABLE << 16);
+			    cpu_to_le32(FULL40M_ENABLE << 16);
 	}
 
 	vap_caps->default_data_rate = 0;
@@ -1267,20 +1327,25 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
  *
  * Return: 0 on success, -1 on failure.
  */
+#ifndef CONFIG_STA_PLUS_AP
+int rsi_load_key(struct rsi_common *common, u8 * data, u16 key_len, u8 key_type,
+		 u8 key_id, u32 cipher, s16 sta_id)
+{
+	struct ieee80211_vif *vif =
+	    common->priv->vifs[common->priv->sc_nvifs - 1];
+#else
 int rsi_load_key(struct rsi_common *common,
-		 u8 *data,
+		 u8 * data,
 		 u16 key_len,
 		 u8 key_type,
-		 u8 key_id,
-		 u32 cipher,
-		 s16 sta_id)
+		 u8 key_id, u32 cipher, s16 sta_id, struct ieee80211_vif *vif)
 {
-	struct ieee80211_vif *vif = common->priv->vifs[common->priv->sc_nvifs - 1];
+#endif
 	struct sk_buff *skb = NULL;
 	struct rsi_set_key *set_key;
 	u16 key_descriptor = 0;
 	u8 key_t1 = 0;
-	u8 vap_id = 0;
+	u8 vap_id = ((struct vif_priv *)vif->drv_priv)->vap_id;
 
 	skb = dev_alloc_skb(sizeof(struct rsi_set_key));
 	if (!skb) {
@@ -1295,25 +1360,25 @@ int rsi_load_key(struct rsi_common *common,
 	switch (key_type) {
 	case RSI_GROUP_KEY:
 		key_t1 = 1 << 1;
-		if ((vif->type == NL80211_IFTYPE_AP) ||
-		    (vif->type == NL80211_IFTYPE_P2P_GO))
+		if ((vif->type == NL80211_IFTYPE_AP)
+		    || (vif->type == NL80211_IFTYPE_P2P_GO))
 			key_descriptor = BIT(7);
 		break;
 	case RSI_PAIRWISE_KEY:
-		if (((vif->type == NL80211_IFTYPE_AP) ||
-		     (vif->type == NL80211_IFTYPE_P2P_GO)) &&
-		    (sta_id >= common->max_stations)) {
+		if (((vif->type == NL80211_IFTYPE_AP)
+		     || (vif->type == NL80211_IFTYPE_P2P_GO))
+		    && (sta_id >= common->max_stations)) {
 			rsi_dbg(INFO_ZONE, "Invalid Sta_id %d\n", sta_id);
 			return -1;
 		}
 		key_t1 = 0 << 1;
-		if ((cipher != WLAN_CIPHER_SUITE_WEP40) &&
-		    (cipher != WLAN_CIPHER_SUITE_WEP104))
+		if ((cipher != WLAN_CIPHER_SUITE_WEP40)
+		    && (cipher != WLAN_CIPHER_SUITE_WEP104))
 			key_id = 0;
 		break;
 	}
-	if ((cipher == WLAN_CIPHER_SUITE_WEP40) ||
-	    (cipher == WLAN_CIPHER_SUITE_WEP104)) {
+	if ((cipher == WLAN_CIPHER_SUITE_WEP40)
+	    || (cipher == WLAN_CIPHER_SUITE_WEP104)) {
 		key_descriptor |= BIT(2);
 		if (key_len >= 13) {
 			key_descriptor |= BIT(3);
@@ -1325,16 +1390,16 @@ int rsi_load_key(struct rsi_common *common,
 	}
 	key_descriptor |= (key_t1 | BIT(13) | (key_id << 14));
 
-	set_key->desc_word[0] = cpu_to_le16((sizeof(struct rsi_set_key) -
-					    FRAME_DESC_SZ) |
-					    (RSI_WIFI_MGMT_Q << 12));
+	set_key->desc_word[0] =
+	    cpu_to_le16((sizeof(struct rsi_set_key) -
+			 FRAME_DESC_SZ) | (RSI_WIFI_MGMT_Q << 12));
 	set_key->desc_word[1] = cpu_to_le16(SET_KEY_REQ);
 	set_key->desc_word[4] = cpu_to_le16(key_descriptor);
 	set_key->desc_word[7] = cpu_to_le16(sta_id | (vap_id << 8));
 
 	if (data) {
-		if ((cipher == WLAN_CIPHER_SUITE_WEP40) ||
-		    (cipher == WLAN_CIPHER_SUITE_WEP104)) {
+		if ((cipher == WLAN_CIPHER_SUITE_WEP40)
+		    || (cipher == WLAN_CIPHER_SUITE_WEP104)) {
 			memcpy(&set_key->key[key_id][1], data, key_len * 2);
 		} else {
 			memcpy(&set_key->key[0][0], data, key_len);
@@ -1343,7 +1408,7 @@ int rsi_load_key(struct rsi_common *common,
 		memcpy(set_key->rx_mic_key, &data[24], 8);
 	} else {
 		memset(&set_key[FRAME_DESC_SZ], 0,
-		       sizeof(struct rsi_set_key) - FRAME_DESC_SZ);				
+		       sizeof(struct rsi_set_key) - FRAME_DESC_SZ);
 	}
 
 	skb_put(skb, sizeof(struct rsi_set_key));
@@ -1364,6 +1429,7 @@ int rsi_send_common_dev_params(struct rsi_common *common)
 	struct sk_buff *skb = NULL;
 	u32 frame_len = 0;
 	struct rsi_config_vals *dev_cfgs = NULL;
+	struct rsi_hw *adapter = common->priv;
 
 	frame_len = sizeof(struct rsi_config_vals);
 
@@ -1380,57 +1446,66 @@ int rsi_send_common_dev_params(struct rsi_common *common)
 	dev_cfgs = (struct rsi_config_vals *)&skb->data[0];
 	memset(dev_cfgs, 0, (sizeof(struct rsi_config_vals)));
 
-	dev_cfgs->desc_word[0] = cpu_to_le16((frame_len - FRAME_DESC_SZ) |
-					     (RSI_COEX_Q << 12));
+	dev_cfgs->desc_word[0] =
+	    cpu_to_le16((frame_len - FRAME_DESC_SZ) | (RSI_COEX_Q << 12));
 	dev_cfgs->desc_word[1] = cpu_to_le16(COMMON_DEV_CONFIG);
 
 	dev_cfgs->lp_ps_handshake = common->lp_ps_handshake_mode;
 	dev_cfgs->ulp_ps_handshake = common->ulp_ps_handshake_mode;
 
-	dev_cfgs->unused_ulp_gpio = *(u8 *)&unused_ulp_gpio_bitmap;
+	dev_cfgs->unused_ulp_gpio = *(u8 *) & unused_ulp_gpio_bitmap;
 	dev_cfgs->unused_soc_gpio_bitmap =
-		cpu_to_le32(*(u32 *)&unused_soc_gpio_bitmap);
+	    cpu_to_le32(*(u32 *) & unused_soc_gpio_bitmap);
 
 	/*
 	 * For zigb functionality, send DEV_OPMODE_ZB_ALONE
 	 * as opermode to firmware, irrespective of router or
 	 * coordinator
 	 */
-	if (common->oper_mode == DEV_OPMODE_ZB_COORDINATOR ||
-	    common->oper_mode == DEV_OPMODE_ZB_ROUTER)
+	if (common->oper_mode == DEV_OPMODE_ZB_COORDINATOR
+	    || common->oper_mode == DEV_OPMODE_ZB_ROUTER)
 		dev_cfgs->opermode = DEV_OPMODE_ZB_ALONE;
 	else
 		dev_cfgs->opermode = common->oper_mode;
 
 	dev_cfgs->wlan_rf_pwr_mode = common->wlan_rf_power_mode;
 	dev_cfgs->driver_mode = common->driver_mode;
-	dev_cfgs->region_code = NL80211_DFS_FCC;
+	dev_cfgs->region_code = adapter->dfs_region;
 	dev_cfgs->antenna_sel_val = common->obm_ant_sel_val;
 	dev_cfgs->dev_peer_dist = common->peer_dist;
 	dev_cfgs->dev_bt_feature_bitmap = common->bt_feature_bitmap;
 	dev_cfgs->uart_dbg = common->uart_debug;
-	if (common->priv->device_model == RSI_DEV_9116) {
+	dev_cfgs->xtal_good_time = common->xtal_good_time;
+	if (COMMON_DEV_MODEL_9116) {
 		/*
-		 * In 9116_feature_bitmap, BITS(3:0) are used for module type
-		 * selection, BIT(4) is used for host interface on demand
-		 * feature option. BIT(5) is used for selecting sleep clock
-		 * source. All variables below are module param of 2 byte
-		 * size.
+		 * In 9116_feature_bitmap,
+		 * BITS(3:0)  are used for module type selection,
+		 * BIT(4)     is used for host interface on demand feature option,
+		 * BIT(5)     is used for selecting sleep clock source,
+		 * BIT(8)     is used to Disable updated rate params,
+		 * BIT(9)     is used to select 1.8V operation,
+		 * BIT(11)    is used for Airplane mode,
+		 * BIT(12)    is used for AARF_RATE_BLOCK_EN,
+		 * BIT(14:13) are used for PTA config.
 		 */
-		dev_cfgs->features_9116 = (common->ext_opt & 0xF) |
-					  (common->host_intf_on_demand << 4) |
-					  ((common->crystal_as_sleep_clk & 0x3) << 5) |
-					  (common->sleep_ind_gpio_sel << 7) |
-					  (common->feature_bitmap_9116 << 11);
+		dev_cfgs->features_9116 =
+		    (common->ext_opt & 0xF) | (common->host_intf_on_demand << 4)
+		    | ((common->crystal_as_sleep_clk & 0x3) << 5) | (common->
+								     sleep_ind_gpio_sel
+								     << 7)
+		    | (common->feature_bitmap_9116 << 8) | (common->
+							    pta_config << 13);
 		dev_cfgs->dev_ble_roles = common->ble_roles;
 		/* In bt_bdr, bt_bdr_mode used a byte[0:7],
 		 * three_wire_coex use one bit [8]. Module param of 2 byte
 		 * size.
 		 */
-		dev_cfgs->bt_bdr = ((common->three_wire_coex << 8) |
-				    common->bt_bdr_mode);
+		dev_cfgs->bt_bdr =
+		    ((common->three_wire_coex << 8) | common->bt_bdr_mode);
 		dev_cfgs->dev_anchor_point_gap = common->anchor_point_gap;
 	}
+	if (common->rx_data_inactive_interval)
+		dev_cfgs->xtal_good_time |= EN_ENHANCED_MAX_PSP;
 
 	skb_put(skb, frame_len);
 	rsi_hex_dump(INT_MGMT_ZONE, "COMMON-DEV PARAM", skb->data, skb->len);
@@ -1444,7 +1519,7 @@ int rsi_send_common_dev_params(struct rsi_common *common)
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-static int rsi_load_bootup_params(struct rsi_common *common)
+int rsi_load_bootup_params(struct rsi_common *common)
 {
 	struct sk_buff *skb;
 	struct rsi_boot_params *boot_params = NULL;
@@ -1454,7 +1529,7 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 	rsi_dbg(INT_MGMT_ZONE,
 		"<===== SENDING BOOTUP_PARAMS_REQUEST FRAME =====>\n");
 
-	if (adapter->device_model == RSI_DEV_9116)
+	if (DEV_MODEL_9116)
 		skb = dev_alloc_skb(sizeof(struct rsi_boot_params_9116));
 	else
 		skb = dev_alloc_skb(sizeof(struct rsi_boot_params));
@@ -1464,7 +1539,7 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 			__func__);
 		return -ENOMEM;
 	}
-	if (adapter->device_model == RSI_DEV_9116) {
+	if (DEV_MODEL_9116) {
 		memset(skb->data, 0, sizeof(struct rsi_boot_params_9116));
 		boot_params_9116 = (struct rsi_boot_params_9116 *)skb->data;
 	} else {
@@ -1473,7 +1548,7 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 	}
 
 	if (common->channel_width == BW_40MHZ) {
-		if (adapter->device_model == RSI_DEV_9116) {
+		if (DEV_MODEL_9116) {
 			memcpy(&boot_params_9116->bootup_params,
 			       &boot_params_9116_40,
 			       sizeof(struct bootup_params_9116));
@@ -1481,10 +1556,9 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 				"%s: Packet 40MHZ UMAC_CLK =%d\n", __func__,
 				UMAC_CLK_40BW);
 			boot_params_9116->desc_word[7] =
-				cpu_to_le16(UMAC_CLK_40BW);
+			    cpu_to_le16(UMAC_CLK_40BW);
 		} else {
-			memcpy(&boot_params->bootup_params,
-			       &boot_params_40,
+			memcpy(&boot_params->bootup_params, &boot_params_40,
 			       sizeof(struct bootup_params));
 			rsi_dbg(INT_MGMT_ZONE,
 				"%s: Packet 40MHZ UMAC_CLK = %d\n", __func__,
@@ -1492,26 +1566,24 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 			boot_params->desc_word[7] = cpu_to_le16(UMAC_CLK_40BW);
 		}
 	} else {
-		if (adapter->device_model == RSI_DEV_9116)
+		if (DEV_MODEL_9116)
 			memcpy(&boot_params_9116->bootup_params,
 			       &boot_params_9116_20,
 			       sizeof(struct bootup_params_9116));
 		else
-			memcpy(&boot_params->bootup_params,
-			       &boot_params_20,
+			memcpy(&boot_params->bootup_params, &boot_params_20,
 			       sizeof(struct bootup_params));
 
-		if (adapter->device_model == RSI_DEV_9116) {
-			if (boot_params_9116_20.valid !=
-					cpu_to_le32(VALID_20)) {
+		if (DEV_MODEL_9116) {
+			if (boot_params_9116_20.valid != cpu_to_le32(VALID_20)) {
 				boot_params_9116->desc_word[7] =
-					cpu_to_le16(UMAC_CLK_20BW);
+				    cpu_to_le16(UMAC_CLK_20BW);
 				rsi_dbg(INT_MGMT_ZONE,
 					"Packet 20MHZ WITH UMAC_CLK = %d\n",
-					 UMAC_CLK_20BW);
+					UMAC_CLK_20BW);
 			} else {
 				boot_params_9116->desc_word[7] =
-					cpu_to_le16(UMAC_CLK_40MHZ);
+				    cpu_to_le16(UMAC_CLK_40MHZ);
 				rsi_dbg(INT_MGMT_ZONE,
 					"Packet 20MHZ WITH UMAC_CLK = %d\n",
 					UMAC_CLK_40MHZ);
@@ -1519,13 +1591,13 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 		} else {
 			if (boot_params_20.valid != cpu_to_le32(VALID_20)) {
 				boot_params->desc_word[7] =
-					cpu_to_le16(UMAC_CLK_20BW);
+				    cpu_to_le16(UMAC_CLK_20BW);
 				rsi_dbg(INT_MGMT_ZONE,
 					"Packet 20MHZ WITH UMAC_CLK = %d\n",
 					UMAC_CLK_20BW);
 			} else {
 				boot_params->desc_word[7] =
-					cpu_to_le16(UMAC_CLK_40MHZ);
+				    cpu_to_le16(UMAC_CLK_40MHZ);
 				rsi_dbg(INT_MGMT_ZONE,
 					"Packet 20MHZ WITH UMAC_CLK = %d\n",
 					UMAC_CLK_40MHZ);
@@ -1533,30 +1605,29 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 		}
 	}
 
-	/**
+  /**
 	 * Bit{0:11} indicates length of the Packet
 	 * Bit{12:15} indicates host queue number
 	 */
-	if (adapter->device_model == RSI_DEV_9116) {
+	if (DEV_MODEL_9116) {
 		boot_params_9116->desc_word[0] =
-			cpu_to_le16(sizeof(struct bootup_params_9116) |
-				    (RSI_WIFI_MGMT_Q << 12));
+		    cpu_to_le16(sizeof(struct bootup_params_9116) |
+				(RSI_WIFI_MGMT_Q << 12));
 		boot_params_9116->desc_word[1] =
-			cpu_to_le16(BOOTUP_PARAMS_REQUEST);
+		    cpu_to_le16(BOOTUP_PARAMS_REQUEST);
 
 		skb_put(skb, sizeof(struct rsi_boot_params_9116));
 
-		rsi_dbg(MGMT_TX_ZONE, "%s: Boot params- %p\n",
-			__func__, boot_params_9116);
+		rsi_dbg(MGMT_TX_ZONE, "%s: Boot params- %p\n", __func__,
+			boot_params_9116);
 	} else {
 		boot_params->desc_word[0] =
-			cpu_to_le16(sizeof(struct bootup_params) |
-				    (RSI_WIFI_MGMT_Q << 12));
-		boot_params->desc_word[1] =
-			cpu_to_le16(BOOTUP_PARAMS_REQUEST);
+		    cpu_to_le16(sizeof(struct bootup_params) |
+				(RSI_WIFI_MGMT_Q << 12));
+		boot_params->desc_word[1] = cpu_to_le16(BOOTUP_PARAMS_REQUEST);
 		skb_put(skb, sizeof(struct rsi_boot_params));
-		rsi_dbg(MGMT_TX_ZONE, "%s: Boot params- %p\n",
-			__func__, boot_params);
+		rsi_dbg(MGMT_TX_ZONE, "%s: Boot params- %p\n", __func__,
+			boot_params);
 	}
 	rsi_hex_dump(INT_MGMT_ZONE, "BOOT-UP PARAM", skb->data, skb->len);
 
@@ -1595,9 +1666,12 @@ static int rsi_send_reset_mac(struct rsi_common *common)
 	/*TA level aggregation of pkts to host */
 	if (common->driver_mode == SNIFFER_MODE) {
 		mgmt_frame->desc_word[3] = cpu_to_le16(SNIFFER_ENABLE);
-		mgmt_frame->desc_word[3] |=  cpu_to_le16(DSBL_TA_AGGR << 8);
+		mgmt_frame->desc_word[3] |= cpu_to_le16(DSBL_TA_AGGR << 8);
 	} else {
-		mgmt_frame->desc_word[3] |=  common->ta_aggr << 8;
+		mgmt_frame->desc_word[3] |= common->ta_aggr << 8;
+	}
+	if (common->driver_mode == RF_EVAL_MODE_ON) {
+		mgmt_frame->desc_word[5] = PER_MODE_EN;
 	}
 
 	if (common->antenna_diversity)
@@ -1615,26 +1689,53 @@ static int rsi_send_reset_mac(struct rsi_common *common)
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-int rsi_band_check(struct rsi_common *common,
-		   struct ieee80211_channel *curchan)
+int rsi_band_check(struct rsi_common *common, enum nl80211_band band)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_hw *hw = adapter->hw;
 	u8 prev_bw = common->channel_width;
 	u8 prev_ep = common->endpoint;
 	int status = 0;
+	bool skip = 0;
 
-	if (common->band != curchan->band) {
+	if (common->band != band) {
 		common->rf_reset = 1;
-		common->band = curchan->band;
+		common->band = band;
 	}
-
-	if ((hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT) ||
-	    (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20))
-		common->channel_width = BW_20MHZ;
-	else
-		common->channel_width = BW_40MHZ;
-
+	if (common->driver_mode == RF_EVAL_MODE_ON) {
+		switch (adapter->per_params.per_ch_bw) {
+		case 0:
+			common->channel_width = BW_20MHZ;
+			break;
+		case 1:
+		case 2:
+		case 4:
+		case 6:
+			common->channel_width = BW_40MHZ;
+			break;
+		case 5:
+			common->channel_width = BW_5MHZ;
+			break;
+		case 7:
+			common->channel_width = BW_10MHZ;
+			break;
+		default:
+			rsi_dbg(ERR_ZONE, "%s line %d Invalid BW settings\n",
+				__func__, __LINE__);
+			return -1;
+		}
+		if (DEV_MODEL_9116) {
+			rsi_dbg(INFO_ZONE, "%s: skipping this for 9116 \n",
+				__func__);
+			skip = 1;
+		}
+	} else {
+		if ((hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+		    || (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20))
+			common->channel_width = BW_20MHZ;
+		else
+			common->channel_width = BW_40MHZ;
+	}
 	if (common->band == NL80211_BAND_2GHZ) {
 		if (common->channel_width)
 			common->endpoint = EP_2GHZ_40MHZ;
@@ -1646,6 +1747,8 @@ int rsi_band_check(struct rsi_common *common,
 		else
 			common->endpoint = EP_5GHZ_20MHZ;
 	}
+	if (skip)
+		return 0;
 
 	if (common->endpoint != prev_ep) {
 		status = rsi_program_bb_rf(common);
@@ -1673,6 +1776,10 @@ void rsi_apply_carcalla_power_values(struct rsi_hw *adapter,
 {
 	u16 max_power = 20;
 
+#ifdef CONFIG_STA_PLUS_AP
+	if (!vif)
+		return -ENODEV;
+#endif
 	if (!conf_is_ht(&adapter->hw->conf)) {
 		if (vif->bss_conf.basic_rates == 0xf) {
 			if (channel->hw_value == 12)
@@ -1683,24 +1790,24 @@ void rsi_apply_carcalla_power_values(struct rsi_hw *adapter,
 				return;
 		} else {
 			if (channel->hw_value == 12)
-				max_power = 8; 
+				max_power = 8;
 			else if (channel->hw_value == 13)
-				max_power = 7; 
+				max_power = 7;
 			else
 				return;
 		}
 	} else if (conf_is_ht20(&adapter->hw->conf)) {
 		if (channel->hw_value == 12)
-			max_power = 7; 
+			max_power = 7;
 		else if (channel->hw_value == 13)
 			max_power = 5;
 		else
 			return;
 	} else {
 		if (channel->hw_value == 6)
-			max_power = 9; 
+			max_power = 9;
 		else if (channel->hw_value == 9)
-			max_power = 5; 
+			max_power = 5;
 		else if (channel->hw_value == 10)
 			max_power = 4;
 		else
@@ -1718,16 +1825,23 @@ void rsi_apply_carcalla_power_values(struct rsi_hw *adapter,
  *
  * Return: 0 on success, corresponding error code on failure.
  */
+#ifndef CONFIG_STA_PLUS_AP
 int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel)
+#else
+int rsi_set_channel(struct rsi_common *common,
+		    struct ieee80211_channel *channel,
+		    struct ieee80211_vif *vif)
+#endif
 {
 	struct rsi_hw *adapter = common->priv;
+#ifndef CONFIG_STA_PLUS_AP
 	struct ieee80211_vif *vif = adapter->vifs[adapter->sc_nvifs - 1];
+#endif
 	struct sk_buff *skb = NULL;
 	struct rsi_mac_frame *mgmt_frame;
 
-	rsi_dbg(INT_MGMT_ZONE,
-		"<===== SENDING SCAN_REQUEST FRAME =====>\n");
+	rsi_dbg(INT_MGMT_ZONE, "<===== SENDING SCAN_REQUEST FRAME =====>\n");
 
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
 	if (!skb) {
@@ -1750,37 +1864,38 @@ int rsi_set_channel(struct rsi_common *common,
 #if 0
 	channel->max_antenna_gain = common->antenna_gain;
 	mgmt_frame->desc_word[4] |=
-		cpu_to_le16(((char)(channel->max_antenna_gain)) << 8);
+	    cpu_to_le16(((char)(channel->max_antenna_gain)) << 8);
 	mgmt_frame->desc_word[5] =
-		cpu_to_le16((char)(channel->max_antenna_gain));
+	    cpu_to_le16((char)(channel->max_antenna_gain));
 #endif
-	if ((vif->type == NL80211_IFTYPE_AP && adapter->auto_chan_sel) &&
-		(adapter->idx < adapter->n_channels)) {
+	if ((vif && vif->type == NL80211_IFTYPE_AP && adapter->auto_chan_sel)
+	    && (adapter->idx < adapter->n_channels)) {
 		mgmt_frame->desc_word[2] = cpu_to_le16(TIMER_ENABLE);
 		mgmt_frame->desc_word[3] = cpu_to_le16(ACS_TIMEOUT_TYPE);
 		mgmt_frame->desc_word[3] |= cpu_to_le16(ACS_TIMEOUT_TIME << 8);
 		adapter->rsi_survey[adapter->idx].channel = channel;
 	}
-	mgmt_frame->desc_word[4] |=
-		cpu_to_le16(common->antenna_gain[0] << 8);
-	mgmt_frame->desc_word[5] =
-		cpu_to_le16(common->antenna_gain[1]);
+	mgmt_frame->desc_word[4] |= cpu_to_le16(common->antenna_gain[0] << 8);
+	mgmt_frame->desc_word[5] = cpu_to_le16(common->antenna_gain[1]);
 
-	mgmt_frame->desc_word[7] = cpu_to_le16(PUT_BBP_RESET |
-					       BBP_REG_WRITE |
-					       (RSI_RF_TYPE << 4));
+	mgmt_frame->desc_word[7] =
+	    cpu_to_le16(PUT_BBP_RESET | BBP_REG_WRITE | (RSI_RF_TYPE << 4));
 
-	if ((channel->flags & IEEE80211_CHAN_NO_IR) ||
-	    (channel->flags & IEEE80211_CHAN_RADAR)) {
+	if (common->efuse_map.module_type != ACX_MODULE
+	    && ((channel->flags & IEEE80211_CHAN_NO_IR)
+		|| (channel->flags & IEEE80211_CHAN_RADAR))) {
 		mgmt_frame->desc_word[4] |= BIT(15);
 	} else {
 		if (common->tx_power < channel->max_power)
 			mgmt_frame->desc_word[6] =
-				cpu_to_le16(common->tx_power);
+			    cpu_to_le16(common->tx_power);
 		else
 			mgmt_frame->desc_word[6] =
-				cpu_to_le16(channel->max_power);
+			    cpu_to_le16(channel->max_power);
 	}
+	if (common->driver_mode == RF_EVAL_MODE_ON)
+		mgmt_frame->desc_word[6] =
+		    cpu_to_le16(adapter->per_params.power);
 	if (common->driver_mode == SNIFFER_MODE)
 		mgmt_frame->desc_word[6] = cpu_to_le16(TX_PWR_IN_SNIFFER_MODE);
 #ifdef CONFIG_CARACALLA_BOARD
@@ -1790,15 +1905,17 @@ int rsi_set_channel(struct rsi_common *common,
 	if ((channel->hw_value == 12) || (channel->hw_value == 13))
 		mgmt_frame->desc_word[7] = cpu_to_le16(TARGET_BOARD_CARACALLA);
 	if (conf_is_ht40(&adapter->hw->conf)) {
-		if ((channel->hw_value == 6) ||
-		    (channel->hw_value == 9) ||
-		    (channel->hw_value == 10))
-		mgmt_frame->desc_word[7] = cpu_to_le16(TARGET_BOARD_CARACALLA);
+		if ((channel->hw_value == 6) || (channel->hw_value == 9)
+		    || (channel->hw_value == 10))
+			mgmt_frame->desc_word[7] =
+			    cpu_to_le16(TARGET_BOARD_CARACALLA);
 	}
+	mgmt_frame->desc_word[7] |= cpu_to_le16(adapter->dfs_region);
+#else
+	mgmt_frame->desc_word[7] = cpu_to_le16(adapter->dfs_region);
 #endif
 	rsi_dbg(INFO_ZONE, "reg_domain = %d, TX power = %d\n",
 		adapter->dfs_region, mgmt_frame->desc_word[6]);
-	mgmt_frame->desc_word[7] |= cpu_to_le16(adapter->dfs_region);
 
 	if (common->channel_width == BW_40MHZ)
 		mgmt_frame->desc_word[5] |= cpu_to_le16(0x1 << 8);
@@ -1873,9 +1990,9 @@ int rsi_send_vap_dynamic_update(struct rsi_common *common)
 	memset(skb->data, 0, sizeof(struct rsi_dynamic_s));
 	dynamic_frame = (struct rsi_dynamic_s *)skb->data;
 
-	dynamic_frame->desc_word[0] = cpu_to_le16(
-					(sizeof(dynamic_frame->frame_body)) |
-					(RSI_WIFI_MGMT_Q << 12));
+	dynamic_frame->desc_word[0] =
+	    cpu_to_le16((sizeof(dynamic_frame->frame_body)) |
+			(RSI_WIFI_MGMT_Q << 12));
 	dynamic_frame->desc_word[1] = cpu_to_le16(VAP_DYNAMIC_UPDATE);
 	dynamic_frame->desc_word[4] = cpu_to_le16(common->rts_threshold);
 #if 0
@@ -1884,33 +2001,32 @@ int rsi_send_vap_dynamic_update(struct rsi_common *common)
 #endif
 
 #ifdef CONFIG_RSI_WOW
-//	if (common->suspend_flag) {
+	//    if (common->suspend_flag) {
 	if (1) {
-		dynamic_frame->desc_word[6] =
-			cpu_to_le16(24); /* bmiss_threshold */
-		dynamic_frame->frame_body.keep_alive_period =
-			cpu_to_le16(5);
+		dynamic_frame->desc_word[6] = cpu_to_le16(24);	/* bmiss_threshold */
+		dynamic_frame->frame_body.keep_alive_period = cpu_to_le16(5);
 	} else
 		dynamic_frame->frame_body.keep_alive_period = cpu_to_le16(90);
 #else
-	dynamic_frame->frame_body.keep_alive_period = cpu_to_le16(90);
-	dynamic_frame->desc_word[6] =
-		cpu_to_le16(HW_BMISS_THRESHOLD); /* bmiss_threshold */
+	dynamic_frame->frame_body.keep_alive_period =
+	    cpu_to_le16(common->keep_alive_period);
+	dynamic_frame->desc_word[6] = cpu_to_le16(common->hw_bmiss_threshold);	/* bmiss_threshold */
 #endif
 
-	dynamic_frame->desc_word[3] = cpu_to_le32(common->use_protection ? BIT(1) : 0);/* Self cts enable */
+	dynamic_frame->desc_word[3] = cpu_to_le32(common->use_protection ? BIT(1) : 0);	/* Self cts enable */
 #if 0
 	dynamic_frame->frame_body.mgmt_rate = cpu_to_le32(RSI_RATE_6);
 
-	dynamic_frame->desc_word[2] |= cpu_to_le32(BIT(1));/* Self cts enable */
+	dynamic_frame->desc_word[2] |= cpu_to_le32(BIT(1));	/* Self cts enable */
 #endif
 
-	if(common->fixed_rate_en) {
-		dynamic_frame->desc_word[3] |= cpu_to_le16(BIT(0));/* fixed rate */
-		dynamic_frame->frame_body.data_rate = cpu_to_le16(common->fixed_rate);
+	if (common->fixed_rate_en) {
+		dynamic_frame->desc_word[3] |= cpu_to_le16(BIT(0));	/* fixed rate */
+		dynamic_frame->frame_body.data_rate =
+		    cpu_to_le16(common->fixed_rate);
 	}
 
-	dynamic_frame->desc_word[7] |= cpu_to_le16((0 << 8)); /* vap id */
+	dynamic_frame->desc_word[7] |= cpu_to_le16((0 << 8));	/* vap id */
 
 	skb_put(skb, sizeof(struct rsi_dynamic_s));
 	rsi_hex_dump(INT_MGMT_ZONE, "VAP UPDATE", skb->data, skb->len);
@@ -1948,8 +2064,8 @@ int rsi_flash_read(struct rsi_hw *adapter)
 	cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 
 	/* Number of bytes to read */
-	rsi_dbg(INFO_ZONE, " eeprom length  0x%x, %d\n",
-		adapter->eeprom.length, adapter->eeprom.length);
+	rsi_dbg(INFO_ZONE, " eeprom length  0x%x, %d\n", adapter->eeprom.length,
+		adapter->eeprom.length);
 	cmd_frame->desc_word[3] = cpu_to_le16(adapter->eeprom.length << 4);
 
 	cmd_frame->desc_word[2] |= cpu_to_le16(3 << 8);
@@ -1961,7 +2077,7 @@ int rsi_flash_read(struct rsi_hw *adapter)
 	/* Address to read */
 	cmd_frame->desc_word[4] = cpu_to_le16(adapter->eeprom.offset);
 	cmd_frame->desc_word[5] = cpu_to_le16(adapter->eeprom.offset >> 16);
-	cmd_frame->desc_word[6] = cpu_to_le16(0); //delay = 0
+	cmd_frame->desc_word[6] = cpu_to_le16(0);	//delay = 0
 
 	skb_put(skb, FRAME_DESC_SZ);
 	rsi_hex_dump(INT_MGMT_ZONE, "Internal Mgmt Pkt", skb->data, skb->len);
@@ -2025,14 +2141,15 @@ static bool rsi_map_rates(u16 rate, int *offset)
  * @c: Rate Table size
  * Return: modearate rate index as per the rate table being sent to Firmware.
  */
-static u32 evaluate_moderate_rateindex(u16 *bitrate, u32 moderate_rate, u32 rate_table_sz)
+static u32 evaluate_moderate_rateindex(u16 * bitrate, u32 moderate_rate,
+				       u32 rate_table_sz)
 {
-  int ii;
-  for(ii = 0; ii < rate_table_sz; ii++) {
-    if(moderate_rate >= bitrate[ii])
-      return ii;
-  }
-  return (ii - 1);
+	int ii;
+	for (ii = 0; ii < rate_table_sz; ii++) {
+		if (moderate_rate >= bitrate[ii])
+			return ii;
+	}
+	return (ii - 1);
 }
 
 /**
@@ -2042,14 +2159,21 @@ static u32 evaluate_moderate_rateindex(u16 *bitrate, u32 moderate_rate, u32 rate
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-static int rsi_send_auto_rate_request(struct rsi_common *common,
-				      struct ieee80211_sta *sta,
-				      u16 sta_id)
+#ifndef CONFIG_STA_PLUS_AP
+int rsi_send_auto_rate_request(struct rsi_common *common,
+			       struct ieee80211_sta *sta, u16 sta_id)
+#else
+int rsi_send_auto_rate_request(struct rsi_common *common,
+			       struct ieee80211_sta *sta,
+			       u16 sta_id, struct ieee80211_vif *vif)
+#endif
 {
+#ifndef CONFIG_STA_PLUS_AP
 	struct ieee80211_vif *vif = common->priv->vifs[0];
+#endif
 	struct sk_buff *skb;
 	struct rsi_auto_rate *auto_rate;
-	int ii = 0, jj = 0, kk = 0, m = 0, n = 0;
+	int ii = 0, jj = 0, kk = 0, m = 0, n = 0, last_non_aggr_rate = 0;
 	struct ieee80211_hw *hw = common->priv->hw;
 	u8 band = hw->conf.chandef.chan->band;
 	u8 rate_table_sz = 0;
@@ -2058,14 +2182,25 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	u32 rate_bitmap = 0;
 	u16 *selected_rates, *bitrate, min_rate;
 	bool is_ht = false, is_sgi = false;
+#ifdef CONFIG_STA_PLUS_AP
+	struct vif_priv *vif_info = (struct vif_priv *)vif->drv_priv;
+#endif
+	struct rsi_sta *sta_info = NULL;
 
-	rsi_dbg(INT_MGMT_ZONE,
-			"<===== SENDING AUTO_RATE_IND FRAME =====>\n");
+	rsi_dbg(INT_MGMT_ZONE, "<===== SENDING AUTO_RATE_IND FRAME =====>\n");
 
+	if (!sta) {
+#ifdef CONFIG_STA_PLUS_AP
+		sta = common->stations[STA_PEER].sta;
+#else
+		sta = common->stations[RSI_MAX_ASSOC_STAS].sta;
+#endif
+	}
+	sta_info = (struct rsi_sta *)sta->drv_priv;
 	skb = dev_alloc_skb(MAX_MGMT_PKT_SIZE);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
-				__func__);
+			__func__);
 		return -ENOMEM;
 	}
 
@@ -2075,7 +2210,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	bitrate = kzalloc(RSI_TBL_SZ, GFP_KERNEL);
 	if (!selected_rates) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
-				__func__);
+			__func__);
 		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
@@ -2083,12 +2218,24 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 
 	auto_rate = (struct rsi_auto_rate *)skb->data;
 
+	auto_rate->aarf_rssi = cpu_to_le16(65);	/*Keeping auto rate rssi to 65dbm */
 	//auto_rate->aarf_rssi = cpu_to_le16(((u16)3 << 6) | (u16)(18 & 0x3f));
-	auto_rate->aarf_rssi = cpu_to_le16(65); /*Keeping auto rate rssi to 65dbm*/
-	auto_rate->collision_tolerance = cpu_to_le16(3);
-	auto_rate->failure_limit = cpu_to_le16(3);
-	auto_rate->initial_boundary = cpu_to_le16(3);
-	auto_rate->max_threshold_limt = cpu_to_le16(27);
+	if (common->feature_bitmap_9116 & DISABLE_UPDATED_AUTORATE_PARAMS) {
+		auto_rate->collision_tolerance = cpu_to_le16(3);
+		auto_rate->failure_limit = cpu_to_le16(3);
+		auto_rate->initial_boundary = cpu_to_le16(3);
+		auto_rate->max_threshold_limt = cpu_to_le16(27);
+		auto_rate->desc_word[7] = cpu_to_le16(BIT(4));	/* Disable autorate enhancements */
+	} else {
+		auto_rate->collision_tolerance = cpu_to_le16(9);
+		auto_rate->failure_limit = cpu_to_le16(2);
+		auto_rate->initial_boundary = cpu_to_le16(9);
+		auto_rate->max_threshold_limt = cpu_to_le16(9 * 9);
+		rsi_mcsrates[0] = RSI_RATE_6;
+		rsi_mcsrates[1] = RSI_RATE_12;
+	}
+	if (common->feature_bitmap_9116 & DISABLE_AARF_RATE_BLOCKING)
+		auto_rate->desc_word[7] |= cpu_to_le16(BIT(5));
 
 	auto_rate->desc_word[1] = cpu_to_le16(AUTO_RATE_IND);
 
@@ -2098,16 +2245,21 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		rate_bitmap = common->bitrate_mask[band];
+#ifndef CONFIG_STA_PLUS_AP
 		is_ht = common->vif_info[0].is_ht;
 		is_sgi = common->vif_info[0].sgi;
+#else
+		is_ht = vif_info->is_ht;
+		is_sgi = vif_info->sgi;
+#endif
 	} else {
 		rate_bitmap = sta->supp_rates[band];
 		is_ht = sta->ht_cap.ht_supported;
-		if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
-				(sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
+		if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20)
+		    || (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
 			is_sgi = true;
 	}
-	if(band == NL80211_BAND_5GHZ) {
+	if (band == NL80211_BAND_5GHZ) {
 		rate_bitmap <<= 4;
 	}
 	rsi_dbg(INFO_ZONE, "rate_bitmap = %x\n", rate_bitmap);
@@ -2128,34 +2280,34 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	g_mode = rate_bitmap & _11G_RATE_MAP;
 	bg_mode = g_mode && b_mode;
 
-	/*Rejecting 9 MBPS as we don't use it*/
+	/*Rejecting 9 MBPS as we don't use it */
 	rate_bitmap &= ~(RSI_RATE_9_INX);
 
-	/*Select table size and moderate rate based on the mode*/
-	if(bg_mode && is_ht) {
-		/*BGN MODE*/
+	/*Select table size and moderate rate based on the mode */
+	if (bg_mode && is_ht) {
+		/*BGN MODE */
 		rate_table_sz = 11;
 		rate_bitmap &= ~(RSI_RATE_5_5_INX | RSI_RATE_11_INX);
 		moderate_rate_inx = STD_RATE_36;
-	} else if(bg_mode) {
-		/*BG MODE*/
+	} else if (bg_mode) {
+		/*BG MODE */
 		rate_table_sz = 9;
 		rate_bitmap &= ~(RSI_RATE_5_5_INX | RSI_RATE_11_INX);
 		moderate_rate_inx = STD_RATE_36;
-	} else if(g_mode && is_ht) {
-		/*GN MODE*/
+	} else if (g_mode && is_ht) {
+		/*GN MODE */
 		rate_table_sz = 9;
 		moderate_rate_inx = STD_RATE_36;
-	} else if(g_mode) {
-		/*GONLY MODE*/
+	} else if (g_mode) {
+		/*GONLY MODE */
 		rate_table_sz = 7;
 		moderate_rate_inx = STD_RATE_36;
-	} else if(b_mode) {
-		/*BONLY MODE*/
+	} else if (b_mode) {
+		/*BONLY MODE */
 		rate_table_sz = 4;
 		moderate_rate_inx = STD_RATE_5_5;
-	} else if(is_ht) {
-		/*NONLY MODE*/
+	} else if (is_ht) {
+		/*NONLY MODE */
 		rate_table_sz = 9;
 		n_only_mode = 1;
 		moderate_rate_inx = RSI_RATE_MCS4;
@@ -2163,8 +2315,8 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 		rsi_dbg(ERR_ZONE, "No Rates supported\n");
 	}
 
-	/*Extracting rates from the Bitmap*/
-	for (ii = 0, jj = 0;ii < ARRAY_SIZE(rsi_rates); ii++) {
+	/*Extracting rates from the Bitmap */
+	for (ii = 0, jj = 0; ii < ARRAY_SIZE(rsi_rates); ii++) {
 		if (rate_bitmap & BIT(ii))
 			selected_rates[jj++] = (rsi_rates[ii].bitrate / 5);
 	}
@@ -2174,67 +2326,82 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	ii = 0;
 	n = 0;
 	kk = ARRAY_SIZE(rsi_mcsrates) - 1;
-	/*Filling 2 rates of ht mode*/
-	if(is_ht) {
-		if(is_sgi) {
-			auto_rate->supported_rates[ii++] = cpu_to_le16(rsi_mcsrates[kk] | BIT(9));
+	/*Filling 2 rates of ht mode */
+	if (is_ht) {
+		if (is_sgi) {
+			auto_rate->supported_rates[ii++] =
+			    cpu_to_le16(rsi_mcsrates[kk] | BIT(9));
 			bitrate[n++] = rsi_mcsrates[kk] | BIT(9);
 		}
-		auto_rate->supported_rates[ii++] = cpu_to_le16(rsi_mcsrates[kk]);
+		auto_rate->supported_rates[ii++] =
+		    cpu_to_le16(rsi_mcsrates[kk]);
 		bitrate[n++] = rsi_mcsrates[kk];
 		kk--;
 	}
 	/* mapping the rates to RSI rates */
-	if(n_only_mode) {
-		for (; (ii < rate_table_sz) && (kk >= 0); ii++,kk--) {
+	if (n_only_mode) {
+		for (; (ii < rate_table_sz) && (kk >= 0); ii++, kk--) {
 			auto_rate->supported_rates[ii] =
-				cpu_to_le16(rsi_mcsrates[kk]);
+			    cpu_to_le16(rsi_mcsrates[kk]);
 			bitrate[n++] = rsi_mcsrates[kk];
 		}
-	} else /*BGN mode*/{
+	} else {		/*BGN mode */
 		for (m = 0; m < jj; m++) {
 			if (rsi_map_rates(selected_rates[m], &kk)) {
 				auto_rate->supported_rates[ii++] =
-					cpu_to_le16(rsi_rates[kk].hw_value);
+				    cpu_to_le16(rsi_rates[kk].hw_value);
 				bitrate[n++] = selected_rates[m];
 			}
 		}
 	}
-	/*Stuffing the unfilled entries with min rate*/
+	/*Stuffing the unfilled entries with min rate */
 	for (; ii < rate_table_sz; ii++, n++) {
 		auto_rate->supported_rates[ii] =
-			cpu_to_le16(auto_rate->supported_rates[ii-1]);
+		    cpu_to_le16(auto_rate->supported_rates[ii - 1]);
 		bitrate[n] = bitrate[n - 1];
 	}
+	last_non_aggr_rate = ii - 1;
+	sta_info->min_supported_rate =
+	    auto_rate->supported_rates[last_non_aggr_rate];
+	if (is_ht && !is_sgi)
+		last_non_aggr_rate -= 2;
+	else
+		last_non_aggr_rate -= 1;
 	/* loading HT rates in the bottom half of the auto rate table */
 	if (is_ht) {
 		kk = ARRAY_SIZE(rsi_mcsrates) - 1;
 		if (is_sgi) {
 			auto_rate->supported_rates[ii++] =
-				cpu_to_le16(rsi_mcsrates[kk] | BIT(9));
+			    cpu_to_le16(rsi_mcsrates[kk] | BIT(9));
 		}
-		for (; (ii < 2 * rate_table_sz) && (kk >= 0); ii++,kk--) {
+		for (; (ii < 2 * rate_table_sz) && (kk >= 0); ii++, kk--) {
 			auto_rate->supported_rates[ii] =
-				cpu_to_le16(rsi_mcsrates[kk]/* | BIT(9)*/);
+			    cpu_to_le16(rsi_mcsrates[kk] /* | BIT(9) */ );
 		}
-
 	}
-	/*Stuffing the unfilled entries with min rate*/
+	/*Stuffing the unfilled entries with min rate */
 	for (; ii < 2 * rate_table_sz; ii++) {
-		auto_rate->supported_rates[ii] =
-			cpu_to_le16(rsi_mcsrates[0]);
+		{
+			auto_rate->supported_rates[ii] =
+			    cpu_to_le16(auto_rate->
+					supported_rates[last_non_aggr_rate++]);
+		}
 	}
 
 	auto_rate->num_supported_rates = cpu_to_le16(rate_table_sz * 2);
-	auto_rate->moderate_rate_inx = evaluate_moderate_rateindex(bitrate, moderate_rate_inx, rate_table_sz);;
-	rsi_dbg(INT_MGMT_ZONE, "moderate rate index is %d\n", auto_rate->moderate_rate_inx);
+	auto_rate->moderate_rate_inx =
+	    evaluate_moderate_rateindex(bitrate, moderate_rate_inx,
+					rate_table_sz);
+	rsi_dbg(INT_MGMT_ZONE, "moderate rate index is %d\n",
+		auto_rate->moderate_rate_inx);
 
-	for (ii=0; ii < rate_table_sz * 2; ii++)
-		rsi_dbg(INFO_ZONE, "Auto rate code is  ==>  0x%x\n", auto_rate->supported_rates[ii]);
+	for (ii = 0; ii < rate_table_sz * 2; ii++)
+		rsi_dbg(INFO_ZONE, "Auto rate code is  ==>  0x%x\n",
+			auto_rate->supported_rates[ii]);
 
-	auto_rate->desc_word[0] = cpu_to_le16((sizeof(*auto_rate) -
-				FRAME_DESC_SZ) |
-			(RSI_WIFI_MGMT_Q << 12));
+	auto_rate->desc_word[0] =
+	    cpu_to_le16((sizeof(*auto_rate) -
+			 FRAME_DESC_SZ) | (RSI_WIFI_MGMT_Q << 12));
 
 	skb_put(skb, sizeof(struct rsi_auto_rate));
 	kfree(selected_rates);
@@ -2242,6 +2409,31 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	rsi_hex_dump(INT_MGMT_ZONE, "AUTO_RATE FRAME:", skb->data, skb->len);
 
 	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+void update_bgscan_channel_for_acx_module(struct rsi_common *common)
+{
+	u8 num_scan_chan, jj, dfs_region;
+	struct bgscan_config_params *bgscan_info = &common->bgscan_info;
+	struct rsi_hw *adapter = common->priv;
+	dfs_region = adapter->dfs_region + 1;
+	if (dfs_region == NL80211_DFS_FCC)
+		num_scan_chan = MAX_CHAN_FOR_ACX - 2;
+	else
+		num_scan_chan = MAX_CHAN_FOR_ACX;
+
+	for (jj = 0; jj < num_scan_chan; jj++) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0))
+		common->user_channels_list[jj] =
+		    rsi_2ghz_acx_channels[jj].hw_value;
+	}
+	common->user_channels_count = num_scan_chan;
+#else
+		bgscan_info->user_channels[jj] =
+		    rsi_2ghz_acx_channels[jj].hw_value;
+	}
+	bgscan_info->num_user_channels = num_scan_chan;
+#endif
 }
 
 /**
@@ -2257,7 +2449,7 @@ void rsi_validate_bgscan_channels(struct rsi_hw *adapter,
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
-	struct wiphy *wiphy = adapter->hw->wiphy; 
+	struct wiphy *wiphy = adapter->hw->wiphy;
 	int ch_num, i;
 	int num_valid_chs = 0, cnt;
 	struct rsi_common *common = adapter->priv;
@@ -2266,11 +2458,9 @@ void rsi_validate_bgscan_channels(struct rsi_hw *adapter,
 	for (cnt = 0; cnt < params->num_user_channels; cnt++) {
 		ch_num = params->user_channels[cnt];
 
-		if ((ch_num < 1) ||
-		    ((ch_num > 14) && (ch_num < 36)) ||
-		    ((ch_num > 64) && (ch_num < 100)) ||
-		    ((ch_num > 140) && (ch_num < 149)) ||
-		    (ch_num > 165))
+		if ((ch_num < 1) || ((ch_num > 14) && (ch_num < 36))
+		    || ((ch_num > 64) && (ch_num < 100))
+		    || ((ch_num > 140) && (ch_num < 149)) || (ch_num > 165))
 			continue;
 		if ((ch_num >= 36) && (ch_num < 149) && (ch_num % 4))
 			continue;
@@ -2298,8 +2488,7 @@ void rsi_validate_bgscan_channels(struct rsi_hw *adapter,
 			rsi_dbg(INFO_ZONE, "%d ", ch_num);
 			if ((ch->flags & IEEE80211_CHAN_RADAR)) {
 				rsi_dbg(INFO_ZONE, "[DFS]");
-				params->channels2scan[num_valid_chs] |=
-					(cpu_to_le16(BIT(15))); /* DFS indication */
+				params->channels2scan[num_valid_chs] |= (cpu_to_le16(BIT(15)));	/* DFS indication */
 			}
 		} else
 			params->channels2scan[num_valid_chs] = ch_num;
@@ -2325,8 +2514,7 @@ int rsi_send_bgscan_params(struct rsi_common *common, int enable)
 	u16 frame_len = sizeof(*bgscan);
 	bool status = 0;
 
-	rsi_dbg(INT_MGMT_ZONE,
-		"<===== Sending bgscan params frame ====>\n");
+	rsi_dbg(INT_MGMT_ZONE, "<===== Sending bgscan params frame ====>\n");
 	if (common->debugfs_bgscan)
 		status = rsi_validate_debugfs_bgscan_channels(common);
 	else
@@ -2336,7 +2524,7 @@ int rsi_send_bgscan_params(struct rsi_common *common, int enable)
 		rsi_dbg(ERR_ZONE, "##### No valid bgscan channels #####\n");
 		return -1;
 	}
-	
+
 	skb = dev_alloc_skb(frame_len);
 	if (!skb)
 		return -ENOMEM;
@@ -2344,20 +2532,19 @@ int rsi_send_bgscan_params(struct rsi_common *common, int enable)
 
 	bgscan = (struct rsi_bgscan_params *)skb->data;
 
-	bgscan->desc_word[0] = cpu_to_le16((frame_len - FRAME_DESC_SZ) |
-					   (RSI_WIFI_MGMT_Q << 12));
+	bgscan->desc_word[0] =
+	    cpu_to_le16((frame_len - FRAME_DESC_SZ) | (RSI_WIFI_MGMT_Q << 12));
 	bgscan->desc_word[1] = cpu_to_le16(BG_SCAN_PARAMS);
 
 	bgscan->bgscan_threshold = cpu_to_le16(info->bgscan_threshold);
 	bgscan->roam_threshold = cpu_to_le16(info->roam_threshold);
 	if (enable) {
 		bgscan->bgscan_periodicity =
-			cpu_to_le16(info->bgscan_periodicity);
+		    cpu_to_le16(info->bgscan_periodicity);
 	}
-	bgscan->active_scan_duration =
-			cpu_to_le16(info->active_scan_duration);
+	bgscan->active_scan_duration = cpu_to_le16(info->active_scan_duration);
 	bgscan->passive_scan_duration =
-			cpu_to_le16(info->passive_scan_duration);
+	    cpu_to_le16(info->passive_scan_duration);
 	bgscan->two_probe = info->two_probe;
 
 	if (!enable) {
@@ -2367,29 +2554,34 @@ int rsi_send_bgscan_params(struct rsi_common *common, int enable)
 	}
 
 	if (common->debugfs_bgscan) {
-		bgscan->num_bg_channels = common->bgscan_info.debugfs_bg_channels;
+		bgscan->num_bg_channels =
+		    common->bgscan_info.debugfs_bg_channels;
 		memcpy(bgscan->channels2scan,
-			common->bgscan_info.debugfs_channels,
-			bgscan->num_bg_channels * 2);
+		       common->bgscan_info.debugfs_channels,
+		       bgscan->num_bg_channels * 2);
 	} else {
-		if (common->bgscan_info.num_user_channels > MAX_BG_CHAN_FROM_USER) {
+		if (common->bgscan_info.num_user_channels >
+		    MAX_BG_CHAN_FROM_USER) {
 			if (!common->send_initial_bgscan_chan) {
 				memcpy(bgscan->channels2scan,
-						info->channels2scan,
-						MAX_BG_CHAN_FROM_USER * 2);
+				       info->channels2scan,
+				       MAX_BG_CHAN_FROM_USER * 2);
 				bgscan->num_bg_channels = MAX_BG_CHAN_FROM_USER;
 				common->send_initial_bgscan_chan = true;
 			} else {
 				memcpy(bgscan->channels2scan,
-				       info->channels2scan + MAX_BG_CHAN_FROM_USER,
-				       (info->num_bg_channels - MAX_BG_CHAN_FROM_USER) * 2);
-				bgscan->num_bg_channels = (info->num_bg_channels - MAX_BG_CHAN_FROM_USER);
+				       info->channels2scan +
+				       MAX_BG_CHAN_FROM_USER,
+				       (info->num_bg_channels -
+					MAX_BG_CHAN_FROM_USER) * 2);
+				bgscan->num_bg_channels =
+				    (info->num_bg_channels -
+				     MAX_BG_CHAN_FROM_USER);
 				common->send_initial_bgscan_chan = false;
 			}
 		} else {
-			memcpy(bgscan->channels2scan,
-					info->channels2scan,
-					info->num_bg_channels * 2);
+			memcpy(bgscan->channels2scan, info->channels2scan,
+			       info->num_bg_channels * 2);
 			bgscan->num_bg_channels = info->num_bg_channels;
 		}
 	}
@@ -2416,24 +2608,37 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common)
 	u16 pbreq_len = 0;
 	struct sk_buff *probereq_skb;
 	void *temp_buf;
+#ifndef CONFIG_STA_PLUS_AP
 	struct rsi_hw *adapter = common->priv;
-	struct cfg80211_scan_request *scan_req = common->scan_request;
 	struct ieee80211_vif *vif = adapter->vifs[adapter->sc_nvifs - 1];
+#else
+	struct ieee80211_vif *sta_vif = rsi_get_sta_vif(common->priv);
+#endif
+	struct cfg80211_scan_request *scan_req = common->scan_request;
 
-	rsi_dbg(MGMT_TX_ZONE,
-		"<==== Sending bgscan probe req frame ====>\n");
+	rsi_dbg(MGMT_TX_ZONE, "<==== Sending bgscan probe req frame ====>\n");
 
 	skb = dev_alloc_skb(frame_len + len);
 	if (!skb)
 		return -ENOMEM;
 	memset(skb->data, 0, frame_len + len);
+#ifndef CONFIG_STA_PLUS_AP
 	if (!vif)
+#else
+	if (!sta_vif)
+#endif
 		return -EINVAL;
 
 	bgscan = (struct rsi_bgscan_probe *)skb->data;
 
 	bgscan->desc_word[1] = cpu_to_le16(BG_SCAN_PROBE_REQ);
+#ifndef CONFIG_STA_PLUS_AP
 	bgscan->flags = cpu_to_le16(HOST_BG_SCAN_TRIG);
+#else
+	if (common->vap_mode == CONCURRENT)
+		bgscan->flags = cpu_to_le16(HOST_BG_SCAN_TRIG);
+	bgscan->flags |= cpu_to_le16(BG_SCAN_TRIG);
+#endif
 	if (common->band == NL80211_BAND_5GHZ) {
 		bgscan->mgmt_rate = cpu_to_le16(RSI_RATE_6);
 		bgscan->channel_num = cpu_to_le16(40);
@@ -2445,31 +2650,50 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common)
 	bgscan->channel_scan_time = cpu_to_le16(20);
 	if (common->bgscan_info.two_probe && common->bgscan_ssid_len) {
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 18, 140)
-		probereq_skb = ieee80211_probereq_get(common->priv->hw,
-						      vif,
-						      common->bgscan_ssid,
-						      common->bgscan_ssid_len,
-						      scan_req->ie_len);
+		probereq_skb =
+#ifndef CONFIG_STA_PLUS_AP
+		    ieee80211_probereq_get(common->priv->hw, vif,
+					   common->bgscan_ssid,
+					   common->bgscan_ssid_len,
+					   scan_req->ie_len);
+#else
+		    ieee80211_probereq_get(common->priv->hw, sta_vif,
+					   common->bgscan_ssid,
+					   common->bgscan_ssid_len,
+					   scan_req->ie_len);
+#endif
 #else
 		probereq_skb = ieee80211_probereq_get(common->priv->hw,
+#ifndef CONFIG_STA_PLUS_AP
 						      vif->addr,
+#else
+						      sta_vif->addr,
+#endif
 						      common->bgscan_ssid,
 						      common->bgscan_ssid_len,
 						      scan_req->ie_len);
 #endif
 	} else {
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 18, 140)
-		probereq_skb = ieee80211_probereq_get(common->priv->hw,
-						      vif,
-						      NULL,
-						      0,
-						      scan_req->ie_len);
+#ifndef CONFIG_STA_PLUS_AP
+		probereq_skb =
+		    ieee80211_probereq_get(common->priv->hw, vif, NULL, 0,
+					   scan_req->ie_len);
 #else
-		probereq_skb = ieee80211_probereq_get(common->priv->hw,
-						      vif->addr,
-						      NULL,
-						      0,
-						      scan_req->ie_len);
+		probereq_skb =
+		    ieee80211_probereq_get(common->priv->hw, sta_vif, NULL, 0,
+					   scan_req->ie_len);
+#endif
+#else
+#ifndef CONFIG_STA_PLUS_AP
+		probereq_skb =
+		    ieee80211_probereq_get(common->priv->hw, vif->addr, NULL, 0,
+					   scan_req->ie_len);
+#else
+		probereq_skb =
+		    ieee80211_probereq_get(common->priv->hw, sta_vif->addr,
+					   NULL, 0, scan_req->ie_len);
+#endif
 #endif
 	}
 	if (!probereq_skb) {
@@ -2477,16 +2701,16 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common)
 		return -ENOMEM;
 	}
 	if (scan_req->ie_len) {
-		temp_buf = skb_put(probereq_skb,  scan_req->ie_len);
-		memcpy(temp_buf,  scan_req->ie, scan_req->ie_len);
+		temp_buf = skb_put(probereq_skb, scan_req->ie_len);
+		memcpy(temp_buf, scan_req->ie, scan_req->ie_len);
 	}
 	pbreq_len = probereq_skb->len;
 	bgscan->probe_req_length = pbreq_len;
-	memcpy(&skb->data[frame_len], probereq_skb->data,
-			probereq_skb->len);
+	memcpy(&skb->data[frame_len], probereq_skb->data, probereq_skb->len);
 	dev_kfree_skb(probereq_skb);
-	bgscan->desc_word[0] = cpu_to_le16((frame_len - FRAME_DESC_SZ + pbreq_len) |
-					   (RSI_WIFI_MGMT_Q << 12));
+	bgscan->desc_word[0] =
+	    cpu_to_le16((frame_len - FRAME_DESC_SZ +
+			 pbreq_len) | (RSI_WIFI_MGMT_Q << 12));
 
 	skb_put(skb, frame_len + pbreq_len);
 	rsi_hex_dump(MGMT_TX_ZONE, "Bgscan Probe_Req", skb->data, skb->len);
@@ -2509,51 +2733,66 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common)
 void rsi_inform_bss_status(struct rsi_common *common,
 			   enum opmode opmode,
 			   u8 status,
-			   const u8 *bssid,
+			   const u8 * bssid,
 			   u8 qos_enable,
-			   u16 aid,
-			   struct ieee80211_sta *sta,
-			   u16 sta_id, u16 assoc_cap)
+			   u16 aid, struct ieee80211_sta *sta, u16 sta_id,
+#ifndef CONFIG_STA_PLUS_AP
+			   u16 assoc_cap)
+#else
+			   u16 assoc_cap, struct ieee80211_vif *vif)
+#endif
 {
 	if (status) {
 		if (opmode == STA_OPMODE)
 			common->hw_data_qs_blocked = true;
-		rsi_send_sta_notify_frame(common,
-					  opmode,
-					  STA_CONNECTED,
-					  bssid,
-					  qos_enable,
-					  aid,
-					  sta_id);
+#ifndef CONFIG_STA_PLUS_AP
+		rsi_send_sta_notify_frame(common, opmode, STA_CONNECTED, bssid,
+					  qos_enable, aid, sta_id);
+#else
+		rsi_send_sta_notify_frame(common, opmode, STA_CONNECTED, bssid,
+					  qos_enable, aid, sta_id, vif);
+#endif
 		if (common->min_rate == 0xffff) {
 			rsi_dbg(INFO_ZONE, "Send auto rate request\n");
+#ifndef CONFIG_STA_PLUS_AP
 			rsi_send_auto_rate_request(common, sta, sta_id);
+#else
+			rsi_send_auto_rate_request(common, sta, sta_id, vif);
+#endif
 		}
 		if (opmode == STA_OPMODE) {
 			rsi_load_radio_caps(common);
-			if (!(assoc_cap & BIT(4))) {	
-				rsi_dbg(INFO_ZONE, "unblock data in Open case\n");
-				if (!rsi_send_block_unblock_frame(common, false))
+			if (!(assoc_cap & BIT(4))) {
+				rsi_dbg(INFO_ZONE,
+					"unblock data in Open case\n");
+				if (!rsi_send_block_unblock_frame
+				    (common, false))
 					common->hw_data_qs_blocked = false;
 			}
 		} else if ((opmode == AP_OPMODE && common->hw_data_qs_blocked)) {
 			rsi_dbg(INFO_ZONE, "unblock data in AP mode\n");
-			if(!rsi_send_block_unblock_frame(common, false))
+			if (!rsi_send_block_unblock_frame(common, false))
 				common->hw_data_qs_blocked = false;
 		}
 	} else {
 		if (opmode == STA_OPMODE)
 			common->hw_data_qs_blocked = true;
+		if (common->priv->traffic_timer.function) {
+			del_timer(&common->priv->traffic_timer);
+			rsi_dbg(INFO_ZONE, "Removed Traffic Timer\n");
+		}
 #ifdef CONFIG_RSI_WOW
 		if (!(common->wow_flags & RSI_WOW_ENABLED)) {
 #endif
-		rsi_send_sta_notify_frame(common,
-					  opmode,
-					  STA_DISCONNECTED,
-					  bssid,
-					  qos_enable,
-					  aid,
-					  sta_id);
+#ifndef CONFIG_STA_PLUS_AP
+			rsi_send_sta_notify_frame(common, opmode,
+						  STA_DISCONNECTED, bssid,
+						  qos_enable, aid, sta_id);
+#else
+			rsi_send_sta_notify_frame(common, opmode,
+						  STA_DISCONNECTED, bssid,
+						  qos_enable, aid, sta_id, vif);
+#endif
 #ifdef CONFIG_RSI_WOW
 		}
 #endif
@@ -2575,8 +2814,7 @@ static int rsi_eeprom_read(struct rsi_common *common)
 	struct rsi_hw *adapter = common->priv;
 	struct sk_buff *skb;
 
-	rsi_dbg(MGMT_TX_ZONE,
-		"<==== Sending EEPROM read req frame ====>\n");
+	rsi_dbg(MGMT_TX_ZONE, "<==== Sending EEPROM read req frame ====>\n");
 
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
 	if (!skb) {
@@ -2596,10 +2834,10 @@ static int rsi_eeprom_read(struct rsi_common *common)
 	mgmt_frame->desc_word[3] = cpu_to_le16(adapter->eeprom.length << 4);
 	mgmt_frame->desc_word[2] |= cpu_to_le16(3 << 8);
 
-	/* Address to read*/
+	/* Address to read */
 	mgmt_frame->desc_word[4] = cpu_to_le16(adapter->eeprom.offset);
 	mgmt_frame->desc_word[5] = cpu_to_le16(adapter->eeprom.offset >> 16);
-	mgmt_frame->desc_word[6] = cpu_to_le16(0); //delay = 0
+	mgmt_frame->desc_word[6] = cpu_to_le16(0);	//delay = 0
 
 	skb_put(skb, FRAME_DESC_SZ);
 
@@ -2619,8 +2857,7 @@ int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
 	struct rsi_mac_frame *mgmt_frame;
 	struct sk_buff *skb;
 
-	rsi_dbg(INT_MGMT_ZONE,
-		"<==== Sending block/unblock frame ====>\n");
+	rsi_dbg(INT_MGMT_ZONE, "<==== Sending block/unblock frame ====>\n");
 
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
 	if (!skb) {
@@ -2639,20 +2876,28 @@ int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
 	if (block_event == true) {
 		rsi_dbg(INFO_ZONE, "blocking the data qs\n");
 		mgmt_frame->desc_word[4] = cpu_to_le16(0xf);
+#ifndef CONFIG_STA_PLUS_AP
 		mgmt_frame->desc_word[4] |= cpu_to_le16(0xf << 4);
+#endif
 	} else {
 		rsi_dbg(INFO_ZONE, "unblocking the data qs\n");
 		mgmt_frame->desc_word[5] = cpu_to_le16(0xf);
+#ifndef CONFIG_STA_PLUS_AP
 		mgmt_frame->desc_word[5] |= cpu_to_le16(0xf << 4);
+#endif
 	}
+#ifdef CONFIG_STA_PLUS_AP
+	// ! Unblocking AP queues
+	mgmt_frame->desc_word[5] |= cpu_to_le16(0xf << 4);
+#endif
 
 	skb_put(skb, FRAME_DESC_SZ);
 	if (block_event == true) {
-		rsi_hex_dump(INT_MGMT_ZONE, "BLOCK-DATA QUEUE:",
-						skb->data, skb->len);
+		rsi_hex_dump(INT_MGMT_ZONE, "BLOCK-DATA QUEUE:", skb->data,
+			     skb->len);
 	} else {
-		rsi_hex_dump(INT_MGMT_ZONE, "UNBLOCK-DATA QUEUE:",
-						skb->data, skb->len);
+		rsi_hex_dump(INT_MGMT_ZONE, "UNBLOCK-DATA QUEUE:", skb->data,
+			     skb->len);
 	}
 
 	return rsi_send_internal_mgmt_frame(common, skb);
@@ -2670,8 +2915,7 @@ int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
 	struct rsi_mac_frame *mgmt_frame;
 	struct sk_buff *skb;
 
-	rsi_dbg(INT_MGMT_ZONE,
-		"<==== Sending RX filter frame ====>\n");
+	rsi_dbg(INT_MGMT_ZONE, "<==== Sending RX filter frame ====>\n");
 
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
 	if (!skb) {
@@ -2692,7 +2936,8 @@ int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
 
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
-EXPORT_SYMBOL_GPL(rsi_send_rx_filter_frame); 
+
+EXPORT_SYMBOL_GPL(rsi_send_rx_filter_frame);
 
 /**
  * rsi_send_ps_request() - Sends power save request.
@@ -2705,7 +2950,12 @@ EXPORT_SYMBOL_GPL(rsi_send_rx_filter_frame);
 int rsi_send_ps_request(struct rsi_hw *adapter, bool enable)
 {
 	struct rsi_common *common = adapter->priv;
+#ifndef CONFIG_STA_PLUS_AP
 	struct ieee80211_bss_conf *bss;
+#else
+	struct ieee80211_vif *sta_vif = rsi_get_sta_vif(common->priv);
+	struct ieee80211_bss_conf *sta_bss;
+#endif
 	struct rsi_request_ps *ps = NULL;
 	struct rsi_ps_info *ps_info = NULL;
 	struct sk_buff *skb = NULL;
@@ -2722,8 +2972,8 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable)
 	ps = (struct rsi_request_ps *)&skb->data[0];
 	ps_info = &adapter->ps_info;
 
-	ps->desc_word[0] = cpu_to_le16((frame_len - FRAME_DESC_SZ) |
-				       (RSI_WIFI_MGMT_Q << 12));
+	ps->desc_word[0] =
+	    cpu_to_le16((frame_len - FRAME_DESC_SZ) | (RSI_WIFI_MGMT_Q << 12));
 	ps->desc_word[1] = cpu_to_le16(WAKEUP_SLEEP_REQUEST);
 	if (enable) {
 		ps->ps_sleep.enable = 1;
@@ -2735,24 +2985,36 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable)
 	}
 
 	if (common->uapsd_bitmap) {
-//		ps->ps_mimic_support = 1;
-		ps->ps_uapsd_acs = common->uapsd_bitmap;
-		ps->ps_uapsd_acs = (adapter->hw->uapsd_max_sp_len <<
-				    IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT) |
-				    IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK;
+		//          ps->ps_mimic_support = 1;
+		/* HW enables U-APSD on all ACs. Doesn't support enabling for specific AC.
+		   Hence it is recommanded to configure uapsd_bitmap to 0x0F always */
+		ps->ps_uapsd_acs =
+		    common->uapsd_bitmap & IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK;
+		ps->ps_uapsd_acs |=
+		    (adapter->hw->
+		     uapsd_max_sp_len << IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT);
 		ps->ps_uapsd_wakeup_period = ps_info->uapsd_wakeup_period;
 	}
 	ps->ps_sleep.sleep_type = ps_info->sleep_type;
 	ps->ps_sleep.num_bcns_per_lis_int =
-		cpu_to_le16(ps_info->num_bcns_per_lis_int);
+	    cpu_to_le16(ps_info->num_bcns_per_lis_int);
 	ps->ps_sleep.sleep_duration =
-		cpu_to_le32(ps_info->deep_sleep_wakeup_period);
+	    cpu_to_le32(ps_info->deep_sleep_wakeup_period);
 
 	if (adapter->sc_nvifs == 0) {
 		assoc = false;
+#ifdef CONFIG_STA_PLUS_AP
+	} else if (!sta_vif) {
+		assoc = true;
+#endif
 	} else {
+#ifndef CONFIG_STA_PLUS_AP
 		bss = &adapter->vifs[0]->bss_conf;
 		if (bss->assoc)
+#else
+		sta_bss = &sta_vif->bss_conf;
+		if (sta_bss->assoc)
+#endif
 			assoc = true;
 		else
 			assoc = false;
@@ -2762,8 +3024,10 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable)
 	else
 		ps->ps_sleep.connected_sleep = DEEP_SLEEP;
 
-	ps->ps_listen_interval_duration = cpu_to_le32(ps_info->listen_interval_duration);
-	ps->ps_dtim_interval_duration = cpu_to_le32(ps_info->dtim_interval_duration);
+	ps->ps_listen_interval_duration =
+	    cpu_to_le32(ps_info->listen_interval_duration);
+	ps->ps_dtim_interval_duration =
+	    cpu_to_le32(ps_info->dtim_interval_duration);
 
 	ps->ps_num_dtim_intervals = cpu_to_le16(ps_info->num_dtims_per_sleep);
 	skb_put(skb, frame_len);
@@ -2780,8 +3044,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable)
  *
  * Return: 0 on Success, < 0 on failure
  */
-int rsi_set_antenna(struct rsi_common *common,
-		    u8 antenna)
+int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 {
 	struct rsi_mac_frame *mgmt_frame;
 	struct sk_buff *skb;
@@ -2797,7 +3060,7 @@ int rsi_set_antenna(struct rsi_common *common,
 	mgmt_frame = (struct rsi_mac_frame *)skb->data;
 
 	mgmt_frame->desc_word[1] = cpu_to_le16(ANT_SEL_FRAME);
-	mgmt_frame->desc_word[2] = cpu_to_le16(1 << 8); /* Antenna selection
+	mgmt_frame->desc_word[2] = cpu_to_le16(1 << 8);	/* Antenna selection
 							   type */
 	mgmt_frame->desc_word[3] = cpu_to_le16(antenna & 0x00ff);
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
@@ -2826,9 +3089,9 @@ int rsi_get_channel_load_meas(struct rsi_common *common,
 
 	cmd_frame = (struct rsi_mac_frame *)skb->data;
 
-	channel_width = ieee80211_chan_to_bw(common->priv,
-					     chl_meas.regulatory_class,
-					     chl_meas.channel_num);
+	channel_width =
+	    ieee80211_chan_to_bw(common->priv, chl_meas.regulatory_class,
+				 chl_meas.channel_num);
 
 	dfs = is_dfs_channel(common->priv, chl_meas.channel_num);
 
@@ -2872,7 +3135,7 @@ int rsi_get_channel_load_meas(struct rsi_common *common,
 	cmd_frame->desc_word[2] = cpu_to_le16(chl_meas.meas_type << 8);
 	cmd_frame->desc_word[3] = cpu_to_le16(chl_meas.meas_req_mode);
 	cmd_frame->desc_word[3] |=
-		cpu_to_le16(((u16)chl_meas.channel_num) << 8);
+	    cpu_to_le16(((u16) chl_meas.channel_num) << 8);
 	cmd_frame->desc_word[4] = cpu_to_le16(chl_meas.meas_duration);
 	cmd_frame->desc_word[5] = cpu_to_le16(chl_meas.rand_interval);
 	cmd_frame->desc_word[6] = cpu_to_le16(dfs << 8);
@@ -2900,9 +3163,9 @@ int rsi_get_frame_meas(struct rsi_common *common,
 	memset(skb->data, 0, sizeof(*cmd_frame));
 	cmd_frame = (struct rsi_frame_meas_req *)skb->data;
 
-	channel_width = ieee80211_chan_to_bw(common->priv,
-					     params.mp.regulatory_class,
-					     params.mp.channel_num);
+	channel_width =
+	    ieee80211_chan_to_bw(common->priv, params.mp.regulatory_class,
+				 params.mp.channel_num);
 	if (channel_width == RSI_BW_5)
 		channel_width = 0;
 	else if (channel_width == RSI_BW_10)
@@ -2927,7 +3190,8 @@ int rsi_get_frame_meas(struct rsi_common *common,
 	cmd_frame->desc_word[1] |= cpu_to_le16(RADIO_MEASUREMENT_REQ);
 	cmd_frame->desc_word[2] = cpu_to_le16(params.mp.meas_type << 8);
 	cmd_frame->desc_word[3] = cpu_to_le16(params.mp.meas_req_mode);
-	cmd_frame->desc_word[3] |= cpu_to_le16(((u16)params.mp.channel_num) << 8);
+	cmd_frame->desc_word[3] |=
+	    cpu_to_le16(((u16) params.mp.channel_num) << 8);
 	cmd_frame->desc_word[4] = cpu_to_le16(params.mp.meas_duration);
 	cmd_frame->desc_word[5] = cpu_to_le16(params.mp.rand_interval);
 	cmd_frame->desc_word[6] = cpu_to_le16(ret << 8);
@@ -2960,9 +3224,9 @@ int rsi_get_beacon_meas(struct rsi_common *common,
 	if (!skb)
 		return -ENOMEM;
 	beacon_req = (struct rsi_bcn_meas_req *)skb->data;
-	channel_width = ieee80211_chan_to_bw(common->priv,
-					     params.mp.regulatory_class,
-					     params.mp.channel_num);
+	channel_width =
+	    ieee80211_chan_to_bw(common->priv, params.mp.regulatory_class,
+				 params.mp.channel_num);
 	if (channel_width == RSI_BW_5)
 		channel_width = 0;
 	else if (channel_width == RSI_BW_10)
@@ -2988,10 +3252,10 @@ int rsi_get_beacon_meas(struct rsi_common *common,
 	beacon_req->desc_word[2] = cpu_to_le16(params.mp.meas_type << 8);
 	beacon_req->desc_word[3] = cpu_to_le16(params.mp.meas_req_mode);
 	beacon_req->desc_word[3] |=
-		cpu_to_le16(((u16)params.mp.channel_num) << 8);
+	    cpu_to_le16(((u16) params.mp.channel_num) << 8);
 	beacon_req->desc_word[4] = cpu_to_le16(params.mp.meas_duration);
 	beacon_req->desc_word[5] = cpu_to_le16(params.mp.rand_interval);
-	beacon_req->desc_word[6] = cpu_to_le16(dfs << 8); /* DFS chan */
+	beacon_req->desc_word[6] = cpu_to_le16(dfs << 8);	/* DFS chan */
 	beacon_req->desc_word[6] |= cpu_to_le16(channel_width);
 
 	memcpy(beacon_req->bssid, params.mac_addr, IEEE80211_ADDR_LEN);
@@ -3001,27 +3265,24 @@ int rsi_get_beacon_meas(struct rsi_common *common,
 	index = 0;
 	rsi_dbg(ERR_ZONE, "BEACON REQ REPORTING DETAILS %d\n",
 		beacon_req->rep_detail);
-	rsi_dbg(ERR_ZONE, "BEACON REQ SSID INFORMATION %s\n",
-		beacon_req->ssid);
+	rsi_dbg(ERR_ZONE, "BEACON REQ SSID INFORMATION %s\n", beacon_req->ssid);
 	rsi_dbg(ERR_ZONE, "beacon_req measurement mode %d\n",
 		beacon_req->meas_mode);
 	if (params.meas_mode == 1) {
 		rsi_dbg(ERR_ZONE, "active beacon request with bgscan probe\n");
-		memcpy(beacon_req->bgscan_probe,
-		       common->bgscan_probe_req,
+		memcpy(beacon_req->bgscan_probe, common->bgscan_probe_req,
 		       MIN_802_11_HDR_LEN);
 		index += MIN_802_11_HDR_LEN;
 
 		memcpy(&beacon_req->bgscan_probe[index],
-		       (u8 *)&params.ssid_ie,
-		       (2 + params.ssid_ie[1]));
+		       (u8 *) & params.ssid_ie, (2 + params.ssid_ie[1]));
 		index += (2 + params.ssid_ie[1]);
 
 		memcpy(&beacon_req->bgscan_probe[index],
 		       common->bgscan_probe_req + MIN_802_11_HDR_LEN + 2,
 		       (common->bgscan_probe_req_len - MIN_802_11_HDR_LEN - 2));
-		index += (common->bgscan_probe_req_len -
-				MIN_802_11_HDR_LEN - 2);
+		index +=
+		    (common->bgscan_probe_req_len - MIN_802_11_HDR_LEN - 2);
 	}
 
 	beacon_req->desc_word[0] |= cpu_to_le16(sizeof(*beacon_req) + index);
@@ -3033,79 +3294,117 @@ int rsi_get_beacon_meas(struct rsi_common *common,
 }
 #endif
 
-#ifdef CONFIG_RSI_WOW 
+#ifdef CONFIG_RSI_WOW
 int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
-		            u16 sleep_status)
+			    u16 sleep_status)
 {
-        struct rsi_wowlan_req *cmd_frame;
-        struct sk_buff *skb;
-        u8 length;
-        u8 sourceid[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	struct rsi_wowlan_req *cmd_frame;
+	struct sk_buff *skb;
+	u8 length;
+	u8 sourceid[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-        rsi_dbg(ERR_ZONE, "%s: Sending wowlan request frame\n", __func__);
+	rsi_dbg(ERR_ZONE, "%s: Sending wowlan request frame\n", __func__);
 
-        skb = dev_alloc_skb(sizeof(*cmd_frame));
-        if (!skb) {
-                rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
-                                __func__);
-                return -ENOMEM;
-        }
-        memset(skb->data, 0, sizeof(*cmd_frame));
-        cmd_frame = (struct rsi_wowlan_req *)skb->data;
+	skb = dev_alloc_skb(sizeof(*cmd_frame));
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+	memset(skb->data, 0, sizeof(*cmd_frame));
+	cmd_frame = (struct rsi_wowlan_req *)skb->data;
 
-        cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
-        cmd_frame->desc_word[1] |= cpu_to_le16(WOWLAN_CONFIG_PARAMS);
- 
-        memcpy(cmd_frame->sourceid, &sourceid, IEEE80211_ADDR_LEN);
-	
-        cmd_frame->host_sleep_status = sleep_status;
+	cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+	cmd_frame->desc_word[1] |= cpu_to_le16(WOWLAN_CONFIG_PARAMS);
+
+	memcpy(cmd_frame->sourceid, &sourceid, IEEE80211_ADDR_LEN);
+
+	cmd_frame->host_sleep_status = sleep_status;
 	if (common->secinfo.gtk_cipher)
 		flags |= RSI_WOW_GTK_REKEY;
 	if (sleep_status)
-		cmd_frame->wow_flags = flags; /* TODO: check for magic packet */
-        rsi_dbg(INFO_ZONE, "Host_Sleep_Status : %d Flags : %d\n",
-		cmd_frame->host_sleep_status, cmd_frame->wow_flags );
-	
-        length = FRAME_DESC_SZ + IEEE80211_ADDR_LEN + 2 + 2;
+		cmd_frame->wow_flags = flags;	/* TODO: check for magic packet */
+	rsi_dbg(INFO_ZONE, "Host_Sleep_Status : %d Flags : %d\n",
+		cmd_frame->host_sleep_status, cmd_frame->wow_flags);
 
-        cmd_frame->desc_word[0] |= cpu_to_le16(length - FRAME_DESC_SZ);
-        cmd_frame->desc_word[2] |= cpu_to_le16(0);
-  
-  	skb_put(skb, length);
+	length = FRAME_DESC_SZ + IEEE80211_ADDR_LEN + 2 + 2;
 
-        return rsi_send_internal_mgmt_frame(common, skb);
+	cmd_frame->desc_word[0] |= cpu_to_le16(length - FRAME_DESC_SZ);
+	cmd_frame->desc_word[2] |= cpu_to_le16(0);
+
+	skb_put(skb, length);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
 }
 #endif
 
+#ifndef CONFIG_STA_PLUS_AP
 int rsi_send_beacon(struct rsi_common *common)
+#else
+int rsi_send_beacon(struct rsi_common *common, struct ieee80211_vif *vif)
+#endif
 {
 	struct sk_buff *skb = NULL;
 	u8 dword_align_bytes = 0;
-	
+
 	skb = dev_alloc_skb(MAX_MGMT_PKT_SIZE);
 	if (!skb)
 		return -ENOMEM;
 
 	memset(skb->data, 0, MAX_MGMT_PKT_SIZE);
-	
+
 	dword_align_bytes = ((unsigned long)skb->data & 0x3f);
 	if (dword_align_bytes) {
 		skb_pull(skb, (64 - dword_align_bytes));
 	}
+#ifndef CONFIG_STA_PLUS_AP
 	if (rsi_prepare_beacon(common, skb)) {
+#else
+	if (rsi_prepare_beacon(common, skb, vif)) {
+#endif
 		rsi_dbg(ERR_ZONE, "Failed to prepare beacon\n");
 		return -EINVAL;
 	}
 	skb_queue_tail(&common->tx_queue[MGMT_BEACON_Q], skb);
 	rsi_set_event(&common->tx_thread.event);
-	rsi_dbg(DATA_TX_ZONE,
-		"%s: Added to beacon queue\n", __func__);
+	rsi_dbg(DATA_TX_ZONE, "%s: Added to beacon queue\n", __func__);
 
 	return 0;
 }
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17)
-#if LINUX_VERSION_CODE < KERNEL_VERSION (4, 15, 0)
+int rsi_update_wlan_gain_table(struct rsi_hw *adapter, struct nlmsghdr *nlh,
+			       int payload_len)
+{
+	struct rsi_common *common = adapter->priv;
+	struct sk_buff *skb;
+	u16 frame_len = payload_len;
+	struct rsi_mac_frame *gain_table = NULL;
+
+	rsi_dbg(INT_MGMT_ZONE, "<=== Update WLAN Gain table ===>\n");
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ + frame_len);
+	if (!skb)
+		return -ENOMEM;
+
+	memset(skb->data, 0, FRAME_DESC_SZ + frame_len);
+
+	gain_table = (struct rsi_mac_frame *)skb->data;
+
+	gain_table->desc_word[0] =
+	    cpu_to_le16(frame_len | (RSI_WIFI_MGMT_Q << 12));
+	gain_table->desc_word[1] = cpu_to_le16(WLAN_GAIN_TABLE_UPDATE);
+	skb->priority = MGMT_SOFT_Q;
+	memcpy(&skb->data[FRAME_DESC_SZ], nlmsg_data(nlh) + FRAME_DESC_SZ,
+	       payload_len);
+	skb_put(skb, frame_len + FRAME_DESC_SZ);
+
+	rsi_hex_dump(INT_MGMT_ZONE, "GAIN TABLE UPDATE", skb->data, skb->len);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17) || defined(OFFLOAD_SCAN_TO_DEVICE)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 static void channel_change_event(unsigned long priv)
 {
 	struct rsi_hw *adapter = (struct rsi_hw *)priv;
@@ -3125,11 +3424,13 @@ static int init_channel_timer(struct rsi_hw *adapter, u32 timeout)
 	struct rsi_common *common = adapter->priv;
 
 	rsi_reset_event(&common->chan_change_event);
-	if(timer_pending(&common->scan_timer)) {
-		rsi_dbg(ERR_ZONE, "%s : Timer Pending. This Case Should not occur\n",__func__);
+	if (timer_pending(&common->scan_timer)) {
+		rsi_dbg(ERR_ZONE,
+			"%s : Timer Pending. This Case Should not occur\n",
+			__func__);
 		del_timer(&common->scan_timer);
 	}
-#if LINUX_VERSION_CODE < KERNEL_VERSION (4, 15, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 	init_timer(&common->scan_timer);
 	common->scan_timer.data = (unsigned long)adapter;
 	common->scan_timer.function = (void *)&channel_change_event;
@@ -3152,8 +3453,7 @@ static int init_channel_timer(struct rsi_hw *adapter, u32 timeout)
  * @return 0 if success else -1.
  */
 int rsi_send_probe_request(struct rsi_common *common,
-			   struct cfg80211_scan_request *scan_req,
-			   u8 n_ssid,
+			   struct cfg80211_scan_request *scan_req, u8 n_ssid,
 			   u8 channel)
 {
 	struct cfg80211_ssid *ssid_info;
@@ -3166,18 +3466,26 @@ int rsi_send_probe_request(struct rsi_common *common,
 	u8 ie_ssid_len;
 	u8 q_num;
 
+#ifdef CONFIG_STA_PLUS_AP
+	struct ieee80211_vif *sta_vif = rsi_get_sta_vif(common->priv);
+	if (!sta_vif) {
+		rsi_dbg(ERR_ZONE, "%s: sta_vif is NULL\n", __func__);
+		return 0;
+	}
+#endif
 	if (common->priv->sc_nvifs <= 0)
 		return 0;
 	if (!scan_req)
 		return 0;
 	rsi_dbg(INT_MGMT_ZONE, "<==== Sending Probe Request Packet ====>\n");
 	ssid_info = &scan_req->ssids[n_ssid];
-	ie_ssid_len = (ssid_info && ssid_info->ssid_len) ? 
-		       ssid_info->ssid_len + 2 : NULL_SSID;
+	ie_ssid_len = (ssid_info
+		       && ssid_info->ssid_len) ? ssid_info->ssid_len +
+	    2 : NULL_SSID;
 
 	len = (MIN_802_11_HDR_LEN + scan_req->ie_len + ie_ssid_len);
 
-	skb = dev_alloc_skb(len + DWORD_ALIGNMENT); /* 64 for dword alignment */
+	skb = dev_alloc_skb(len + DWORD_ALIGNMENT);	/* 64 for dword alignment */
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "Failed to alloc probe req\n");
 		return -ENOMEM;
@@ -3187,28 +3495,32 @@ int rsi_send_probe_request(struct rsi_common *common,
 	skb_reserve(skb, DWORD_ALIGNMENT);
 
 	pos = skb->data;
-       /*
-	* probe req frame format
-	* ssid
-	* supported rates
-	* RSN (optional)
-	* extended supported rates
-	* WPA (optional)
-	* user-specified ie's
-	*/
+	/*
+	 * probe req frame format
+	 * ssid
+	 * supported rates
+	 * RSN (optional)
+	 * extended supported rates
+	 * WPA (optional)
+	 * user-specified ie's
+	 */
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | 
-					 IEEE80211_STYPE_PROBE_REQ);
+	hdr->frame_control =
+	    cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ);
 	hdr->duration_id = 0x0;
 	memset(hdr->addr1, 0xff, ETH_ALEN);
 	memset(hdr->addr3, 0xFF, 6);
+#ifndef CONFIG_STA_PLUS_AP
 	memcpy(hdr->addr2, common->mac_addr, ETH_ALEN);
+#else
+	memcpy(hdr->addr2, sta_vif->addr, ETH_ALEN);
+#endif
 	hdr->seq_ctrl = 0x00;
-	pos += MIN_802_11_HDR_LEN; 
+	pos += MIN_802_11_HDR_LEN;
 
 	*pos++ = WLAN_EID_SSID;
-	*pos++ = ie_ssid_len ? ie_ssid_len - 2 : 0; 
+	*pos++ = ie_ssid_len ? ie_ssid_len - 2 : 0;
 
 	if (ssid_info && (ie_ssid_len != NULL_SSID)) {
 		if (scan_req->n_ssids > 0 || common->p2p_enabled) {
@@ -3220,12 +3532,12 @@ int rsi_send_probe_request(struct rsi_common *common,
 		}
 	}
 
-        if (scan_req->ie_len) 
-                memcpy(pos, scan_req->ie, scan_req->ie_len);
-       
+	if (scan_req->ie_len)
+		memcpy(pos, scan_req->ie, scan_req->ie_len);
+
 	if ((common->iface_down == true))
 		goto out;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17) || defined(OFFLOAD_SCAN_TO_DEVICE)
 	if (!common->scan_in_prog)
 		goto out;
 #endif
@@ -3234,17 +3546,19 @@ int rsi_send_probe_request(struct rsi_common *common,
 	tx_params = (struct skb_info *)info->driver_data;
 	tx_params->internal_hdr_size = skb_headroom(skb);
 #ifndef CONFIG_RSI_P2P
+#ifndef CONFIG_STA_PLUS_AP
 	info->control.vif = common->priv->vifs[0];
+#else
+	info->control.vif = sta_vif;
+#endif
 	if (!info->control.vif) {
-		rsi_dbg(ERR_ZONE,
-			"%s: VIF is NULL\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: VIF is NULL\n", __func__);
 		return 0;
 	}
 #else
 	info->control.vif = common->priv->vifs[1];
 	if (!info->control.vif) {
-		rsi_dbg(ERR_ZONE,
-			"%s: VIF is NULL\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: VIF is NULL\n", __func__);
 		return 0;
 	}
 	memcpy(hdr->addr2, info->control.vif->addr, ETH_ALEN);
@@ -3253,12 +3567,12 @@ int rsi_send_probe_request(struct rsi_common *common,
 	q_num = MGMT_SOFT_Q;
 	skb->priority = q_num;
 
-	if(rsi_prepare_mgmt_desc(common,skb))
+	if (rsi_prepare_mgmt_desc(common, skb))
 		goto out;
 	rsi_hex_dump(MGMT_DEBUG_ZONE, "PROBE-REQ FRAME", skb->data, skb->len);
 	skb_queue_tail(&common->tx_queue[MGMT_SOFT_Q], skb);
 	rsi_set_event(&common->tx_thread.event);
-	
+
 	return 0;
 
 out:
@@ -3266,20 +3580,24 @@ out:
 	return 0;
 }
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17) || defined(OFFLOAD_SCAN_TO_DEVICE)
 void rsi_scan_start(struct work_struct *work)
 {
 	struct ieee80211_channel *cur_chan = NULL;
 	struct cfg80211_scan_request *scan_req = NULL;
 	struct rsi_common *common =
-		container_of(work, struct rsi_common, scan_work);
+	    container_of(work, struct rsi_common, scan_work);
 	u8 ii, jj;
-	int status = 0;
+	int status = 0, num_scan_chan;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
 	struct cfg80211_scan_info info;
 #endif
 	struct rsi_hw *adapter = common->priv;
+#ifndef CONFIG_STA_PLUS_AP
 	struct ieee80211_vif *vif = adapter->vifs[adapter->sc_nvifs - 1];
+#else
+	struct ieee80211_vif *vif = common->scan_vif;
+#endif
 
 	scan_req = common->scan_request;
 	if (!scan_req)
@@ -3287,36 +3605,51 @@ void rsi_scan_start(struct work_struct *work)
 
 	common->scan_in_prog = true;
 #ifndef CONFIG_RSI_P2P
-	if (adapter->ps_state == PS_ENABLED) {
+	if (!adapter->rx_stats_inprog && adapter->ps_state == PS_ENABLED) {
 		rsi_disable_ps(common->priv);
 		rsi_reset_event(&common->mgmt_cfm_event);
 		rsi_wait_event(&common->mgmt_cfm_event, msecs_to_jiffies(2000));
 	}
 #endif
-	for (ii =0; ii < scan_req->n_channels ; ii++) {
+	if (common->efuse_map.module_type == ACX_MODULE) {
+		adapter->dfs_region = NL80211_DFS_FCC - 1;
+		num_scan_chan = MAX_CHAN_FOR_ACX;
+	} else
+		num_scan_chan = scan_req->n_channels;
+
+	for (ii = 0; ii < num_scan_chan; ii++) {
 		if (common->iface_down)
 			break;
-	
+
 		if (!common->scan_in_prog)
 			break;
-		
-		rsi_dbg(INFO_ZONE, "Programming channel no: %d",
-			scan_req->channels[ii]->hw_value);
-		cur_chan = scan_req->channels[ii];
 
-		rsi_band_check(common, cur_chan);
+		if (common->efuse_map.module_type == ACX_MODULE)
+			cur_chan =
+			    (struct ieee80211_channel *)
+			    &rsi_2ghz_acx_channels[ii];
+		else
+			cur_chan = scan_req->channels[ii];
+
+		rsi_band_check(common, cur_chan->band);
 		if (cur_chan->flags & IEEE80211_CHAN_DISABLED)
 			continue;
-				 
+
+#ifndef CONFIG_STA_PLUS_AP
 		if (rsi_set_channel(common, cur_chan)) {
+#else
+		if (rsi_set_channel(common, cur_chan, vif)) {
+#endif
 			rsi_dbg(ERR_ZONE, "Failed to set the channel\n");
 			break;
 		}
 		rsi_reset_event(&common->chan_set_event);
-		status = rsi_wait_event(&common->chan_set_event, msecs_to_jiffies(50));
+		status =
+		    rsi_wait_event(&common->chan_set_event,
+				   msecs_to_jiffies(50));
 		if (status < 0)
 			break;
-		
+
 		if (!common->scan_in_prog)
 			break;
 		rsi_reset_event(&common->chan_set_event);
@@ -3324,34 +3657,41 @@ void rsi_scan_start(struct work_struct *work)
 		if (vif->type == NL80211_IFTYPE_AP && adapter->auto_chan_sel) {
 			init_channel_timer(common->priv, PASSIVE_SCAN_DURATION);
 		} else {
-			if ((cur_chan->flags & IEEE80211_CHAN_NO_IR) ||
-					(cur_chan->flags & IEEE80211_CHAN_RADAR)) {
+			if ((cur_chan->flags & IEEE80211_CHAN_NO_IR)
+			    || (cur_chan->flags & IEEE80211_CHAN_RADAR)) {
 				/* DFS Channel */
 				/* Program passive scan duration */
-				init_channel_timer(common->priv, PASSIVE_SCAN_DURATION);
+				init_channel_timer(common->priv,
+						   PASSIVE_SCAN_DURATION);
 			} else if (!adapter->auto_chan_sel) {
 				/* Send probe request */
 				for (jj = 0; jj < scan_req->n_ssids; jj++) {
-					rsi_send_probe_request(common,
-							scan_req,
-							jj,
-							cur_chan->hw_value);
+					rsi_send_probe_request(common, scan_req,
+							       jj,
+							       cur_chan->
+							       hw_value);
 					if (common->iface_down == true) {
 						common->scan_in_prog = false;
 						return;
 					}
-					rsi_reset_event(&common->probe_cfm_event);
-					status = rsi_wait_event(&common->probe_cfm_event,
-							msecs_to_jiffies(50));
+					rsi_reset_event(&common->
+							probe_cfm_event);
+					status =
+					    rsi_wait_event(&common->
+							   probe_cfm_event,
+							   msecs_to_jiffies
+							   (50));
 					if (status < 0) {
 						rsi_dbg(ERR_ZONE,
-								"Did not received probe confirm\n");
+							"Did not received probe confirm\n");
 						common->scan_in_prog = false;
 						return;
 					}
-					rsi_reset_event(&common->probe_cfm_event);
+					rsi_reset_event(&common->
+							probe_cfm_event);
 				}
-				init_channel_timer(common->priv, ACTIVE_SCAN_DURATION);
+				init_channel_timer(common->priv,
+						   ACTIVE_SCAN_DURATION);
 			}
 		}
 		if (!common->scan_in_prog)
@@ -3359,9 +3699,9 @@ void rsi_scan_start(struct work_struct *work)
 		if (common->iface_down)
 			break;
 
-
-		status = rsi_wait_event(&common->chan_change_event, 
-					EVENT_WAIT_FOREVER);
+		status =
+		    rsi_wait_event(&common->chan_change_event,
+				   EVENT_WAIT_FOREVER);
 		if (status < 0)
 			break;
 		rsi_reset_event(&common->chan_change_event);
@@ -3370,36 +3710,35 @@ void rsi_scan_start(struct work_struct *work)
 	del_timer(&common->scan_timer);
 	common->scan_in_prog = false;
 #ifndef CONFIG_RSI_P2P
-	if (vif->type != NL80211_IFTYPE_AP && adapter->ps_state == PS_NONE) {
+	if (common->default_deep_sleep_enable && !adapter->rx_stats_inprog
+	    && vif->type != NL80211_IFTYPE_AP && adapter->ps_state == PS_NONE) {
 		rsi_enable_ps(common->priv);
 		rsi_reset_event(&common->mgmt_cfm_event);
-		rsi_wait_event(&common->mgmt_cfm_event,
-				msecs_to_jiffies(2000));
+		rsi_wait_event(&common->mgmt_cfm_event, msecs_to_jiffies(2000));
 	}
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
 	info.aborted = false;
 	ieee80211_scan_completed(common->priv->hw, &info);
-#else	
+#else
 	ieee80211_scan_completed(common->priv->hw, false);
 #endif
 
-	if (common->hw_scan_cancel) {	
+	if (common->hw_scan_cancel) {
 		skb_queue_purge(&common->tx_queue[MGMT_SOFT_Q]);
 		rsi_set_event(&common->cancel_hw_scan_event);
-	}	
+	}
 	return;
 }
 #endif
 
-static int rsi_send_w9116_features(struct rsi_common *common)
+int rsi_send_w9116_features(struct rsi_common *common)
 {
 	struct rsi_wlan_9116_features *w9116_features;
 	u16 frame_len = sizeof(struct rsi_wlan_9116_features);
 	struct sk_buff *skb;
 
-	rsi_dbg(INT_MGMT_ZONE,
-		"<==== Sending wlan 9116 features ====>\n");
+	rsi_dbg(INT_MGMT_ZONE, "<==== Sending wlan 9116 features ====>\n");
 
 	skb = dev_alloc_skb(frame_len);
 	if (!skb)
@@ -3417,22 +3756,22 @@ static int rsi_send_w9116_features(struct rsi_common *common)
 		w9116_features->feature_enable |= cpu_to_le32(RSI_DPD);
 	if (common->w9116_features.sifs_tx_enable)
 		w9116_features->feature_enable |=
-			cpu_to_le32(RSI_SIFS_TX_ENABLE);
+		    cpu_to_le32(RSI_SIFS_TX_ENABLE);
 	if (common->w9116_features.ps_options & RSI_DUTY_CYCLING)
 		w9116_features->feature_enable |= cpu_to_le32(RSI_DUTY_CYCLING);
 	if (common->w9116_features.ps_options & RSI_END_OF_FRAME)
 		w9116_features->feature_enable |= cpu_to_le32(RSI_END_OF_FRAME);
 	w9116_features->feature_enable |=
-				cpu_to_le32(common->wlan_pwrsave_options);
+	    cpu_to_le32(common->wlan_pwrsave_options);
 	if (w9116_features->feature_enable & LMAC_BCON_DROP_EN) {
 		w9116_features->feature_enable |=
-				cpu_to_le32(DROP_BYTES_FEATURE);
+		    cpu_to_le32(DROP_BYTES_FEATURE);
 		w9116_features->feature_enable |=
-			cpu_to_le32(LMAC_BCON_EN_DIS_THRESHOLD << 28);
+		    cpu_to_le32(LMAC_BCON_EN_DIS_THRESHOLD << 28);
 	}
 
-	w9116_features->desc_word[0] = cpu_to_le16((frame_len - FRAME_DESC_SZ) |
-						   (RSI_WIFI_MGMT_Q << 12));
+	w9116_features->desc_word[0] =
+	    cpu_to_le16((frame_len - FRAME_DESC_SZ) | (RSI_WIFI_MGMT_Q << 12));
 	w9116_features->desc_word[1] = cpu_to_le16(FEATURES_ENABLE);
 	skb_put(skb, frame_len);
 	rsi_hex_dump(INT_MGMT_ZONE, "Internal Mgmt Pkt", skb->data, skb->len);
@@ -3449,7 +3788,7 @@ int rsi_send_bt_reg_params(struct rsi_common *common)
 	skb = dev_alloc_skb(sizeof(*bt_reg_param));
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
-				__func__);
+			__func__);
 		return -ENOMEM;
 	}
 #define BT_PKT_TYPE 0x55
@@ -3458,28 +3797,27 @@ int rsi_send_bt_reg_params(struct rsi_common *common)
 
 	bt_reg_param->desc_word[7] = cpu_to_le16(BT_PKT_TYPE);
 	bt_reg_param->desc_word[0] = (RSI_BT_MGMT_Q << 12);
-	if (common->priv->device_model == RSI_DEV_9116) {
-		bt_reg_param->desc_word[0] |= cpu_to_le16((sizeof(*bt_reg_param) 
-							   - FRAME_DESC_SZ));
+	if (COMMON_DEV_MODEL_9116) {
+		bt_reg_param->desc_word[0] |=
+		    cpu_to_le16((sizeof(*bt_reg_param) - FRAME_DESC_SZ));
 		bt_reg_param->params[2] = (common->bt_rf_type & 0x0F);
 		bt_reg_param->params[3] = common->ble_tx_pwr_inx;
 		bt_reg_param->params[4] = (common->ble_pwr_save_options & 0x0F);
 		skb_put(skb, sizeof(struct bt_register_param));
 	} else {
-		bt_reg_param->desc_word[0] |= cpu_to_le16((sizeof(*bt_reg_param) 
-					  		   - FRAME_DESC_SZ - 3));
+		bt_reg_param->desc_word[0] |=
+		    cpu_to_le16((sizeof(*bt_reg_param) - FRAME_DESC_SZ - 3));
 		bt_reg_param->params[0] = (common->bt_rf_tx_power_mode & 0x0F);
 		bt_reg_param->params[0] |= (common->bt_rf_rx_power_mode & 0xF0);
 		skb_put(skb, sizeof(struct bt_register_param) - 3);
 	}
-		
+
 	rsi_hex_dump(ERR_ZONE, "BT REG PARAMS", skb->data, skb->len);
 #ifdef CONFIG_RSI_COEX_MODE
 	return rsi_coex_send_pkt(common, skb, BT_Q);
 #else
 	return rsi_send_bt_pkt(common, skb);
 #endif
-
 }
 
 /**
@@ -3489,14 +3827,21 @@ int rsi_send_bt_reg_params(struct rsi_common *common)
  *
  * Return: 0 on success, -1 on failure.
  */
-static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
+static int rsi_handle_ta_confirm(struct rsi_common *common, u8 * msg)
 {
 	struct rsi_hw *adapter = common->priv;
 	u8 sub_type = (msg[15] & 0xff);
+	u32 msg_len = (((u16 *) msg)[0]) & 0xfff;
+	int no_of_fragments;
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
 	struct cfg80211_scan_info info;
 #endif
-	struct ieee80211_vif *vif = adapter->vifs[adapter->sc_nvifs - 1];
+#ifndef CONFIG_STA_PLUS_AP
+	struct ieee80211_vif *vif = adapter->vifs[0];
+#else
+	struct ieee80211_vif *vif = rsi_get_first_valid_vif(adapter);
+#endif
 
 	rsi_dbg(MGMT_RX_ZONE, "%s: subtype=%d\n", __func__, sub_type);
 
@@ -3514,7 +3859,7 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 		} else {
 			rsi_dbg(INFO_ZONE,
 				"%s: Received common dev config params cfm in %d state\n",
-				 __func__, common->fsm_state);
+				__func__, common->fsm_state);
 			return 0;
 		}
 		break;
@@ -3522,7 +3867,7 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 	case BOOTUP_PARAMS_REQUEST:
 		rsi_dbg(FSM_ZONE, "Bootup params confirmation.\n");
 		if (common->fsm_state == FSM_BOOT_PARAMS_SENT) {
-			if (adapter->device_model == RSI_DEV_9116) {
+			if (DEV_MODEL_9116) {
 				if (common->band == NL80211_BAND_5GHZ)
 					common->num_supp_bands = 2;
 				else
@@ -3533,21 +3878,22 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 				else
 					common->fsm_state = FSM_RESET_MAC_SENT;
 			} else {
-				adapter->eeprom.length = (IEEE80211_ADDR_LEN +
-						WLAN_MAC_MAGIC_WORD_LEN +
-						WLAN_HOST_MODE_LEN);
+				adapter->eeprom.length =
+				    (IEEE80211_ADDR_LEN +
+				     WLAN_MAC_MAGIC_WORD_LEN +
+				     WLAN_HOST_MODE_LEN);
 				adapter->eeprom.offset = WLAN_MAC_EEPROM_ADDR;
 				if (rsi_eeprom_read(common)) {
 					common->fsm_state = FSM_CARD_NOT_READY;
 					goto out;
 				} else
 					common->fsm_state =
-						FSM_EEPROM_READ_MAC_ADDR;
+					    FSM_EEPROM_READ_MAC_ADDR;
 			}
 		} else {
 			rsi_dbg(INFO_ZONE,
 				"%s: Received bootup params cfm in %d state\n",
-				 __func__, common->fsm_state);
+				__func__, common->fsm_state);
 			return 0;
 		}
 		break;
@@ -3555,7 +3901,7 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 	case EEPROM_READ:
 		rsi_dbg(FSM_ZONE, "EEPROM READ confirm received\n");
 		if (common->fsm_state == FSM_EEPROM_READ_MAC_ADDR) {
-			u32 msg_len = ((u16 *)msg)[0] & 0xfff;
+			u32 msg_len = ((u16 *) msg)[0] & 0xfff;
 
 			if (msg_len <= 0) {
 				rsi_dbg(FSM_ZONE,
@@ -3564,20 +3910,18 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 				goto out;
 			}
 			if (msg[16] == MAGIC_WORD) {
-				u8 offset = (FRAME_DESC_SZ +
-					     WLAN_HOST_MODE_LEN +
-					     WLAN_MAC_MAGIC_WORD_LEN);
+				u8 offset =
+				    (FRAME_DESC_SZ + WLAN_HOST_MODE_LEN +
+				     WLAN_MAC_MAGIC_WORD_LEN);
 
-				memcpy(common->mac_addr,
-				       &msg[offset],
+				memcpy(common->mac_addr, &msg[offset],
 				       IEEE80211_ADDR_LEN);
-				rsi_hex_dump(INIT_ZONE,
-					     "MAC Addr",
+				rsi_hex_dump(INIT_ZONE, "MAC Addr",
 					     common->mac_addr, ETH_ALEN);
 				adapter->eeprom.length =
-					((WLAN_MAC_MAGIC_WORD_LEN + 3) & (~3));
+				    ((WLAN_MAC_MAGIC_WORD_LEN + 3) & (~3));
 				adapter->eeprom.offset =
-					WLAN_EEPROM_RFTYPE_ADDR;
+				    WLAN_EEPROM_RFTYPE_ADDR;
 				if (rsi_eeprom_read(common)) {
 					rsi_dbg(ERR_ZONE,
 						"%s: Failed reading RF band\n",
@@ -3585,14 +3929,14 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 					common->fsm_state = FSM_CARD_NOT_READY;
 				} else {
 					common->fsm_state =
-						FSM_EEPROM_READ_RF_TYPE;
+					    FSM_EEPROM_READ_RF_TYPE;
 				}
 			} else {
 				common->fsm_state = FSM_CARD_NOT_READY;
 				break;
 			}
 		} else if (common->fsm_state == FSM_EEPROM_READ_RF_TYPE) {
-			u32 msg_len = ((u16 *)msg)[0] & 0xfff;
+			u32 msg_len = ((u16 *) msg)[0] & 0xfff;
 
 			if (msg_len <= 0) {
 				rsi_dbg(FSM_ZONE,
@@ -3639,7 +3983,7 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 		} else {
 			rsi_dbg(ERR_ZONE,
 				"%s: Received reset mac cfm in %d state\n",
-				 __func__, common->fsm_state);
+				__func__, common->fsm_state);
 			return 0;
 		}
 		break;
@@ -3647,8 +3991,7 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 	case RADIO_CAPABILITIES:
 		if (common->fsm_state == FSM_RADIO_CAPS_SENT) {
 			common->rf_reset = 1;
-			if ((adapter->device_model == RSI_DEV_9116) &&
-			    rsi_send_w9116_features(common)) {
+			if ((DEV_MODEL_9116) && rsi_send_w9116_features(common)) {
 				rsi_dbg(ERR_ZONE,
 					"Failed to send 9116 features\n");
 				goto out;
@@ -3662,12 +4005,31 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 		} else {
 			rsi_dbg(INFO_ZONE,
 				"%s: Received radio caps cfm in %d state\n",
-				 __func__, common->fsm_state);
+				__func__, common->fsm_state);
 			return 0;
 		}
 		break;
 
 	case BB_PROG_VALUES_REQUEST:
+		rsi_dbg(FSM_ZONE,
+			"BBP PROG STATS: Utils BB confirm Received: msg_len: %d \n",
+			msg_len);
+		if (msg_len > 0) {
+			rsi_hex_dump(ERR_ZONE, "Message", &msg[FRAME_DESC_SZ],
+				     msg_len);
+			memcpy((&adapter->bb_rf_read.Data[0]),
+			       &msg[FRAME_DESC_SZ], msg_len);
+			adapter->bb_rf_read.no_of_values = msg_len / 2;
+			rsi_dbg(FSM_ZONE,
+				"BBP PROG STATS: msg_len is : %d no_of_vals is %d \n",
+				msg_len, adapter->bb_rf_read.no_of_values);
+			if ((rsi_bb_prog_data_to_app(adapter)) < 0)
+				return -1;
+			rsi_dbg(INFO_ZONE,
+				"%s : Success in Performing operation\n",
+				__func__);
+		}
+		break;
 	case RF_PROG_VALUES_REQUEST:
 	case BBP_PROG_IN_TA:
 		rsi_dbg(FSM_ZONE, "BB/RF confirmation.\n");
@@ -3686,22 +4048,43 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 		} else {
 			rsi_dbg(INFO_ZONE,
 				"%s: Received bb_rf cfm in %d state\n",
-				 __func__, common->fsm_state);
+				__func__, common->fsm_state);
 			return 0;
 		}
 		break;
 
 	case AMPDU_IND:
 		rsi_dbg(INFO_ZONE, "AMPDU indication.\n");
+		if (common->driver_mode == RF_EVAL_MODE_ON) {
+			no_of_fragments = adapter->no_of_per_fragments =
+			    adapter->per_params.aggr_count;
+			do {
+				if (adapter->per_params.enable) {
+					rsi_start_per_burst(adapter);
+					no_of_fragments--;
+				}
+			} while (no_of_fragments
+				 && adapter->per_params.aggr_enable);
+			common->fsm_state = FSM_MAC_INIT_DONE;
+			adapter->tx_running = BURST_RUNNING;
+		}
 		break;
 
 	case SCAN_REQUEST:
 		rsi_dbg(INFO_ZONE, "Scan confirm.\n");
-		if ((vif->type == NL80211_IFTYPE_AP && adapter->auto_chan_sel) &&
-				(adapter->idx < adapter->n_channels)) {
+#ifdef CONFIG_STA_PLUS_AP
+		if (!vif) {
+			/* FIXME: vif can be destroyed just before getting confirm from LMAC */
+			rsi_dbg(ERR_ZONE, "Vif is NULL\n");
+			break;
+		}
+#endif
+		if ((vif && vif->type == NL80211_IFTYPE_AP
+		     && adapter->auto_chan_sel)
+		    && (adapter->idx < adapter->n_channels)) {
 			u8 id;
 			struct acs_stats_s *acs_data =
-				(struct acs_stats_s *)(&msg[FRAME_DESC_SZ]);
+			    (struct acs_stats_s *)(&msg[FRAME_DESC_SZ]);
 
 			if (adapter->idx < MAX_NUM_CHANS) {
 				id = adapter->idx;
@@ -3721,8 +4104,11 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 			}
 		}
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17) || defined(OFFLOAD_SCAN_TO_DEVICE)
 		rsi_set_event(&common->chan_set_event);
+#else
+		if (common->driver_mode == RF_EVAL_MODE_ON)
+			rsi_set_event(&common->chan_set_event);
 #endif
 		break;
 
@@ -3732,7 +4118,7 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 
 	case WAKEUP_SLEEP_REQUEST:
 		rsi_dbg(INFO_ZONE, "Wakeup/Sleep confirmation.\n");
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17) || defined(OFFLOAD_SCAN_TO_DEVICE)
 #ifndef CONFIG_RSI_P2P
 		rsi_set_event(&common->mgmt_cfm_event);
 #endif
@@ -3748,28 +4134,32 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 				rsi_send_bgscan_probe_req(common);
 				common->bgscan_en = 1;
 			} else {
-				if ((common->bgscan_info.num_user_channels > MAX_BG_CHAN_FROM_USER)
-					 && (!common->debugfs_bgscan)) {
+				if ((common->bgscan_info.num_user_channels >
+				     MAX_BG_CHAN_FROM_USER)
+				    && (!common->debugfs_bgscan)) {
 					rsi_send_bgscan_params(common, 0);
 					common->bgscan_en = 0;
 				}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
 				info.aborted = false;
 				ieee80211_scan_completed(adapter->hw, &info);
-#else	
+#else
 				ieee80211_scan_completed(adapter->hw, false);
 #endif
 				mutex_lock(&common->bgscan_lock);
 				common->bgscan_in_prog = false;
 				if (common->debugfs_bgscan_en) {
 					if (common->debugfs_stop_bgscan) {
-						rsi_send_bgscan_params(common, 0);
+						rsi_send_bgscan_params(common,
+								       0);
 						common->bgscan_en = false;
-						common->debugfs_stop_bgscan = false;
+						common->debugfs_stop_bgscan =
+						    false;
 						common->debugfs_bgscan = false;
 						init_bgscan_params(common);
 					} else {
-						rsi_send_bgscan_params(common, 1);
+						rsi_send_bgscan_params(common,
+								       1);
 						common->bgscan_en = true;
 					}
 					common->debugfs_bgscan_en = false;
@@ -3777,22 +4167,40 @@ static int rsi_handle_ta_confirm(struct rsi_common *common, u8 *msg)
 				mutex_unlock(&common->bgscan_lock);
 				common->hwscan_en = false;
 			}
+#ifdef CONFIG_STA_PLUS_AP
+		} else if (common->vap_mode == CONCURRENT
+			   && rsi_get_sta_vif(adapter)->bss_conf.assoc) {
+			mutex_lock(&common->bgscan_lock);
+			common->bgscan_in_prog = false;
+			rsi_send_bgscan_params(common, 0);
+			common->bgscan_en = false;
+			init_bgscan_params(common);
+			mutex_unlock(&common->bgscan_lock);
+#endif
 		}
 		if (common->hw_scan_cancel)
 			rsi_set_event(&common->cancel_hw_scan_event);
 		break;
-
+	case STATS_REQUEST:
+		rsi_dbg(MGMT_DEBUG_ZONE,
+			"<==== RECEIVED STATS FRAME FROM LMAC ===>\n");
+		memset(&adapter->sta_info, 0, msg_len);
+		memcpy((&adapter->sta_info), &msg[16], msg_len);
+		rsi_process_rx_stats(adapter);
+		break;
+	case GET_RSSI_FRAME:
+		memcpy(&adapter->rx_rssi, &msg[16], 2);
+		send_rssi_to_app(adapter);
+		break;
 	default:
-		rsi_dbg(INFO_ZONE,
-			"%s: Invalid TA confirm type : %x\n",
+		rsi_dbg(INFO_ZONE, "%s: Invalid TA confirm type : %x\n",
 			__func__, sub_type);
 		break;
 	}
 	return 0;
 
 out:
-	rsi_dbg(ERR_ZONE,
-		"%s: Unable to send pkt/Invalid frame received\n",
+	rsi_dbg(ERR_ZONE, "%s: Unable to send pkt/Invalid frame received\n",
 		__func__);
 	return -EINVAL;
 }
@@ -3804,9 +4212,9 @@ out:
  *
  *Return: 0 on success, -1 on failure.
  */
-int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
+int rsi_handle_card_ready(struct rsi_common *common, u8 * msg)
 {
-	u8 rsi_standard_mac[3] = {0x00, 0x23, 0xa7};
+	u8 rsi_standard_mac[3] = { 0x00, 0x23, 0xa7 };
 
 	switch (common->fsm_state) {
 	case FSM_CARD_NOT_READY:
@@ -3820,25 +4228,61 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 	case FSM_COMMON_DEV_PARAMS_SENT:
 		rsi_dbg(INIT_ZONE, "Card ready indication from WLAN HAL\n");
 
-		if (common->priv->device_model == RSI_DEV_9116) {
-			if ((msg[16] != MAGIC_WORD) ||
-			    ((msg[16] == MAGIC_WORD) && (msg[21] == 0x00))) {
+		if (COMMON_DEV_MODEL_9116) {
+			if ((msg[16] != MAGIC_WORD)
+			    || ((msg[16] == MAGIC_WORD) && (msg[21] == 0x00))) {
 				memcpy(common->mac_addr, rsi_standard_mac,
 				       RSI_MAC_SUB_LEN);
 				get_random_bytes(&common->mac_addr[3],
 						 RSI_MAC_SUB_LEN);
+				common->band = NL80211_BAND_5GHZ;
 			} else {
-				memcpy(common->mac_addr, &msg[20],
-				       ETH_ALEN);
+				memcpy(common->mac_addr, &msg[20], ETH_ALEN);
+				/* RSI device supports four Virtual ifaces each require a unique MAC addr,
+				 * here we check the received MAC addr should be less than the maximum
+				 * possible Sub MAC addr[FF:FF:FC]*/
+				if (common->mac_addr[3] == 0xff
+				    && common->mac_addr[4] == 0xff
+				    && common->mac_addr[5] > 0xfc) {
+					rsi_dbg(ERR_ZONE,
+						"[%s][%d]ERROR:Sub MAC addr greater than FF:FF:FC\n",
+						__func__, __LINE__);
+					return -EINVAL;
+				}
+				common->band =
+				    (msg[27] ==
+				     RSI_BAND_CHECK ? NL80211_BAND_5GHZ :
+				     NL80211_BAND_2GHZ);
 			}
-			common->band =
-				(msg[27] == RSI_BAND_CHECK ? NL80211_BAND_5GHZ
-				 : NL80211_BAND_2GHZ);
-			rsi_hex_dump(INIT_ZONE, "MAC Addr",
-				     common->mac_addr, ETH_ALEN);
+			rsi_hex_dump(INIT_ZONE, "MAC Addr", common->mac_addr,
+				     ETH_ALEN);
+
+			if ((msg[FRAME_DESC_SZ] == MAGIC_WORD)
+			    && (msg[7] & BIT(0))) {
+				common->efuse_map.efuse_map_version =
+				    msg[EFUSE_MAP_VERSION_OFFSET];
+				common->efuse_map.module_version =
+				    msg[MODULE_VERSION_OFFSET];
+				common->efuse_map.module_part_no =
+				    *(u16 *) & msg[MODULE_PART_NO_OFFSET];
+				common->efuse_map.mfg_sw_version =
+				    msg[MFG_SW_VERSION_OFFSET];
+				common->efuse_map.module_type =
+				    msg[MODULE_TYPE_OFFSET];
+				common->efuse_map.chip_version =
+				    msg[CHIP_VERSION_OFFSET];
+				common->efuse_map.m4sb_cert_en =
+				    msg[HW_CONFIG_BITMAP_OFFSET] & BIT(3);
+				common->efuse_map.mfg_sw_subversion =
+				    msg[MANF_SW_SUB_VERSION_OFFSET];
+				common->efuse_map.chip_id_no =
+				    *(u32 *) & msg[CHIP_ID_NO_OFFSET];
+				common->efuse_map.sdb_mode =
+				    *(u16 *) & msg[SDB_MODE_OFFSET];
+			}
 		}
 		/* Get usb buffer status register address */
-		common->priv->usb_buffer_status_reg = *(u32 *)&msg[8];
+		common->priv->usb_buffer_status_reg = *(u32 *) & msg[8];
 		rsi_dbg(INFO_ZONE, "USB buffer status register = %x\n",
 			common->priv->usb_buffer_status_reg);
 
@@ -3867,6 +4311,7 @@ int rsi_send_ack_for_ulp_entry(struct rsi_common *common)
 {
 	struct rsi_ulp_params *ulp_params;
 	struct sk_buff *skb;
+	int status = -EINVAL;
 
 	skb = dev_alloc_skb(sizeof(*ulp_params));
 	if (!skb)
@@ -3878,10 +4323,14 @@ int rsi_send_ack_for_ulp_entry(struct rsi_common *common)
 	ulp_params->desc_word[7] = cpu_to_le16(ULP_SLEEP_NOTIFY << 8);
 	skb_put(skb, sizeof(struct rsi_ulp_params));
 	common->ulp_sleep_ack_sent = true;
-	return common->priv->host_intf_ops->write_pkt(common->priv,
-						      skb->data,
-						      skb->len);
+	rsi_dbg(INFO_ZONE, "%s: ACK sent for ULP sleep entry \n", __func__);
+	status =
+	    common->priv->host_intf_ops->write_pkt(common->priv, skb->data,
+						   skb->len);
+	dev_kfree_skb(skb);
+	return status;
 }
+
 EXPORT_SYMBOL_GPL(rsi_send_ack_for_ulp_entry);
 
 /*
@@ -3889,8 +4338,9 @@ EXPORT_SYMBOL_GPL(rsi_send_ack_for_ulp_entry);
  * from lmac and decides wheather to send ack or not.
  * @common: Pointer to the device private structure.
  */
-static void rsi_process_ulp_sleep_notify(struct rsi_common *common, u8 *msg)
+static void rsi_process_ulp_sleep_notify(struct rsi_common *common, u8 * msg)
 {
+	u8 proto_id = 0;
 	if ((msg[12] & BIT(0)) == ULP_SLEEP_ENTRY) {
 		rsi_dbg(INFO_ZONE, "%s: ULP sleep entry received\n", __func__);
 		down(&common->tx_access_lock);
@@ -3899,6 +4349,24 @@ static void rsi_process_ulp_sleep_notify(struct rsi_common *common, u8 *msg)
 		if (!protocol_tx_access(common)) {
 			common->common_hal_tx_access = false;
 			rsi_send_ack_for_ulp_entry(common);
+		} else {
+			rsi_dbg(INFO_ZONE,
+				"%s:ULP sleep entry without sleep exit\n",
+				__func__);
+			common->common_hal_tx_access = true;
+			common->ulp_sleep_ack_sent = false;
+			while (proto_id < MAX_IDS) {
+				if (common->techs[proto_id].wait_for_tx_access) {
+					common->techs[proto_id].
+					    wait_for_tx_access = 0;
+					rsi_dbg(INFO_ZONE,
+						"Waking up Event for proto %d\n",
+						proto_id);
+					wake_up(&common->techs[proto_id].
+						tx_access_event);
+				}
+				proto_id++;
+			}
 		}
 		up(&common->tx_access_lock);
 	} else {
@@ -3916,12 +4384,19 @@ static void rsi_process_ulp_sleep_notify(struct rsi_common *common, u8 *msg)
  *
  * Return: 0 on success, -1 on failure.
  */
-int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
+int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 * msg)
 {
 	struct rsi_hw *adapter = common->priv;
-	s32 msg_len = (le16_to_cpu(*(__le16 *)&msg[0]) & 0x0fff);
+	s32 msg_len = (le16_to_cpu(*(__le16 *) & msg[0]) & 0x0fff);
 	u16 msg_type = msg[2];
-	struct ieee80211_vif *vif = adapter->vifs[adapter->sc_nvifs - 1];
+	u8 hw_bmiss_for_channel_change;
+#ifndef CONFIG_STA_PLUS_AP
+	struct ieee80211_vif *vif = adapter->vifs[0];
+#else
+	struct ieee80211_vif *sta_vif = rsi_get_sta_vif(adapter);
+	struct ieee80211_vif *vif = NULL;
+	u8 vap_id;
+#endif
 
 	switch (msg_type) {
 	case TA_CONFIRM_TYPE:
@@ -3935,21 +4410,26 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 		if (msg[15] == PROBEREQ_CONFIRM) {
 			rsi_dbg(INT_MGMT_ZONE,
 				"<==== Recv PROBEREQ CONFIRM =====>\n");
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 20, 17) || defined(OFFLOAD_SCAN_TO_DEVICE)
 			rsi_set_event(&common->probe_cfm_event);
 #endif
 		}
 		if ((msg[15] & 0xff) == EAPOL4_CONFIRM) {
 			u8 status = msg[12];
 
-			if (status) {	
-				if(vif->type == NL80211_IFTYPE_STATION) {
+			if (status) {
+#ifndef CONFIG_STA_PLUS_AP
+				if (vif->type == NL80211_IFTYPE_STATION) {
+#else
+				if (sta_vif->type == NL80211_IFTYPE_STATION) {
+#endif
 					rsi_dbg(ERR_ZONE, "EAPOL 4 confirm\n");
 					common->start_bgscan = 1;
 					common->eapol4_confirm = 1;
-					if (!rsi_send_block_unblock_frame(common,
-									  false))
-						common->hw_data_qs_blocked = false;
+					if (!rsi_send_block_unblock_frame
+					    (common, false))
+						common->hw_data_qs_blocked =
+						    false;
 				}
 			}
 		}
@@ -3958,18 +4438,22 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 			u8 status = msg[12];
 			u8 sta_id = msg[13];
 			rsi_dbg(MGMT_DEBUG_ZONE,
-					"NULL DATA CNFM RECVD sta_id = %d\n",sta_id);
-			skb = (vif->type == NL80211_IFTYPE_STATION) ?
-				common->stations[RSI_MAX_ASSOC_STAS].sta_skb:
-				common->stations[sta_id].sta_skb;
+				"NULL DATA CNFM RECVD sta_id = %d\n", sta_id);
+#ifndef CONFIG_STA_PLUS_AP
+			skb =
+			    (vif->type ==
+			     NL80211_IFTYPE_STATION) ? common->
+			    stations[RSI_MAX_ASSOC_STAS].sta_skb : common->
+			    stations[sta_id].sta_skb;
+#else
+			skb = common->stations[sta_id].sta_skb;
+#endif
 			if (status) {
-				rsi_indicate_tx_status(common->priv,
-						skb,
-						NULLDATA_SUCCESS);
+				rsi_indicate_tx_status(common->priv, skb,
+						       NULLDATA_SUCCESS);
 			} else {
-				rsi_indicate_tx_status(common->priv,
-						skb,
-						NULLDATA_FAIL);
+				rsi_indicate_tx_status(common->priv, skb,
+						       NULLDATA_FAIL);
 			}
 		}
 		break;
@@ -3997,13 +4481,43 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 		break;
 
 	case HW_BMISS_EVENT:
-		rsi_dbg(ERR_ZONE, "<==== Hardware beacon miss event ====>\n");
-		rsi_indicate_bcnmiss(common);
-		rsi_resume_conn_channel(common->priv,
-					adapter->vifs[adapter->sc_nvifs - 1]);
+		hw_bmiss_for_channel_change = (msg[15] & CHANNEL_CHANGE_EVENT);
+		if (hw_bmiss_for_channel_change) {
+			rsi_dbg(ERR_ZONE,
+				"<==== Hardware BMISS event due to Channel Change ====>\n");
+#ifndef CONFIG_STA_PLUS_AP
+			ieee80211_connection_loss(adapter->
+						  vifs[adapter->sc_nvifs - 1]);
+#else
+			ieee80211_connection_loss(rsi_get_sta_vif(adapter));
+#endif
+		} else {
+			rsi_dbg(ERR_ZONE,
+				"<==== Hardware beacon miss event ====>\n");
+			rsi_indicate_bcnmiss(common);
+#ifndef CONFIG_STA_PLUS_AP
+			rsi_resume_conn_channel(common->priv,
+						adapter->vifs[adapter->
+							      sc_nvifs - 1]);
+#else
+			rsi_resume_conn_channel(common->priv,
+						rsi_get_sta_vif(adapter));
+#endif
+		}
 		break;
 
 	case BEACON_EVENT_IND:
+#ifdef CONFIG_STA_PLUS_AP
+		vap_id = msg[VAP_ID_OFFSET];
+		vif = rsi_get_vif_using_vap_id(adapter, vap_id);
+		if (!vif) {
+			rsi_dbg(ERR_ZONE, "%s: Vif is NULL", __func__);
+			return -ENODEV;
+		}
+
+		if (vif->type == NL80211_IFTYPE_STATION)
+			return 0;
+#endif
 		if (!common->init_done)
 			return -1;
 		if (common->iface_down)
@@ -4012,14 +4526,18 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 			return -1;
 		rsi_dbg(MGMT_DEBUG_ZONE,
 			"<==== Beacon Interrupt Received ====>\n");
+#ifndef CONFIG_STA_PLUS_AP
 		rsi_send_beacon(common);
+#else
+		rsi_send_beacon(common, vif);
+#endif
 		break;
 
 	case WOWLAN_WAKEUP_REASON:
-		rsi_hex_dump(INFO_ZONE, "WoWLAN Wakeup Trigger Pkt",
-			     msg, msg_len);
+		rsi_hex_dump(INFO_ZONE, "WoWLAN Wakeup Trigger Pkt", msg,
+			     msg_len);
 		rsi_dbg(ERR_ZONE, "\n\nWakeup Type: %x\n", msg[15]);
-		switch(msg[15]) {
+		switch (msg[15]) {
 		case UNICAST_MAGIC_PKT:
 			rsi_dbg(ERR_ZONE,
 				"*** Wakeup for Unicast magic packet ***\n");
@@ -4029,12 +4547,10 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 				"*** Wakeup for Broadcast magic packet ***\n");
 			break;
 		case EAPOL_PKT:
-			rsi_dbg(ERR_ZONE,
-				"*** Wakeup for GTK renewal ***\n");
+			rsi_dbg(ERR_ZONE, "*** Wakeup for GTK renewal ***\n");
 			break;
 		case DISCONNECT_PKT:
-			rsi_dbg(ERR_ZONE,
-				"*** Wakeup for Disconnect ***\n");
+			rsi_dbg(ERR_ZONE, "*** Wakeup for Disconnect ***\n");
 			break;
 		case HW_BMISS_PKT:
 			rsi_dbg(ERR_ZONE,
@@ -4048,8 +4564,7 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 		break;
 #ifdef CONFIG_RSI_11K
 	case RADIO_MEAS_RPT:
-		rsi_hex_dump(ERR_ZONE, "11K RRM RX CMD FRAME",
-			     msg, msg_len);
+		rsi_hex_dump(ERR_ZONE, "11K RRM RX CMD FRAME", msg, msg_len);
 		common->priv->rrm_enq_state = 0;
 		common->priv->rrm_state = RRM_RESP_RCVD;
 		rsi_rrm_recv_cmd_frame(common, msg, msg_len);
@@ -4063,14 +4578,35 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 		if (msg[15] == RSI_MAX_BGSCAN_CHANNEL_SUPPORTED) {
 			rsi_dbg(ERR_ZONE,
 				"*** Bgscan Channel's  greater than 24 Not Supported ***\n");
-				return -1;
+			return -1;
 		} else if (msg[15] == RSI_MAX_BGSCAN_PROBE_REQ_LEN) {
 			rsi_dbg(ERR_ZONE,
 				"*** Bgscan Probe Request Length is greater than Max Size ***\n");
-				return -1;
+			return -1;
 		}
 		break;
-
+	case DISABLE_PS_FROM_LMAC:
+		rsi_dbg(MGMT_DEBUG_ZONE,
+			"<==== RECEIVED DISABLE PS FRAME FROM LMAC ===>\n");
+		if (msg[15] == PAUSE_WIFI) {
+			rsi_dbg(INFO_ZONE,
+				"<==== RECEIVED PAUSE_WIFI FROM LMAC ===>\n");
+			adapter->wifi_paused = true;
+			adapter->due_time =
+			    adapter->var_interval - (jiffies -
+						     adapter->old_jiffies);
+		} else if (msg[15] == RESUME_WIFI) {
+			rsi_dbg(INFO_ZONE,
+				"<==== RECEIVED RESUME_WIFI FROM LMAC ===>\n");
+			adapter->wifi_paused = false;
+			if (adapter->due_time)
+				mod_timer(&adapter->traffic_timer,
+					  adapter->due_time + jiffies);
+		} else {
+			common->disable_ps_from_lmac = true;
+			check_traffic_pwr_save(adapter);
+		}
+		break;
 	default:
 		rsi_dbg(INFO_ZONE, "Cmd Frame Type: %d\n", msg_type);
 		break;
@@ -4079,4 +4615,261 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 	return 0;
 }
 
+int rsi_bb_prog_data_to_app(struct rsi_hw *adapter)
+{
+	struct sk_buff *skb_out = { 0 };
+	struct nlmsghdr *nlh;
+	int msg_size, res;
+	msg_size = sizeof(adapter->bb_rf_read);
+	skb_out = nlmsg_new(msg_size, 0);
+	if (!skb_out) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to allocate new skb\n", __func__);
+		return 0;
+	}
 
+	nlh =
+	    nlmsg_put(skb_out, adapter->wlan_nl_pid, 0, NLMSG_DONE, msg_size,
+		      0);
+	/* NETLINK_CB(skb_out).dst_group = 0; */
+	memcpy(nlmsg_data(nlh), &adapter->bb_rf_read, msg_size);
+	res = nlmsg_unicast(adapter->nl_sk, skb_out, adapter->wlan_nl_pid);
+	if (res < 0) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to send stats to App\n",
+			__func__);
+		return -1;
+	}
+	return 0;
+}
+
+int send_rssi_to_app(struct rsi_hw *adapter)
+{
+	struct sk_buff *skb_out = { 0 };
+	struct nlmsghdr *nlh;
+	int res;
+	skb_out = nlmsg_new(2, 0);
+	if (!skb_out) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to allocate new skb\n", __func__);
+		return 0;
+	}
+
+	nlh = nlmsg_put(skb_out, adapter->wlan_nl_pid, 0, NLMSG_DONE, 2, 0);
+	/* NETLINK_CB(skb_out).dst_group = 0; */
+	memcpy(nlmsg_data(nlh), &adapter->rx_rssi, 2);
+	res = nlmsg_unicast(adapter->nl_sk, skb_out, adapter->wlan_nl_pid);
+	if (res < 0) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to send RSSI to App\n", __func__);
+		return -1;
+	}
+	return 0;
+}
+
+int rsi_mgmt_send_bb_prog_frames(struct rsi_hw *adapter,
+				 unsigned short *bb_prog_vals,
+				 unsigned short num_of_vals)
+{
+	struct rsi_bb_prog_params *bb_prog_req;
+	struct sk_buff *skb;
+	unsigned short count;
+	unsigned short frame_len;
+	unsigned char ii = 0;
+
+	skb = dev_alloc_skb(sizeof(struct rsi_bb_prog_params));
+	if (!skb)
+		return -1;
+
+	bb_prog_req = (struct rsi_bb_prog_params *)skb->data;
+	memset(skb->data, 0, sizeof(struct rsi_bb_prog_params));
+
+	rsi_dbg(INT_MGMT_ZONE,
+		"====> Sending Baseband Programmimg Packet <====\n");
+
+	//Preparing BB Request Frame Body
+	for (count = 1; ((count < num_of_vals) && (ii < num_of_vals));
+	     ii++, count += 2) {
+		bb_prog_req->bb_params_req[ii].reg_addr =
+		    cpu_to_le16(bb_prog_vals[count]);
+		bb_prog_req->bb_params_req[ii].bb_prog_vals =
+		    cpu_to_le16(bb_prog_vals[count + 1]);
+	}
+
+	if (num_of_vals % 2)
+		bb_prog_req->bb_params_req[ii].reg_addr =
+		    cpu_to_le16(bb_prog_vals[count]);
+	// Preparing BB Request Frame Header
+	frame_len = ((num_of_vals) * 2);	//each 2 bytes
+
+	// Preparing the Frame descriptor
+
+	bb_prog_req->desc_word[0] =
+	    cpu_to_le16((frame_len) | (RSI_WIFI_MGMT_Q << 12));
+	bb_prog_req->desc_word[1] = cpu_to_le16(BB_PROG_VALUES_REQUEST);
+
+	if (adapter->soft_reset & BBP_REMOVE_SOFT_RST_BEFORE_PROG) {
+		bb_prog_req->desc_word[7] |=
+		    cpu_to_le16(BBP_REMOVE_SOFT_RST_BEFORE_PROG);
+	}
+
+	if (adapter->soft_reset & BBP_REMOVE_SOFT_RST_AFTER_PROG) {
+		bb_prog_req->desc_word[7] |=
+		    cpu_to_le16(BBP_REMOVE_SOFT_RST_AFTER_PROG);
+	}
+
+	if (adapter->bb_rf_rw) {
+		bb_prog_req->desc_word[7] |= cpu_to_le16(BBP_REG_READ);
+		adapter->bb_rf_rw = 0;
+	}
+	adapter->soft_reset = 0;
+
+	//Flag not handled
+	bb_prog_req->desc_word[4] = cpu_to_le16(num_of_vals);
+	bb_prog_req->desc_word[7] |=
+	    cpu_to_le16(PUT_BBP_RESET | BBP_REG_WRITE | (RSI_RF_TYPE << 4));
+
+	skb_put(skb, (frame_len + FRAME_DESC_SZ));
+	rsi_hex_dump(INT_MGMT_ZONE, "BB_PROG_VAUE", skb->data, skb->len);
+
+	rsi_send_internal_mgmt_frame(adapter->priv, skb);
+
+	return 0;
+}
+
+int send_get_rssi_frame_to_fw(struct rsi_hw *adapter)
+{
+	struct sk_buff *skb = NULL;
+	struct rsi_mac_frame *mgmt_frame = NULL;
+	rsi_dbg(INT_MGMT_ZONE, "<=====  Sending GET_RSSI FRAME =====>\n");
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	mgmt_frame = (struct rsi_mac_frame *)skb->data;
+	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+	mgmt_frame->desc_word[1] = cpu_to_le16(GET_RSSI_FRAME);
+	skb_put(skb, FRAME_DESC_SZ);
+	rsi_hex_dump(INT_MGMT_ZONE, "GET_RSSI FRAME", skb->data, skb->len);
+	return rsi_send_internal_mgmt_frame(adapter->priv, skb);
+}
+
+int send_filter_broadcast_frame_to_fw(struct rsi_hw *adapter,
+				      struct nlmsghdr *nlh, int payload_len)
+{
+
+	struct sk_buff *skb = NULL;
+	struct rsi_mac_frame *mgmt_frame = NULL;
+
+	rsi_dbg(INT_MGMT_ZONE, "<=====  Sending FILTER_BCAST FRAME =====>\n");
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	mgmt_frame = (struct rsi_mac_frame *)skb->data;
+
+	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+	mgmt_frame->desc_word[1] = cpu_to_le16(FILTER_BCAST_FRAME_TYPE);
+	memcpy(&skb->data[4], nlmsg_data(nlh) + FRAME_DESC_SZ, payload_len);
+	skb_put(skb, FRAME_DESC_SZ);
+	rsi_hex_dump(INT_MGMT_ZONE, "FILTER_BCAST FRAME", skb->data, skb->len);
+	return rsi_send_internal_mgmt_frame(adapter->priv, skb);
+}
+
+int rsi_set_bb_rf_values(struct rsi_hw *adapter)
+{
+	unsigned char type, i;
+	struct rsi_common *common = adapter->priv;
+
+	if (common->driver_mode == E2E_MODE) {
+#ifndef CONFIG_STA_PLUS_AP
+		struct ieee80211_vif *vif = adapter->vifs[0];
+		bool assoc = vif && vif->bss_conf.assoc;
+#else
+		struct ieee80211_vif *sta_vif = rsi_get_sta_vif(adapter);
+		bool assoc = sta_vif && sta_vif->bss_conf.assoc;
+#endif
+
+		if (!assoc && adapter->ps_state == PS_ENABLED)
+			rsi_disable_ps(adapter);
+	}
+
+	rsi_dbg(INFO_ZONE,
+		"BB_RF_VALUES: Address = %x value = %d \n",
+		adapter->bb_rf_params.Data[0], adapter->bb_rf_params.value);
+	rsi_dbg(INFO_ZONE,
+		"No 0f values = %d No 0f fields = %d \n",
+		adapter->bb_rf_params.no_of_values,
+		adapter->bb_rf_params.no_of_fields);
+	adapter->bb_rf_params.Data[0] = adapter->bb_rf_params.no_of_values;
+	type = adapter->bb_rf_params.value;
+
+	if (!(DEV_MODEL_9116)) {
+		for (i = 0; i <= adapter->bb_rf_params.no_of_values; i++)
+			rsi_dbg(INFO_ZONE, "bb_rf_params.Data[] = %x \n",
+				adapter->bb_rf_params.Data[i]);
+	}
+
+	if (type == BB_READ_REQ) {
+		adapter->bb_rf_rw = 1;	//set_read;
+		rsi_dbg(INFO_ZONE, "*** READ *** \n");
+	}
+	adapter->soft_reset = adapter->bb_rf_params.soft_reset;
+
+	if (type == BB_WRITE_REQ || type == BB_READ_REQ) {
+		rsi_dbg(INFO_ZONE, "READ_BUF_VALUES : BB_REQ\n");
+		if ((rsi_mgmt_send_bb_prog_frames
+		     (adapter, adapter->bb_rf_params.Data,
+		      adapter->bb_rf_params.no_of_values)) < 0)
+			return -1;
+	} else {
+		rsi_dbg(INFO_ZONE, "Invalid R/W type\n");
+		return -1;
+	}
+
+	rsi_dbg(INFO_ZONE, "Written Success and trying to read\n");
+
+	return 0;
+}
+
+int rsi_process_efuse_content(struct rsi_common *common,
+			      struct efuse_map_s efuse_map)
+{
+	struct sk_buff *skb_out = NULL;
+	struct nlmsghdr *nlh = NULL;
+	int msg_size, res;
+	struct rsi_hw *adapter = common->priv;
+	msg_size = sizeof(struct efuse_map_s);
+	skb_out = nlmsg_new(msg_size, 0);
+	if (!skb_out) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to allocate skb\n", __func__);
+		return -1;
+	}
+	nlh =
+	    nlmsg_put(skb_out, adapter->wlan_nl_pid, 0, NLMSG_DONE, msg_size,
+		      0);
+	memcpy(nlmsg_data(nlh), &efuse_map, msg_size);
+	rsi_dbg(INFO_ZONE,
+		"<==== Sending EFUSE MAP content to Application ====>\n");
+	res = nlmsg_unicast(adapter->nl_sk, skb_out, adapter->wlan_nl_pid);
+	if (res < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to send EFUSE MAP content to Application\n",
+			__func__);
+		return -1;
+	}
+	return 0;
+}
+
+int rsi_copy_efuse_content(struct rsi_hw *adapter)
+{
+	struct rsi_common *common = adapter->priv;
+	struct efuse_map_s efuse_content;
+	rsi_dbg(INFO_ZONE, " Copying EFUSE MAP content \n");
+	memcpy(&efuse_content, &common->efuse_map, sizeof(struct efuse_map_s));
+	rsi_process_efuse_content(common, efuse_content);
+	return 0;
+}

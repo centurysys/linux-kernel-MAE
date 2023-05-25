@@ -1,31 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 	1. Redistributions of source code must retain the above copyright
- * 	   notice, this list of conditions and the following disclaimer.
- *
- * 	2. Redistributions in binary form must reproduce the above copyright
- * 	   notice, this list of conditions and the following disclaimer in the
- * 	   documentation and/or other materials provided with the distribution.
- *
- * 	3. Neither the name of the copyright holder nor the names of its
- * 	   contributors may be used to endorse or promote products derived from
- * 	   this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2020-2023 Silicon Labs, Inc.
  */
 
 #include "rsi_hci.h"
@@ -45,8 +20,8 @@ static int rsi_hci_open(struct hci_dev *hdev)
 	rsi_dbg(ERR_ZONE, "RSI HCI DEVICE \"%s\" open\n", hdev->name);
 
 	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
-		rsi_dbg(ERR_ZONE, "%s: device `%s' already running\n", 
-				__func__, hdev->name);
+		rsi_dbg(ERR_ZONE, "%s: device `%s' already running\n", __func__,
+			hdev->name);
 
 	return 0;
 }
@@ -63,8 +38,8 @@ static int rsi_hci_close(struct hci_dev *hdev)
 	rsi_dbg(ERR_ZONE, "RSI HCI DEVICE \"%s\" closed\n", hdev->name);
 
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		rsi_dbg(ERR_ZONE, "%s: device `%s' not running\n",
-				 __func__, hdev->name);
+		rsi_dbg(ERR_ZONE, "%s: device `%s' not running\n", __func__,
+			hdev->name);
 
 	return 0;
 }
@@ -97,7 +72,7 @@ static int rsi_hci_flush(struct hci_dev *hdev)
  * @return - 0 on success; negative error code on failure
  *  
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION (3, 13, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 static int rsi_hci_send_pkt(struct sk_buff *skb)
 #else
 static int rsi_hci_send_pkt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -105,7 +80,7 @@ static int rsi_hci_send_pkt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct rsi_hci_adapter *h_adapter = NULL;
 	struct sk_buff *new_skb = NULL;
-#if LINUX_VERSION_CODE < KERNEL_VERSION (3, 13, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 	struct hci_dev *hdev = (struct hci_dev *)skb->dev;
 #endif
 	int status = 0;
@@ -125,7 +100,6 @@ static int rsi_hci_send_pkt(struct hci_dev *hdev, struct sk_buff *skb)
 		status = -EFAULT;
 		goto fail;
 	}
-
 #ifdef CONFIG_RSI_WOW
 	/* Stop here when in suspend */
 	if (h_adapter->priv->wow_flags & RSI_WOW_ENABLED) {
@@ -148,31 +122,31 @@ static int rsi_hci_send_pkt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	switch (bt_cb(skb)->pkt_type) {
-		case HCI_COMMAND_PKT:
-			hdev->stat.cmd_tx++;
-			break;
+	case HCI_COMMAND_PKT:
+		hdev->stat.cmd_tx++;
+		break;
 
-		case HCI_ACLDATA_PKT:
-			hdev->stat.acl_tx++;
-			break;
+	case HCI_ACLDATA_PKT:
+		hdev->stat.acl_tx++;
+		break;
 
-		case HCI_SCODATA_PKT:
-			hdev->stat.sco_tx++;
-			break;
+	case HCI_SCODATA_PKT:
+		hdev->stat.sco_tx++;
+		break;
 
-		default:
-			dev_kfree_skb(skb);
-			status = -EILSEQ;
-			goto fail;
+	default:
+		status = -EILSEQ;
+		goto fail;
 	}
 
 	if (skb_headroom(skb) < REQUIRED_HEADROOM_FOR_BT_HAL) {
 		/* Re-allocate one more skb with sufficent headroom 
 		 * make copy of input-skb to new one */
-		new_skb = skb_realloc_headroom(skb, REQUIRED_HEADROOM_FOR_BT_HAL);
-		if(unlikely(!new_skb))
+		new_skb =
+		    skb_realloc_headroom(skb, REQUIRED_HEADROOM_FOR_BT_HAL);
+		if (unlikely(!new_skb))
 			return -ENOMEM;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (4, 5, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
 		bt_cb(new_skb)->pkt_type = hci_skb_pkt_type(skb);
 #else
 		bt_cb(new_skb)->pkt_type = bt_cb((skb))->pkt_type;
@@ -183,21 +157,16 @@ static int rsi_hci_send_pkt(struct hci_dev *hdev, struct sk_buff *skb)
 			skb = rsi_get_aligned_skb(skb);
 	}
 
-        rsi_hex_dump(DATA_RX_ZONE, "TX BT Pkt", skb->data, skb->len); 
+	rsi_hex_dump(DATA_RX_ZONE, "TX BT Pkt", skb->data, skb->len);
 
 #ifdef CONFIG_RSI_COEX_MODE
 	rsi_coex_send_pkt(h_adapter->priv, skb, BT_Q);
 #else
-        rsi_send_bt_pkt(h_adapter->priv, skb);
+	rsi_send_bt_pkt(h_adapter->priv, skb);
 #endif
 	return 0;
 
 fail:
-#ifndef CONFIG_RSI_BT_ANDROID
-	kfree_skb(skb);
-#else
-	dev_kfree_skb(skb);
-#endif
 	return status;
 }
 
@@ -224,12 +193,13 @@ int rsi_send_rfmode_frame(struct rsi_common *common)
 
 	skb_put(skb, sizeof(struct rsi_bt_rfmode_frame));
 
-	status = common->priv->host_intf_ops->write_pkt(common->priv,
-							skb->data,
-							skb->len);
+	status =
+	    common->priv->host_intf_ops->write_pkt(common->priv, skb->data,
+						   skb->len);
 	dev_kfree_skb(skb);
 	return status;
 }
+
 EXPORT_SYMBOL_GPL(rsi_send_rfmode_frame);
 
 int rsi_deregister_bt(struct rsi_common *common)
@@ -254,25 +224,150 @@ int rsi_deregister_bt(struct rsi_common *common)
 	skb_put(skb, sizeof(struct rsi_bt_cmd_frame));
 
 	//return rsi_coex_send_pkt(common, skb, RSI_BT_Q);
-	status = common->priv->host_intf_ops->write_pkt(common->priv,
-							skb->data,
-							skb->len);
+	status =
+	    common->priv->host_intf_ops->write_pkt(common->priv, skb->data,
+						   skb->len);
 	dev_kfree_skb(skb);
 	return status;
 }
+
 EXPORT_SYMBOL_GPL(rsi_deregister_bt);
 
-int rsi_hci_recv_pkt(struct rsi_common *common, u8 *pkt)
+int rsi_bt_e2e_stats(struct rsi_hw *adapter, struct nlmsghdr *nlh,
+		     int payload_len, u16 cmd)
+{
+	struct rsi_common *common = adapter->priv;
+	struct sk_buff *skb;
+	struct rsi_hci_adapter *h_adapter =
+	    (struct rsi_hci_adapter *)common->hci_adapter;
+
+	if (h_adapter->priv->bt_fsm_state != BT_DEVICE_READY) {
+		rsi_dbg(ERR_ZONE, "BT Device not ready\n");
+		return -ENODEV;
+	}
+	rsi_dbg(MGMT_TX_ZONE, "%s: <==== Sending BT_E2E_STATS frame ====>\n",
+		__func__);
+
+	skb = dev_alloc_skb(payload_len);
+	if (!skb)
+		return -ENOMEM;
+
+	memset(skb->data, 0, payload_len);
+	memcpy(skb->data, nlmsg_data(nlh) + FRAME_DESC_SZ, payload_len);
+	skb_put(skb, payload_len);
+	bt_cb(skb)->pkt_type = cpu_to_le16(cmd);
+	rsi_hex_dump(MGMT_TX_ZONE, "BT E2E STATS ", skb->data, skb->len);
+
+#ifdef CONFIG_RSI_COEX_MODE
+	rsi_coex_send_pkt(common, skb, BT_Q);
+#else
+	rsi_send_bt_pkt(common, skb);
+#endif
+	return 0;
+}
+
+int rsi_process_rx_bt_e2e_stats(struct rsi_common *common, bt_stats_t bt_stats)
+{
+	struct sk_buff *skb_out = NULL;
+	struct nlmsghdr *nlh = NULL;
+	int msg_size, res;
+	struct rsi_hw *adapter = common->priv;
+	msg_size = sizeof(bt_stats_t);
+	skb_out = nlmsg_new(msg_size, 0);
+	if (!skb_out) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to allocate skb\n", __func__);
+		return -1;
+	}
+	nlh =
+	    nlmsg_put(skb_out, adapter->bt_nl_pid, 0, NLMSG_DONE, msg_size, 0);
+	memcpy(nlmsg_data(nlh), &bt_stats, msg_size);
+	rsi_dbg(MGMT_RX_ZONE,
+		"<==== Sending BT E2E STATS to Application ====>\n");
+	res = nlmsg_unicast(adapter->nl_sk, skb_out, adapter->bt_nl_pid);
+	if (res < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to send BT E2E stats to Application\n",
+			__func__);
+		return -1;
+	}
+	return 0;
+}
+
+int rsi_bt_ble_update_gain_table(struct rsi_hw *adapter, struct nlmsghdr *nlh,
+				 int payload_len, u16 cmd)
+{
+	struct rsi_common *common = adapter->priv;
+	struct sk_buff *skb;
+	struct rsi_hci_adapter *h_adapter =
+	    (struct rsi_hci_adapter *)common->hci_adapter;
+
+	if (h_adapter->priv->bt_fsm_state != BT_DEVICE_READY) {
+		rsi_dbg(ERR_ZONE, "BT Device not ready\n");
+		return -ENODEV;
+	}
+	rsi_dbg(MGMT_TX_ZONE,
+		"%s: <==== Sending BT_BLE_GAIN_TABLE frame ====>\n", __func__);
+
+	skb = dev_alloc_skb(payload_len);
+	if (!skb)
+		return -ENOMEM;
+
+	memset(skb->data, 0, payload_len);
+	memcpy(skb->data, nlmsg_data(nlh) + FRAME_DESC_SZ, payload_len);
+	skb_put(skb, payload_len);
+	bt_cb(skb)->pkt_type = cpu_to_le16(cmd);
+	rsi_hex_dump(MGMT_TX_ZONE, "BT/BLE GAIN TABLE UPDATE ", skb->data,
+		     skb->len);
+
+#ifdef CONFIG_RSI_COEX_MODE
+	rsi_coex_send_pkt(common, skb, BT_Q);
+#else
+	rsi_send_bt_pkt(common, skb);
+#endif
+	return 0;
+}
+
+int rsi_process_rx_bt_ble_gain_table_update(struct rsi_common *common,
+					    unsigned short status)
+{
+	struct sk_buff *skb_out = NULL;
+	struct nlmsghdr *nlh = NULL;
+	int msg_size, res;
+	struct rsi_hw *adapter = common->priv;
+	msg_size = sizeof(status);
+	skb_out = nlmsg_new(msg_size, 0);
+	if (!skb_out) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to allocate skb\n", __func__);
+		return -1;
+	}
+	nlh =
+	    nlmsg_put(skb_out, adapter->bt_nl_pid, 0, NLMSG_DONE, msg_size, 0);
+	memcpy(nlmsg_data(nlh), (unsigned char *)&status, msg_size);
+	rsi_dbg(MGMT_RX_ZONE,
+		"<==== Sending BT/BLE GAIN TABLE UPDATE STATUS to Application ====>\n");
+	res = nlmsg_unicast(adapter->nl_sk, skb_out, adapter->bt_nl_pid);
+	if (res < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to send BT/LE GAIN TABLE UPDATE STATUS to Application\n",
+			__func__);
+		return -1;
+	}
+	return 0;
+}
+
+int rsi_hci_recv_pkt(struct rsi_common *common, u8 * pkt)
 {
 	struct rsi_hci_adapter *h_adapter =
-		(struct rsi_hci_adapter *)common->hci_adapter;
+	    (struct rsi_hci_adapter *)common->hci_adapter;
 	struct sk_buff *skb = NULL;
 	struct hci_dev *hdev = NULL;
 	int pkt_len = rsi_get_length(pkt, 0);
 	u8 queue_no = rsi_get_queueno(pkt, 0);
+	bt_stats_t bt_stats;
+	char status;
 
-	if ((common->bt_fsm_state == BT_DEVICE_NOT_READY) &&
-	    (pkt[14] == BT_CARD_READY_IND)) {
+	if ((common->bt_fsm_state == BT_DEVICE_NOT_READY)
+	    && (pkt[14] == BT_CARD_READY_IND)) {
 		rsi_dbg(INIT_ZONE, "%s: ===> BT Card Ready Received <===\n",
 			__func__);
 
@@ -282,8 +377,7 @@ int rsi_hci_recv_pkt(struct rsi_common *common, u8 *pkt)
 			return 0;
 		}
 		if (rsi_send_bt_reg_params(common)) {
-			rsi_dbg(ERR_ZONE,
-				"%s: Failed to write BT reg params\n",
+			rsi_dbg(ERR_ZONE, "%s: Failed to write BT reg params\n",
 				__func__);
 		}
 		rsi_dbg(INFO_ZONE, "Attaching HCI module\n");
@@ -302,7 +396,7 @@ int rsi_hci_recv_pkt(struct rsi_common *common, u8 *pkt)
 	}
 	if (queue_no == RSI_BT_MGMT_Q) {
 		u8 msg_type = pkt[14] & 0xFF;
-	
+
 		switch (msg_type) {
 		case RESULT_CONFIRM:
 			rsi_dbg(MGMT_RX_ZONE, "BT Result Confirm\n");
@@ -313,6 +407,25 @@ int rsi_hci_recv_pkt(struct rsi_common *common, u8 *pkt)
 		case BT_CW:
 			rsi_dbg(MGMT_RX_ZONE, "BT CW\n");
 			return 0;
+		case BT_E2E_STAT:
+			rsi_dbg(MGMT_RX_ZONE,
+				" Received BT E2E STATS confirm from LMAC\n");
+			memcpy(&bt_stats, pkt + FRAME_DESC_SZ,
+			       sizeof(bt_stats_t));
+			rsi_hex_dump(MGMT_RX_ZONE, "BT E2E STATS From LMAC",
+				     (char *)&bt_stats, sizeof(bt_stats_t));
+			rsi_process_rx_bt_e2e_stats(common, bt_stats);
+			return 0;
+		case BT_BLE_GAIN_TABLE:
+			rsi_dbg(MGMT_RX_ZONE,
+				" Received BT/BLE GAIN TABLE UPDATE confirm from LMAC\n");
+			memcpy((char *)&status, pkt + FRAME_DESC_SZ,
+			       sizeof(status));
+			rsi_hex_dump(MGMT_RX_ZONE,
+				     "BT/BLE GAIN TABLE UPDATE confirm From LMAC",
+				     (char *)&status, sizeof(status));
+			rsi_process_rx_bt_ble_gain_table_update(common, status);
+			return 0;
 		default:
 			break;
 		}
@@ -322,7 +435,7 @@ int rsi_hci_recv_pkt(struct rsi_common *common, u8 *pkt)
 		rsi_dbg(ERR_ZONE, "%s: Failed to alloc skb\n", __func__);
 		return -ENOMEM;
 	}
-        hdev = h_adapter->hdev;
+	hdev = h_adapter->hdev;
 	memcpy(skb->data, pkt + FRAME_DESC_SZ, pkt_len);
 	skb_put(skb, pkt_len);
 	h_adapter->hdev->stat.byte_rx += skb->len;
@@ -335,12 +448,13 @@ int rsi_hci_recv_pkt(struct rsi_common *common, u8 *pkt)
 	dev_kfree_skb(skb);
 	return 0;
 #endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 	return hci_recv_frame(skb);
 #else
 	return hci_recv_frame(hdev, skb);
 #endif
 }
+
 EXPORT_SYMBOL_GPL(rsi_hci_recv_pkt);
 
 /**
@@ -358,17 +472,17 @@ int rsi_hci_attach(struct rsi_common *common)
 
 	/* Allocate HCI adapter */
 	/* TODO: Check GFP_ATOMIC */
-	h_adapter = kzalloc(sizeof (*h_adapter), GFP_KERNEL);
+	h_adapter = kzalloc(sizeof(*h_adapter), GFP_KERNEL);
 	if (!h_adapter) {
-		rsi_dbg (ERR_ZONE, "Failed to alloc HCI adapter\n");
+		rsi_dbg(ERR_ZONE, "Failed to alloc HCI adapter\n");
 		return -ENOMEM;
 	}
 	h_adapter->priv = common;
-	
+
 	/* Create HCI Interface */
 	hdev = hci_alloc_dev();
 	if (!hdev) {
-		rsi_dbg (ERR_ZONE, "Failed to alloc HCI device\n");
+		rsi_dbg(ERR_ZONE, "Failed to alloc HCI device\n");
 		goto err;
 	}
 	h_adapter->hdev = hdev;
@@ -379,7 +493,7 @@ int rsi_hci_attach(struct rsi_common *common)
 		hdev->bus = HCI_USB;
 
 	hci_set_drvdata(hdev, h_adapter);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (4, 8, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
 	hdev->dev_type = HCI_PRIMARY;
 #else
 	hdev->dev_type = HCI_BREDR;
@@ -389,15 +503,15 @@ int rsi_hci_attach(struct rsi_common *common)
 	hdev->close = rsi_hci_close;
 	hdev->flush = rsi_hci_flush;
 	hdev->send = rsi_hci_send_pkt;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION (3, 3, 8)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 3, 8)
 	hdev->destruct = rsi_hci_destruct;
 	hdev->owner = THIS_MODULE;
 #endif
 
-        /* Initialize TX queue */
+	/* Initialize TX queue */
 	skb_queue_head_init(&h_adapter->hci_tx_queue);
 	common->hci_adapter = (void *)h_adapter;
-	
+
 	status = hci_register_dev(hdev);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE,
@@ -434,6 +548,7 @@ err:
 
 	return -EINVAL;
 }
+
 EXPORT_SYMBOL_GPL(rsi_hci_attach);
 
 /**
@@ -445,8 +560,8 @@ EXPORT_SYMBOL_GPL(rsi_hci_attach);
  */
 void rsi_hci_detach(struct rsi_common *common)
 {
-	struct rsi_hci_adapter *h_adapter = 
-		(struct rsi_hci_adapter *)common->hci_adapter;
+	struct rsi_hci_adapter *h_adapter =
+	    (struct rsi_hci_adapter *)common->hci_adapter;
 	struct hci_dev *hdev;
 
 	rsi_dbg(INFO_ZONE, "Detaching HCI...\n");
@@ -459,9 +574,9 @@ void rsi_hci_detach(struct rsi_common *common)
 #endif
 	hdev = h_adapter->hdev;
 	if (hdev) {
-                //hci_dev_hold(hdev);
+		//hci_dev_hold(hdev);
 		hci_unregister_dev(hdev);
-                //hci_dev_put(hdev);
+		//hci_dev_put(hdev);
 		hci_free_dev(hdev);
 		h_adapter->hdev = NULL;
 	}
@@ -470,5 +585,5 @@ void rsi_hci_detach(struct rsi_common *common)
 
 	return;
 }
-EXPORT_SYMBOL_GPL(rsi_hci_detach);
 
+EXPORT_SYMBOL_GPL(rsi_hci_detach);

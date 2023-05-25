@@ -1,31 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 	1. Redistributions of source code must retain the above copyright
- * 	   notice, this list of conditions and the following disclaimer.
- *
- * 	2. Redistributions in binary form must reproduce the above copyright
- * 	   notice, this list of conditions and the following disclaimer in the
- * 	   documentation and/or other materials provided with the distribution.
- *
- * 	3. Neither the name of the copyright holder nor the names of its
- * 	   contributors may be used to endorse or promote products derived from
- * 	   this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2020-2023 Silicon Labs, Inc.
  */
 
 #include <linux/firmware.h>
@@ -41,36 +16,31 @@
  *
  * Return: status: 0 on success, -1 on failure.
  */
-int rsi_sdio_master_access_msword(struct rsi_hw *adapter,
-				  u16 ms_word)
+int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
 {
 	u8 byte;
 	u8 function = 0;
 	int status = 0;
 
-	byte = (u8)(ms_word & 0x00FF);
+	byte = (u8) (ms_word & 0x00FF);
 
-	rsi_dbg(INFO_ZONE,
-		"%s: MASTER_ACCESS_MSBYTE:0x%x\n", __func__, byte);
+	rsi_dbg(INFO_ZONE, "%s: MASTER_ACCESS_MSBYTE:0x%x\n", __func__, byte);
 
-	status = rsi_sdio_write_register(adapter,
-					 function,
-					 SDIO_MASTER_ACCESS_MSBYTE,
-					 &byte);
+	status =
+	    rsi_sdio_write_register(adapter, function,
+				    SDIO_MASTER_ACCESS_MSBYTE, &byte);
 	if (status) {
-		rsi_dbg(ERR_ZONE,
-			"%s: fail to access MASTER_ACCESS_MSBYTE\n",
+		rsi_dbg(ERR_ZONE, "%s: fail to access MASTER_ACCESS_MSBYTE\n",
 			__func__);
 		return -1;
 	}
 
-	byte = (u8)(ms_word >> 8);
+	byte = (u8) (ms_word >> 8);
 
 	rsi_dbg(INFO_ZONE, "%s:MASTER_ACCESS_LSBYTE:0x%x\n", __func__, byte);
-	status = rsi_sdio_write_register(adapter,
-					 function,
-					 SDIO_MASTER_ACCESS_LSBYTE,
-					 &byte);
+	status =
+	    rsi_sdio_write_register(adapter, function,
+				    SDIO_MASTER_ACCESS_LSBYTE, &byte);
 	return status;
 }
 
@@ -83,8 +53,8 @@ void rsi_sdio_rx_thread(struct rsi_common *common)
 	bool done = false;
 
 	do {
-		status = rsi_wait_event(&sdev->rx_thread.event, 
-					EVENT_WAIT_FOREVER);
+		status =
+		    rsi_wait_event(&sdev->rx_thread.event, EVENT_WAIT_FOREVER);
 		if (status < 0)
 			break;
 
@@ -97,14 +67,15 @@ void rsi_sdio_rx_thread(struct rsi_common *common)
 				break;
 			status = rsi_read_pkt(common, skb->data, skb->len);
 			if (status) {
-				rsi_dbg(ERR_ZONE, "Failed to read the packet\n");
+				rsi_dbg(ERR_ZONE,
+					"Failed to read the packet\n");
 				dev_kfree_skb(skb);
 				return;
 			}
 			dev_kfree_skb(skb);
 			if (sdev->rx_q.num_rx_pkts > 0)
 				sdev->rx_q.num_rx_pkts--;
-			
+
 			if (atomic_read(&sdev->rx_thread.thread_done)) {
 				done = true;
 				break;
@@ -132,7 +103,7 @@ static int rsi_process_pkt(struct rsi_common *common)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u8 num_blks = 0;
 	u32 rcv_pkt_len = 0;
 	int status = 0;
@@ -140,20 +111,19 @@ static int rsi_process_pkt(struct rsi_common *common)
 	u8 protocol = 0, unaggr_pkt = 0;
 	struct sk_buff *skb;
 
-
 #define COEX_PKT 0
 #define WLAN_PKT 3
 #define ZIGB_PKT 1
 #define BT_PKT   2
 
-
-	num_blks = ((adapter->interrupt_status & 1) |
-			((adapter->interrupt_status >> 4) << 1));
+	num_blks =
+	    ((adapter->
+	      interrupt_status & 1) | ((adapter->interrupt_status >> 4) << 1));
 
 	if (!num_blks) {
-		status = rsi_sdio_read_register(adapter,
-						SDIO_RX_NUM_BLOCKS_REG,
-						&value);
+		status =
+		    rsi_sdio_read_register(adapter, SDIO_RX_NUM_BLOCKS_REG,
+					   &value);
 		if (status) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to read pkt length from the card:\n",
@@ -175,23 +145,23 @@ static int rsi_process_pkt(struct rsi_common *common)
 		return -1;
 	}
 
-	if (protocol == BT_PKT || protocol == ZIGB_PKT)  //unaggr_pkt FIXME
+	if (protocol == BT_PKT || protocol == ZIGB_PKT)	//unaggr_pkt FIXME
 		unaggr_pkt = 1;
 
 	rcv_pkt_len = (num_blks * 256);
-	if (dev->rx_q.num_rx_pkts >= RSI_SDIO_MAX_RX_PKTS)
-	{
-		rsi_dbg(ISR_ZONE, "%s,%d: Reached MAX RX_Q size,"
-				 "dropping the packet\n",__func__,__LINE__);
+	if (dev->rx_q.num_rx_pkts >= RSI_SDIO_MAX_RX_PKTS) {
+		rsi_dbg(ISR_ZONE,
+			"%s,%d: Reached MAX RX_Q size,"
+			"dropping the packet\n", __func__, __LINE__);
 		goto DROP_PKT;
 	}
 
 	skb = dev_alloc_skb(rcv_pkt_len);
 
-	if (!skb)
-	{
-		rsi_dbg(ERR_ZONE, "%s,%d: Failed to allocate rx packet buffer,"
-				 "dropping packet\n",__func__,__LINE__);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE,
+			"%s,%d: Failed to allocate rx packet buffer,"
+			"dropping packet\n", __func__, __LINE__);
 		goto DROP_PKT;
 	}
 
@@ -199,7 +169,7 @@ static int rsi_process_pkt(struct rsi_common *common)
 	status = rsi_sdio_host_intf_read_pkt(adapter, skb->data, skb->len);
 	if (status) {
 		rsi_dbg(ERR_ZONE, "%s,%d: Failed to read packet from card\n",
-			__func__,__LINE__);
+			__func__, __LINE__);
 		dev_kfree_skb(skb);
 		return status;
 	}
@@ -208,10 +178,12 @@ static int rsi_process_pkt(struct rsi_common *common)
 	rsi_set_event(&dev->rx_thread.event);
 	return 0;
 DROP_PKT:
-	status = rsi_sdio_host_intf_read_pkt(adapter, dev->temp_rcv_buf, rcv_pkt_len);
+	status =
+	    rsi_sdio_host_intf_read_pkt(adapter, dev->temp_rcv_buf,
+					rcv_pkt_len);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s,%d: Failed to read packet from card\n",
-			__func__,__LINE__);
+			__func__, __LINE__);
 
 	rsi_set_event(&dev->rx_thread.event);
 	return 0;
@@ -227,17 +199,16 @@ DROP_PKT:
 int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u8 function = 0;
 	u8 byte;
 	int status = 0;
 
 	if (dev->next_read_delay) {
 		byte = dev->next_read_delay;
-		status = rsi_sdio_write_register(adapter,
-						 function,
-						 SDIO_NXT_RD_DELAY2,
-						 &byte);
+		status =
+		    rsi_sdio_write_register(adapter, function,
+					    SDIO_NXT_RD_DELAY2, &byte);
 		if (status) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to write SDIO_NXT_RD_DELAY2\n",
@@ -250,10 +221,9 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 		rsi_dbg(INIT_ZONE, "%s: Enabling SDIO High speed\n", __func__);
 		byte = 0x3;
 
-		status = rsi_sdio_write_register(adapter,
-						 function,
-						 SDIO_REG_HIGH_SPEED,
-						 &byte);
+		status =
+		    rsi_sdio_write_register(adapter, function,
+					    SDIO_REG_HIGH_SPEED, &byte);
 		if (status) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to enable SDIO high speed\n",
@@ -266,37 +236,34 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 	rsi_dbg(INIT_ZONE, "%s: Initialzing SDIO read start level\n", __func__);
 	byte = 0x24;
 
-	status = rsi_sdio_write_register(adapter,
-					 function,
-					 SDIO_READ_START_LVL,
-					 &byte);
+	status =
+	    rsi_sdio_write_register(adapter, function, SDIO_READ_START_LVL,
+				    &byte);
 	if (status) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to write SDIO_READ_START_LVL\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Failed to write SDIO_READ_START_LVL\n",
+			__func__);
 		return -1;
 	}
 
 	rsi_dbg(INIT_ZONE, "%s: Initialzing FIFO ctrl registers\n", __func__);
 	byte = (128 - 32);
 
-	status = rsi_sdio_write_register(adapter,
-					 function,
-					 SDIO_READ_FIFO_CTL,
-					 &byte);
+	status =
+	    rsi_sdio_write_register(adapter, function, SDIO_READ_FIFO_CTL,
+				    &byte);
 	if (status) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to write SDIO_READ_FIFO_CTL\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Failed to write SDIO_READ_FIFO_CTL\n",
+			__func__);
 		return -1;
 	}
 
 	byte = 32;
-	status = rsi_sdio_write_register(adapter,
-					 function,
-					 SDIO_WRITE_FIFO_CTL,
-					 &byte);
+	status =
+	    rsi_sdio_write_register(adapter, function, SDIO_WRITE_FIFO_CTL,
+				    &byte);
 	if (status) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to write SDIO_WRITE_FIFO_CTL\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Failed to write SDIO_WRITE_FIFO_CTL\n",
+			__func__);
 		return -1;
 	}
 
@@ -309,12 +276,12 @@ int rsi_read_intr_status_reg(struct rsi_hw *adapter)
 	struct rsi_common *common = adapter->priv;
 	int status;
 
-	status = rsi_sdio_read_register(common->priv,
-						RSI_FN1_INT_REGISTER,
-						&isr_status);
+	status =
+	    rsi_sdio_read_register(common->priv, RSI_FN1_INT_REGISTER,
+				   &isr_status);
 	isr_status &= 0xE;
-	
-	if(isr_status & BIT(MSDU_PKT_PENDING))
+
+	if (isr_status & BIT(MSDU_PKT_PENDING))
 		adapter->isr_pending = 1;
 	return 0;
 }
@@ -329,7 +296,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	int status;
 	enum sdio_interrupt_type isr_type;
 	u8 isr_status = 0;
@@ -337,23 +304,21 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 
 	dev->rx_info.sdio_int_counter++;
 	mutex_lock(&common->rx_lock);
-	if(!common->suspend_in_prog)
-	{
+	if (!common->suspend_in_prog) {
 		common->rx_in_prog = true;
 		mutex_unlock(&common->rx_lock);
-	}
-	else {
+	} else {
 		rsi_dbg(ERR_ZONE,
-				"%s: Failed to read pkt as suspend in progress:\n",
-				__func__);
+			"%s: Failed to read pkt as suspend in progress:\n",
+			__func__);
+		common->rx_in_prog = false;
 		mutex_unlock(&common->rx_lock);
-		return;
 	}
-	
+
 	do {
-		status = rsi_sdio_read_register(common->priv,
-						RSI_FN1_INT_REGISTER,
-						&isr_status);
+		status =
+		    rsi_sdio_read_register(common->priv, RSI_FN1_INT_REGISTER,
+					   &isr_status);
 		if (status) {
 			rsi_dbg(INFO_ZONE,
 				"%s: Failed to Read Intr Status Register\n",
@@ -373,30 +338,33 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 			common->rx_in_prog = false;
 			return;
 		}
+		//          adapter->interrupt_status = isr_status;
+		//          isr_status &= 0xE;
 
-//		adapter->interrupt_status = isr_status;
-//		isr_status &= 0xE;
-
-		rsi_dbg(ISR_ZONE, "%s: Intr_status = %x %d %d\n",
-			__func__, isr_status, (1 << MSDU_PKT_PENDING),
-			(1 << FW_ASSERT_IND));
+		rsi_dbg(ISR_ZONE,
+			"%s: Intr_status = %x %d %d\n",
+			__func__,
+			isr_status,
+			(1 << MSDU_PKT_PENDING), (1 << FW_ASSERT_IND));
 
 		do {
 			RSI_GET_SDIO_INTERRUPT_TYPE(isr_status, isr_type);
 
 			switch (isr_type) {
 			case BUFFER_AVAILABLE:
-				status = rsi_sdio_check_buffer_status(adapter, 0);
-				if (status < 0)
+				rsi_sdio_ack_intr(common->priv,
+						  (1 << PKT_BUFF_AVAILABLE));
+				status =
+				    rsi_sdio_check_buffer_status(adapter, 0);
+				if (status < 0) {
 					rsi_dbg(ERR_ZONE,
 						"%s: Failed to check buffer status\n",
 						__func__);
-				rsi_sdio_ack_intr(common->priv,
-						  (1 << PKT_BUFF_AVAILABLE));
+					break;
+				}
 				rsi_set_event(&common->tx_thread.event);
 
-				rsi_dbg(ISR_ZONE,
-					"%s: Buffer full/available\n",
+				rsi_dbg(ISR_ZONE, "%s: Buffer full/available\n",
 					__func__);
 				dev->buff_status_updated = 1;
 				break;
@@ -405,9 +373,10 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 				rsi_dbg(ERR_ZONE,
 					"%s: ==> FIRMWARE Assert <==\n",
 					__func__);
-				status = rsi_sdio_read_register(common->priv,
-								SDIO_FW_STATUS_REG,
-								&fw_status);
+				status =
+				    rsi_sdio_read_register(common->priv,
+							   SDIO_FW_STATUS_REG,
+							   &fw_status);
 				if (status) {
 					rsi_dbg(ERR_ZONE,
 						"%s: Failed to read f/w reg\n",
@@ -441,8 +410,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 				rsi_sdio_ack_intr(common->priv, isr_status);
 				dev->rx_info.total_sdio_unknown_intr++;
 				isr_status = 0;
-				rsi_dbg(ISR_ZONE,
-					"Unknown Interrupt %x\n",
+				rsi_dbg(ISR_ZONE, "Unknown Interrupt %x\n",
 					isr_status);
 				break;
 			}
@@ -467,7 +435,7 @@ int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 {
 	struct rsi_common *common = adapter->priv;
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u8 buf_status = 0;
 	int status = 0;
 	static int counter = 4;
@@ -478,12 +446,13 @@ int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 	}
 
 	dev->buff_status_updated = 0;
-	status = rsi_sdio_read_register(common->priv,
-					RSI_DEVICE_BUFFER_STATUS_REGISTER,
-					&buf_status);
+	status =
+	    rsi_sdio_read_register(common->priv,
+				   RSI_DEVICE_BUFFER_STATUS_REGISTER,
+				   &buf_status);
 	if (status) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to read status register\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Failed to read status register\n",
+			__func__);
 		return -1;
 	}
 
@@ -508,10 +477,10 @@ int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 	} else
 		dev->rx_info.semi_buffer_full = false;
 
-	if (dev->rx_info.mgmt_buffer_full || dev->rx_info.buf_full_counter)
-		counter = 1;
-	else
+	if (dev->rx_info.semi_buffer_full == false)
 		counter = 4;
+	else
+		counter = 1;
 
 out:
 	if ((q_num == MGMT_SOFT_Q) && (dev->rx_info.mgmt_buffer_full))
@@ -533,7 +502,7 @@ out:
 int rsi_sdio_determine_event_timeout(struct rsi_hw *adapter)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 
 	/* Once buffer full is seen, event timeout to occur every 2 msecs */
 	if (dev->rx_info.buffer_full)

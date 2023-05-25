@@ -1,32 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *	1. Redistributions of source code must retain the above copyright
- *	   notice, this list of conditions and the following disclaimer.
- *
- *	2. Redistributions in binary form must reproduce the above copyright
- *	   notice, this list of conditions and the following disclaimer in the
- *	   documentation and/or other materials provided with the distribution.
- *
- *	3. Neither the name of the copyright holder nor the names of it
- *	   contributors may be used to endorse or promote products derived from
- *	   this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2020-2023 Silicon Labs, Inc.
  */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include "rsi_main.h"
@@ -34,8 +10,8 @@
 
 #define RSI_ZIGB_GENL_FAMILY "Obx-ZIGBgenl"
 
-#define RSI_USER_A_MAX	(__RSI_USER_A_MAX - 1)
-#define RSI_VERSION_NR	1
+#define RSI_USER_A_MAX (__RSI_USER_A_MAX - 1)
+#define RSI_VERSION_NR 1
 
 static struct genl_cb *global_gcb;
 
@@ -47,22 +23,22 @@ struct rsi_proto_ops *g_proto_ops;
  * possible values defined in net/netlink.h
  */
 static struct nla_policy zigb_genl_policy[RSI_USER_A_MAX + 1] = {
-	[RSI_USER_A_MSG] = { .type = NLA_NUL_STRING },
+	[RSI_USER_A_MSG] = {.type = NLA_NUL_STRING },
 };
 
 static struct genl_ops zigb_genl_ops = {
-	.cmd    = RSI_USER_C_CMD,
-	.flags  = 0,
+	.cmd = RSI_USER_C_CMD,
+	.flags = 0,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0))
 	.policy = zigb_genl_policy,
 #endif
-	.doit   = zigb_genl_recv,
+	.doit = zigb_genl_recv,
 	.dumpit = NULL,
 };
 
 struct rsi_mod_ops rsi_zb_ops = {
-	.attach	= rsi_zigb_attach,
-	.detach	= rsi_zigb_detach,
+	.attach = rsi_zigb_attach,
+	.detach = rsi_zigb_detach,
 	.recv_pkt = rsi_zigb_recv_pkt,
 };
 
@@ -89,31 +65,31 @@ int zigb_genl_recv(struct sk_buff *skb, struct genl_info *info)
 	struct rsi_zb_adapter *zb_adapter;
 	u8 *data;
 	u16 desc;
-	int  rc = -1, len, pkttype;
+	int rc = -1, len, pkttype;
 	struct genl_cb *gcb;
 	struct nlattr *na;
 	u32 dword_align_req_bytes = 0;
 
 	gcb = global_gcb;
-	if(!gcb){
+	if (!gcb) {
 		rsi_zb_dbg(ERR_ZONE, "%s: NULL gcb\n", __func__);
 		return -EINVAL;
 	}
 	zb_adapter = (struct rsi_zb_adapter *)global_gcb->gc_drvpriv;
-	if (!zb_adapter){
+	if (!zb_adapter) {
 		rsi_zb_dbg(ERR_ZONE, "%s: NULL zb_adapter\n", __func__);
 		return -EINVAL;
 	}
 
 	gcb->gc_info = info;
-	gcb->gc_skb  = skb;
+	gcb->gc_skb = skb;
 
 	if (!info) {
 		rsi_zb_dbg(ERR_ZONE, "%s: NULL info\n", __func__);
 		goto err;
 	}
 
-        if (!gcb->gc_done) {
+	if (!gcb->gc_done) {
 		rsi_zb_dbg(ERR_ZONE, "%s: NULL gcb->gc_done\n", __func__);
 		goto err;
 	}
@@ -123,17 +99,17 @@ int zigb_genl_recv(struct sk_buff *skb, struct genl_info *info)
 
 	na = info->attrs[RSI_USER_A_MSG];
 	if (na) {
-		data = (u8 *)nla_data(na);
+		data = (u8 *) nla_data(na);
 		if (!data) {
 			rsi_zb_dbg(ERR_ZONE,
-				"%s: no data recevied on family `%s'\n",
-				__func__, gcb->gc_name);
+				   "%s: no data recevied on family `%s'\n",
+				   __func__, gcb->gc_name);
 			goto err;
 		}
 	} else {
 		rsi_zb_dbg(ERR_ZONE,
-			"%s: netlink attr is NULL on family `%s'\n",
-			__func__, gcb->gc_name);
+			   "%s: netlink attr is NULL on family `%s'\n",
+			   __func__, gcb->gc_name);
 		goto err;
 	}
 
@@ -143,9 +119,9 @@ int zigb_genl_recv(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	gcb->gc_info = NULL;
-	gcb->gc_skb  = NULL;
+	gcb->gc_skb = NULL;
 
-	desc = *(u16 *)&data[0];
+	desc = *(u16 *) & data[0];
 	len = desc & 0x0FFF;
 	pkttype = ((desc & 0xF000) >> 12);
 
@@ -158,11 +134,11 @@ int zigb_genl_recv(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 	}
 	memset(skb->data, 0, FRAME_DESC_SZ);
-        skb_reserve(skb, FRAME_DESC_SZ + DWORD_ALIGN_SZ);
+	skb_reserve(skb, FRAME_DESC_SZ + DWORD_ALIGN_SZ);
 	dword_align_req_bytes = ((unsigned long)skb->data) & 0x3f;
 	if (dword_align_req_bytes)
 		skb_push(skb, dword_align_req_bytes);
-        skb_put(skb, len);
+	skb_put(skb, len);
 	memcpy(skb->data, data, skb->len);
 	if (g_proto_ops->coex_send_pkt)
 		g_proto_ops->coex_send_pkt(zb_adapter->priv, skb, RSI_ZIGB_Q);
@@ -199,11 +175,11 @@ void unregister_dev(struct net_device *dev)
 static int zigb_deregister_fw(void *priv)
 {
 	struct rsi_zb_adapter *zb_adapter =
-		(struct rsi_zb_adapter *)g_proto_ops->get_zb_context(priv);
+	    (struct rsi_zb_adapter *)g_proto_ops->get_zb_context(priv);
 	u8 *frame_desc;
 	struct sk_buff *skb = NULL;
 	int status = 0;
-        u32 dword_align_req_bytes = 0;
+	u32 dword_align_req_bytes = 0;
 
 	rsi_zb_dbg(INFO_ZONE, "===> Deregister ZIGB FW <=== \n");
 
@@ -216,15 +192,15 @@ static int zigb_deregister_fw(void *priv)
 	dword_align_req_bytes = ((unsigned long)skb->data & 0x3f);
 	if (dword_align_req_bytes)
 		skb_push(skb, dword_align_req_bytes);
-        skb_put(skb, FRAME_DESC_SZ);
+	skb_put(skb, FRAME_DESC_SZ);
 	memset(skb->data, 0, FRAME_DESC_SZ);
 
 	frame_desc = skb->data;
 
-	frame_desc[12] = 0x0; /* Sequence Number */
-	frame_desc[13] = 0x1; /* Direction */
-	frame_desc[14] = 0x7; /* Interface */
-	frame_desc[15] = ZIGB_DEREGISTER; /* Packet Type */
+	frame_desc[12] = 0x0;	/* Sequence Number */
+	frame_desc[13] = 0x1;	/* Direction */
+	frame_desc[14] = 0x7;	/* Interface */
+	frame_desc[15] = ZIGB_DEREGISTER;	/* Packet Type */
 
 	if (g_proto_ops->coex_send_pkt)
 		g_proto_ops->coex_send_pkt(zb_adapter->priv, skb, RSI_WLAN_Q);
@@ -237,7 +213,7 @@ static int zigb_deregister_fw(void *priv)
 int rsi_zigb_open(struct net_device *dev)
 {
 	rsi_zb_dbg(INFO_ZONE, "RSI ZiGB device open...\n");
-	dev->flags |=  IFF_RUNNING;
+	dev->flags |= IFF_RUNNING;
 
 	return 0;
 }
@@ -245,7 +221,7 @@ int rsi_zigb_open(struct net_device *dev)
 /* This function is called by OS when the interface status changed to DOWN */
 int rsi_zigb_close(struct net_device *dev)
 {
-	rsi_zb_dbg(INFO_ZONE, "RSI ZigB device close\n",__func__);
+	rsi_zb_dbg(INFO_ZONE, "RSI ZigB device close\n", __func__);
 
 	if (!netif_queue_stopped(dev))
 		netif_stop_queue(dev);
@@ -256,15 +232,14 @@ int rsi_zigb_close(struct net_device *dev)
 /* This function is used by Os to send packets to driver */
 int rsi_zigb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	rsi_zb_dbg(INFO_ZONE, " %s\n",__func__);
-	
+	rsi_zb_dbg(INFO_ZONE, " %s\n", __func__);
+
 	return 0;
 }
 
-
-int rsi_zigb_ioctl(struct net_device *dev,struct ifreq *ifr, int cmd)
+int rsi_zigb_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-       return 0;
+	return 0;
 }
 
 int zigb_genl_send(struct genl_cb *gcb, struct sk_buff *skb)
@@ -283,12 +258,13 @@ int zigb_genl_send(struct genl_cb *gcb, struct sk_buff *skb)
 		return -ENODEV;
 
 	data = skb->data;
-	len  = skb->len;
+	len = skb->len;
 
 	if (!data || !len)
 		return -ENODATA;
 
-	rsi_zb_dbg(INFO_ZONE, "%s: sending data-%p len-%d pid-%d family-`%s'\n",
+	rsi_zb_dbg(INFO_ZONE,
+		   "%s: sending data-%p len-%d pid-%d family-`%s'\n",
 		   __func__, data, len, gcb->gc_pid, gcb->gc_name);
 
 	gskb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
@@ -298,8 +274,9 @@ int zigb_genl_send(struct genl_cb *gcb, struct sk_buff *skb)
 		goto err;
 	}
 
-	hdr = genlmsg_put(gskb, 0, gcb->gc_seq + 1,
-              		  gcb->gc_family, 0, RSI_USER_C_CMD);
+	hdr =
+	    genlmsg_put(gskb, 0, gcb->gc_seq + 1, gcb->gc_family, 0,
+			RSI_USER_C_CMD);
 	if (!hdr) {
 		rsi_zb_dbg(ERR_ZONE, "%s: Failed to set msg\n", __func__);
 		rc = -EINVAL;
@@ -309,14 +286,15 @@ int zigb_genl_send(struct genl_cb *gcb, struct sk_buff *skb)
 	rc = nla_put(gskb, RSI_USER_A_MAX, len, data);
 	if (rc) {
 		rsi_zb_dbg(ERR_ZONE, "%s: 'nla_put' fail(%d) family '%s'\n",
-			   __func__, rc, gcb->gc_name );
+			   __func__, rc, gcb->gc_name);
 		goto err_fill;
 	}
 	genlmsg_end(gskb, hdr);
 	rc = genlmsg_unicast(net, gskb, gcb->gc_pid);
 	if (rc) {
-		rsi_zb_dbg(ERR_ZONE, "%s: 'genlmsg_unicast' fail(%d) family '%s'\n",
-			   __func__, rc, gcb->gc_name );
+		rsi_zb_dbg(ERR_ZONE,
+			   "%s: 'genlmsg_unicast' fail(%d) family '%s'\n",
+			   __func__, rc, gcb->gc_name);
 		goto err;
 	}
 	return rc;
@@ -327,14 +305,14 @@ err:
 	return rc;
 }
 
-int rsi_zigb_recv_pkt(void *priv, u8 *pkt)
+int rsi_zigb_recv_pkt(void *priv, u8 * pkt)
 {
 	struct rsi_zb_adapter *zb_adapter = g_proto_ops->get_zb_context(priv);
 	struct net_device *dev = NULL;
 	struct sk_buff *skb = NULL;
 	struct genl_cb *gcb;
 	int status;
-	int pkt_len = (le16_to_cpu(*(__le16 *)pkt)) & 0x0fff;
+	int pkt_len = (le16_to_cpu(*(__le16 *) pkt)) & 0x0fff;
 
 	pkt_len += FRAME_DESC_SZ;
 	gcb = global_gcb;
@@ -357,8 +335,8 @@ int rsi_zigb_recv_pkt(void *priv, u8 *pkt)
 	skb_put(skb, pkt_len);
 
 	skb->dev = (void *)dev;
-        status = zigb_genl_send(gcb, skb);
-        if (status != 0)
+	status = zigb_genl_send(gcb, skb);
+	if (status != 0)
 		rsi_zb_dbg(ERR_ZONE, "%s: Failed return form zigb_genl_send \n",
 			   __func__);
 	dev_kfree_skb(skb);
@@ -378,13 +356,14 @@ int rsi_zigb_attach(void *priv, struct rsi_proto_ops *ops)
 	struct genl_family *zigb_genl_family = NULL;
 
 	static const struct net_device_ops zigb_netdev_ops = {
-		.ndo_open           = rsi_zigb_open,
-		.ndo_stop           = rsi_zigb_close,
-		.ndo_start_xmit     = rsi_zigb_xmit,
-		.ndo_do_ioctl       = rsi_zigb_ioctl,
+		.ndo_open = rsi_zigb_open,
+		.ndo_stop = rsi_zigb_close,
+		.ndo_start_xmit = rsi_zigb_xmit,
+		.ndo_do_ioctl = rsi_zigb_ioctl,
 	};
- 	dev = alloc_netdev(sizeof(struct rsi_zb_adapter), "zigb%d",
-			   NET_NAME_UNKNOWN, ether_setup);
+	dev =
+	    alloc_netdev(sizeof(struct rsi_zb_adapter), "zigb%d",
+			 NET_NAME_UNKNOWN, ether_setup);
 	if (!dev) {
 		rsi_zb_dbg(ERR_ZONE, "%s: Failed to alloc netdev\n", __func__);
 		return -EINVAL;
@@ -420,7 +399,7 @@ int rsi_zigb_attach(void *priv, struct rsi_proto_ops *ops)
 
 	gcb->gc_drvpriv = zb_adapter;
 	zigb_genl_family = kzalloc(sizeof(*zigb_genl_family), GFP_KERNEL);
-	if(!zigb_genl_family)
+	if (!zigb_genl_family)
 		goto err;
 	zigb_genl_family->hdrsize = 0;
 	strncpy(zigb_genl_family->name, RSI_ZIGB_GENL_FAMILY, GENL_NAMSIZ);
@@ -430,11 +409,11 @@ int rsi_zigb_attach(void *priv, struct rsi_proto_ops *ops)
 	 * id.
 	 */
 #ifdef CONFIG_RSI_MULTI_MODE
-	/*FIXME*/
-	zigb_genl_family->id = (int)(common->priv->drv_instance_index) - 1;
+	 /*FIXME*/
+	    zigb_genl_family->id = (int)(common->priv->drv_instance_index) - 1;
 	/* Below 8th byte differentiates family names. */
-	zigb_genl_family->name[8] = (char)(zigb_genl_family->id +
-					   ASCII_NUMERIC_OFFSET);
+	zigb_genl_family->name[8] =
+	    (char)(zigb_genl_family->id + ASCII_NUMERIC_OFFSET);
 #else
 	zigb_genl_family->id = 0;
 #endif
@@ -467,7 +446,7 @@ err:
 	if (dev) {
 		unregister_dev(dev);
 		free_netdev(dev);
-	        zb_adapter->dev = NULL;
+		zb_adapter->dev = NULL;
 	}
 
 	kfree(zigb_genl_family);
@@ -488,14 +467,14 @@ void rsi_zigb_detach(void *priv)
 	struct genl_cb *gcb = NULL;
 	int status;
 	gcb = zb_adapter->gcb;
-        
+
 	status = zigb_deregister_fw(priv);
 	if (!status)
 		rsi_zb_dbg(ERR_ZONE, "%s: Failed sending deregister zigb\n",
 			   __func__);
 	if (dev) {
 		unregister_dev(dev);
-	        zb_adapter->dev = NULL;
+		zb_adapter->dev = NULL;
 	}
 	if (gcb) {
 		genl_unregister_family(gcb->gc_family);

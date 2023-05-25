@@ -1,31 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Redpine Signals Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 	1. Redistributions of source code must retain the above copyright
- * 	   notice, this list of conditions and the following disclaimer.
- *
- * 	2. Redistributions in binary form must reproduce the above copyright
- * 	   notice, this list of conditions and the following disclaimer in the
- * 	   documentation and/or other materials provided with the distribution.
- *
- * 	3. Neither the name of the copyright holder nor the names of its
- * 	   contributors may be used to endorse or promote products derived from
- * 	   this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2020-2023 Silicon Labs, Inc.
  */
 
 #include <linux/module.h>
@@ -34,7 +9,6 @@
 #include "rsi_hal.h"
 #include "rsi_hci.h"
 #include "rsi_mgmt.h"
-
 
 /**
  * rsi_sdio_set_cmd52_arg() - This function prepares cmd 52 read/write arg.
@@ -48,22 +22,21 @@
  */
 int sdio_clock = 50;
 module_param(sdio_clock, int, S_IRUGO);
-static u32 rsi_sdio_set_cmd52_arg(bool rw,
-				  u8 func,
-				  u8 raw,
-				  u32 address,
+static u32 rsi_sdio_set_cmd52_arg(bool rw, u8 func, u8 raw, u32 address,
 				  u8 writedata)
 {
-	return ((rw & 1) << 31) | ((func & 0x7) << 28) |
-		((raw & 1) << 27) | (1 << 26) |
-		((address & 0x1FFFF) << 9) | (1 << 8) |
-		(writedata & 0xFF);
+	return ((rw & 1) << 31) | ((func & 0x7) << 28) | ((raw & 1) << 27) | (1
+									      <<
+									      26)
+	    | ((address & 0x1FFFF) << 9) | (1 << 8)
+	    | (writedata & 0xFF);
 }
 
 static int rsi_sdio_validate_clock(int sdio_clock)
 {
 	if (sdio_clock > 50 || sdio_clock <= 0) {
-		rsi_dbg(ERR_ZONE, "%s: Wrong Value given for SDIO clock\n"
+		rsi_dbg(ERR_ZONE,
+			"%s: Wrong Value given for SDIO clock\n"
 			"\t\tSetting default clock to SDIO\n", __func__);
 		sdio_clock = 50;
 	}
@@ -78,10 +51,8 @@ static int rsi_sdio_validate_clock(int sdio_clock)
  *
  * Return: Write status.
  */
-static int rsi_cmd52writebyte(struct mmc_card *card,
-			      u32 address,
-			      u8 byte,
-			      bool expect_resp) 
+static int rsi_cmd52writebyte(struct mmc_card *card, u32 address, u8 byte,
+			      bool expect_resp)
 {
 	struct mmc_command io_cmd;
 	u32 arg;
@@ -105,9 +76,7 @@ static int rsi_cmd52writebyte(struct mmc_card *card,
  *
  * Return: Read status.
  */
-static int rsi_cmd52readbyte(struct mmc_card *card,
-			     u32 address,
-			     u8 *byte,
+static int rsi_cmd52readbyte(struct mmc_card *card, u32 address, u8 * byte,
 			     bool expect_resp)
 {
 	struct mmc_command io_cmd;
@@ -124,7 +93,7 @@ static int rsi_cmd52readbyte(struct mmc_card *card,
 
 	err = mmc_wait_for_cmd(card->host, &io_cmd, 0);
 	if ((!err) && (byte))
-		*byte =  io_cmd.resp[0] & 0xFF;
+		*byte = io_cmd.resp[0] & 0xFF;
 	return err;
 }
 
@@ -138,11 +107,8 @@ static int rsi_cmd52readbyte(struct mmc_card *card,
  *
  * Return: err: command status as 0 or -1.
  */
-static int rsi_issue_sdiocommand(struct sdio_func *func,
-				 u32 opcode,
-				 u32 arg,
-				 u32 flags,
-				 u32 *resp)
+static int rsi_issue_sdiocommand(struct sdio_func *func, u32 opcode, u32 arg,
+				 u32 flags, u32 * resp)
 {
 	struct mmc_command cmd;
 	struct mmc_host *host;
@@ -173,7 +139,7 @@ static void rsi_handle_interrupt(struct sdio_func *function)
 {
 	struct rsi_hw *adapter = sdio_get_drvdata(function);
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 
 	if (adapter->priv->fsm_state == FSM_FW_NOT_LOADED)
 		return;
@@ -185,49 +151,42 @@ static void rsi_handle_interrupt(struct sdio_func *function)
 static void rsi_gspi_init(struct rsi_hw *adapter)
 {
 	unsigned long gspi_ctrl_reg0_val;
-	
+
 	/* Programming gspi frequency = soc_frequency / 2 */
 	/* Warning : ULP seemed to be not working
 	 * well at high frequencies. Modify accordingly */
 	gspi_ctrl_reg0_val = 0x4;
 	/* csb_setup_time [5:4] */
-	gspi_ctrl_reg0_val |= 0x10; 
+	gspi_ctrl_reg0_val |= 0x10;
 	/* csb_hold_time [7:6] */
-	gspi_ctrl_reg0_val |= 0x40; 
+	gspi_ctrl_reg0_val |= 0x40;
 	/* csb_high_time [9:8] */
-	gspi_ctrl_reg0_val |= 0x100; 
+	gspi_ctrl_reg0_val |= 0x100;
 	/* spi_mode [10] */
-	gspi_ctrl_reg0_val |= 0x000; 
+	gspi_ctrl_reg0_val |= 0x000;
 	/* clock_phase [11] */
-	gspi_ctrl_reg0_val |= 0x000; 
+	gspi_ctrl_reg0_val |= 0x000;
 	/* Initializing GSPI for ULP read/writes */
-	rsi_sdio_master_reg_write(adapter,
-				  GSPI_CTRL_REG0,
-				  gspi_ctrl_reg0_val,
+	rsi_sdio_master_reg_write(adapter, GSPI_CTRL_REG0, gspi_ctrl_reg0_val,
 				  2);
 }
 
-static void ulp_read_write(struct rsi_hw *adapter, u16 addr, u16 *data, u16 len_in_bits)
+static void ulp_read_write(struct rsi_hw *adapter, u16 addr, u16 * data,
+			   u16 len_in_bits)
 {
-	rsi_sdio_master_reg_write(adapter,
-				  GSPI_DATA_REG1,
-				  ((addr << 6) | (data[1] & 0x3f)),
-				  2);
-	rsi_sdio_master_reg_write(adapter,
-				  GSPI_DATA_REG0,
-				  *(u16 *)&data[0],
+	rsi_sdio_master_reg_write(adapter, GSPI_DATA_REG1,
+				  ((addr << 6) | (data[1] & 0x3f)), 2);
+	rsi_sdio_master_reg_write(adapter, GSPI_DATA_REG0, *(u16 *) & data[0],
 				  2);
 	rsi_gspi_init(adapter);
-	rsi_sdio_master_reg_write(adapter,
-				  GSPI_CTRL_REG1,
-				  ((len_in_bits - 1) | GSPI_TRIG),
-				  2);
+	rsi_sdio_master_reg_write(adapter, GSPI_CTRL_REG1,
+				  ((len_in_bits - 1) | GSPI_TRIG), 2);
 	msleep(10);
 }
 
 static void rsi_reset_chip(struct rsi_hw *adapter)
 {
-	u16 temp[4] = {0};
+	u16 temp[4] = { 0 };
 	u8 *data;
 	u8 sdio_interrupt_status = 0;
 
@@ -237,37 +196,31 @@ static void rsi_reset_chip(struct rsi_hw *adapter)
 
 	put_unaligned_le32(TA_SDIO_WAKE_REQUEST, data);
 	rsi_dbg(INFO_ZONE, "Writing disable to wakeup register\n");
-	if (rsi_sdio_write_register(adapter,
-				    0,
-				    SDIO_WAKEUP_REG,
-				    data) < 0) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to Write SDIO WAKEUP REG\n", __func__);
+	if (rsi_sdio_write_register(adapter, 0, SDIO_WAKEUP_REG, data) < 0) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to Write SDIO WAKEUP REG\n",
+			__func__);
 		goto err;
 	}
 	msleep(3);
-	if (rsi_sdio_read_register(adapter,
-				   RSI_FN1_INT_REGISTER,
-				   &sdio_interrupt_status) < 0) {
+	if (rsi_sdio_read_register
+	    (adapter, RSI_FN1_INT_REGISTER, &sdio_interrupt_status) < 0) {
 		rsi_dbg(INFO_ZONE, "%s: Failed to Read Intr Status Register\n",
 			__func__);
 		goto err;
 	}
-	rsi_dbg(INFO_ZONE, "%s: Intr Status Register value = %d \n",
-		__func__, sdio_interrupt_status);
+	rsi_dbg(INFO_ZONE, "%s: Intr Status Register value = %d \n", __func__,
+		sdio_interrupt_status);
 
 	/* Put TA on hold */
 	if (rsi_sdio_master_access_msword(adapter, 0x2200)) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Unable to set ms word to common reg\n",
+		rsi_dbg(ERR_ZONE, "%s: Unable to set ms word to common reg\n",
 			__func__);
 		goto err;
 	}
 
 	put_unaligned_le32(TA_HOLD_THREAD_VALUE, data);
-	if (rsi_sdio_write_register_multiple(adapter,
-					TA_HOLD_THREAD_REG | SD_REQUEST_MASTER,
-					(u8 *)data, 4)) {
+	if (rsi_sdio_write_register_multiple
+	    (adapter, TA_HOLD_THREAD_REG | SD_REQUEST_MASTER, (u8 *) data, 4)) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to hold TA threads\n", __func__);
 		goto err;
 	}
@@ -275,37 +228,34 @@ static void rsi_reset_chip(struct rsi_hw *adapter)
 	/* This msleep will ensure TA processor to go to hold and any pending dma
 	 * transfers to rf spi in device to finish */
 	msleep(100);
-	if (adapter->device_model == RSI_DEV_9116) {
-		if ((rsi_sdio_master_reg_write(adapter,
-					       NWP_WWD_INTERRUPT_TIMER,
-						5, 4)) < 0) {
+	if (DEV_MODEL_9116) {
+		if ((rsi_sdio_master_reg_write
+		     (adapter, NWP_WWD_INTERRUPT_TIMER, 5, 4)) < 0) {
 			rsi_dbg(ERR_ZONE, "Failed to write to intr timer\n");
 		}
-		if ((rsi_sdio_master_reg_write(adapter,
-					       NWP_WWD_SYSTEM_RESET_TIMER,
-						4, 4)) < 0) {
+		if ((rsi_sdio_master_reg_write
+		     (adapter, NWP_WWD_SYSTEM_RESET_TIMER, 4, 4)) < 0) {
 			rsi_dbg(ERR_ZONE,
 				"Failed to write to system reset timer\n");
 		}
-		if ((rsi_sdio_master_reg_write(adapter,
-					       NWP_WWD_MODE_AND_RSTART,
-						0xAA0001, 4)) < 0) {
+		if ((rsi_sdio_master_reg_write
+		     (adapter, NWP_WWD_MODE_AND_RSTART, 0xAA0001, 4)) < 0) {
 			rsi_dbg(ERR_ZONE,
 				"Failed to write to mode and restart\n");
 		}
 		rsi_dbg(ERR_ZONE, "***** Watch Dog Reset Successful *****\n");
 	} else {
-		*(u32 *)temp = 0;
+		*(u32 *) temp = 0;
 		ulp_read_write(adapter, ULP_RESET_REG, temp, 32);
-		*(u32 *)temp = 2;
+		*(u32 *) temp = 2;
 		ulp_read_write(adapter, WATCH_DOG_TIMER_1, temp, 32);
-		*(u32 *)temp = 0;
+		*(u32 *) temp = 0;
 		ulp_read_write(adapter, WATCH_DOG_TIMER_2, temp, 32);
-		*(u32 *)temp = 50;
+		*(u32 *) temp = 50;
 		ulp_read_write(adapter, WATCH_DOG_DELAY_TIMER_1, temp, 32);
-		*(u32 *)temp = 0;
+		*(u32 *) temp = 0;
 		ulp_read_write(adapter, WATCH_DOG_DELAY_TIMER_2, temp, 32);
-		*(u32 *)temp = ((0xaa000) | RESTART_WDT | BYPASS_ULP_ON_WDT);
+		*(u32 *) temp = ((0xaa000) | RESTART_WDT | BYPASS_ULP_ON_WDT);
 		ulp_read_write(adapter, WATCH_DOG_TIMER_ENABLE, temp, 32);
 	}
 
@@ -314,7 +264,6 @@ static void rsi_reset_chip(struct rsi_hw *adapter)
 err:
 	kfree(data);
 	return;
-
 }
 
 /**
@@ -335,9 +284,9 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 
 #ifdef CONFIG_CARACALLA_BOARD
 	/* Reset chip */
-	err = rsi_cmd52writebyte(pfunction->card,
-				 SDIO_CCCR_ABORT,
-				 (1 << 3), true);
+	err =
+	    rsi_cmd52writebyte(pfunction->card, SDIO_CCCR_ABORT, (1 << 3),
+			       true);
 
 	/* Card will not send any response as it is getting reset immediately
 	 * Hence expect a timeout status from host controller
@@ -381,11 +330,9 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	host->ios.chip_select = MMC_CS_HIGH;
 	host->ops->set_ios(host, &host->ios);
 	msleep(cmd_delay);
-	err = rsi_issue_sdiocommand(pfunction,
-				    MMC_GO_IDLE_STATE,
-				    0,
-				    (MMC_RSP_NONE | MMC_CMD_BC),
-				    NULL);
+	err =
+	    rsi_issue_sdiocommand(pfunction, MMC_GO_IDLE_STATE, 0,
+				  (MMC_RSP_NONE | MMC_CMD_BC), NULL);
 	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ops->set_ios(host, &host->ios);
 	msleep(cmd_delay);
@@ -400,14 +347,12 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	if (1) {
 #endif
 		/* Issue CMD5, arg = 0 */
-		err = rsi_issue_sdiocommand(pfunction,
-					    SD_IO_SEND_OP_COND,
-					    0,
-					    (MMC_RSP_R4 | MMC_CMD_BCR),
-					    &resp);
+		err =
+		    rsi_issue_sdiocommand(pfunction, SD_IO_SEND_OP_COND, 0,
+					  (MMC_RSP_R4 | MMC_CMD_BCR), &resp);
 		if (err)
-			rsi_dbg(ERR_ZONE, "%s: CMD5 failed : %d\n",
-				__func__, err);
+			rsi_dbg(ERR_ZONE, "%s: CMD5 failed : %d\n", __func__,
+				err);
 #ifdef CONFIG_CARACALLA_BOARD
 		host->ocr_avail = resp;
 #else
@@ -417,18 +362,16 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 
 	/* Issue CMD5, arg = ocr. Wait till card is ready  */
 	for (i = 0; i < 100; i++) {
-		err = rsi_issue_sdiocommand(pfunction,
-					    SD_IO_SEND_OP_COND,
+		err = rsi_issue_sdiocommand(pfunction, SD_IO_SEND_OP_COND,
 #ifdef CONFIG_CARACALLA_BOARD
 					    host->ocr_avail,
 #else
 					    card->ocr,
 #endif
-					    (MMC_RSP_R4 | MMC_CMD_BCR),
-					    &resp);
+					    (MMC_RSP_R4 | MMC_CMD_BCR), &resp);
 		if (err) {
-			rsi_dbg(ERR_ZONE, "%s: CMD5 failed : %d\n",
-				__func__, err);
+			rsi_dbg(ERR_ZONE, "%s: CMD5 failed : %d\n", __func__,
+				err);
 			break;
 		}
 
@@ -438,17 +381,15 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	}
 
 	if ((i == 100) || (err)) {
-		rsi_dbg(ERR_ZONE, "%s: card in not ready : %d %d\n",
-			__func__, i, err);
+		rsi_dbg(ERR_ZONE, "%s: card in not ready : %d %d\n", __func__,
+			i, err);
 		return;
 	}
 
 	/* Issue CMD3, get RCA */
-	err = rsi_issue_sdiocommand(pfunction,
-				    SD_SEND_RELATIVE_ADDR,
-				    0,
-				    (MMC_RSP_R6 | MMC_CMD_BCR),
-				    &resp);
+	err =
+	    rsi_issue_sdiocommand(pfunction, SD_SEND_RELATIVE_ADDR, 0,
+				  (MMC_RSP_R6 | MMC_CMD_BCR), &resp);
 	if (err) {
 		rsi_dbg(ERR_ZONE, "%s: CMD3 failed : %d\n", __func__, err);
 		return;
@@ -458,11 +399,9 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	host->ops->set_ios(host, &host->ios);
 
 	/* Issue CMD7, select card  */
-	err = rsi_issue_sdiocommand(pfunction,
-				    MMC_SELECT_CARD,
-				    (rca << 16),
-				    (MMC_RSP_R1 | MMC_CMD_AC),
-				    NULL);
+	err =
+	    rsi_issue_sdiocommand(pfunction, MMC_SELECT_CARD, (rca << 16),
+				  (MMC_RSP_R1 | MMC_CMD_AC), NULL);
 	if (err) {
 		rsi_dbg(ERR_ZONE, "%s: CMD7 failed : %d\n", __func__, err);
 		return;
@@ -471,16 +410,17 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	/* Enable high speed */
 	if (card->host->caps & MMC_CAP_SD_HIGHSPEED) {
 		rsi_dbg(ERR_ZONE, "%s: Set high speed mode\n", __func__);
-		err = rsi_cmd52readbyte(card, SDIO_CCCR_SPEED, &cmd52_resp,
-					true);
+		err =
+		    rsi_cmd52readbyte(card, SDIO_CCCR_SPEED, &cmd52_resp, true);
 		if (err) {
-			rsi_dbg(ERR_ZONE, "%s: CCCR speed reg read failed: %d\n",
+			rsi_dbg(ERR_ZONE,
+				"%s: CCCR speed reg read failed: %d\n",
 				__func__, err);
 		} else {
-			err = rsi_cmd52writebyte(card,
-						 SDIO_CCCR_SPEED,
-						 (cmd52_resp | SDIO_SPEED_EHS),
-						 true);
+			err =
+			    rsi_cmd52writebyte(card, SDIO_CCCR_SPEED,
+					       (cmd52_resp | SDIO_SPEED_EHS),
+					       true);
 			if (err) {
 				rsi_dbg(ERR_ZONE,
 					"%s: CCR speed regwrite failed %d\n",
@@ -506,10 +446,10 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 
 	if (card->host->caps & MMC_CAP_4_BIT_DATA) {
 		/* CMD52: Set bus width & disable card detect resistor */
-		err = rsi_cmd52writebyte(card,
-					 SDIO_CCCR_IF,
-					 (SDIO_BUS_CD_DISABLE |
-					  SDIO_BUS_WIDTH_4BIT), true);
+		err =
+		    rsi_cmd52writebyte(card, SDIO_CCCR_IF,
+				       (SDIO_BUS_CD_DISABLE |
+					SDIO_BUS_WIDTH_4BIT), true);
 		if (err) {
 			rsi_dbg(ERR_ZONE, "%s: Set bus mode failed : %d\n",
 				__func__, err);
@@ -531,7 +471,7 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 static void rsi_setclock(struct rsi_hw *adapter, u32 freq)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	struct mmc_host *host = dev->pfunction->card->host;
 	u32 clock;
 
@@ -552,7 +492,7 @@ static void rsi_setclock(struct rsi_hw *adapter, u32 freq)
 static int rsi_setblocklength(struct rsi_hw *adapter, u32 length)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	int status;
 
 	rsi_dbg(INIT_ZONE, "%s: Setting the block length\n", __func__);
@@ -560,8 +500,8 @@ static int rsi_setblocklength(struct rsi_hw *adapter, u32 length)
 	status = sdio_set_block_size(dev->pfunction, length);
 	dev->pfunction->max_blksize = 256;
 
-	rsi_dbg(INFO_ZONE,
-		"%s: Operational blk length is %d\n", __func__, length);
+	rsi_dbg(INFO_ZONE, "%s: Operational blk length is %d\n", __func__,
+		length);
 	return status;
 }
 
@@ -574,7 +514,7 @@ static int rsi_setblocklength(struct rsi_hw *adapter, u32 length)
 static int rsi_setupcard(struct rsi_hw *adapter)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	int status = 0;
 
 	rsi_setclock(adapter, (rsi_sdio_validate_clock(sdio_clock) * 1000));
@@ -583,8 +523,7 @@ static int rsi_setupcard(struct rsi_hw *adapter)
 	adapter->tx_blk_size = dev->tx_blk_size;
 	status = rsi_setblocklength(adapter, dev->tx_blk_size);
 	if (status)
-		rsi_dbg(ERR_ZONE,
-			"%s: Unable to set block length\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Unable to set block length\n", __func__);
 	return status;
 }
 
@@ -597,12 +536,10 @@ static int rsi_setupcard(struct rsi_hw *adapter)
  *
  * Return: 0 on success, -1 on failure.
  */
-int rsi_sdio_read_register(struct rsi_hw *adapter,
-			   u32 addr,
-			   u8 *data)
+int rsi_sdio_read_register(struct rsi_hw *adapter, u32 addr, u8 * data)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u8 fun_num = 0;
 	int status;
 
@@ -630,13 +567,11 @@ int rsi_sdio_read_register(struct rsi_hw *adapter,
  *
  * Return: 0 on success, -1 on failure.
  */
-int rsi_sdio_write_register(struct rsi_hw *adapter,
-			    u8 function,
-			    u32 addr,
-			    u8 *data)
+int rsi_sdio_write_register(struct rsi_hw *adapter, u8 function, u32 addr,
+			    u8 * data)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	int status = 0;
 
 	if (likely(dev->sdio_irq_task != current))
@@ -664,11 +599,10 @@ void rsi_sdio_ack_intr(struct rsi_hw *adapter, u8 int_bit)
 {
 	int status;
 
-	status = rsi_sdio_write_register(adapter,
-					 1,
-					 (SDIO_FUN1_INTR_CLR_REG |
-					  SD_REQUEST_MASTER),
-					 &int_bit);
+	status =
+	    rsi_sdio_write_register(adapter, 1,
+				    (SDIO_FUN1_INTR_CLR_REG |
+				     SD_REQUEST_MASTER), &int_bit);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: unable to send ack\n", __func__);
 }
@@ -683,19 +617,17 @@ void rsi_sdio_ack_intr(struct rsi_hw *adapter, u8 int_bit)
  *
  * Return: 0 on success, -1 on failure.
  */
-int rsi_sdio_read_register_multiple(struct rsi_hw *adapter,
-				    u32 addr,
-				    u8 *data,
+int rsi_sdio_read_register_multiple(struct rsi_hw *adapter, u32 addr, u8 * data,
 				    u16 count)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u32 status = 0;
 
 	if (likely(dev->sdio_irq_task != current))
 		sdio_claim_host(dev->pfunction);
 
-	status =  sdio_readsb(dev->pfunction, data, addr, count);
+	status = sdio_readsb(dev->pfunction, data, addr, count);
 
 	if (likely(dev->sdio_irq_task != current))
 		sdio_release_host(dev->pfunction);
@@ -715,20 +647,18 @@ int rsi_sdio_read_register_multiple(struct rsi_hw *adapter,
  *
  * Return: 0 on success, -1 on failure.
  */
-int rsi_sdio_write_register_multiple(struct rsi_hw *adapter,
-				     u32 addr,
-				     u8 *data,
-				     u16 count)
+int rsi_sdio_write_register_multiple(struct rsi_hw *adapter, u32 addr,
+				     u8 * data, u16 count)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	int status;
 
 	if (dev->write_fail > 1) {
 		rsi_dbg(ERR_ZONE, "%s: Stopping card writes\n", __func__);
 		return 0;
 	} else if (dev->write_fail == 1) {
-		/**
+    /**
 		 * Assuming it is a CRC failure, we want to allow another
 		 *  card write
 		 */
@@ -744,11 +674,21 @@ int rsi_sdio_write_register_multiple(struct rsi_hw *adapter,
 	if (likely(dev->sdio_irq_task != current))
 		sdio_release_host(dev->pfunction);
 
+#if defined(COMMAND_84_ERROR_WAR)
+	if (status && status != -84) {
+#else
 	if (status) {
-		rsi_dbg(ERR_ZONE, "%s: Synch Cmd53 write failed %d\n",
-			__func__, status);
+#endif
+		rsi_dbg(ERR_ZONE, "%s: Synch Cmd53 write failed %d\n", __func__,
+			status);
 		dev->write_fail = 2;
 	} else {
+#if defined(COMMAND_84_ERROR_WAR)
+		if (status == -84) {
+			printk("Continue Even after -84 error \n");
+			status = 0;
+		}
+#endif
 		memcpy(dev->prev_desc, data, FRAME_DESC_SZ);
 	}
 	return status;
@@ -757,8 +697,7 @@ int rsi_sdio_write_register_multiple(struct rsi_hw *adapter,
 int rsi_sdio_load_data_master_write(struct rsi_hw *adapter,
 				    u32 base_address,
 				    u32 instructions_sz,
-				    u16 block_size,
-				    u8 *ta_firmware)
+				    u16 block_size, u8 * ta_firmware)
 {
 	u32 num_blocks;
 	u16 msb_address;
@@ -785,10 +724,10 @@ int rsi_sdio_load_data_master_write(struct rsi_hw *adapter,
 	for (offset = 0, ii = 0; ii < num_blocks; ii++, offset += block_size) {
 		memset(temp_buf, 0, block_size);
 		memcpy(temp_buf, ta_firmware + offset, block_size);
-		lsb_address = (u16)base_address;
-		if (rsi_sdio_write_register_multiple(adapter,
-					lsb_address | SD_REQUEST_MASTER,
-					temp_buf, block_size)) {
+		lsb_address = (u16) base_address;
+		if (rsi_sdio_write_register_multiple
+		    (adapter, lsb_address | SD_REQUEST_MASTER, temp_buf,
+		     block_size)) {
 			rsi_dbg(ERR_ZONE, "%s: failed to write\n", __func__);
 			goto err;
 		}
@@ -799,8 +738,7 @@ int rsi_sdio_load_data_master_write(struct rsi_hw *adapter,
 			msb_address += 1;
 
 			/* Loading DM ms word in the sdio slave */
-			if (rsi_sdio_master_access_msword(adapter,
-							  msb_address)) {
+			if (rsi_sdio_master_access_msword(adapter, msb_address)) {
 				rsi_dbg(ERR_ZONE,
 					"%s: Unable to set ms word reg\n",
 					__func__);
@@ -811,14 +749,15 @@ int rsi_sdio_load_data_master_write(struct rsi_hw *adapter,
 
 	if (instructions_sz % block_size) {
 		memset(temp_buf, 0, block_size);
-		memcpy(temp_buf,
-		       ta_firmware + offset,
+		memcpy(temp_buf, ta_firmware + offset,
 		       instructions_sz % block_size);
-		lsb_address = (u16)base_address;
+		lsb_address = (u16) base_address;
 		if (rsi_sdio_write_register_multiple(adapter,
-						lsb_address | SD_REQUEST_MASTER,
-						temp_buf,
-						instructions_sz % block_size)) {
+						     lsb_address |
+						     SD_REQUEST_MASTER,
+						     temp_buf,
+						     instructions_sz %
+						     block_size)) {
 			goto err;
 		}
 		rsi_dbg(INFO_ZONE,
@@ -831,11 +770,10 @@ int rsi_sdio_load_data_master_write(struct rsi_hw *adapter,
 err:
 	kfree(temp_buf);
 	return -EIO;
-
 }
 
-int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr,
-			     u32 *read_buf, u16 size)
+int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr, u32 * read_buf,
+			     u16 size)
 {
 	u32 *data = NULL;
 	u16 ms_addr = 0;
@@ -847,8 +785,7 @@ int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr,
 
 	ms_addr = (addr >> 16);
 	if (rsi_sdio_master_access_msword(adapter, ms_addr)) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Unable to set ms word to common reg\n",
+		rsi_dbg(ERR_ZONE, "%s: Unable to set ms word to common reg\n",
 			__func__);
 		kfree(data);
 		return -EIO;
@@ -856,16 +793,15 @@ int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr,
 	addr = addr & 0xFFFF;
 
 	addr_on_bus = (addr & 0xFF000000);
-	if ((addr_on_bus == (FLASH_SIZE_ADDR & 0xFF000000)) ||
-	    (addr_on_bus == 0x0)) {
+	if ((addr_on_bus == (FLASH_SIZE_ADDR & 0xFF000000))
+	    || (addr_on_bus == 0x0)) {
 		addr_on_bus = (addr & ~(0x3));
 	} else
 		addr_on_bus = addr;
 
 	/* Bring TA out of reset */
-	if (rsi_sdio_read_register_multiple(adapter,
-					    (addr_on_bus | SD_REQUEST_MASTER),
-					    (u8 *)data, 4)) {
+	if (rsi_sdio_read_register_multiple
+	    (adapter, (addr_on_bus | SD_REQUEST_MASTER), (u8 *) data, 4)) {
 		rsi_dbg(ERR_ZONE, "%s: AHB register read failed\n", __func__);
 		kfree(data);
 		return -EIO;
@@ -874,7 +810,7 @@ int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr,
 		if ((addr & 0x3) == 0)
 			*read_buf = *data;
 		else
-			*read_buf  = (*data >> 16);
+			*read_buf = (*data >> 16);
 		*read_buf = (*read_buf & 0xFFFF);
 	} else if (size == 1) {
 		if ((addr & 0x3) == 0)
@@ -886,7 +822,7 @@ int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr,
 		else
 			*read_buf = (*data >> 24);
 		*read_buf = (*read_buf & 0xFF);
-	} else { /*size is 4 */
+	} else {		/*size is 4 */
 		*read_buf = *data;
 	}
 
@@ -894,10 +830,8 @@ int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr,
 	return 0;
 }
 
-int rsi_sdio_master_reg_write(struct rsi_hw *adapter,
-			      unsigned long addr,
-			      unsigned long data,
-			      u16 size)
+int rsi_sdio_master_reg_write(struct rsi_hw *adapter, unsigned long addr,
+			      unsigned long data, u16 size)
 {
 	unsigned long *data_aligned;
 
@@ -911,18 +845,16 @@ int rsi_sdio_master_reg_write(struct rsi_hw *adapter,
 		u32 temp_data;
 
 		temp_data = (data & 0xFF);
-		*data_aligned = ((temp_data << 24) |
-				  (temp_data << 16) |
-				  (temp_data << 8) |
-				  (temp_data));
+		*data_aligned =
+		    ((temp_data << 24) | (temp_data << 16) | (temp_data << 8) |
+		     (temp_data));
 	} else {
 		*data_aligned = data;
 	}
 	size = 4;
 
 	if (rsi_sdio_master_access_msword(adapter, (addr >> 16))) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Unable to set ms word to common reg\n",
+		rsi_dbg(ERR_ZONE, "%s: Unable to set ms word to common reg\n",
 			__func__);
 		kfree(data_aligned);
 		return -EIO;
@@ -930,11 +862,9 @@ int rsi_sdio_master_reg_write(struct rsi_hw *adapter,
 	addr = addr & 0xFFFF;
 
 	/* Bring TA out of reset */
-	if (rsi_sdio_write_register_multiple(adapter,
-					     (addr | SD_REQUEST_MASTER),
-					     (u8 *)data_aligned, size)) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Unable to do AHB reg write\n", __func__);
+	if (rsi_sdio_write_register_multiple
+	    (adapter, (addr | SD_REQUEST_MASTER), (u8 *) data_aligned, size)) {
+		rsi_dbg(ERR_ZONE, "%s: Unable to do AHB reg write\n", __func__);
 		kfree(data_aligned);
 		return -EIO;
 	}
@@ -951,12 +881,10 @@ int rsi_sdio_master_reg_write(struct rsi_hw *adapter,
  *
  * Return: 0 on success, -1 on failure.
  */
-int rsi_sdio_host_intf_write_pkt(struct rsi_hw *adapter,
-				 u8 *pkt,
-				 u32 len)
+int rsi_sdio_host_intf_write_pkt(struct rsi_hw *adapter, u8 * pkt, u32 len)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u32 block_size = dev->tx_blk_size;
 	u32 num_blocks, address, length;
 	u32 queueno;
@@ -976,20 +904,22 @@ int rsi_sdio_host_intf_write_pkt(struct rsi_hw *adapter,
 		num_blocks++;
 
 	address = (num_blocks * block_size | (queueno << 12));
-	length  = num_blocks * block_size;
+	length = num_blocks * block_size;
 
 #ifndef CONFIG_RSI_NO_SDIO_MULTIBLOCK
-	status = rsi_sdio_write_register_multiple(adapter,
-						  address,
-						  pkt,
-						  length);
+	status =
+	    rsi_sdio_write_register_multiple(adapter, address, pkt, length);
 #else
 	remain_length = length;
 	do {
 		if (remain_length == length)
-			status = rsi_sdio_write_register_multiple(adapter, address, tbuf, 256);
+			status =
+			    rsi_sdio_write_register_multiple(adapter, address,
+							     tbuf, 256);
 		else
-			status = rsi_sdio_write_register_multiple(adapter, 0, tbuf, 256);
+			status =
+			    rsi_sdio_write_register_multiple(adapter, 0, tbuf,
+							     256);
 		if (status)
 			break;
 		if (remain_length > 256)
@@ -997,7 +927,7 @@ int rsi_sdio_host_intf_write_pkt(struct rsi_hw *adapter,
 		else
 			break;
 		tbuf += 256;
-	} while (1); 
+	} while (1);
 #endif
 	if (status < 0)
 		rsi_dbg(ERR_ZONE, "%s: Unable to write onto the card: %d\n",
@@ -1016,9 +946,7 @@ int rsi_sdio_host_intf_write_pkt(struct rsi_hw *adapter,
  *
  * Return: 0 on success, -1 on failure.
  */
-int rsi_sdio_host_intf_read_pkt(struct rsi_hw *adapter,
-				u8 *pkt,
-				u32 length)
+int rsi_sdio_host_intf_read_pkt(struct rsi_hw *adapter, u8 * pkt, u32 length)
 {
 	int status = -EINVAL;
 
@@ -1027,10 +955,9 @@ int rsi_sdio_host_intf_read_pkt(struct rsi_hw *adapter,
 		return status;
 	}
 
-	status = rsi_sdio_read_register_multiple(adapter,
-						 length,
-						 (u8 *)pkt,
-						 length);
+	status =
+	    rsi_sdio_read_register_multiple(adapter, length, (u8 *) pkt,
+					    length);
 
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to read frame: %d\n", __func__,
@@ -1047,8 +974,7 @@ static int rsi_sdio_ta_reset_ops(struct rsi_hw *adapter)
 		return -ENOMEM;
 
 	if (rsi_sdio_master_access_msword(adapter, 0x2200) < 0) {
-		rsi_dbg(ERR_ZONE,
-			"Unable to set ms word to common reg\n");
+		rsi_dbg(ERR_ZONE, "Unable to set ms word to common reg\n");
 		goto err;
 	}
 
@@ -1056,19 +982,15 @@ static int rsi_sdio_ta_reset_ops(struct rsi_hw *adapter)
 	put_unaligned_le32(TA_HOLD_THREAD_VALUE, data);
 
 	/* Bringing TA out of reset */
-	if (rsi_sdio_write_register_multiple(adapter,
-					     TA_HOLD_THREAD_REG |
-					     SD_REQUEST_MASTER,
-					     data, 4) < 0) {
+	if (rsi_sdio_write_register_multiple
+	    (adapter, TA_HOLD_THREAD_REG | SD_REQUEST_MASTER, data, 4) < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to hold TA threads\n");
 		goto err;
 	}
 	/* Bringing TA out of reset */
 	put_unaligned_le32(TA_SOFT_RST_CLR, data);
-	if (rsi_sdio_write_register_multiple(adapter,
-					     TA_SOFT_RESET_REG |
-					     SD_REQUEST_MASTER,
-					     data, 4) < 0) {
+	if (rsi_sdio_write_register_multiple
+	    (adapter, TA_SOFT_RESET_REG | SD_REQUEST_MASTER, data, 4) < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to get TA out of reset state\n");
 		goto err;
 	}
@@ -1080,19 +1002,15 @@ static int rsi_sdio_ta_reset_ops(struct rsi_hw *adapter)
 	 **/
 	/* Bringing TA out of reset */
 	put_unaligned_le32(TA_PC_ZERO, data);
-	if (rsi_sdio_write_register_multiple(adapter,
-					     TA_TH0_PC_REG |
-					     SD_REQUEST_MASTER,
-					     data, 4) < 0) {
+	if (rsi_sdio_write_register_multiple
+	    (adapter, TA_TH0_PC_REG | SD_REQUEST_MASTER, data, 4) < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to Reset TA PC value\n");
 		goto err;
 	}
 	put_unaligned_le32(TA_RELEASE_THREAD_VALUE, data);
 	/* Bringing TA out of reset */
-	if (rsi_sdio_write_register_multiple(adapter,
-					     TA_RELEASE_THREAD_REG |
-					     SD_REQUEST_MASTER,
-					     data, 4) < 0) {
+	if (rsi_sdio_write_register_multiple
+	    (adapter, TA_RELEASE_THREAD_REG | SD_REQUEST_MASTER, data, 4) < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to release TA threads\n");
 		goto err;
 	}
@@ -1108,7 +1026,6 @@ static int rsi_sdio_ta_reset_ops(struct rsi_hw *adapter)
 err:
 	kfree(data);
 	return -EINVAL;
-
 }
 
 int rsi_sdio_reinit_device(struct rsi_hw *adapter)
@@ -1195,7 +1112,7 @@ static int rsi_init_sdio_interface(struct rsi_hw *adapter,
 	adapter->determine_event_timeout = rsi_sdio_determine_event_timeout;
 	adapter->process_isr_hci = rsi_interrupt_handler;
 	adapter->check_intr_status_reg = rsi_read_intr_status_reg;
-	
+
 #ifdef CONFIG_RSI_DEBUGFS
 	adapter->num_debugfs_entries = MAX_DEBUGFS_ENTRIES;
 #endif
@@ -1207,17 +1124,18 @@ fail:
 }
 
 static struct rsi_host_intf_ops sdio_host_intf_ops = {
-	.write_pkt		= rsi_sdio_host_intf_write_pkt,
-	.read_pkt		= rsi_sdio_host_intf_read_pkt,
-	.master_access_msword	= rsi_sdio_master_access_msword,
-	.master_reg_read	= rsi_sdio_master_reg_read,
-	.master_reg_write	= rsi_sdio_master_reg_write,
-	.read_reg_multiple	= rsi_sdio_read_register_multiple,
-	.write_reg_multiple	= rsi_sdio_write_register_multiple,
-	.load_data_master_write	= rsi_sdio_load_data_master_write,
-	.check_hw_queue_status	= rsi_sdio_check_buffer_status,
-	.ta_reset_ops           = rsi_sdio_ta_reset_ops,
-	.reinit_device          = rsi_sdio_reinit_device,
+	.write_pkt = rsi_sdio_host_intf_write_pkt,
+	.read_pkt = rsi_sdio_host_intf_read_pkt,
+	.master_access_msword = rsi_sdio_master_access_msword,
+	.master_reg_read = rsi_sdio_master_reg_read,
+	.reg_read = rsi_sdio_read_register,
+	.master_reg_write = rsi_sdio_master_reg_write,
+	.read_reg_multiple = rsi_sdio_read_register_multiple,
+	.write_reg_multiple = rsi_sdio_write_register_multiple,
+	.load_data_master_write = rsi_sdio_load_data_master_write,
+	.check_hw_queue_status = rsi_sdio_check_buffer_status,
+	.ta_reset_ops = rsi_sdio_ta_reset_ops,
+	.reinit_device = rsi_sdio_reinit_device,
 };
 
 /**
@@ -1239,10 +1157,12 @@ static int rsi_probe(struct sdio_func *pfunction,
 
 	rsi_dbg(INIT_ZONE, "%s: Init function called\n", __func__);
 
+	if (ps_sleep_type == 0) {
+		ps_sleep_type = ULP_POWER_SAVE;
+	}
 	adapter = rsi_91x_init();
 	if (!adapter) {
-		rsi_dbg(ERR_ZONE, "%s: Failed to init os intf ops\n",
-			__func__);
+		rsi_dbg(ERR_ZONE, "%s: Failed to init os intf ops\n", __func__);
 		return 1;
 	}
 
@@ -1251,18 +1171,16 @@ static int rsi_probe(struct sdio_func *pfunction,
 	adapter->host_intf_ops = &sdio_host_intf_ops;
 #ifdef CONFIG_RSI_MULTI_MODE
 	if (rsi_opermode_instances(adapter)) {
-		rsi_dbg(ERR_ZONE, "%s: Invalid operating modes\n",
-			__func__);
+		rsi_dbg(ERR_ZONE, "%s: Invalid operating modes\n", __func__);
 		goto fail_free_adapter;
 	}
 #else
 	adapter->priv->oper_mode = common->dev_oper_mode;
 	if (rsi_validate_oper_mode(common->dev_oper_mode)) {
-		rsi_dbg(ERR_ZONE, "%s: Invalid operating mode %d\n",
-			__func__, common->dev_oper_mode);
+		rsi_dbg(ERR_ZONE, "%s: Invalid operating mode %d\n", __func__,
+			common->dev_oper_mode);
 		goto fail_free_adapter;
 	}
-
 #endif
 
 	if (rsi_init_sdio_interface(adapter, pfunction)) {
@@ -1271,17 +1189,16 @@ static int rsi_probe(struct sdio_func *pfunction,
 		goto fail_free_adapter;
 	}
 
-	rsi_dbg(INFO_ZONE, "Vendor Id:%x, Device Id:%x\n",
-		pfunction->vendor, pfunction->device);
+	rsi_dbg(INFO_ZONE, "Vendor Id:%x, Device Id:%x\n", pfunction->vendor,
+		pfunction->device);
 	if ((pfunction->device == 0X9330)) {
 		rsi_dbg(ERR_ZONE, "%s: ***** 9113 Module *****\n", __func__);
 		adapter->device_model = RSI_DEV_9113;
-	} else  if ((pfunction->device == 0X9116)) {
+	} else if ((pfunction->device == 0X9116)) {
 		rsi_dbg(ERR_ZONE, "%s: ***** 9116 Module *****\n", __func__);
 		adapter->device_model = RSI_DEV_9116;
 	} else {
-		rsi_dbg(ERR_ZONE,
-			"##### Invalid RSI device id 0x%x\n",
+		rsi_dbg(ERR_ZONE, "##### Invalid RSI device id 0x%x\n",
 			pfunction->device);
 		goto fail_free_adapter;
 	}
@@ -1289,8 +1206,9 @@ static int rsi_probe(struct sdio_func *pfunction,
 	/* Initialize receive path */
 	sdev = adapter->rsi_dev;
 	rsi_init_event(&sdev->rx_thread.event);
-	status = rsi_create_kthread(adapter->priv, &sdev->rx_thread,
-				    rsi_sdio_rx_thread, "SDIO-RX-Thread");
+	status =
+	    rsi_create_kthread(adapter->priv, &sdev->rx_thread,
+			       rsi_sdio_rx_thread, "SDIO-RX-Thread");
 	if (status) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to init rx thrd\n", __func__);
 		goto fail_kill_thread;
@@ -1298,8 +1216,8 @@ static int rsi_probe(struct sdio_func *pfunction,
 	skb_queue_head_init(&sdev->rx_q.head);
 	sdev->rx_q.num_rx_pkts = 0;
 
-	/*Receive buffer for handling RX interrupts in case of memory full*/
-	sdev->temp_rcv_buf = kzalloc((RCV_BUFF_LEN *4), GFP_KERNEL);
+	/*Receive buffer for handling RX interrupts in case of memory full */
+	sdev->temp_rcv_buf = kzalloc((RCV_BUFF_LEN * 4), GFP_KERNEL);
 
 #ifdef CONFIG_SDIO_INTR_POLL
 	init_sdio_intr_status_poll_thread(adapter->priv);
@@ -1372,8 +1290,8 @@ static void rsi_disconnect(struct sdio_func *pfunction)
 
 	status = set_clr_tx_intention(common, COMMON_ID, 1);
 	if (status) {
-		rsi_dbg(ERR_ZONE, "%s,%d:  Failed to get tx_access\n",
-			__func__, __LINE__);
+		rsi_dbg(ERR_ZONE, "%s,%d:  Failed to get tx_access\n", __func__,
+			__LINE__);
 	}
 #ifdef CONFIG_SDIO_INTR_POLL
 	rsi_kill_thread(&adapter->priv->sdio_intr_poll_thread);
@@ -1388,8 +1306,7 @@ static void rsi_disconnect(struct sdio_func *pfunction)
 	rsi_mac80211_detach(adapter);
 
 #if defined(CONFIG_RSI_BT_ALONE) || defined(CONFIG_RSI_COEX_MODE)
-	if ((adapter->priv->coex_mode == 2) ||
-	    (adapter->priv->coex_mode == 4))
+	if ((adapter->priv->coex_mode == 2) || (adapter->priv->coex_mode == 4))
 		rsi_hci_detach(adapter->priv);
 #endif
 
@@ -1412,13 +1329,15 @@ static void rsi_disconnect(struct sdio_func *pfunction)
 static int rsi_set_sdio_pm_caps(struct rsi_hw *adapter)
 {
 	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	struct sdio_func *func = dev->pfunction;
 	int ret;
 	mmc_pm_flag_t flags;
 	flags = sdio_get_host_pm_caps(dev->pfunction);
 	if (!(flags & MMC_PM_KEEP_POWER)) {
-		rsi_dbg(ERR_ZONE, "%s: Returning failure for suspend as SDIO can not keep power\n",__func__);
+		rsi_dbg(ERR_ZONE,
+			"%s: Returning failure for suspend as SDIO can not keep power\n",
+			__func__);
 		return -ENOSYS;
 	}
 	/* Keep Power to the MMC while suspend */
@@ -1439,18 +1358,16 @@ static int rsi_sdio_disable_interrupts(struct sdio_func *pfunction)
 
 	rsi_dbg(ERR_ZONE, "Waiting for interrupts to be cleared..");
 	do {
-		rsi_sdio_read_register(adapter,
-				       RSI_FN1_INT_REGISTER,
+		rsi_sdio_read_register(adapter, RSI_FN1_INT_REGISTER,
 				       &isr_status);
 		rsi_dbg(ERR_ZONE, ".");
-	} while (isr_status); 
+	} while (isr_status);
 	rsi_dbg(ERR_ZONE, "\nInterrupts cleared");
 
 	sdio_claim_host(pfunction);
 	ret = rsi_cmd52readbyte(pfunction->card, 0x04, &data, false);
 	if (ret < 0) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to read INTR_EN register\n",
+		rsi_dbg(ERR_ZONE, "%s: Failed to read INTR_EN register\n",
 			__func__);
 		sdio_release_host(pfunction);
 		return ret;
@@ -1462,16 +1379,14 @@ static int rsi_sdio_disable_interrupts(struct sdio_func *pfunction)
 
 	ret = rsi_cmd52writebyte(pfunction->card, 0x04, data, false);
 	if (ret < 0) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to Write to INTR_EN register\n",
+		rsi_dbg(ERR_ZONE, "%s: Failed to Write to INTR_EN register\n",
 			__func__);
 		sdio_release_host(pfunction);
 		return ret;
 	}
 	ret = rsi_cmd52readbyte(pfunction->card, 0x04, &data, false);
 	if (ret < 0) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to read INTR_EN register\n",
+		rsi_dbg(ERR_ZONE, "%s: Failed to read INTR_EN register\n",
 			__func__);
 		sdio_release_host(pfunction);
 		return ret;
@@ -1491,8 +1406,8 @@ static int rsi_sdio_enable_interrupts(struct sdio_func *pfunction)
 	sdio_claim_host(pfunction);
 	ret = rsi_cmd52readbyte(pfunction->card, 0x04, &data, false);
 	if (ret < 0) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to read INTR_EN register\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Failed to read INTR_EN register\n",
+			__func__);
 		sdio_release_host(pfunction);
 		return ret;
 	}
@@ -1503,17 +1418,16 @@ static int rsi_sdio_enable_interrupts(struct sdio_func *pfunction)
 
 	ret = rsi_cmd52writebyte(pfunction->card, 0x04, data, false);
 	if (ret < 0) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to Write to INTR_EN register\n",
+		rsi_dbg(ERR_ZONE, "%s: Failed to Write to INTR_EN register\n",
 			__func__);
 		sdio_release_host(pfunction);
 		return ret;
 	}
-	
-        ret = rsi_cmd52readbyte(pfunction->card, 0x04, &data, false);
+
+	ret = rsi_cmd52readbyte(pfunction->card, 0x04, &data, false);
 	if (ret < 0) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to read INTR_EN register\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Failed to read INTR_EN register\n",
+			__func__);
 		sdio_release_host(pfunction);
 		return ret;
 	}
@@ -1522,6 +1436,7 @@ static int rsi_sdio_enable_interrupts(struct sdio_func *pfunction)
 
 	return ret;
 }
+
 static int rsi_suspend(struct device *dev)
 {
 	int ret = 0;
@@ -1529,7 +1444,7 @@ static int rsi_suspend(struct device *dev)
 	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
 	struct rsi_common *common = adapter->priv;
 	struct rsi_91x_sdiodev *sdev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u16 sleep_time = 200;
 	rsi_dbg(ERR_ZONE, "SDIO Bus suspend ===>\n");
 
@@ -1542,33 +1457,32 @@ static int rsi_suspend(struct device *dev)
 CHECK_AGAIN:
 	mutex_lock(&common->rx_lock);
 	down(&common->tx_access_lock);
-        if((!protocol_tx_access(common)) && (!common->rx_in_prog)
-		&& (adapter->ps_state != PS_DISABLE_REQ_SENT)
-		&& (adapter->ps_state != PS_ENABLE_REQ_SENT)){
-			if (adapter->ps_state == PS_NONE)
-				rsi_dbg(INFO_ZONE, "Device Power save not enabled\n");
+	if ((!protocol_tx_access(common)) && (!common->rx_in_prog)
+	    && (adapter->ps_state != PS_DISABLE_REQ_SENT)
+	    && (adapter->ps_state != PS_ENABLE_REQ_SENT)) {
+		if (adapter->ps_state == PS_NONE)
+			rsi_dbg(INFO_ZONE, "Device Power save not enabled\n");
 
-			rsi_dbg(ERR_ZONE, "Triggering Suspend\n");
-			common->suspend_in_prog = true;
-			up(&common->tx_access_lock);
-			mutex_unlock(&common->rx_lock);
-	}else
-	{
+		rsi_dbg(ERR_ZONE, "Triggering Suspend\n");
+		common->suspend_in_prog = true;
 		up(&common->tx_access_lock);
 		mutex_unlock(&common->rx_lock);
-		if(sleep_time)
-		{
+	} else {
+		up(&common->tx_access_lock);
+		mutex_unlock(&common->rx_lock);
+		if (sleep_time) {
 			msleep(10);
-			sleep_time -=10;
+			sleep_time -= 10;
 			goto CHECK_AGAIN;
-		}else{
-			rsi_dbg(ERR_ZONE,("Returning failure for suspend as TX/RX is pending even after 200ms wait\n"));
+		} else {
+			rsi_dbg(ERR_ZONE,
+				("Returning failure for suspend as TX/RX is pending even after 200ms wait\n"));
 			return -ENOSYS;
 		}
 	}
 #ifdef CONFIG_RSI_WOW
-	if ((common->wow_flags & RSI_WOW_ENABLED) &&
-	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
+	if ((common->wow_flags & RSI_WOW_ENABLED)
+	    && (common->wow_flags & RSI_WOW_NO_CONNECTION))
 		rsi_dbg(ERR_ZONE,
 			"##### Device can not wake up through WLAN\n");
 
@@ -1581,8 +1495,7 @@ CHECK_AGAIN:
 
 	ret = rsi_set_sdio_pm_caps(adapter);
 	if (ret)
-		rsi_dbg(INFO_ZONE,
-			"Setting power management caps failed\n");
+		rsi_dbg(INFO_ZONE, "Setting power management caps failed\n");
 
 	common->fsm_state = FSM_CARD_NOT_READY;
 	rsi_dbg(INFO_ZONE, "***** RSI module suspended ******\n");
@@ -1596,7 +1509,7 @@ static int rsi_resume(struct device *dev)
 	struct sdio_func *pfunction = dev_to_sdio_func(dev);
 	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
 	struct rsi_common *common = adapter->priv;
-        
+
 	rsi_dbg(INFO_ZONE, "SDIO Bus resume =====>\n");
 
 	common->suspend_in_prog = false;
@@ -1628,8 +1541,8 @@ static int rsi_freeze(struct device *dev)
 
 	common->suspend_in_prog = true;
 #ifdef CONFIG_RSI_WOW
-	if ((common->wow_flags & RSI_WOW_ENABLED) &&
-	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
+	if ((common->wow_flags & RSI_WOW_ENABLED)
+	    && (common->wow_flags & RSI_WOW_NO_CONNECTION))
 		rsi_dbg(ERR_ZONE,
 			"##### Device can not wake up through WLAN\n");
 #endif
@@ -1641,11 +1554,11 @@ static int rsi_freeze(struct device *dev)
 
 	if (sdev->write_fail)
 		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
-	
+
 	ret = rsi_set_sdio_pm_caps(adapter);
 	if (ret)
 		rsi_dbg(INFO_ZONE, "Setting power management caps failed\n");
-	
+
 	rsi_dbg(INFO_ZONE, "***** RSI module freezed *****\n");
 
 	return 0;
@@ -1655,7 +1568,7 @@ static int rsi_thaw(struct device *dev)
 {
 	struct sdio_func *pfunction = dev_to_sdio_func(dev);
 	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
-        
+
 	rsi_dbg(ERR_ZONE, "SDIO Bus thaw =====>\n");
 
 	adapter->priv->hibernate_resume = true;
@@ -1680,7 +1593,7 @@ static void rsi_shutdown(struct device *dev)
 	struct sdio_func *pfunction = dev_to_sdio_func(dev);
 	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
 	struct rsi_91x_sdiodev *sdev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	    (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 #ifdef CONFIG_RSI_WOW
 	struct ieee80211_hw *hw = adapter->hw;
 	struct cfg80211_wowlan *wowlan = NULL;
@@ -1706,7 +1619,7 @@ static void rsi_shutdown(struct device *dev)
 
 	if (sdev->write_fail)
 		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
-	
+
 	if (rsi_set_sdio_pm_caps(adapter))
 		rsi_dbg(INFO_ZONE, "Setting power management caps failed\n");
 
@@ -1756,22 +1669,22 @@ static const struct dev_pm_ops rsi_pm_ops = {
 };
 #endif
 
-static const struct sdio_device_id rsi_dev_table[] =  {
+static const struct sdio_device_id rsi_dev_table[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_RSI, SDIO_DEVICE_ID_RSI_9113) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_RSI, SDIO_DEVICE_ID_RSI_9116) },
-	{ /* Blank */},
+	{ /* Blank */  },
 };
 
 static struct sdio_driver rsi_driver = {
-	.name       = "RSI-SDIO WLAN",
-	.probe      = rsi_probe,
-	.remove     = rsi_disconnect,
-	.id_table   = rsi_dev_table,
+	.name = "RSI-SDIO WLAN",
+	.probe = rsi_probe,
+	.remove = rsi_disconnect,
+	.id_table = rsi_dev_table,
 #ifdef CONFIG_PM
 	.drv = {
 		.pm = &rsi_pm_ops,
-	        .shutdown   = rsi_shutdown,
-	}
+		.shutdown = rsi_shutdown,
+		 }
 #endif
 };
 
@@ -1807,8 +1720,10 @@ module_exit(rsi_module_exit);
 
 MODULE_AUTHOR("Redpine Signals Inc");
 MODULE_DESCRIPTION("Common SDIO layer for RSI drivers");
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0)
 MODULE_SUPPORTED_DEVICE("RSI-91x");
+#endif
 MODULE_DEVICE_TABLE(sdio, rsi_dev_table);
 MODULE_FIRMWARE(FIRMWARE_RSI9113);
 MODULE_VERSION(DRV_VER);
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");
