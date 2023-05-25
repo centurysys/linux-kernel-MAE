@@ -160,8 +160,12 @@ uart_update_mctrl(struct uart_port *port, unsigned int set, unsigned int clear)
 
 	spin_lock_irqsave(&port->lock, flags);
 	old = port->mctrl;
+	if (port->rs485.flags & SER_RS485_ENABLED) {
+		set &= ~TIOCM_RTS;
+		clear &= ~TIOCM_RTS;
+	}
 	port->mctrl = (old & ~clear) | set;
-	if (old != port->mctrl && !(port->rs485.flags & SER_RS485_ENABLED))
+	if (old != port->mctrl)
 		port->ops->set_mctrl(port, port->mctrl);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
