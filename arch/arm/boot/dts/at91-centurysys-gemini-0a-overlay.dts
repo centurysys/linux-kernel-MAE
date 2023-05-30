@@ -37,14 +37,14 @@
 			#size-cells = <0>;
 
 			/* AD Converter #1 */
-			ltc2481_1: ltc2487@14 {
+			ltc2481_1: ltc2481@14 {
 				compatible = "lltc,ltc2481";
 				reg = <0x14>;
 				vref-supply = <&vadc_fixed>;
 			};
 
 			/* AD Converter #2 */
-			ltc2481_2: ltc2487@15 {
+			ltc2481_2: ltc2481@15 {
 				compatible = "lltc,ltc2481";
 				reg = <0x15>;
 				vref-supply = <&vadc_fixed>;
