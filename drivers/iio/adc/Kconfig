@@ -571,6 +571,16 @@ config LTC2471
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2471.
 
+config LTC2481
+	tristate "Linear Technology LTC2481 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2481
+	  16-Bit 1-/2-Channel Delta Sigma ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2481.
+
 config LTC2485
 	tristate "Linear Technology LTC2485 ADC driver"
 	depends on I2C
