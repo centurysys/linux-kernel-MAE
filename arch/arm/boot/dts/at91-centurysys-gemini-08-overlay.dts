@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-08-overlay.dts - Device Tree Overlay file (xio_id: 0x08)
+ *                                           for Century Systems Gemini board
+ *
+ *  Copyright (C) 2023 Century Systems
+ *                     Takeyoshi Kikuchi <kikuchi@centurysys.co.jp>
+ */
+
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/regulator/active-semi,8945a-regulator.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+
+	fragment@0 {
+		target = <&leds>;
+		__overlay__ {
+			tca953x_efuse_shdn_n {
+				label = "VOUT_CTRL";
+				gpios = <&tca9538 0 GPIO_ACTIVE_HIGH>;
+			};
+
+			tca953x_adc_vcc_on {
+				label = "ADC_VCC_ON";
+				gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
+			};
+		};
+	};
+};
