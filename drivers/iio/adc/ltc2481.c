@@ -3,6 +3,7 @@
  * ltc2481.c - Driver for Analog Devices/Linear Technology LTC2481 ADC
  *
  * Copyright (C) 2017 Analog Devices Inc.
+ * Copyright (C) 2023 Century Systems
  *
  * Datasheet: http://cds.linear.com/docs/en/datasheet/2481fd.pdf
  */
@@ -16,11 +17,9 @@
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#define LTC2481_ENABLE			0xA0
 #define LTC2481_SGL			BIT(4)
 #define LTC2481_DIFF			0
 #define LTC2481_SIGN			BIT(3)
-#define LTC2481_CONFIG_DEFAULT		LTC2481_ENABLE
 #define LTC2481_CONVERSION_TIME_MS	170ULL
 
 struct ltc2481_st {
@@ -152,7 +151,7 @@ static int ltc2481_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	struct ltc2481_st *st;
 	struct iio_map *plat_data;
-	char buf[2];
+	char buf[1];
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
@@ -191,14 +190,13 @@ static int ltc2481_probe(struct i2c_client *client,
 		}
 	}
 
-	buf[0] = LTC2481_CONFIG_DEFAULT;
-	buf[1] = 0x80;
+	buf[0] = 0;
 
-	ret = i2c_master_send(client, buf, 2);
+	ret = i2c_master_send(client, buf, 1);
 	if (ret < 0)
 		goto err_array_unregister;
 
-	st->started = false;
+	st->started = true;
 	st->time_prev = ktime_get();
 
 	ret = iio_device_register(indio_dev);
