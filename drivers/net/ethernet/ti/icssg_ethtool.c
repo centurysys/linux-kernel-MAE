@@ -79,10 +79,30 @@ struct miig_stats_regs {
 	u32 tx_total_bytes;
 };
 
+/* ICSSG PA_STATS registers */
+struct pa_stats_regs {
+	u32 iet_bad_frag_slice0;
+	u32 iet_bad_frag_slice1;
+	u32 iet_asm_err_slice0;
+	u32 iet_asm_err_slice1;
+	u32 iet_tx_frag_slice0;
+	u32 iet_tx_frag_slice1;
+	u32 iet_asm_ok_slice0;
+	u32 iet_asm_ok_slice1;
+	u32 iet_rx_frag_slice0;
+	u32 iet_rx_frag_slice1;
+};
+
 #define ICSSG_STATS(field)				\
 {							\
 	#field,						\
 	offsetof(struct miig_stats_regs, field),	\
+}
+
+#define ICSSG_PA_STATS(field)			\
+{						\
+	#field,					\
+	offsetof(struct pa_stats_regs, field),	\
 }
 
 /**
@@ -160,6 +180,20 @@ static const struct icssg_stats icssg_ethtool_stats[] = {
 	ICSSG_STATS(tx_total_bytes),
 };
 
+static const struct icssg_stats icssg_pa_stats[] = {
+	/* PA STATS */
+	ICSSG_PA_STATS(iet_bad_frag_slice0),
+	ICSSG_PA_STATS(iet_bad_frag_slice1),
+	ICSSG_PA_STATS(iet_asm_err_slice0),
+	ICSSG_PA_STATS(iet_asm_err_slice1),
+	ICSSG_PA_STATS(iet_tx_frag_slice0),
+	ICSSG_PA_STATS(iet_tx_frag_slice1),
+	ICSSG_PA_STATS(iet_asm_ok_slice0),
+	ICSSG_PA_STATS(iet_asm_ok_slice1),
+	ICSSG_PA_STATS(iet_rx_frag_slice0),
+	ICSSG_PA_STATS(iet_rx_frag_slice1),
+};
+
 static void emac_get_drvinfo(struct net_device *ndev,
 			     struct ethtool_drvinfo *info)
 {
@@ -230,7 +264,7 @@ static int emac_get_sset_count(struct net_device *ndev, int stringset)
 {
 	switch (stringset) {
 	case ETH_SS_STATS:
-		return ARRAY_SIZE(icssg_ethtool_stats);
+		return ICSSG_NUM_STATS;
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(emac_ethtool_priv_flags);
 	default:
@@ -240,14 +274,23 @@ static int emac_get_sset_count(struct net_device *ndev, int stringset)
 
 static void emac_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
+	const struct icssg_stats *hw_stats;
+	u32 i, num_stats;
 	u8 *p = data;
-	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < ARRAY_SIZE(icssg_ethtool_stats); i++) {
-			memcpy(p, icssg_ethtool_stats[i].name,
-			       ETH_GSTRING_LEN);
+		num_stats = ARRAY_SIZE(icssg_ethtool_stats);
+		hw_stats = icssg_ethtool_stats;
+		for (i = 0; i < num_stats; i++) {
+			memcpy(p, hw_stats[i].name, ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+
+		num_stats = ARRAY_SIZE(icssg_pa_stats);
+		hw_stats = icssg_pa_stats;
+		for (i = 0; i < num_stats; i++) {
+			memcpy(p, hw_stats[i].name, ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		break;
@@ -268,8 +311,8 @@ static void emac_update_hardware_stats(struct prueth_emac *emac)
 	struct prueth *prueth = emac->prueth;
 	int slice = prueth_emac_slice(emac);
 	u32 base = stats_base[slice];
+	int i, j;
 	u32 val;
-	int i;
 
 	for (i = 0; i < ARRAY_SIZE(icssg_ethtool_stats); i++) {
 		regmap_read(prueth->miig_rt,
@@ -280,6 +323,13 @@ static void emac_update_hardware_stats(struct prueth_emac *emac)
 			     val);
 
 		emac->stats[i] += val;
+	}
+
+	for (j = 0; j < ARRAY_SIZE(icssg_pa_stats); j++) {
+		regmap_read(prueth->pa_stats,
+			    ICSSG_IET_STATS_BASE + icssg_pa_stats[j].offset,
+			    &val);
+		emac->stats[i + j] += val;
 	}
 }
 
@@ -301,7 +351,7 @@ static void emac_get_ethtool_stats(struct net_device *ndev,
 
 	emac_update_hardware_stats(emac);
 
-	for (i = 0; i < ARRAY_SIZE(icssg_ethtool_stats); i++)
+	for (i = 0; i < ICSSG_NUM_STATS; i++)
 		data[i] = emac->stats[i];
 }
 
@@ -398,6 +448,88 @@ static int emac_set_ethtool_priv_flags(struct net_device *ndev, u32 flags)
 	return 0;
 }
 
+static int emac_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth_tx_chn *tx_chn;
+
+	tx_chn = &emac->tx_chns[0];
+
+	coal->rx_coalesce_usecs = emac->rx_pace_timeout_ns / 1000;
+	coal->tx_coalesce_usecs = tx_chn->tx_pace_timeout_ns / 1000;
+
+	return 0;
+}
+
+static int emac_get_per_queue_coalesce(struct net_device *ndev, u32 queue,
+				       struct ethtool_coalesce *coal)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth_tx_chn *tx_chn;
+
+	if (queue >= PRUETH_MAX_TX_QUEUES)
+		return -EINVAL;
+
+	tx_chn = &emac->tx_chns[queue];
+
+	coal->tx_coalesce_usecs = tx_chn->tx_pace_timeout_ns / 1000;
+
+	return 0;
+}
+
+static int emac_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+	struct prueth_tx_chn *tx_chn;
+
+	tx_chn = &emac->tx_chns[0];
+
+	if (coal->rx_coalesce_usecs && coal->rx_coalesce_usecs < ICSSG_MIN_COALESCE_USECS) {
+		dev_info(prueth->dev, "defaulting to min value of %dus for rx-usecs\n",
+			 ICSSG_MIN_COALESCE_USECS);
+		coal->rx_coalesce_usecs = ICSSG_MIN_COALESCE_USECS;
+	}
+
+	if (coal->tx_coalesce_usecs && coal->tx_coalesce_usecs < ICSSG_MIN_COALESCE_USECS) {
+		dev_info(prueth->dev, "defaulting to min value of %dus for tx-usecs\n",
+			 ICSSG_MIN_COALESCE_USECS);
+		coal->tx_coalesce_usecs = ICSSG_MIN_COALESCE_USECS;
+	}
+
+	emac->rx_pace_timeout_ns = coal->rx_coalesce_usecs * 1000;
+	tx_chn->tx_pace_timeout_ns = coal->tx_coalesce_usecs * 1000;
+
+	return 0;
+}
+
+static int emac_set_per_queue_coalesce(struct net_device *ndev, u32 queue,
+				       struct ethtool_coalesce *coal)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+	struct prueth_tx_chn *tx_chn;
+
+	if (queue >= PRUETH_MAX_TX_QUEUES)
+		return -EINVAL;
+
+	tx_chn = &emac->tx_chns[queue];
+
+	if (coal->tx_coalesce_usecs && coal->tx_coalesce_usecs < ICSSG_MIN_COALESCE_USECS) {
+		dev_info(prueth->dev, "defaulting to min value of %dus for tx-usecs for tx-%u\n",
+			 ICSSG_MIN_COALESCE_USECS, queue);
+		coal->tx_coalesce_usecs = ICSSG_MIN_COALESCE_USECS;
+	}
+
+	tx_chn->tx_pace_timeout_ns = coal->tx_coalesce_usecs * 1000;
+
+	return 0;
+}
+
 const struct ethtool_ops icssg_ethtool_ops = {
 	.get_drvinfo = emac_get_drvinfo,
 	.get_msglevel = emac_get_msglevel,
@@ -408,6 +540,11 @@ const struct ethtool_ops icssg_ethtool_ops = {
 	.get_ts_info = emac_get_ts_info,
 	.get_priv_flags = emac_get_ethtool_priv_flags,
 	.set_priv_flags = emac_set_ethtool_priv_flags,
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS | ETHTOOL_COALESCE_TX_USECS,
+	.get_coalesce           = emac_get_coalesce,
+	.set_coalesce           = emac_set_coalesce,
+	.get_per_queue_coalesce = emac_get_per_queue_coalesce,
+	.set_per_queue_coalesce = emac_set_per_queue_coalesce,
 	.get_channels = emac_get_channels,
 	.set_channels = emac_set_channels,
 	.get_link_ksettings = emac_get_link_ksettings,
