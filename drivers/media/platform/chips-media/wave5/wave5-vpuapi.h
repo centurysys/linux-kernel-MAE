@@ -10,6 +10,7 @@
 
 #include <linux/kfifo.h>
 #include <linux/idr.h>
+#include <linux/genalloc.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-ctrls.h>
@@ -43,6 +44,8 @@ enum vpu_instance_state {
 
 #define MAX_REG_FRAME (WAVE5_MAX_FBS * 2)
 
+#define MAX_TIMESTAMP_CIR_BUF 30
+
 #define WAVE5_DEC_HEVC_BUF_SIZE(_w, _h) (DIV_ROUND_UP(_w, 64) * DIV_ROUND_UP(_h, 64) * 256 + 64)
 #define WAVE5_DEC_AVC_BUF_SIZE(_w, _h) ((((ALIGN(_w, 256) / 16) * (ALIGN(_h, 16) / 16)) + 16) * 80)
 #define WAVE5_DEC_VP9_BUF_SIZE(_w, _h) (((ALIGN(_w, 64) * ALIGN(_h, 64)) >> 2))
@@ -57,6 +60,8 @@ enum vpu_instance_state {
 #define WAVE5_FBC_CHROMA_TABLE_SIZE(_w, _h) (ALIGN((_h), 64) * ALIGN((_w) / 2, 256) / 32)
 #define WAVE5_ENC_AVC_BUF_SIZE(_w, _h) (ALIGN(_w, 64) * ALIGN(_h, 64) / 32)
 #define WAVE5_ENC_HEVC_BUF_SIZE(_w, _h) (ALIGN(_w, 64) / 64 * ALIGN(_h, 64) / 64 * 128)
+
+#define IS_WRAP(_v, _max) ((_v % _max) ? 1 : 0)
 
 /*
  * common struct and definition
@@ -916,15 +921,11 @@ enum GOP_PRESET_IDX {
 };
 
 struct sec_axi_info {
-	struct {
-		u32 use_ip_enable;
-		u32 use_bit_enable;
-		u32 use_lf_row_enable: 1;
-		u32 use_enc_rdo_enable: 1;
-		u32 use_enc_lf_enable: 1;
-	} wave;
-	unsigned int buf_size;
-	dma_addr_t buf_base;
+	u32 use_ip_enable;
+	u32 use_bit_enable;
+	u32 use_lf_row_enable: 1;
+	u32 use_enc_rdo_enable: 1;
+	u32 use_enc_lf_enable: 1;
 };
 
 struct dec_info {
@@ -1019,11 +1020,13 @@ struct vpu_device {
 	struct mutex dev_lock; /* the lock for the src,dst v4l2 queues */
 	struct mutex hw_lock; /* lock hw configurations */
 	int irq;
-	enum product_id	 product;
-	struct vpu_attr	 attr;
+	enum product_id	product;
+	struct vpu_attr	attr;
 	struct vpu_buf common_mem;
 	u32 last_performance_cycles;
-	struct dma_vpu_buf sram_buf;
+	u32 sram_size;
+	struct gen_pool *sram_pool;
+	struct vpu_buf sram_buf;
 	void __iomem *vdb_register;
 	u32 product_code;
 	u32 ext_addr;
@@ -1042,6 +1045,15 @@ struct vpu_instance_ops {
 	void (*start_process)(struct vpu_instance *inst);
 	void (*stop_process)(struct vpu_instance *inst);
 	void (*finish_process)(struct vpu_instance *inst);
+};
+
+/* for support GStreamer ver 1.20 over
+ * too old frame, eos sent too early
+ */
+struct timestamp_circ_buf {
+	u64 buf[MAX_TIMESTAMP_CIR_BUF];
+	int head;
+	int tail;
 };
 
 struct vpu_instance {
@@ -1065,12 +1077,13 @@ struct vpu_instance {
 	enum vpu_instance_type type;
 	const struct vpu_instance_ops *ops;
 
-	enum wave_std		 std;
-	s32			 id;
+	enum wave_std std;
+	s32 id;
 	union {
 		struct enc_info enc_info;
 		struct dec_info dec_info;
 	} *codec_info;
+	struct vpu_rect pic_crop_rect;
 	struct frame_buffer frame_buf[MAX_REG_FRAME];
 	struct vpu_buf frame_vbuf[MAX_REG_FRAME];
 	u32 fbc_buf_count;
@@ -1082,6 +1095,7 @@ struct vpu_instance {
 	u32 conf_win_width;
 	u32 conf_win_height;
 	u64 timestamp;
+	struct timestamp_circ_buf time_stamp;
 	enum frame_buffer_format output_format;
 	bool cbcr_interleave;
 	bool nv21;
@@ -1111,6 +1125,8 @@ int wave5_vdi_write_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb, size_
 			   u8 *data, size_t len, unsigned int endian);
 unsigned int wave5_vdi_convert_endian(struct vpu_device *vpu_dev, unsigned int endian);
 void wave5_vdi_free_dma_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb);
+void wave5_vdi_allocate_sram(struct vpu_device *vpu_dev);
+void wave5_vdi_free_sram(struct vpu_device *vpu_dev);
 
 int wave5_vpu_init_with_bitcode(struct device *dev, u8 *bitcode, size_t size);
 void wave5_vpu_clear_interrupt_ex(struct vpu_instance *inst, u32 intr_flag);
