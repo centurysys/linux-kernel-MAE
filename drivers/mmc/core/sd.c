@@ -25,6 +25,7 @@
 #include "card.h"
 #include "host.h"
 #include "bus.h"
+#include "quirks.h"
 #include "mmc_ops.h"
 #include "sd.h"
 #include "sd_ops.h"
@@ -459,6 +460,10 @@ static void sd_update_bus_speed_mode(struct mmc_card *card)
 	if (!mmc_host_uhs(card->host)) {
 		card->sd_bus_speed = 0;
 		return;
+	}
+
+	if (card->quirk_disabled_mode != 0) {
+		card->sw_caps.sd3_bus_mode &= ~card->quirk_disabled_mode;
 	}
 
 	if ((card->host->caps & MMC_CAP_UHS_SDR104) &&
@@ -1441,6 +1446,8 @@ retry:
 	 */
 	if (host->ops->init_card)
 		host->ops->init_card(host, card);
+
+	mmc_fixup_device(card, sd_card_init_methods);
 
 	/*
 	 * For native busses:  get card RCA and quit open drain mode.
