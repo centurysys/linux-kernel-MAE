@@ -1447,8 +1447,6 @@ retry:
 	if (host->ops->init_card)
 		host->ops->init_card(host, card);
 
-	mmc_fixup_device(card, sd_card_init_methods);
-
 	/*
 	 * For native busses:  get card RCA and quit open drain mode.
 	 */
@@ -1465,6 +1463,8 @@ retry:
 
 		mmc_decode_cid(card);
 	}
+
+	mmc_fixup_device(card, sd_card_init_methods);
 
 	/*
 	 * handling only for cards supporting DSR and hosts requesting
