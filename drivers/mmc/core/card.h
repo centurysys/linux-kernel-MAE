@@ -184,7 +184,6 @@ static inline void __maybe_unused add_limit_rate_quirk(struct mmc_card *card,
 static inline void __maybe_unused add_limit_speed_quirk(struct mmc_card *card,
 							int data)
 {
-	printk("%s: quirk_disabled_mode <- 0x%08x\n", __FUNCTION__, data);
 	card->quirk_disabled_mode = data;
 }
 
