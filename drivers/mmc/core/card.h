@@ -79,6 +79,7 @@ struct mmc_fixup {
 #define CID_MANFID_MICRON       0x13
 #define CID_MANFID_SAMSUNG      0x15
 #define CID_MANFID_APACER       0x27
+#define CID_MANFID_SWISSBIT     0x5d
 #define CID_MANFID_KINGSTON     0x70
 #define CID_MANFID_HYNIX	0x90
 #define CID_MANFID_NUMONYX	0xFE
@@ -167,6 +168,12 @@ static inline void __maybe_unused add_limit_rate_quirk(struct mmc_card *card,
 						       int data)
 {
 	card->quirk_max_rate = data;
+}
+
+static inline void __maybe_unused add_limit_speed_quirk(struct mmc_card *card,
+							int data)
+{
+	card->quirk_disabled_mode = data;
 }
 
 static inline void __maybe_unused wl1251_quirk(struct mmc_card *card,
