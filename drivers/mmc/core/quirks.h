@@ -164,6 +164,8 @@ static const struct mmc_fixup __maybe_unused sdio_card_init_methods[] = {
 };
 
 static const struct mmc_fixup __maybe_unused sd_card_init_methods[] = {
+	MMC_FIXUP("L1BM1", CID_MANFID_SWISSBIT, 0x5342, add_limit_speed_quirk,
+		  SD_MODE_UHS_SDR104),
 	MMC_FIXUP("0016G", CID_MANFID_SWISSBIT, 0x5342, add_limit_speed_quirk,
 		  SD_MODE_UHS_SDR104),
 	END_FIXUP
