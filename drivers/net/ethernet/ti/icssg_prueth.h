@@ -67,6 +67,7 @@
 #define ICSS_CMD_RXTX 0x10
 #define ICSS_CMD_ADD_FDB 0x1
 #define ICSS_CMD_DEL_FDB 0x2
+#define ICSS_CMD_ERASE_FDB 0x3
 #define ICSS_CMD_SET_RUN 0x4
 #define ICSS_CMD_GET_FDB_SLOT 0x5
 #define ICSS_CMD_ENABLE_VLAN 0x5
@@ -124,6 +125,7 @@ struct prueth_rx_chn {
 enum prueth_devlink_param_id {
 	PRUETH_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
 	PRUETH_DL_PARAM_SWITCH_MODE,
+	PRUETH_DL_PARAM_HSR_OFFLOAD_MODE,
 };
 
 struct prueth_devlink {
@@ -276,6 +278,7 @@ struct prueth_pdata {
  * @iep1: pointer to IEP1 device
  * @vlan_tbl: VLAN-FID table pointer
  * @hw_bridge_dev: pointer to HW bridge net device
+ * @hsr_dev: pointer to the HSR net device
  * @br_members: bitmask of bridge member ports
  * @prueth_netdevice_nb: netdevice notifier block
  * @prueth_switchdevice_nb: switchdev notifier block
@@ -314,11 +317,13 @@ struct prueth {
 	struct prueth_vlan_tbl *vlan_tbl;
 
 	struct net_device *hw_bridge_dev;
+	struct net_device *hsr_dev;
 	u8 br_members;
 	struct notifier_block prueth_netdevice_nb;
 	struct notifier_block prueth_switchdev_nb;
 	struct notifier_block prueth_switchdev_bl_nb;
 	bool is_switch_mode;
+	bool is_hsr_offload_mode;
 	bool is_switchmode_supported;
 	unsigned char switch_id[MAX_PHYS_ITEM_ID_LEN];
 	int default_vlan;
@@ -376,6 +381,8 @@ void icssg_vtbl_modify(struct prueth_emac *emac, u8 vid, u8 port_mask,
 		       u8 untag_mask, bool add);
 u16 icssg_get_pvid(struct prueth_emac *emac);
 void icssg_set_pvid(struct prueth *prueth, u8 vid, u8 port);
+int emac_fdb_erase_all(struct prueth_emac *emac);
+int emac_fdb_flush_multicast(struct prueth_emac *emac);
 #define prueth_napi_to_tx_chn(pnapi) \
 	container_of(pnapi, struct prueth_tx_chn, napi_tx)
 

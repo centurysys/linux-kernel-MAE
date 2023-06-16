@@ -393,6 +393,9 @@ static int prueth_emac_buffer_setup(struct prueth_emac *emac)
 
 static void icssg_init_emac_mode(struct prueth *prueth)
 {
+	u32 addr = prueth->shram.pa + VLAN_STATIC_REG_TABLE_OFFSET;
+	int i;
+
 	/* When the device is configured as a bridge and it is being brought back
 	 * to the emac mode, the host mac address has to be set as 0.
 	 */
@@ -401,8 +404,18 @@ static void icssg_init_emac_mode(struct prueth *prueth)
 	if (prueth->emacs_initialized)
 		return;
 
-	regmap_update_bits(prueth->miig_rt, FDB_GEN_CFG1, SMEM_VLAN_OFFSET_MASK, 0);
-	regmap_write(prueth->miig_rt, FDB_GEN_CFG2, 0);
+	/* Set VLAN TABLE address base */
+	regmap_update_bits(prueth->miig_rt, FDB_GEN_CFG1, SMEM_VLAN_OFFSET_MASK,
+			   addr <<  SMEM_VLAN_OFFSET);
+
+	/* Configure CFG2 register */
+	regmap_write(prueth->miig_rt, FDB_GEN_CFG2, (FDB_PRU0_EN | FDB_PRU1_EN | FDB_HOST_EN));
+
+	prueth->vlan_tbl = prueth->shram.va + VLAN_STATIC_REG_TABLE_OFFSET;
+	for (i = 0; i < SZ_4K - 1; i++) {
+		prueth->vlan_tbl[i].fid = i;
+		prueth->vlan_tbl[i].fid_c1 = 0;
+	}
 	/* Clear host MAC address */
 	icssg_class_set_host_mac_addr(prueth->miig_rt, mac);
 }
@@ -426,7 +439,8 @@ static void icssg_init_switch_mode(struct prueth *prueth)
 		prueth->vlan_tbl[i].fid_c1 = 0;
 	}
 
-	icssg_class_set_host_mac_addr(prueth->miig_rt, prueth->hw_bridge_dev->dev_addr);
+	if (prueth->hw_bridge_dev)
+		icssg_class_set_host_mac_addr(prueth->miig_rt, prueth->hw_bridge_dev->dev_addr);
 	icssg_set_pvid(prueth, prueth->default_vlan, PRUETH_PORT_HOST);
 }
 
@@ -437,7 +451,7 @@ int icssg_config(struct prueth *prueth, struct prueth_emac *emac, int slice)
 	u8 *cfg_byte_ptr = config;
 	int ret;
 
-	if (prueth->is_switch_mode)
+	if (prueth->is_switch_mode || prueth->is_hsr_offload_mode)
 		icssg_init_switch_mode(prueth);
 	else
 		icssg_init_emac_mode(prueth);
@@ -453,7 +467,7 @@ int icssg_config(struct prueth *prueth, struct prueth_emac *emac, int slice)
 	}
 	regmap_update_bits(prueth->miig_rt, ICSSG_CFG_OFFSET, ICSSG_CFG_DEFAULT, ICSSG_CFG_DEFAULT);
 	icssg_miig_set_interface_mode(prueth->miig_rt, slice, emac->phy_if);
-	if (prueth->is_switch_mode)
+	if (prueth->is_switch_mode || prueth->is_hsr_offload_mode)
 		icssg_config_mii_init_switch(emac);
 	else
 		icssg_config_mii_init(emac);
@@ -479,7 +493,7 @@ int icssg_config(struct prueth *prueth, struct prueth_emac *emac, int slice)
 	*(cfg_byte_ptr + SPL_PKT_DEFAULT_PRIORITY) = 0;
 	*(cfg_byte_ptr + QUEUE_NUM_UNTAGGED) = 0x0;
 
-	if (prueth->is_switch_mode)
+	if (prueth->is_switch_mode || prueth->is_hsr_offload_mode)
 		ret = prueth_switch_buffer_setup(emac);
 	else
 		ret = prueth_emac_buffer_setup(emac);
@@ -774,4 +788,47 @@ void icssg_set_pvid(struct prueth *prueth, u8 vid, u8 port)
 		writel(pvid, prueth->shram.va + EMAC_ICSSG_SWITCH_PORT2_DEFAULT_VLAN_OFFSET);
 	else
 		writel(pvid, prueth->shram.va + EMAC_ICSSG_SWITCH_PORT0_DEFAULT_VLAN_OFFSET);
+}
+
+int emac_fdb_erase_all(struct prueth_emac *emac)
+{
+	struct mgmt_cmd_rsp fdb_cmd_rsp = { 0 };
+	int slice = prueth_emac_slice(emac);
+	struct mgmt_cmd fdb_cmd = { 0 };
+	int ret = 0;
+
+	fdb_cmd.header = ICSSG_FW_MGMT_CMD_HEADER;
+	fdb_cmd.type   = ICSSG_FW_MGMT_FDB_CMD_TYPE;
+	fdb_cmd.seqnum = ++(emac->prueth->icssg_hwcmdseq);
+	fdb_cmd.param  = ICSS_CMD_ERASE_FDB;
+
+	fdb_cmd.param |= (slice << 4);
+	fdb_cmd.cmd_args[0] = 0;
+
+	ret = icssg_send_fdb_msg(emac, &fdb_cmd, &fdb_cmd_rsp);
+
+	if (ret)
+		return ret;
+
+	WARN_ON(fdb_cmd.seqnum != fdb_cmd_rsp.seqnum);
+	if (fdb_cmd_rsp.status == 1)
+		return 0;
+
+	return -EINVAL;
+}
+
+int emac_fdb_flush_multicast(struct prueth_emac *emac)
+{
+	struct prueth *prueth = emac->prueth;
+	int ret = 0;
+	int i;
+
+	ret = emac_fdb_erase_all(emac);
+
+	for (i = 0; i < SZ_4K - 1; i++) {
+		prueth->vlan_tbl[i].fid = i;
+		prueth->vlan_tbl[i].fid_c1 = 0;
+	}
+
+	return ret;
 }
