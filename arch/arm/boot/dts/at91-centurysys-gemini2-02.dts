@@ -629,8 +629,8 @@
 			 <PIN_PC24__GPIO>,
 			 <PIN_PC25__GPIO>,
 			 <PIN_PD12__GPIO>,
-			 <PIN_PD13__GPIO>;
-			 <PIN_PD23__GPIO>;
+			 <PIN_PD13__GPIO>,
+			 <PIN_PD23__GPIO>,
 			 <PIN_PD25__GPIO>;
 		bias-disable;
 	};
