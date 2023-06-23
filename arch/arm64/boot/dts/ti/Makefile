@@ -11,12 +11,12 @@
 # Boards with AM62x SoC
 dtb-$(CONFIG_ARCH_K3) += k3-am625-beagleplay.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk.dtb
-dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-lpmdemo.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-mcu-gpio-wakeup.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-microtips-mf101hie-panel.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-csi2-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-csi2-tevi-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-dmtimer-pwm.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-ecap-capture.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-hdmi-audio.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62-lp-sk.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62-lp-sk-nand.dtbo
@@ -33,6 +33,7 @@ k3-am62a7-sk-fusion-ov2312-dtbs := k3-am62a7-sk.dtb \
 				   k3-am62a7-sk-fusion.dtbo \
 				   k3-fpdlink-ov2312-0-0.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62a7-sk-csi2-imx219.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am62a7-sk-e3-max-opp.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62a7-sk-ethernet-dc01.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62a7-sk-fusion-imx390.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62a7-sk-fusion-ov2312.dtb
