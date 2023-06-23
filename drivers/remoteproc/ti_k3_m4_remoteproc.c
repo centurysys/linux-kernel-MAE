@@ -241,7 +241,6 @@ static int k3_m4_rproc_start(struct rproc *rproc)
 {
 	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
-	u32 boot_addr;
 	int ret;
 
 	if (kproc->ipc_only) {
@@ -254,7 +253,6 @@ static int k3_m4_rproc_start(struct rproc *rproc)
 	if (ret)
 		return ret;
 
-	boot_addr = rproc->bootaddr;
 	ret = k3_rproc_release(kproc);
 	if (ret)
 		goto put_mbox;
@@ -431,7 +429,7 @@ static int k3_m4_rproc_probe(struct platform_device *pdev)
 
 	if (device_property_present(dev, "wakeup-source")) {
 		dev_dbg(dev, "registering as wakeup source\n");
-		device_init_wakeup(dev, true);
+		device_set_wakeup_capable(dev, true);
 	}
 
 	kproc->reset = devm_reset_control_get_exclusive(dev, NULL);
