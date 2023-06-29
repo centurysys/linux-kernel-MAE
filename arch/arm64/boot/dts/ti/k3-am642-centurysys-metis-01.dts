@@ -163,33 +163,33 @@
 			led-pattern = <10 10>;
 		};
 
-		led_g0 {
-			label = "MobileLED_G0";
-			gpios = <&main_gpio1 8 GPIO_ACTIVE_LOW>;
-		};
-
 		led_g1 {
 			label = "MobileLED_G1";
-			gpios = <&main_gpio1 9 GPIO_ACTIVE_LOW>;
+			gpios = <&main_gpio1 8 GPIO_ACTIVE_LOW>;
 		};
 
 		led_g2 {
 			label = "MobileLED_G2";
-			gpios = <&main_gpio1 10 GPIO_ACTIVE_LOW>;
+			gpios = <&main_gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 
-		led_r0 {
-			label = "MobileLED_R0";
-			gpios = <&main_gpio1 11 GPIO_ACTIVE_LOW>;
+		led_g3 {
+			label = "MobileLED_G3";
+			gpios = <&main_gpio1 10 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r1 {
 			label = "MobileLED_R1";
-			gpios = <&main_gpio1 12 GPIO_ACTIVE_LOW>;
+			gpios = <&main_gpio1 11 GPIO_ACTIVE_LOW>;
 		};
 
 		led_r2 {
 			label = "MobileLED_R2";
+			gpios = <&main_gpio1 12 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r3 {
+			label = "MobileLED_R3";
 			gpios = <&main_gpio1 13 GPIO_ACTIVE_LOW>;
 		};
 
