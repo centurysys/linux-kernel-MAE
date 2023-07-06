@@ -89,27 +89,27 @@ struct ads8688_ranges {
 static const struct ads8688_ranges ads8688_range_def[5] = {
 	{
 		.range = ADS8688_PLUSMINUS25VREF,
-		.scale = 76295,
+		.scale = 312500,
 		.offset = -(1 << (ADS8688_REALBITS - 1)),
 		.reg = ADS8688_REG_PLUSMINUS25VREF,
 	}, {
 		.range = ADS8688_PLUSMINUS125VREF,
-		.scale = 38148,
+		.scale = 156250,
 		.offset = -(1 << (ADS8688_REALBITS - 1)),
 		.reg = ADS8688_REG_PLUSMINUS125VREF,
 	}, {
 		.range = ADS8688_PLUSMINUS0625VREF,
-		.scale = 19074,
+		.scale = 78125,
 		.offset = -(1 << (ADS8688_REALBITS - 1)),
 		.reg = ADS8688_REG_PLUSMINUS0625VREF,
 	}, {
 		.range = ADS8688_PLUS25VREF,
-		.scale = 38148,
+		.scale = 156250,
 		.offset = 0,
 		.reg = ADS8688_REG_PLUS25VREF,
 	}, {
 		.range = ADS8688_PLUS125VREF,
-		.scale = 19074,
+		.scale = 78125,
 		.offset = 0,
 		.reg = ADS8688_REG_PLUS125VREF,
 	}
@@ -118,12 +118,10 @@ static const struct ads8688_ranges ads8688_range_def[5] = {
 static ssize_t ads8688_show_scales(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct ads8688_state *st = iio_priv(dev_to_iio_dev(dev));
-
-	return sprintf(buf, "0.%09u 0.%09u 0.%09u\n",
-		       ads8688_range_def[0].scale * st->vref_mv,
-		       ads8688_range_def[1].scale * st->vref_mv,
-		       ads8688_range_def[2].scale * st->vref_mv);
+	return sprintf(buf, "0.%06u 0.%06u 0.%06u\n",
+		       ads8688_range_def[0].scale,
+		       ads8688_range_def[1].scale,
+		       ads8688_range_def[2].scale);
 }
 
 static ssize_t ads8688_show_offsets(struct device *dev,
@@ -259,12 +257,11 @@ static int ads8688_read_raw(struct iio_dev *indio_dev,
 		*val = ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_mv = st->vref_mv;
-		scale_mv *= ads8688_range_def[st->range[chan->channel]].scale;
+		scale_mv = ads8688_range_def[st->range[chan->channel]].scale;
 		*val = 0;
 		*val2 = scale_mv;
 		mutex_unlock(&st->lock);
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OFFSET:
 		offset = ads8688_range_def[st->range[chan->channel]].offset;
 		*val = offset;
@@ -300,14 +297,14 @@ static int ads8688_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		/* If the offset is 0 the ±2.5 * VREF mode is not available */
 		offset = ads8688_range_def[st->range[chan->channel]].offset;
-		if (offset == 0 && val2 == ads8688_range_def[0].scale * st->vref_mv) {
+		if (offset == 0 && val2 == ads8688_range_def[0].scale) {
 			mutex_unlock(&st->lock);
 			return -EINVAL;
 		}
 
 		/* Lookup new mode */
 		for (i = 0; i < ARRAY_SIZE(ads8688_range_def); i++)
-			if (val2 == ads8688_range_def[i].scale * st->vref_mv &&
+			if (val2 == ads8688_range_def[i].scale &&
 			    offset == ads8688_range_def[i].offset) {
 				ret = ads8688_write_reg_range(indio_dev, chan,
 					ads8688_range_def[i].reg);
@@ -362,7 +359,7 @@ static int ads8688_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OFFSET:
 		return IIO_VAL_INT;
 	}
@@ -423,21 +420,8 @@ static int ads8688_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
-
-		ret = regulator_get_voltage(st->reg);
-		if (ret < 0)
-			goto err_regulator_disable;
-
-		st->vref_mv = ret / 1000;
-	} else {
-		/* Use internal reference */
-		st->vref_mv = ADS8688_VREF_MV;
-	}
+	/* Use internal reference */
+	st->vref_mv = ADS8688_VREF_MV;
 
 	st->chip_info =	&ads8688_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
