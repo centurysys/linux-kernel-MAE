@@ -113,14 +113,14 @@
 
 			can1_reset {
 				label = "CAN1_Reset";
-				gpios = <&tca9538 6 GPIO_ACTIVE_HIGH>;
-				default-state = "on";
+				gpios = <&tca9538 6 GPIO_ACTIVE_LOW>;
+				linux,default-trigger = "oneshot";
 			};
 
 			can0_reset {
 				label = "CAN0_Reset";
-				gpios = <&tca9538 7 GPIO_ACTIVE_HIGH>;
-				default-state = "on";
+				gpios = <&tca9538 7 GPIO_ACTIVE_LOW>;
+				linux,default-trigger = "oneshot";
 			};
 		};
 	};
