@@ -13,6 +13,7 @@
 #include <dt-bindings/mfd/atmel-flexcom.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/regulator/active-semi,8945a-regulator.h>
 
 / {
@@ -30,6 +31,21 @@
 	};
 
 	fragment@1 {
+		target = <&pioA>;
+		__overlay__ {
+			pinctrl_flx3_spi_default: flx3_spi_default {
+				pinmux = <PIN_PC18__FLEXCOM3_IO2>,
+					 <PIN_PC19__FLEXCOM3_IO1>,
+					 <PIN_PC20__FLEXCOM3_IO0>,
+					 <PIN_PC21__FLEXCOM3_IO3>,
+					 <PIN_PC22__FLEXCOM3_IO4>;
+				atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+				bias-disable;
+			};
+		};
+	};
+
+	fragment@2 {
 		target = <&i2c1>;
 		__overlay__ {
 			#address-cells = <1>;
@@ -54,7 +70,7 @@
 		};
 	};
 
-	fragment@2 {
+	fragment@3 {
 		target = <&flx3>;
 		__overlay__ {
 			atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
@@ -62,7 +78,7 @@
 		};
 	};
 
-	fragment@3 {
+	fragment@4 {
 		target = <&spi5>;
 		__overlay__ {
 			pinctrl-names = "default";
@@ -83,7 +99,7 @@
 		};
 	};
 
-	fragment@4 {
+	fragment@5 {
 		target = <&spi6>;
 		__overlay__ {
 			status = "okay";
@@ -102,7 +118,7 @@
 		};
 	};
 
-	fragment@5 {
+	fragment@6 {
 		target = <&leds>;
 		__overlay__ {
 			ldo5v_en {
