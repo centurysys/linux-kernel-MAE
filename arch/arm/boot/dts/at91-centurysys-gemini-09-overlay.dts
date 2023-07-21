@@ -34,13 +34,19 @@
 		target = <&pioA>;
 		__overlay__ {
 			pinctrl_flx3_spi_default: flx3_spi_default {
-				pinmux = <PIN_PC18__FLEXCOM3_IO2>,
-					 <PIN_PC19__FLEXCOM3_IO1>,
-					 <PIN_PC20__FLEXCOM3_IO0>,
-					 <PIN_PC21__FLEXCOM3_IO3>,
-					 <PIN_PC22__FLEXCOM3_IO4>;
-				atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
-				bias-disable;
+				clk {
+					pinmux = <PIN_PC18__FLEXCOM3_IO2>;
+					atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
+					bias-disable;
+				};
+
+				data {
+					pinmux = <PIN_PC19__FLEXCOM3_IO1>,
+						 <PIN_PC20__FLEXCOM3_IO0>,
+						 <PIN_PC21__FLEXCOM3_IO3>,
+						 <PIN_PC22__FLEXCOM3_IO4>;
+					bias-disable;
+				};
 			};
 		};
 	};
