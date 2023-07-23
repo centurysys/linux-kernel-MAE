@@ -923,11 +923,7 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 {
 	int err;
 
-	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_LEDCR1, 0x6b50);
-	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_GPIO_MUX_CTRL, 0x0006); /* GPIO_1: LED_3 */
-	dp83867_set_swing_level(phydev);
-
-	err = phy_write(phydev, DP83867_CTRL, DP83867_SW_RESTART);
+	err = phy_write(phydev, DP83867_CTRL, DP83867_SW_RESET);
 	if (err < 0)
 		return err;
 
@@ -946,6 +942,10 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 			    0x0e81);
 	if (err < 0)
 		return err;
+
+	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_LEDCR1, 0x6b50);
+	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_GPIO_MUX_CTRL, 0x0006); /* GPIO_1: LED_3 */
+	dp83867_set_swing_level(phydev);
 
 	err = phy_write(phydev, DP83867_CTRL, DP83867_SW_RESTART);
 	if (err < 0)
