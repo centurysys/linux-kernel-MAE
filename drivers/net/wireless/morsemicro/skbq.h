@@ -1,0 +1,154 @@
+#ifndef _MORSE_SKBQ_H_
+#define _MORSE_SKBQ_H_
+
+/*
+ * Copyright 2017-2022 Morse Micro
+ *
+ */
+#include <linux/skbuff.h>
+#include <linux/workqueue.h>
+
+#include "skb_header.h"
+
+/* Size of off-chip SKB queue */
+#ifndef MORSE_SKBQ_SIZE
+#define MORSE_SKBQ_SIZE			(4 * 128 * 1024)
+#endif
+
+struct morse;
+
+struct morse_skbq {
+	u32 pkt_seq;			/* SKB sequence used in tx_status */
+	u16 flags;
+	u32 skbq_size;			/* current off loaded size */
+	spinlock_t lock;
+	struct morse *mors;		/* mainly for debugging */
+	struct sk_buff_head skbq;
+	struct sk_buff_head pending;	/* packets sent pending feeback */
+	struct work_struct dispatch_work;
+};
+
+int morse_skbq_purge(struct morse_skbq *mq, struct sk_buff_head *skbq);
+u32 morse_skbq_space(struct morse_skbq *mq);
+u32 morse_skbq_size(struct morse_skbq *mq);
+int morse_skbq_deq(struct morse_skbq *mq,
+			  struct sk_buff_head *skbq,
+			  int size);
+int morse_skbq_deq_num_items(struct morse_skbq *mq,
+			  struct sk_buff_head *skbq,
+			  int num_items);
+struct sk_buff *morse_skbq_alloc_skb(struct morse_skbq *mq,
+				     unsigned int length);
+int morse_skbq_skb_tx(struct morse_skbq *mq, struct sk_buff *skb,
+	struct morse_skb_tx_info *tx_info, u8 channel);
+int morse_skbq_enq(struct morse_skbq *mq, struct sk_buff_head *skbq);
+int morse_skbq_enq_prepend(struct morse_skbq *mq, struct sk_buff_head *skbq);
+int morse_skbq_tx_complete(struct morse_skbq *mq, struct sk_buff_head *skbq);
+struct sk_buff *morse_skbq_get_pending_by_id(struct morse *mors,
+					     struct morse_skbq *mq,
+					     u32 seq);
+struct sk_buff *morse_skbq_tx_pending(struct morse_skbq *mq);
+void morse_skbq_show(const struct morse_skbq *mq, struct seq_file *file);
+void morse_skbq_init(struct morse *mors, bool from_chip,
+		     struct morse_skbq *mq, u16 flags);
+void morse_skbq_finish(struct morse_skbq *mq);
+
+void morse_skbq_mon_dump(struct morse *mors, struct seq_file *file);
+
+/**
+ * @brief Unlink a given SKB from mq->pending, and perform Q specific
+ *        'finish' processing on the SKB.
+ *
+ * @note The MQ lock (mq->lock) must be held by the caller.
+ *
+ * @param mq     The MQ from which the SKB came. Assumption is that SKB exists
+ *               within mq->pending.
+ * @param skb    The SKB to perform the finish processing on.
+ * @param tx_sts The TX status returned from the chip to indicate how the SKB
+ *               was sent.
+ *
+ * @return error code (0) on success else non-zero
+ */
+int morse_skbq_skb_finish(struct morse_skbq *mq, struct sk_buff *skb,
+	struct morse_skb_tx_status *tx_sts);
+
+/**
+ * @brief Flush pending and in-flight tx SKBs from the queue.
+ *
+ * @param mq SKB queue
+ *
+ * @return number of elements flushed from the queue
+ */
+int morse_skbq_tx_flush(struct morse_skbq *mq);
+
+/**
+ * @brief For each pending SKB in the given SKBQ, check if its
+ *        tx_status_lifetime has been reached. If so, remove it from the
+ *        pending queue and free appropriately.
+ *
+ * @param mors  Morse context
+ * @param mq    SKB queue
+ *
+ * @return number of pending tx statuses that got removed
+ */
+int morse_skbq_check_for_stale_tx(struct morse *mors,
+	struct morse_skbq *mq);
+
+/**
+ * @brief Return the value of the modparam `tx_status_lifetime_ms`
+ *
+ * @return int The lifetime in (ms)
+ */
+int morse_skbq_get_tx_status_lifetime_ms(void);
+
+/**
+ * @brief Stop the mac80211 TX data Qs.
+ *
+ * @param mors Morse context
+ */
+void morse_skbq_stop_tx_queues(struct morse *mors);
+
+/**
+ * @brief Wake the mac80211 TX data Qs.
+ *
+ * @param mors
+ */
+void morse_skbq_may_wake_tx_queues(struct morse *mors);
+
+/**
+ * @brief Return the number of SKBs that are buffered
+ *        and ready to be TXd. For MQs that are 'halted',
+ *        this function will return 0.
+ *
+ * @param mq SKB queue.
+ *
+ * @return number of tx ready SKBs
+ */
+u32 morse_skbq_count_tx_ready(struct morse_skbq *mq);
+
+/**
+ * @brief Return the number of SKBs that are buffered.
+ *
+ * @param mq SKB queue.
+ *
+ * @return number of buffered SKBs
+ */
+u32 morse_skbq_count(struct morse_skbq *mq);
+
+/**
+ * @brief Pause the DATA Qs. This can only be called from the same context
+ *        that could wake the Qs (i.e. ChipWQ).
+ *
+ * @param mors Morse context
+ */
+void morse_skbq_data_traffic_pause(struct morse *mors);
+
+/**
+ * @brief Resume/Un-pause the DATA Qs. This can only be called from the
+ *        same context that could pause the Qs (i.e. ChipWQ).
+ *
+ * @param mors Morse context
+ */
+void morse_skbq_data_traffic_resume(struct morse *mors);
+
+#endif  /* !_MORSE_SKBQ_H_ */

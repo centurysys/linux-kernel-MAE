@@ -1,0 +1,124 @@
+/*
+ * Copyright 2017-2022 Morse Micro
+ *
+ */
+
+#include <linux/types.h>
+#include <linux/gpio.h>
+
+#include "morse.h"
+#include "debug.h"
+#include "hw.h"
+#include "pager_if.h"
+#include "bus.h"
+
+int morse_hw_irq_enable(struct morse *mors, u32 irq, bool enable)
+{
+	u32 irq_en, irq_en_addr = irq < 32 ? MORSE_REG_INT1_EN(mors) :
+					     MORSE_REG_INT2_EN(mors);
+	u32 irq_clr_addr = irq < 32 ? MORSE_REG_INT1_CLR(mors) :
+				      MORSE_REG_INT2_CLR(mors);
+	u32 mask = irq < 32 ? (1 << irq) : (1 << (irq - 32));
+
+	morse_claim_bus(mors);
+	morse_reg32_read(mors, irq_en_addr, &irq_en);
+	if (enable)
+		irq_en |= (mask);
+	else
+		irq_en &= ~(mask);
+	morse_reg32_write(mors, irq_clr_addr, mask);
+	morse_reg32_write(mors, irq_en_addr, irq_en);
+	morse_release_bus(mors);
+
+	return 0;
+}
+
+int morse_hw_irq_handle(struct morse *mors)
+{
+	u32 status1 = 0;
+
+	morse_claim_bus(mors);
+	morse_reg32_read(mors, MORSE_REG_INT1_STS(mors), &status1);
+	if (status1 & MORSE_CHIP_IF_IRQ_MASK_ALL)
+		mors->cfg->ops->chip_if_handle_irq(mors, status1);
+	if (status1 & MORSE_INT_BEACON_MASK)
+		morse_beacon_irq_handle(mors);
+	if (status1 & MORSE_INT_NDP_PROBE_REQ_PV0_MASK)
+		morse_ndp_probe_req_resp_irq_handle(mors);
+	morse_reg32_write(mors, MORSE_REG_INT1_CLR(mors), status1);
+	morse_release_bus(mors);
+
+	return status1 ? 1 : 0;
+}
+
+int morse_hw_irq_clear(struct morse *mors)
+{
+	morse_claim_bus(mors);
+	morse_reg32_write(mors, MORSE_REG_INT1_CLR(mors), 0xFFFFFFFF);
+	morse_reg32_write(mors, MORSE_REG_INT2_CLR(mors), 0xFFFFFFFF);
+	morse_release_bus(mors);
+	return 0;
+}
+
+int morse_hw_reset(int reset_pin)
+{
+	int ret = gpio_request(reset_pin, "morse-reset-ctrl");
+
+	if (ret < 0) {
+		morse_pr_err("Failed to acquire reset gpio. Skipping reset.\n");
+		return ret;
+	}
+
+	pr_info("Reseting Morse Chip\n");
+	gpio_direction_output(reset_pin, 0);
+	mdelay(20);
+	/* setting gpio as float to avoid forcing 3.3V High */
+	gpio_direction_input(reset_pin);
+	pr_info("Done\n");
+
+	gpio_free(reset_pin);
+
+	return ret;
+}
+
+bool is_efuse_xtal_wait_supported(struct morse *mors)
+{
+	int ret;
+	uint32_t efuse_data2;
+	uint32_t efuse_xtal_wait;
+
+
+	if (MORSE_REG_EFUSE_DATA0(mors) == 0)
+		/* Device doesn't support OTP (probably an FPGA) */
+		return true;
+
+	if (MORSE_REG_EFUSE_DATA2(mors) != 0) {
+		morse_claim_bus(mors);
+		ret = morse_reg32_read(mors, MORSE_REG_EFUSE_DATA2(mors), &efuse_data2);
+		morse_release_bus(mors);
+		if  (ret < 0) {
+			morse_err(mors, "EFuse data2 value read failed: %d\n", ret);
+			return false;
+		}
+		efuse_xtal_wait = (efuse_data2 & MM610X_EFUSE_DATA2_XTAL_WAIT_POS);
+		if (!efuse_xtal_wait) {
+			ret = -1;
+			morse_err(mors, "EFuse xtal wait bits not set\n");
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+bool morse_hw_is_valid_chip_id(u32 chip_id, u32 *valid_chip_ids)
+{
+	int i;
+
+	BUG_ON(chip_id == CHIP_ID_END);
+
+	for (i = 0; valid_chip_ids[i] != CHIP_ID_END; i++)
+		if (chip_id == valid_chip_ids[i])
+			return true;
+	return false;
+}

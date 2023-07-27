@@ -1,0 +1,927 @@
+#ifndef _MORSE_COMMAND_H_
+#define _MORSE_COMMAND_H_
+
+/*
+ * Copyright 2017-2022 Morse Micro
+ *
+ */
+#include <linux/skbuff.h>
+#include <linux/workqueue.h>
+#include "morse.h"
+
+#define MORSE_CMD_REQ (1 << 0)
+#define MORSE_CMD_CFM (1 << 1)
+#define MORSE_CMD_EVT (1 << 2)
+#define MORSE_CMD_RSP (1 << 3)
+
+
+#define MORSE_CMD_IS_REQ(cmd) ((cmd)->hdr.flags & MORSE_CMD_REQ)
+#define MORSE_CMD_IS_CFM(cmd) ((cmd)->hdr.flags & MORSE_CMD_CFM)
+#define MORSE_CMD_IS_EVT(cmd) ((cmd)->hdr.flags & MORSE_CMD_EVT)
+#define MORSE_CMD_IS_RSP(cmd) ((cmd)->hdr.flags & MORSE_CMD_RSP)
+
+
+/* Firmware will not change currently set bandwidth */
+#define DEFAULT_BANDWIDTH 0xFF
+
+/* Firmware will not change currently set frequency */
+#define DEFAULT_FREQUENCY 0xFFFFFFFF
+
+/* Firmware will not change currently set 1mhz channel index */
+#define DEFAULT_1MHZ_PRIMARY_CHANNEL_INDEX 0xFF
+
+/**
+ * The maximum length of a user-specified payload (bytes) for Standby status
+ * frames.
+ */
+#define STANDBY_STATUS_FRAME_USER_PAYLOAD_MAX_LEN (64)
+
+/* The max length of the twt agreement sent to the FW */
+#define TWT_MAX_AGREEMENT_LEN	(20)
+
+struct morse_twt_agreement_data;
+
+/**
+ *  Host to firmware/driver messages
+ *
+ * @note you must hardcode the values here, and they must all be unique
+ */
+enum morse_commands_id {
+	MORSE_COMMAND_SET_CHANNEL = 0x0001,
+	MORSE_COMMAND_GET_VERSION = 0x0002,
+	MORSE_COMMAND_SET_TXPOWER = 0x0003,
+	MORSE_COMMAND_ADD_INTERFACE = 0x0004,
+	MORSE_COMMAND_REMOVE_INTERFACE = 0x0005,
+	MORSE_COMMAND_BSS_CONFIG = 0x0006,
+	MORSE_COMMAND_APP_STATS_LOG = 0x0007,
+	MORSE_COMMAND_APP_STATS_RESET = 0x0008,
+	MORSE_COMMAND_RPG = 0x0009,
+	MORSE_COMMAND_INSTALL_KEY = 0x000A,
+	MORSE_COMMAND_DISABLE_KEY = 0x000B,
+	MORSE_COMMAND_CFG_SCAN = 0x0010,
+	MORSE_COMMAND_SET_QOS_PARAMS = 0x0011,
+	MORSE_COMMAND_GET_QOS_PARAMS = 0x0012,
+	MORSE_COMMAND_GET_CHANNEL = 0x0013,
+	MORSE_COMMAND_SET_STA_STATE = 0x0014,
+	MORSE_COMMAND_SET_BSS_COLOR = 0x0015,
+	MORSE_COMMAND_SET_PS = 0x0016,
+	MORSE_COMMAND_BLOCKACK_DEPRECATED = 0x0017,
+	MORSE_COMMAND_MAC_STATS_LOG = 0x000C,
+	MORSE_COMMAND_MAC_STATS_RESET = 0x000D,
+	MORSE_COMMAND_UPHY_STATS_LOG = 0x000E,
+	MORSE_COMMAND_UPHY_STATS_RESET = 0x000F,
+	MORSE_COMMAND_HEALTH_CHECK = 0x0019,
+	MORSE_COMMAND_SET_CTS_SELF_PS = 0x001A,
+	MORSE_COMMAND_ARP_OFFLOAD = 0x0020,
+	MORSE_COMMAND_SET_LONG_SLEEP_CONFIG = 0x0021,
+	MORSE_COMMAND_SET_DUTY_CYCLE = 0x0022,
+	MORSE_COMMAND_GET_MAX_TXPOWER = 0x0024,
+	MORSE_COMMAND_GET_CAPABILITIES = 0x00025,
+	MORSE_COMMAND_INSTALL_TWT_AGREEMENT = 0x00026,
+	MORSE_COMMAND_REMOVE_TWT_AGREEMENT = 0x00027,
+	MORSE_COMMAND_MPSW_CONFIG = 0x0030,
+	MORSE_COMMAND_STANDBY_MODE = 0x0031,
+	MORSE_COMMAND_DHCP_OFFLOAD = 0x0032,
+	MORSE_COMMAND_UPDATE_OUI_FILTER = 0x0034,
+	MORSE_COMMAND_IBSS_CONFIG = 0x0035,
+	MORSE_COMMAND_VALIDATE_TWT_AGREEMENT = 0x00036,
+	MORSE_COMMAND_SET_FRAG_THRESHOLD = 0x0037,
+
+	/* Temporary Commands that may be removed later */
+	MORSE_COMMAND_SET_MODULATION = 0x1000,
+	MORSE_COMMAND_GET_RSSI = 0x1002,
+	MORSE_COMMAND_SET_IFS = 0x1003,
+	MORSE_COMMAND_SET_FEM_SETTINGS = 0x1005,
+	MORSE_COMMAND_SURVEY_CHANNEL = 0x1007,
+	MORSE_COMMAND_SET_CONTROL_RESPONSE = 0x1009,
+	MORSE_COMMAND_SET_PERIODIC_CAL = 0x100A,
+
+	/* Commands to driver */
+	MORSE_COMMAND_DRIVER_START = 0xA000,
+	MORSE_COMMAND_SET_STA_TYPE = 0xA000,
+	MORSE_COMMAND_SET_ENC_MODE = 0xA001,
+	MORSE_COMMAND_TEST_BA = 0xA002,
+	MORSE_COMMAND_SET_LISTEN_INTERVAL = 0xA003,
+	MORSE_COMMAND_SET_AMPDU = 0xA004,
+	MORSE_COMMAND_SET_RAW = 0xA005,
+	MORSE_COMMAND_COREDUMP = 0xA006,
+	MORSE_COMMAND_SET_S1G_OP_CLASS = 0xA007,
+	MORSE_COMMAND_SEND_WAKE_ACTION_FRAME = 0xA008,
+	MORSE_COMMAND_VENDOR_IE_CONFIG = 0xA009,
+	MORSE_COMMAND_TWT_SET_CONF = 0xA010,
+	MORSE_COMMAND_GET_AVAILABLE_CHANNELS = 0xA011,
+	MORSE_COMMAND_SET_ECSA_S1G_INFO = 0xA012,
+	MORSE_COMMAND_DRIVER_END,
+
+	/* Event notifications start at 0x4000 */
+	MORSE_COMMAND_EVT_STA_STATE = 0x4001,
+	MORSE_COMMAND_EVT_BEACON_LOSS = 0x4002,
+	MORSE_COMMAND_EVT_SIG_FIELD_ERROR = 0x4003,
+	MORSE_COMMAND_EVT_TWT_UMAC_TRAFFIC_CONTROL = 0x4004,
+	MORSE_COMMAND_EVT_DHCP_LEASE_UPDATE = 0x4005,
+
+	/** Test commands start at 0x8000 */
+	MORSE_TEST_COMMAND_START_SAMPLEPLAY = 0x8002,
+	MORSE_TEST_COMMAND_STOP_SAMPLEPLAY = 0x8003,
+	MORSE_TEST_COMMAND_SET_RESPONSE_INDICATION = 0x8007,
+	MORSE_TEST_COMMAND_SET_MAC_ACK_TIMEOUT = 0x8008,
+	MORSE_TEST_COMMAND_FORCE_ASSERT = 0x800E,
+};
+
+/* Crypto Related types */
+
+#define MORSE_MAX_CRYPTO_KEY_LEN (32)
+
+enum morse_temporal_key_type {
+	MORSE_KEY_TYPE_INVALID  = 0,
+	MORSE_KEY_TYPE_GTK      = 1,    /* Group Temporal key */
+	MORSE_KEY_TYPE_PTK      = 2,    /* Pairwise Temporal key */
+	MORSE_KEY_TYPE_IGTK     = 3,    /* Integrity Group Temporal key */
+
+	MORSE_KEY_TYPE_LAST     = MORSE_KEY_TYPE_IGTK,
+};
+
+enum morse_aes_key_length {
+	MORSE_AES_KEY_INVALID   = 0,
+	MORSE_AES_KEY_LENGTH_128  = 1,
+	MORSE_AES_KEY_LENGTH_256  = 2,
+
+	MORSE_AES_KEY_LENGTH_LAST = MORSE_AES_KEY_LENGTH_256,
+};
+
+enum morse_key_cipher {
+	MORSE_KEY_CIPHER_INVALID   = 0,
+	MORSE_KEY_CIPHER_AES_CCM   = 1,
+	MORSE_KEY_CIPHER_AES_GCM   = 2,
+	MORSE_KEY_CIPHER_AES_CMAC  = 3,
+	MORSE_KEY_CIPHER_AES_GMAC  = 4,
+
+	MORSE_KEY_CIPHER_LAST      = MORSE_KEY_CIPHER_AES_GMAC,
+};
+
+#define MORSE_CMD_IID_SEQ_MAX		0xfff
+#define MORSE_CMD_IID_RETRY_MASK	0x000f
+#define MORSE_CMD_IID_SEQ_SHIFT		4
+#define MORSE_CMD_IID_SEQ_MASK		0xfff0
+
+struct morse_cmd_header {
+	__le16 flags;
+	__le16 id;
+	__le16 len;
+	__le16 iid;
+} __packed;
+
+struct morse_cmd {
+	struct morse_cmd_header hdr;
+	u8 data[0];
+} __packed;
+
+struct morse_cmd_test_ba {
+	struct morse_cmd_header hdr;
+	u8 addr[ETH_ALEN];
+	u8 start;
+	u8 tx;
+	__le32 tid;
+} __packed;
+
+struct morse_cmd_set_txpower {
+	struct morse_cmd_header hdr;
+	__le32 power_level;
+} __packed;
+
+struct morse_resp_set_txpower {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	__le32 power_level;
+} __packed;
+
+struct morse_cmd_get_max_txpower {
+	struct morse_cmd_header hdr;
+} __packed;
+
+struct morse_resp_get_max_txpower {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	__le32 power_level;
+} __packed;
+
+struct morse_cmd_add_if {
+	struct morse_cmd_header hdr;
+	u8 addr[ETH_ALEN];
+	__le32 type;
+} __packed;
+
+struct morse_resp_add_if {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	__le16 id;
+} __packed;
+
+struct morse_cmd_rm_if {
+	struct morse_cmd_header hdr;
+	__le16 id;
+} __packed;
+
+struct morse_cmd_cfg_bss {
+	struct morse_cmd_header hdr;
+	__le16 id;
+	__le16 beacon_int;
+	__le16 dtim_period;
+	u8 __padding[2];
+	__le32 cssid;
+} __packed;
+
+
+struct morse_cmd_sta_state {
+	struct morse_cmd_header hdr;
+	u8 addr[ETH_ALEN];
+	__le16 vif_id;
+	__le16 aid;
+	__le16 state;
+} __packed;
+
+struct morse_cmd_install_key {
+	struct morse_cmd_header hdr;
+	__le64 pn;
+	__le32 aid;
+	__le16 vif_id;
+	u8 key_idx;
+	u8 cipher;
+	u8 key_length;
+	u8 key_type;
+	u8 __padding[2];
+	u8 key[MORSE_MAX_CRYPTO_KEY_LEN];
+} __packed;
+
+struct morse_resp_install_key {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	u8 key_idx;
+} __packed;
+
+struct morse_cmd_disable_key {
+	struct morse_cmd_header hdr;
+	__le32 key_type;
+	__le32 aid;
+	__le16 vif_id;
+	u8 key_idx;
+} __packed;
+
+struct morse_resp_sta_state {
+	struct morse_cmd_header hdr;
+	__le32 status;
+} __packed;
+
+
+struct morse_cmd_set_channel {
+	struct morse_cmd_header hdr;
+	__le32 op_chan_freq_hz;
+	u8 op_bw_mhz;
+	u8 pri_bw_mhz;
+	u8 pri_1mhz_chan_idx;
+} __packed;
+
+struct morse_resp_set_channel {
+	struct morse_cmd_header hdr;
+	__le32 status;
+} __packed;
+
+struct morse_cmd_cfg_scan {
+	struct morse_cmd_header hdr;
+	u8 enabled;
+} __packed;
+
+struct morse_resp {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	u8 data[0];
+} __packed;
+
+struct morse_cmd_get_version {
+	struct morse_cmd_header hdr;
+} __packed;
+
+struct morse_resp_get_version {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	__le32 length;
+	u8 version[2048];
+} __packed;
+
+struct morse_cmd_survey_channel {
+	struct morse_cmd_header hdr;
+	u32 frequency;
+} __packed;
+
+struct morse_resp_survey_channel {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	__le32 iq_power;
+	__le64 time_listen;
+	__le64 busy_time;
+} __packed;
+
+struct morse_cmd_set_listen_interval {
+	struct morse_cmd_header hdr;
+	__le16 listen_interval;
+} __packed;
+
+struct morse_cmd_vendor {
+	struct morse_cmd_header hdr;
+	u8 data[2048];
+} __packed;
+
+struct morse_cmd_set_ps {
+	struct morse_cmd_header hdr;
+	u8 enabled;
+	u8 dynamic_ps_offload;
+} __packed;
+
+
+struct morse_resp_vendor {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	u8 data[2048];
+} __packed;
+
+struct morse_cmd_cr_bw {
+	struct morse_cmd_header hdr;
+	__le16 vif_id;
+	u8 direction;
+	u8 cr_1mhz_en;
+} __packed;
+
+struct cmd_force_assert_req {
+	/* Target hart to crash with an intended assert */
+	__le32 hart_id;
+} __packed;
+
+struct morse_cmd_health_check {
+	struct morse_cmd_header hdr;
+} __packed;
+
+
+struct morse_cmd_cts_self_ps {
+	struct morse_cmd_header hdr;
+	u8 enable;
+} __packed;
+
+struct morse_event {
+	struct morse_cmd_header hdr;
+	u8 data[0];
+} __packed;
+
+struct morse_evt_sta_state {
+	struct morse_cmd_header hdr;
+	u8 addr[ETH_ALEN];
+	__le16 aid;
+	__le16 state;
+} __packed;
+
+struct morse_evt_beacon_loss {
+	struct morse_cmd_header hdr;
+	__le16 vif_id;
+	__le32 num_bcns;
+} __packed;
+
+struct morse_evt_sig_field_error_evt {
+	struct morse_cmd_header hdr;
+	__le64 start_timestamp;
+	__le64 end_timestamp;
+} __packed;
+
+struct morse_evt_twt_umac_traffic_control {
+	struct morse_cmd_header hdr;
+	__le16 interface_id;
+	u8 pause_data_traffic;
+} __packed;
+
+struct morse_evt_dhcp_lease_update {
+	struct morse_cmd_header hdr;
+	u32 my_ip;
+	u32 netmask;
+	u32 router;
+	u32 dns;
+} __packed;
+
+struct morse_cmd_raw {
+	struct morse_cmd_header hdr;
+	u8 enable_type;
+	u8 enable;
+	u8 idx;
+	u8 config_type;
+	__le32 start_time_us;
+	__le32 raw_duration_us;
+	u8 num_slots;
+	u8 cross_slot_boundary;
+	__le16 max_beacon_spread;
+	__le16 nominal_sta_per_beacon;
+} __packed;
+
+struct morse_cmd_ecsa {
+	struct morse_cmd_header hdr;
+	/** Operating Channel Frequency Hz.
+	 * Endianess __le32 op_chan_freq_hz is not considered
+	 * here as the cmd is indicated to driver and not chip
+	 */
+	u32 op_chan_freq_hz;
+	u8 op_class;
+	u8 prim_bw;
+	u8 prim_chan_1MHz_idx;
+	u8 op_bw_mhz;
+	u8 prim_opclass;
+} __packed;
+
+
+struct morse_cmd_send_wake_action_frame {
+	struct morse_cmd_header hdr;
+	u8 dest_addr[ETH_ALEN];
+	__le32 payload_size;
+	u8 payload[0];
+} __packed;
+
+enum command_vendor_ie_opcode {
+	MORSE_VENDOR_IE_OP_ADD_ELEMENT = 0,
+	MORSE_VENDOR_IE_OP_CLEAR_ELEMENTS,
+	MORSE_VENDOR_IE_OP_ADD_FILTER,
+	MORSE_VENDOR_IE_OP_CLEAR_FILTERS,
+
+	MORSE_VENDOR_IE_OP_MAX = U16_MAX,
+	MORSE_VENDOR_IE_OP_INVALID = MORSE_VENDOR_IE_OP_MAX
+};
+
+struct morse_cmd_vendor_ie_config {
+	struct morse_cmd_header hdr;
+	u16 opcode;
+	u16 mgmt_type_mask;
+	u8 data[0];
+} __packed;
+
+struct morse_cmd_arp_offload {
+	struct morse_cmd_header hdr;
+	uint16_t vif_id;
+	u32 ip_table[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
+} __packed;
+
+struct morse_cmd_set_long_sleep_config {
+	struct morse_cmd_header hdr;
+	u8 enabled;
+} __packed;
+
+enum twt_conf_subcommands {
+	TWT_CONF_SUBCMD_CONFIGURE,
+	TWT_CONF_SUBCMD_FORCE_INSTALL_AGREEMENT,
+	TWT_CONF_SUBCMD_REMOVE_AGREEMENT,
+	TWT_CONF_SUBCMD_CONFIGURE_EXPLICIT
+};
+
+struct morse_cmd_set_twt_conf {
+	__le64 target_wake_time;
+	union {
+		__le64 wake_interval_us;
+		struct {
+			__le16 wake_interval_mantissa;
+			u8 wake_interval_exponent;
+			u8 padding[5];
+		} explicit;
+	};
+	__le32 wake_duration;
+	u8 twt_setup_command;
+	u8 padding[3];
+} __packed;
+
+struct morse_cmd_remove_twt_agreement {
+	struct morse_cmd_header hdr;
+	__le16 interface_id;
+	u8 flow_id;
+} __packed;
+
+struct command_twt_req {
+	struct morse_cmd_header hdr;
+	/** The interface ID */
+	__le16 interface_id;
+	/** TWT subcommands, see @ref twt_conf_subcommands */
+	u8 cmd;
+	/** The flow (twt) identifier for the agreement to set, install or remove */
+	u8 flow_id;
+	union {
+		uint8_t opaque[0];
+		struct morse_cmd_set_twt_conf set_twt_conf;
+	};
+} __packed;
+
+struct morse_cmd_install_twt_agreement_req {
+	struct morse_cmd_header hdr;
+	/** The interface ID we are installing the TWT agreement on */
+	__le16 interface_id;
+	/** The flow (twt) identifier for this agreement */
+	u8 flow_id;
+	/** The length of the TWT agreement */
+	u8 agreement_len;
+	/** The TWT agreement data */
+	u8 agreement[0];
+} __packed;
+
+/**
+ * struct morse_queue_params - QoS parameters
+ *
+ * @aci: access category index
+ * @aifs: arbitration interframe space [0..255]
+ * @cw_min: minimum contention window
+ * @cw_max: maximum contention window
+ * @txop: maximum burst time in units of usecs, 0 meaning disabled
+ */
+struct morse_queue_params {
+	u8 aci;
+	u8 aifs;
+	u16 cw_min;
+	u16 cw_max;
+	u32 txop;
+};
+
+/**
+ * struct cmd_cfg_qos - configure QoS command
+ *
+ * @hdr: command header
+ * @aci: access category index
+ * @aifs: arbitration interframe space [0..255]
+ * @cw_min: minimum contention window
+ * @cw_max: maximum contention window
+ * @txop: maximum burst time in units of usecs, 0 meaning disabled
+ */
+struct morse_cmd_cfg_qos {
+	struct morse_cmd_header hdr;
+	u8 aci;
+	u8 aifs;
+	__le16 cw_min;
+	__le16 cw_max;
+	__le32 txop;
+} __packed;
+
+struct morse_cmd_set_bss_color {
+	struct morse_cmd_header hdr;
+	__le16 vif_id;
+	u8 color;
+} __packed;
+
+struct morse_resp_set_bss_color {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	__le16 vif_id;
+} __packed;
+
+struct morse_set_periodic_cal {
+	struct morse_cmd_header hdr;
+	__le32 periodic_cal_enabled;
+} __packed;
+
+struct mm_capabilities {
+	/** The interface ID we are setting caps for */
+	__le16 interface_id;
+	/** capability flags */
+	__le32 flags[FW_CAPABILITIES_FLAGS_WIDTH];
+	/** The minimum A-MPDU start spacing required by firmware.*/
+	u8 ampdu_mss;
+	/** The beamformee STS capability value */
+	u8 beamformee_sts_capability;
+	/** Number of sounding dimensions */
+	u8 number_sounding_dimensions;
+	/** The maximum A-MPDU length. This is the exponent value such that
+	 * (2^(13 + exponent) - 1) is the length
+	 */
+	u8  maximum_ampdu_length_exponent;
+} __packed;
+
+struct morse_get_capabilities_req {
+	struct morse_cmd_header hdr;
+	/** The interface ID we are getting caps for */
+	uint16_t interface_id;
+} __packed;
+
+struct morse_get_capabilities_cfm {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	struct mm_capabilities capabilities;
+} __packed;
+
+enum morse_standby_mode_cmd {
+	/** The external host is indicating that it's now awake */
+	STANDBY_MODE_CMD_EXIT = 0x0,
+	/** The external host is indicating that it's going into standby mode */
+	STANDBY_MODE_CMD_ENTER,
+	/** The external host sets the remote standby server details */
+	STANDBY_MODE_CMD_SET_SERVER_DETAILS,
+	/**
+	 * The external host sets a number of configuration options for
+	 * standby mode
+	 */
+	STANDBY_MODE_CMD_SET_CONFIG,
+	/**
+	 * The external host provides a payload that gets appended to
+	 * status frames
+	 */
+	STANDBY_MODE_CMD_SET_STATUS_PAYLOAD,
+};
+
+struct morse_cmd_standby_set_config {
+	/** Interval for transmitting Standby status packets */
+	__le32 notify_period_s;
+	/** Period of inactivity (traffic directed to STA) before external host triggers standby mode */
+	__le32 inactivity_before_standby_s;
+	/** Time for firmware to wait during beacon loss before entering deep sleep in seconds */
+	__le32 bss_inactivity_before_deep_sleep_s;
+	/** Time for firmware to remain in deep sleep in seconds */
+	__le32 deep_sleep_period_s;
+	/** The BSSID to monitor for activity (or lack thereof) before entering deep sleep */
+	u8 monitor_bssid[ETH_ALEN];
+	/** Padding for word aligned access in config. (It may grow in future) */
+	u8 __padding[2];
+} __packed;
+
+struct morse_cmd_standby_set_server_details {
+	/** Source IP address */
+	__le32 src_ip;
+	/** Destination IP address */
+	__le32 dst_ip;
+	/** Destination UDP Port */
+	__le16 dst_port;
+} __packed;
+
+struct morse_cmd_standby_set_status_payload {
+	/** The length of the payload */
+	__le32 len;
+	/** The payload */
+	u8 payload[STANDBY_STATUS_FRAME_USER_PAYLOAD_MAX_LEN];
+} __packed;
+
+/**
+ * Structure for Configuring MM standby mode
+ */
+struct morse_cmd_standby_mode_req {
+	struct morse_cmd_header hdr;
+	/** The interface id of the interface applying standby mode */
+	__le16 interface_id;
+	/** Standby Mode subcommands, see @ref standby_mode_commands_t */
+	__le32 cmd;
+	union {
+		u8 opaque[0];
+		/** Valid for STANDBY_MODE_CMD_SET_CONFIG cmd */
+		struct morse_cmd_standby_set_config config;
+		/** Valid for STANDBY_MODE_CMD_SET_SERVER_DETAILS cmd */
+		struct morse_cmd_standby_set_server_details server_details;
+		/** Valid for STANDBY_MODE_CMD_SET_STATUS_PAYLOAD cmd */
+		struct morse_cmd_standby_set_status_payload set_payload;
+	};
+} __packed;
+
+enum morse_standby_mode_exit_reason {
+	/** No specific reason for exiting standby mode */
+	STANDBY_MODE_EXIT_REASON_NONE,
+	/** The STA has received the wakeup frame */
+	STANDBY_MODE_EXIT_REASON_WAKEUP_FRAME,
+	/** The STA needs to associate */
+	STANDBY_MODE_EXIT_REASON_ASSOCIATE,
+};
+
+/**
+ * Response structure for MM standby mode command
+ */
+struct morse_cmd_standby_mode_cfm {
+	union {
+		u8 opaque[0];
+		/** Valid for a response to STANDBY_MODE_CMD_EXIT, see @ref standby_mode_exit_reason_t */
+		u8 reason;
+	};
+} __packed;
+
+enum dhcp_offload_opcode {
+	/** Enable the DHCP client */
+	MORSE_DHCP_CMD_ENABLE = 0,
+	/** Do a DHCP discovery and obtain a lease */
+	MORSE_DHCP_CMD_DO_DISCOVERY,
+	/** Return the current lease */
+	MORSE_DHCP_CMD_GET_LEASE,
+	/** Clear the current lease */
+	MORSE_DHCP_CMD_CLEAR_LEASE,
+	/** Trigger a renewal of the current lease */
+	MORSE_DHCP_CMD_RENEW_LEASE,
+	/** Trigger a rebinding of the current lease */
+	MORSE_DHCP_CMD_REBIND_LEASE,
+	/** Ask the FW to send a lease update event to the driver */
+	MORSE_DHCP_CMD_SEND_LEASE_UPDATE,
+	/** Force uint32 */
+	DHCP_CMD_LAST = U32_MAX
+};
+
+enum dhcp_offload_retcode {
+	/** Command completed successfully */
+	MORSE_DHCP_RET_SUCCESS = 0,
+	/** DHCP Client is disabled */
+	MORSE_DHCP_RET_NOT_ENABLED,
+	/** DHCP Client is already enabled */
+	MORSE_DHCP_RET_ALREADY_ENABLED,
+	/** No current bound lease */
+	MORSE_DHCP_RET_NO_LEASE,
+	/** DHCP client already has a lease */
+	MORSE_DHCP_RET_HAVE_LEASE,
+	/** DHCP client is currently busy (discovering or renewing) */
+	MORSE_DHCP_RET_BUSY,
+
+	/** Force uint32 */
+	MORSE_DHCP_RET_LAST = U32_MAX
+};
+
+struct morse_cmd_dhcpc_req {
+	struct morse_cmd_header hdr;
+	__le32 opcode;
+	__le16 vif_id;
+} __packed;
+
+struct morse_cmd_dhcpc_cfm {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	__le32 retcode;
+	__le32 my_ip;
+	__le32 netmask;
+	__le32 router;
+	__le32 dns;
+} __packed;
+
+/**
+ * IBSS Opcode for configuring the current state to firmware
+ */
+enum ibss_config_opcode {
+	/** Notifying the creator mode */
+	MORSE_IBSS_CONFIG_CMD_CREATE = 0,
+	/** Notifying the joining IBSS */
+	MORSE_IBSS_CONFIG_CMD_JOIN,
+	/** Notifying to leave IBSS */
+	MORSE_IBSS_CONFIG_CMD_STOP,
+
+	/** Force uint8 */
+	MORSE_IBSS_CONFIG_LAST = 255,
+};
+
+/**
+ * Structure for configuring the IBSS.
+ *
+ * @note This command is to configure IBSS parameters like BSSID and others.
+ *
+ * @hdr: command header
+ * @vif_id: Interface ID
+ * @bssid_addr: IBSS BSSID Address
+ * @ibss_cfg_opcode: type ibss_config_opcode.
+ *    If CMD_CREATE is sent, then firmware will start to generate interrupts.
+ *    If CMD_JOIN i sent, then firmware will wait till we receive beacon from IBSS network,
+ *      then set it's TSF and start the beacon timer to be in sync with network TBTT.
+ *    If CMD_STOP is sent, all the parameters will be cleared in target and stop beaconing.
+ * @ibss_probe_filtering: Probe request filtering based on the last beacon tx is handled in fw.
+ *        When set to 1, probe requests will be dropped in firmware, if this node didn't
+ *        transmit the last beacon. Otherwise, all the probe req will be forwarded to host
+ *        driver for responding with probe resp.
+ */
+struct morse_cmd_cfg_ibss {
+	struct morse_cmd_header hdr;
+	/** Interface ID for this config to be applied to */
+	__le16 vif_id;
+	/** BSSID of IBSS generated by mac80211 */
+	u8 ibss_bssid_addr[ETH_ALEN];
+	/** IBSS Opcode for configuring the current state to firmware */
+	u8 ibss_cfg_opcode;
+	/** Flag to enable/disable probe req filtering in IBSS mode, based on the last beacon */
+	u8 ibss_probe_filtering;
+} __packed;
+
+struct morse_config_oui_filter_req {
+	struct morse_cmd_header hdr;
+	__le16 vif_id;
+	uint8_t n_ouis;
+	uint8_t ouis[MAX_NUM_OUI_FILTERS][OUI_SIZE];
+} __packed;
+
+
+enum duty_cycle_config_options {
+	MORSE_DUTY_CYCLE_SET_CFG_DUTY_CYCLE = BIT(0),
+	MORSE_DUTY_CYCLE_SET_CFG_OMIT_CTRL_RESP = BIT(1)
+};
+
+struct morse_cmd_set_duty_cycle_req {
+	struct morse_cmd_header hdr;
+	u8 omit_ctrl_resp;
+	__le32 duty_cycle;
+	u8 set_configs;
+} __packed;
+
+struct morse_cmd_set_duty_cycle_cfm {
+	struct morse_cmd_header hdr;
+	u8 omit_ctrl_resp;
+	__le32 duty_cycle;
+} __packed;
+
+enum mpsw_config_options {
+	MORSE_MPSW_SET_CFG_AIRTIME_BOUNDS = BIT(0),
+	MORSE_MPSW_SET_CFG_PKT_SPACE_WINDOW_LEN = BIT(1),
+	MORSE_MPSW_SET_CFG_ENABLED = BIT(2)
+};
+
+struct mpsw_config {
+	__le32 airtime_max_us;
+	__le32 airtime_min_us;
+	__le32 packet_space_window_length_us;
+	u8 enable;
+} __packed;
+
+struct morse_cmd_set_mpsw_config_req {
+	struct morse_cmd_header hdr;
+	struct mpsw_config config;
+	u8 set_configs;
+} __packed;
+
+struct morse_cmd_set_mpsw_config_cfm {
+	struct morse_cmd_header hdr;
+	struct mpsw_config config;
+} __packed;
+
+struct morse_cmd_get_available_channels_cfm {
+	struct morse_cmd_header hdr;
+	__le32 status;
+	u32 num_channels;
+	struct morse_channel channels[0];
+} __packed;
+
+struct morse_cmd_set_frag_threshold_req {
+	struct morse_cmd_header hdr;
+	u32 frag_threshold;
+} __packed;
+
+struct morse_cmd_set_frag_threshold_cfm {
+	struct morse_cmd_header hdr;
+	u32 frag_threshold;
+} __packed;
+
+int morse_cmd_set_duty_cycle(struct morse *mors, int duty_cycle, bool omit_ctrl_resp);
+int morse_cmd_set_mpsw(struct morse *mors, int min, int max, int window);
+
+int morse_cmd_set_ps(struct morse *mors, bool enabled,
+		    bool enable_dynamic_ps_offload);
+int morse_cmd_set_txpower(struct morse *mors, s32 *out_power, int txpower);
+int morse_cmd_get_max_txpower(struct morse *mors, s32 *out_power);
+int morse_cmd_add_if(struct morse *mors, u16 *id, u8 *addr, u32 type);
+int morse_cmd_rm_if(struct morse *mors, u16 id);
+int morse_cmd_resp_process(struct morse *mors, struct sk_buff *skb, u8 channel);
+int morse_cmd_cfg_bss(struct morse *mors, u16 id, u16 beacon_int, u16 dtim_period, u32 cssid);
+int morse_cmd_vendor(struct morse *mors, void *data_in, int data_in_len,
+			 void *data_out, int *data_out_len);
+int morse_cmd_set_channel(struct morse *mors, u32 op_chan_freq_hz,
+			u8 pri_1mhz_chan_idx, u8 op_bw_mhz, u8 pri_bw_mhz);
+int morse_cmd_get_version(struct morse *mors);
+int morse_cmd_cfg_scan(struct morse *mors, bool enabled);
+int morse_cmd_survey_channel(struct morse *mors, struct morse_channel_survey *survey, u32 frequency);
+int morse_cmd_sta_state(struct morse *mors, struct morse_vif *vif,
+			u16 aid,
+			struct ieee80211_sta *sta,
+			enum ieee80211_sta_state state);
+int morse_cmd_disable_key(struct morse *mors, struct morse_vif *vif,
+	u16 aid, struct ieee80211_key_conf *key);
+int morse_cmd_install_key(struct morse *mors, struct morse_vif *vif,
+	u16 aid, struct ieee80211_key_conf *key, enum morse_key_cipher cipher,
+	enum morse_aes_key_length length);
+int morse_cmd_set_cr_bw(struct morse *mors, struct morse_vif *vif,
+			u8 direction, u8 cr_1mhz_en);
+int morse_cmd_cfg_qos(struct morse *mors,  struct morse_queue_params *params);
+int morse_cmd_set_bss_color(struct morse *mors, struct morse_vif *vif,
+				u8 color);
+int morse_cmd_health_check(struct morse *mors);
+int morse_cmd_arp_offload_update_ip_table(struct morse *mors, uint16_t vif_id,
+			int arp_addr_count, u32 *arp_addr_list);
+int morse_cmd_get_capabilities(struct morse *mors,
+			       uint16_t vif_id,
+			       struct morse_caps *capabilities);
+int morse_cmd_dhcpc_enable(struct morse *mors, u16 vif_id);
+int morse_cmd_twt_agreement_validate_req(struct morse *mors,
+					 struct morse_twt_agreement_data *agreement,
+					 u16 iface_id);
+int morse_cmd_twt_agreement_install_req(struct morse *mors,
+					struct morse_twt_agreement_data *agreement,
+					u16 iface_id);
+int morse_cmd_twt_remove_req(struct morse *mors,
+			struct morse_cmd_remove_twt_agreement *twt_remove_cmd);
+int morse_cmd_cfg_ibss(struct morse *mors, u16 id,
+			const u8 *bssid, bool ibss_creator, bool stop_ibss);
+
+/**
+ * @brief Configure the OUI filter in the FW. If a beacon is received containing a vendor element
+ * with an OUI matching one in the filter, it will unconditionally pass the beacon up to the host.
+ *
+ * @param mors Morse object
+ * @param mors_if morse interface
+ * @return 0 on success, else error code
+ */
+int morse_cmd_update_beacon_vendor_ie_oui_filter(struct morse *mors, struct morse_vif *mors_if);
+
+int morse_cmd_get_available_channels(struct morse *mors, struct morse_resp *resp);
+
+int morse_cmd_set_frag_threshold(struct morse *mors, u32 frag_threshold);
+
+
+#endif  /* !_MORSE_COMMAND_H_ */

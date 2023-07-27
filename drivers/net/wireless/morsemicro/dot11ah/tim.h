@@ -1,0 +1,89 @@
+#ifndef _MORSE_DOT11AH_TIM_H_
+#define _MORSE_DOT11AH_TIM_H_
+
+/*
+ * Copyright 2017-2022 Morse Micro
+ *
+ */
+
+#include <linux/types.h>
+#include <linux/ieee80211.h>
+
+
+/**
+ * S1G TIM definitions
+ *
+ * These flags are used with the @flags member of &ieee80211_tx_info.
+ *
+ * @IEEE80211_S1G_TIM_BLOCK_CTL_ENC_MODE: encoding mode
+ * @IEEE80211_S1G_TIM_BLOCK_CTL_INVERSE_BMAP: inverse bitmap
+ * @IEEE80211_S1G_TIM_BLOCK_CTL_BLOCK_OFFSET: block offset mask
+ * @IEEE80211_S1G_TIM_BITMAP_PAGE_SLICE: S1G bitcamp control page slice mask
+ * @IEEE80211_S1G_TIM_BITMAP_PAGE_INDEX: S1G bitmap control page index mask
+ */
+#define IEEE80211_S1G_TIM_BLOCK_CTL_ENC_MODE			GENMASK(1, 0)
+#define IEEE80211_S1G_TIM_BLOCK_CTL_ENC_MODE_SHIFT		(0)
+
+#define IEEE80211_S1G_TIM_BLOCK_CTL_INVERSE_BMAP		GENMASK(2, 2)
+#define IEEE80211_S1G_TIM_BLOCK_CTL_INVERSE_BMAP_SHIFT	(2)
+
+#define IEEE80211_S1G_TIM_BLOCK_CTL_BLOCK_OFFSET		GENMASK(7, 3)
+#define IEEE80211_S1G_TIM_BLOCK_CTL_BLOCK_OFFSET_SHIFT	(3)
+
+#define IEEE80211_TIM_BITMAP_TRAFFIC_INDICATION			GENMASK(0, 0)
+#define IEEE80211_TIM_BITMAP_TRAFFIC_INDICATION_SHIFT	(0)
+
+#define IEEE80211_TIM_BITMAP_OFFSET						GENMASK(7, 1)
+#define IEEE80211_TIM_BITMAP_OFFSET_SHIFT				(1)
+
+#define IEEE80211_S1G_TIM_BITMAP_PAGE_SLICE				GENMASK(5, 1)
+#define IEEE80211_S1G_TIM_BITMAP_PAGE_SLICE_SHIFT		(1)
+
+#define IEEE80211_S1G_TIM_BITMAP_PAGE_INDEX				GENMASK(7, 6)
+#define IEEE80211_S1G_TIM_BITMAP_PAGE_INDEX_SHIFT		(6)
+
+/* Block offset field comes from bits 6-10 in the AID (ie. AID[6:10]) */
+#define S1G_TIM_AID_TO_BLOCK_OFFSET(_aid)				(((_aid) & GENMASK(10, 6)) >> 6)
+
+/* 11n tim */
+#define DOT11_MAX_TIM_VIRTUAL_MAP_LENGTH				(251)
+
+#define S1G_TIM_NUM_SUBBLOCKS_PER_BLOCK					(8)
+
+#define S1G_TIM_NUM_AID_PER_SUBBLOCK					(8)
+#define S1G_TIM_NUM_AID_PER_BLOCK						(S1G_TIM_NUM_AID_PER_SUBBLOCK * S1G_TIM_NUM_SUBBLOCKS_PER_BLOCK)
+
+#define S1G_TIM_MAX_BLOCK_SIZE							(256)
+
+#define S1G_TIM_PAGE_SLICE_ENTIRE_PAGE					(31)
+
+enum dot11ah_tim_encoding_mode {
+	ENC_MODE_BLOCK = 0x00,
+	ENC_MODE_AID = 0x01,
+	ENC_MODE_OLB = 0x02,
+	ENC_MODE_ADE = 0x03,
+	ENC_MODE_UNKNOWN = 0xFF
+};
+
+struct dot11ah_s1g_tim_ie {
+	u8 dtim_count;
+	u8 dtim_period;
+	u8 bitmap_control;
+	/* TODO: for now set it to max expected length, later should alloc dynamically */
+	u8 encoded_block_info[S1G_TIM_MAX_BLOCK_SIZE];
+} __packed;
+
+int
+morse_dot11_tim_to_s1g(
+	struct dot11ah_s1g_tim_ie *s1g_tim,
+	const struct ieee80211_tim_ie *tim,
+	u8 tim_virtual_map_length,
+	enum dot11ah_tim_encoding_mode enc_mode,
+	bool inverse_bitmap, u16 max_aid);
+
+int morse_dot11_s1g_to_tim(
+	struct ieee80211_tim_ie *tim,
+	const struct dot11ah_s1g_tim_ie *s1g_tim,
+	size_t total_len);
+
+#endif  /* !_MORSE_DOT11AH_TIM_H_ */
