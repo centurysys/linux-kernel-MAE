@@ -638,6 +638,10 @@
 	pinctrl-0 = <&main_uart8_pins_default>;
 };
 
+&ufs_wrapper {
+	status = "okay";
+};
+
 &fss {
 	status = "okay";
 };
@@ -804,6 +808,7 @@
 	non-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
+	no-mmc-hs400;
 };
 
 &main_sdhci1 {
