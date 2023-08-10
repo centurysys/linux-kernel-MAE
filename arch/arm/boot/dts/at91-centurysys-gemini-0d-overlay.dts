@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-09-overlay.dts - Device Tree Overlay file (xio_id: 0x09)
+ *                                           for Century Systems Gemini board
+ *
+ *  Copyright (C) 2023 Century Systems
+ *                     Takeyoshi Kikuchi <kikuchi@centurysys.co.jp>
+ */
+
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/regulator/active-semi,8945a-regulator.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+
+	fragment@0 {
+		target = <&pioA>;
+		__overlay__ {
+			pinctrl_spi6_halow_default: spi6_halow_default {
+				clk {
+					pinmux = <PIN_PC30__FLEXCOM4_IO2>;
+					atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
+					bias-disable;
+				};
+
+				data {
+					pinmux = <PIN_PC28__FLEXCOM4_IO0>,
+					 <PIN_PC29__FLEXCOM4_IO1>,
+					 <PIN_PC31__FLEXCOM4_IO3>,
+					 <PIN_PD0__FLEXCOM4_IO4>;
+					atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+					bias-disable;
+				};
+
+				gpio {
+					pinmux = <PIN_PC20__GPIO>,
+						 <PIN_PC21__GPIO>,
+						 <PIN_PC22__GPIO>;
+					atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+					bias-disable;
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			tca9538: tca9538@70 {
+				compatible = "nxp,pca9538";
+				reg = <0x70>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#gpio-cells = <2>;
+
+				gpio-line-names = "WLAN_LED_R",
+						  "WLAN_LED_G",
+						  "Reserved2",
+						  "Reserved3",
+						  "WLAN_Power",
+						  "Reserved5",
+						  "Reserved6",
+						  "WL_RESET_N";
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi6>;
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi6_halow_default>;
+
+			mm610x_sdio: mm610x_sdio@0 {
+				compatible = "morse,mm610x";
+				reset-gpios = <&pioA PIN_PC20 GPIO_ACTIVE_LOW>;
+				power-gpios = <&pioA PIN_PC22 GPIO_ACTIVE_HIGH>,
+					      <&pioA PIN_PC21 GPIO_ACTIVE_HIGH>;
+				reg = <0>;
+				#gpio-cells = <2>;
+				interrupt-parent = <&pioA>;
+				interrupts = <PIN_PC17 IRQ_TYPE_LEVEL_LOW>;
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&leds>;
+		__overlay__ {
+			halow_reset {
+				label = "WL_RESET";
+				gpios = <&tca9538 7 GPIO_ACTIVE_LOW>;
+				linux,default-trigger = "oneshot";
+				led-pattern = <500 100>;
+				default-state = "off";
+			};
+
+			halow_power {
+				label = "WL_Power";
+				gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
+			};
+
+			halow_green {
+				label = "WLAN_G";
+				gpios = <&tca9538 1 GPIO_ACTIVE_LOW>;
+			};
+
+			halow_red {
+				label = "WLAN_R";
+				gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
+			};
+		};
+	};
+};
