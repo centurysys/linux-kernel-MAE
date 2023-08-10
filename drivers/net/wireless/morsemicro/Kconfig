@@ -18,6 +18,14 @@ config MORSE_SDIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called mmsdio.  If unsure, say N.
 
+config MORSE_SPI
+	bool "SPI support"
+	help
+	  This driver supports wireless cards connected over SDIO.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mmsdio.  If unsure, say N.
+
 config MORSE_USER_ACCESS
 	bool "User space access support"
 	help
