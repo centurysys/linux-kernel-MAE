@@ -525,7 +525,7 @@ static int pca953x_gpio_direction_input(struct gpio_chip *gc, unsigned off)
 	int ret;
 
 	mutex_lock(&chip->i2c_lock);
-	ret = regmap_update_bits(chip->regmap, dirreg, bit, bit);
+	ret = regmap_write_bits(chip->regmap, dirreg, bit, bit);
 	mutex_unlock(&chip->i2c_lock);
 	return ret;
 }
@@ -541,12 +541,12 @@ static int pca953x_gpio_direction_output(struct gpio_chip *gc,
 
 	mutex_lock(&chip->i2c_lock);
 	/* set output level */
-	ret = regmap_update_bits(chip->regmap, outreg, bit, val ? bit : 0);
+	ret = regmap_write_bits(chip->regmap, outreg, bit, val ? bit : 0);
 	if (ret)
 		goto exit;
 
 	/* then direction */
-	ret = regmap_update_bits(chip->regmap, dirreg, bit, 0);
+	ret = regmap_write_bits(chip->regmap, dirreg, bit, 0);
 exit:
 	mutex_unlock(&chip->i2c_lock);
 	return ret;
@@ -576,7 +576,7 @@ static void pca953x_gpio_set_value(struct gpio_chip *gc, unsigned off, int val)
 	u8 bit = BIT(off % BANK_SZ);
 
 	mutex_lock(&chip->i2c_lock);
-	regmap_update_bits(chip->regmap, outreg, bit, val ? bit : 0);
+	regmap_write_bits(chip->regmap, outreg, bit, val ? bit : 0);
 	mutex_unlock(&chip->i2c_lock);
 }
 
@@ -658,9 +658,9 @@ static int pca953x_gpio_set_pull_up_down(struct pca953x_chip *chip,
 
 	/* Configure pull-up/pull-down */
 	if (param == PIN_CONFIG_BIAS_PULL_UP)
-		ret = regmap_update_bits(chip->regmap, pull_sel_reg, bit, bit);
+		ret = regmap_write_bits(chip->regmap, pull_sel_reg, bit, bit);
 	else if (param == PIN_CONFIG_BIAS_PULL_DOWN)
-		ret = regmap_update_bits(chip->regmap, pull_sel_reg, bit, 0);
+		ret = regmap_write_bits(chip->regmap, pull_sel_reg, bit, 0);
 	else
 		ret = 0;
 	if (ret)
@@ -668,9 +668,9 @@ static int pca953x_gpio_set_pull_up_down(struct pca953x_chip *chip,
 
 	/* Disable/Enable pull-up/pull-down */
 	if (param == PIN_CONFIG_BIAS_DISABLE)
-		ret = regmap_update_bits(chip->regmap, pull_en_reg, bit, 0);
+		ret = regmap_write_bits(chip->regmap, pull_en_reg, bit, 0);
 	else
-		ret = regmap_update_bits(chip->regmap, pull_en_reg, bit, bit);
+		ret = regmap_write_bits(chip->regmap, pull_en_reg, bit, bit);
 
 exit:
 	mutex_unlock(&chip->i2c_lock);
