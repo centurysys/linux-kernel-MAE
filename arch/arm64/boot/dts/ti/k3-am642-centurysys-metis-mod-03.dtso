@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * DT overlay for LTE module (Module Code: 0x01)
+ * DT overlay for LTE/5G module (Module Code: 0x03)
  *
- * Copyright (C) 2022 Century Systems
+ * Copyright (C) 2023 Century Systems
  */
 
 /dts-v1/;
@@ -13,14 +13,20 @@
 
 &leds {
 	mobile_power {
-		label = "Mobile_Power";
+		label = "Mobile_VCC";
 		gpios = <&main_gpio1 18 GPIO_ACTIVE_HIGH>;
 		default-state = "on";
 	};
 
-	mobile_reset {
+	mobile5g_power_msp430 {
+		label = "Mobile_Power";
+		gpios = <&io_exp 2 GPIO_ACTIVE_HIGH>;
+		default-state = "on";
+	};
+
+	mobile5g_reset_msp430 {
 		label = "Mobile_RESETN";
-		gpios = <&main_gpio1 5 GPIO_ACTIVE_HIGH>;
+		gpios = <&io_exp 5 GPIO_ACTIVE_HIGH>;
 		linux,default-trigger = "oneshot";
 		led-pattern = <200 100>;
 	};

@@ -49,10 +49,13 @@ dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-icssg1-dualemac-mii.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-nand.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-00.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-01.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-02.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-03.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-01.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-02.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-01.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-02.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-03.dtbo
 
 # Boards with AM65x SoC
 dtb-$(CONFIG_ARCH_K3) += k3-am6528-iot2050-basic.dtb
