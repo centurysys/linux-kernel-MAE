@@ -563,7 +563,7 @@
 		#size-cells = <0>;
 		#gpio-cells = <2>;
 
-		gpio-line-names = "Mobile_Power_MSP", "EXT_Mobile_Power_MSP", "",
+		gpio-line-names = "", "EXT_Mobile_Power_MSP", "",
 				  "", "", "", "Has_PCIe", "SIM_Select",
 				  "", "", "", "", "", "", "", "", /* Reserved */
 				  "", "", "", "", "", "", "", "", /* Reserved */
