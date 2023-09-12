@@ -131,6 +131,14 @@
 			label = "MSP430_TEST";
 			gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
 		};
+
+		mobile_power_msp430 {
+			label = "Mobile_Power_MSP430";
+			gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
 	};
 };
 
@@ -478,6 +486,20 @@
 			label = "system-status3:g";
 			reg = <0x6>;
 		};
+	};
+
+	io_exp: io_exp@4d {
+		compatible = "nxp,pca9698";
+		reg = <0x4d>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+
+		gpio-line-names = "Mobile_Power_MSP430", "", "", "", "", "", "", "",
+				  "", "", "", "", "", "", "", "", /* Reserved */
+				  "", "", "", "", "", "", "", "", /* Reserved */
+				  "", "", "", "", "", "", "", "", /* Reserved */
+				  "", "", "", "", "", "", "", ""; /* Reserved */
 	};
 
 	tmp75@49 {
