@@ -179,6 +179,7 @@
 	non-removable;
 	no-sd;
 	no-1-8-v;
+	mmc-ddr-3_3v;
 	status = "okay";
 };
 
@@ -207,6 +208,8 @@
 &macb0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_macb0_default &pinctrl_macb0_phy_irq>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	phy-mode = "rmii";
 	status = "okay";
 
