@@ -131,9 +131,14 @@
 			label = "MSP430_TEST";
 			gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	leds_ioexp: leds_ioexp {
+		compatible = "gpio-leds";
+		status = "okay";
 
 		mobile_power_msp430 {
-			label = "Mobile_Power_MSP430";
+			label = "Mobile_Power_Persist";
 			gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;
 			retain-state-suspended;
 			retain-state-shutdown;
