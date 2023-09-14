@@ -132,14 +132,6 @@
 			gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
 		};
 
-		mobile_power_msp430 {
-			label = "Mobile_Power_MSP430";
-			gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;
-			retain-state-suspended;
-			retain-state-shutdown;
-			default-state = "keep";
-		};
-
 		dc12v_ctrl {
 			label = "DC12V_CTRL";
 			gpios = <&pioA PIN_PD23 GPIO_ACTIVE_HIGH>;
@@ -148,6 +140,19 @@
 		poe_ctrl {
 			label = "PoE_CTRL";
 			gpios = <&pioA PIN_PD25 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_ioexp: leds_ioexp {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		mobile_power_msp430 {
+			label = "Mobile_Power_Persist";
+			gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
 		};
 	};
 };
