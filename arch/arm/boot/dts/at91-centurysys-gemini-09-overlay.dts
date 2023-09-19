@@ -1,0 +1,158 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-09-overlay.dts - Device Tree Overlay file (xio_id: 0x09)
+ *                                           for Century Systems Gemini board
+ *
+ *  Copyright (C) 2023 Century Systems
+ *                     Takeyoshi Kikuchi <kikuchi@centurysys.co.jp>
+ */
+
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/regulator/active-semi,8945a-regulator.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+
+	fragment@0 {
+		target-path = "/clocks";
+		__overlay__ {
+			can_xtal: can_xtal {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <20000000>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&pioA>;
+		__overlay__ {
+			pinctrl_flx3_spi_default: flx3_spi_default {
+				clk {
+					pinmux = <PIN_PC18__FLEXCOM3_IO2>;
+					atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
+					bias-disable;
+				};
+
+				data {
+					pinmux = <PIN_PC19__FLEXCOM3_IO1>,
+						 <PIN_PC20__FLEXCOM3_IO0>,
+						 <PIN_PC21__FLEXCOM3_IO3>,
+						 <PIN_PC22__FLEXCOM3_IO4>;
+					atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+					bias-disable;
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			tca9538: tca9538@70 {
+				compatible = "nxp,pca9538";
+				reg = <0x70>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#gpio-cells = <2>;
+
+				gpio-line-names = "Reserved0",
+						  "Reserved1",
+						  "Reserved2",
+						  "Reserved3",
+						  "LDO5V_EN",
+						  "Reserved5",
+						  "CAN1_Reset",
+						  "CAN0_Reset";
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&flx3>;
+		__overlay__ {
+			atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&spi5>;
+		__overlay__ {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_flx3_spi_default>;
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			can0: can@0 {
+				compatible = "microchip,mcp25625";
+				reg = <0>;
+				clocks = <&can_xtal>;
+				spi-max-frequency = <10000000>;
+				#gpio-cells = <2>;
+				interrupt-parent = <&pioA>;
+				interrupts = <PIN_PC17 IRQ_TYPE_LEVEL_LOW>;
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&flx4>;
+		__overlay__ {
+			atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
+			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&spi6>;
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			can1: can@0 {
+				compatible = "microchip,mcp25625";
+				reg = <0>;
+				clocks = <&can_xtal>;
+				spi-max-frequency = <10000000>;
+				#gpio-cells = <2>;
+				interrupt-parent = <&pioA>;
+				interrupts = <PIN_PC17 IRQ_TYPE_LEVEL_LOW>;
+			};
+		};
+	};
+
+	fragment@7 {
+		target = <&leds>;
+		__overlay__ {
+			ldo5v_en {
+				label = "LDO5V_Enable";
+				gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
+			};
+
+			can1_reset {
+				label = "CAN1_Reset";
+				gpios = <&tca9538 6 GPIO_ACTIVE_LOW>;
+				linux,default-trigger = "oneshot";
+			};
+
+			can0_reset {
+				label = "CAN0_Reset";
+				gpios = <&tca9538 7 GPIO_ACTIVE_LOW>;
+				linux,default-trigger = "oneshot";
+			};
+		};
+	};
+};

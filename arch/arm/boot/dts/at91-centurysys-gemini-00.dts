@@ -274,8 +274,17 @@
 					interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
 					clock-names = "usart";
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_flx0_default>;
+					dmas = <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) |
+						 AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(11))>,
+					       <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) |
+						 AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(12))>;
+					dma-names = "tx", "rx";
+					atmel,use-dma-rx;
+					atmel,use-dma-tx;
 					atmel,fifo-size = <32>;
 					dtr-gpios = <&pioA PIN_PC10 GPIO_ACTIVE_LOW>;
 					dsr-gpios = <&pioA PIN_PC11 GPIO_ACTIVE_LOW>;
@@ -293,6 +302,8 @@
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <21 IRQ_TYPE_LEVEL_HIGH 7>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 21>;
+					clock-names = "usart";
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(15))>,
@@ -300,16 +311,45 @@
 						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(16))>;
 					dma-names = "tx", "rx";
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 21>;
-					clock-names = "usart";
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_flx2_default>;
-					atmel,fifo-size = <32>;
-					linux,rs485-enabled-at-boot-time;
-					dtr-gpios = <&pioA PIN_PD29 GPIO_ACTIVE_LOW>;
 					atmel,use-dma-rx;
 					atmel,use-dma-tx;
+					atmel,fifo-size = <32>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_flx2_default>;
+					linux,rs485-enabled-at-boot-time;
+					dtr-gpios = <&pioA PIN_PD29 GPIO_ACTIVE_LOW>;
 					status = "okay";
+				};
+			};
+
+			flx3: flexcom@fc014000 {
+				compatible = "atmel,sama5d2-flexcom";
+				reg = <0xfc014000 0x200>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0xfc014000 0x800>;
+				status = "disabled";
+
+				spi5: spi@400 {
+					compatible = "atmel,at91rm9200-spi";
+					reg = <0x400 0x200>;
+					interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
+					clock-names = "spi_clk";
+					dmas = <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) |
+						 AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(17))>,
+					       <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) |
+						 AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(18))>;
+					dma-names = "tx", "rx";
+					atmel,fifo-size = <16>;
+					status = "disabled";
 				};
 			};
 
@@ -348,23 +388,25 @@
 			flx4: flexcom@fc018000 {
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
 
-				spi2: spi@600 {
+				spi6: spi@400 {
 					compatible = "atmel,at91rm9200-spi";
 					reg = <0x400 0x200>;
 					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
-					dmas = <&dma0
-						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
-						 AT91_XDMAC_DT_PERID(19))>,
-				               <&dma0
-						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
-						 AT91_XDMAC_DT_PERID(20))>;
-					dma-names = "tx", "rx";
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_flx4_default>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
 					clock-names = "spi_clk";
+					dmas = <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) |
+						 AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(19))>,
+				               <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) |
+						 AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(20))>;
+					dma-names = "tx", "rx";
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_flx4_default>;
 					atmel,fifo-size = <32>;
 				};
 			};
@@ -428,6 +470,20 @@
 						label = "system-status3:g";
 						reg = <0x6>;
 					};
+				};
+
+				io_exp: io_exp@4d {
+					compatible = "nxp,pca9698";
+					reg = <0x4d>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#gpio-cells = <2>;
+
+					gpio-line-names = "Mobile_Power_MSP430", "", "", "", "", "", "", "",
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", ""; /* Reserved */
 				};
 
 				tmp75@49 {
@@ -535,12 +591,20 @@
 				};
 
 				pinctrl_flx4_default: flx4_default {
-					pinmux = <PIN_PC28__FLEXCOM4_IO0>,
-						 <PIN_PC29__FLEXCOM4_IO1>,
-						 <PIN_PC30__FLEXCOM4_IO2>,
-						 <PIN_PC31__FLEXCOM4_IO3>,
-						 <PIN_PD0__FLEXCOM4_IO4>;
-					bias-disable;
+					clk {
+						pinmux = <PIN_PC30__FLEXCOM4_IO2>;
+						atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
+						bias-disable;
+					};
+
+					data {
+						pinmux = <PIN_PC28__FLEXCOM4_IO0>,
+							 <PIN_PC29__FLEXCOM4_IO1>,
+							 <PIN_PC31__FLEXCOM4_IO3>,
+							 <PIN_PD0__FLEXCOM4_IO4>;
+						atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+						bias-disable;
+					};
 				};
 
 				pinctrl_i2c0_default: i2c0_default {
@@ -820,6 +884,19 @@
 		msp430_test {
 			label = "MSP430_TEST";
 			gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_ioexp: leds_ioexp {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		mobile_power_msp430 {
+			label = "Mobile_Power_Persist";
+			gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
 		};
 	};
 };

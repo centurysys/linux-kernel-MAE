@@ -430,6 +430,20 @@
 					};
 				};
 
+				io_exp: io_exp@4d {
+					compatible = "nxp,pca9698";
+					reg = <0x4d>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#gpio-cells = <2>;
+
+					gpio-line-names = "Mobile_Power_MSP430", "", "", "", "", "", "", "",
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", ""; /* Reserved */
+				};
+
 				tmp75@49 {
 					compatible = "ti,tmp75";
 					reg = <0x49>;
@@ -535,12 +549,20 @@
 				};
 
 				pinctrl_flx4_default: flx4_default {
-					pinmux = <PIN_PC28__FLEXCOM4_IO0>,
-						 <PIN_PC29__FLEXCOM4_IO1>,
-						 <PIN_PC30__FLEXCOM4_IO2>,
-						 <PIN_PC31__FLEXCOM4_IO3>,
-						 <PIN_PD0__FLEXCOM4_IO4>;
-					bias-disable;
+					clk {
+						pinmux = <PIN_PC30__FLEXCOM4_IO2>;
+						atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
+						bias-disable;
+					};
+
+					data {
+						pinmux = <PIN_PC28__FLEXCOM4_IO0>,
+							 <PIN_PC29__FLEXCOM4_IO1>,
+							 <PIN_PC31__FLEXCOM4_IO3>,
+							 <PIN_PD0__FLEXCOM4_IO4>;
+						atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+						bias-disable;
+					};
 				};
 
 				pinctrl_i2c0_default: i2c0_default {
@@ -820,6 +842,19 @@
 		msp430_test {
 			label = "MSP430_TEST";
 			gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_ioexp: leds_ioexp {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		mobile_power_msp430 {
+			label = "Mobile_Power_Persist";
+			gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
 		};
 	};
 };
