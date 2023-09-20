@@ -1,0 +1,872 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini.dts - Device Tree file for Century Systems Gemini board
+ *
+ *  Copyright (C) 2015 Atmel,
+ *                2015 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *                2020 Century Systems <kikuchi@centurysys.co.jp>
+ */
+/dts-v1/;
+#include "sama5d2.dtsi"
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/regulator/active-semi,8945a-regulator.h>
+
+/ {
+	model = "Century Systems Gemini";
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart3;
+		serial2 = &uart5;
+		serial3 = &uart7;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		usb1: ohci@400000 {
+			num-ports = <3>;
+			atmel,vbus-gpio = <&pioA PIN_PA31 GPIO_ACTIVE_HIGH
+					   &pioA PIN_PC15 GPIO_ACTIVE_HIGH
+					   0
+					  >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb_default>;
+			status = "okay";
+		};
+
+		usb2: ehci@500000 {
+			status = "okay";
+		};
+
+		sdmmc0: sdio-host@a0000000 {
+			bus-width = <4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sdmmc0_default>;
+			non-removable;
+			no-sd;
+			no-1-8-v;
+			status = "okay";
+		};
+
+		sdmmc1: sdio-host@b0000000 {
+			bus-width = <4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sdmmc1_default>;
+			status = "okay";
+			vqmmc-supply = <&vdd_3v3_reg>;
+			vmmc-supply = <&vdd_3v3_reg>;
+			enable_cd-gpio = <&pioA PIN_PA27 GPIO_ACTIVE_HIGH>;
+		};
+
+		apb {
+			spi0: spi@f8000000 {
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(6))>,
+			               <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(7))>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spi0_default>;
+				status = "okay";
+
+				m25p80@0 {
+					compatible = "jedec,spi-nor";
+					reg = <0>;
+					spi-max-frequency = <50000000>;
+				};
+			};
+
+			macb0: ethernet@f8008000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb0_default &pinctrl_macb0_phy_irq>;
+				phy-mode = "rmii";
+				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+					interrupt-parent = <&pioA>;
+					interrupts = <PIN_PC9 IRQ_TYPE_LEVEL_LOW>;
+				};
+			};
+
+			tcb0: timer@f800c000 {
+				timer0: timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer1: timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
+			/* Debug console */
+			uart1: serial@f8020000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1_default>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "okay";
+			};
+
+			i2c0: i2c@f8028000 {
+				dmas = <0>, <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c0_default>;
+				i2c-sda-hold-time-ns = <350>;
+				status = "okay";
+
+				pmic@5b {
+					compatible = "active-semi,act8945a";
+					reg = <0x5b>;
+					active-semi,vsel-high;
+					status = "okay";
+
+					regulators {
+						vdd_1v35_reg: REG_DCDC1 {
+							regulator-name = "VDD_1V35";
+							regulator-min-microvolt = <1350000>;
+							regulator-max-microvolt = <1350000>;
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_FIXED>,
+										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_FIXED>;
+							regulator-always-on;
+
+							regulator-state-mem {
+								regulator-on-in-suspend;
+								regulator-suspend-min-microvolt=<1400000>;
+								regulator-suspend-max-microvolt=<1400000>;
+								regulator-changeable-in-suspend;
+								regulator-mode=<ACT8945A_REGULATOR_MODE_LOWPOWER>;
+							};
+						};
+
+						vdd_1v2_reg: REG_DCDC2 {
+							regulator-name = "VDD_1V2";
+							regulator-min-microvolt = <1100000>;
+							regulator-max-microvolt = <1300000>;
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_FIXED>,
+										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_FIXED>;
+							regulator-always-on;
+
+							regulator-state-mem {
+								regulator-off-in-suspend;
+							};
+						};
+
+						vdd_3v3_reg: REG_DCDC3 {
+							regulator-name = "VDD_3V3";
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_FIXED>,
+										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_FIXED>;
+							regulator-always-on;
+
+							regulator-state-mem {
+								regulator-off-in-suspend;
+							};
+						};
+
+						vdd_fuse_reg: REG_LDO1 {
+							regulator-name = "VDD_FUSE";
+							regulator-min-microvolt = <2500000>;
+							regulator-max-microvolt = <2500000>;
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_NORMAL>,
+										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_NORMAL>;
+							regulator-always-on;
+
+							regulator-state-mem {
+								regulator-off-in-suspend;
+							};
+						};
+
+						vdd_3v3_lp_reg: REG_LDO2 {
+							regulator-name = "VDD_3V3_LP";
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_NORMAL>,
+										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_NORMAL>;
+							regulator-always-on;
+
+							regulator-state-mem {
+								regulator-off-in-suspend;
+							};
+						};
+
+						vdd_led_reg: REG_LDO3 {
+							regulator-name = "VDD_LED";
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_NORMAL>,
+										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_NORMAL>;
+							regulator-always-on;
+
+							regulator-state-mem {
+								regulator-off-in-suspend;
+							};
+						};
+
+						vdd_sdhc_1v8_reg: REG_LDO4 {
+							regulator-name = "VDD_SDHC_1V8";
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_NORMAL>,
+										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_NORMAL>;
+							regulator-always-on;
+
+							regulator-state-mem {
+								regulator-off-in-suspend;
+							};
+						};
+					};
+
+					charger {
+						compatible = "active-semi,act8945a-charger";
+						pinctrl-names = "default";
+						pinctrl-0 = <&pinctrl_charger_chglev &pinctrl_charger_lbo &pinctrl_charger_irq>;
+						interrupt-parent = <&pioA>;
+						interrupts = <PIN_PB13 IRQ_TYPE_EDGE_RISING>;
+
+						active-semi,chglev-gpios = <&pioA PIN_PA12 GPIO_ACTIVE_HIGH>;
+						active-semi,lbo-gpios = <&pioA PIN_PC8 GPIO_ACTIVE_LOW>;
+						active-semi,input-voltage-threshold-microvolt = <6600>;
+						active-semi,precondition-timeout = <40>;
+						active-semi,total-timeout = <3>;
+						status = "okay";
+					};
+				};
+			};
+
+			/* DB9 RS-232C */
+			flx0: flexcom@f8034000 {
+				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+				status = "okay";
+
+				uart5: serial@200 {
+					compatible = "atmel,at91sam9260-usart";
+					reg = <0x200 0x200>;
+					interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
+					clock-names = "usart";
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_flx0_default>;
+					atmel,fifo-size = <32>;
+					dtr-gpios = <&pioA PIN_PC10 GPIO_ACTIVE_LOW>;
+					dsr-gpios = <&pioA PIN_PC11 GPIO_ACTIVE_LOW>;
+					dcd-gpios = <&pioA PIN_PC12 GPIO_ACTIVE_LOW>;
+					rng-gpios = <&pioA PIN_PC13 GPIO_ACTIVE_LOW>;
+					status = "okay";
+				};
+			};
+
+			flx2: flexcom@fc010000 {
+				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+				status = "okay";
+
+				uart7: serial@200 {
+					compatible = "atmel,at91sam9260-usart";
+					reg = <0x200 0x200>;
+					interrupts = <21 IRQ_TYPE_LEVEL_HIGH 7>;
+					dmas = <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(15))>,
+					       <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(16))>;
+					dma-names = "tx", "rx";
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 21>;
+					clock-names = "usart";
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_flx2_default>;
+					atmel,fifo-size = <32>;
+					linux,rs485-enabled-at-boot-time;
+					dtr-gpios = <&pioA PIN_PD29 GPIO_ACTIVE_LOW>;
+					atmel,use-dma-rx;
+					atmel,use-dma-tx;
+					status = "okay";
+				};
+			};
+
+			shdwc@f8048010 {
+				debounce-delay-us = <976>;
+				atmel,wakeup-rtc-timer;
+
+				opt_switch@4 {
+					reg = <6>;
+				};
+
+				mcuc@5 {
+					reg = <7>;
+					atmel,wakeup-active-high;
+				};
+
+				ext_rtc@6 {
+					reg = <8>;
+				};
+			};
+
+			watchdog@f8048040 {
+				status = "okay";
+			};
+
+			/* MSP430 */
+			uart3: serial@fc008000 {
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart3_default>;
+				status = "okay";
+			};
+
+			/* XIO SPI */
+			flx4: flexcom@fc018000 {
+				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
+
+				spi2: spi@600 {
+					compatible = "atmel,at91rm9200-spi";
+					reg = <0x400 0x200>;
+					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
+					dmas = <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(19))>,
+				               <&dma0
+						(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+						 AT91_XDMAC_DT_PERID(20))>;
+					dma-names = "tx", "rx";
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_flx4_default>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
+					clock-names = "spi_clk";
+					atmel,fifo-size = <32>;
+				};
+			};
+
+			i2c1: i2c@fc028000 {
+				dmas = <0>, <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1_default>;
+				status = "okay";
+
+				at24@50 {
+					compatible = "atmel,24c02";
+					reg = <0x50>;
+					pagesize = <16>;
+				};
+
+				dsk324sr@32 {
+					compatible = "rtc,dsk324sr";
+					reg = <0x32>;
+				};
+
+				tca6507@45 {
+					compatible = "ti,tca6507";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x45>;
+
+					led0: power-status-red@0 {
+						label = "power-stat:r";
+						reg = <0x0>;
+					};
+
+					led1: system-status1-red@1 {
+						label = "system-status1:r";
+						reg = <0x1>;
+						linux,default-trigger = "heartbeat";
+					};
+
+					led2: system-status2-red@2 {
+						label = "system-status2:r";
+						reg = <0x2>;
+					};
+
+					led3: system-status3-red@3 {
+						label = "system-status3:r";
+						reg = <0x3>;
+					};
+
+					led4: system-status1-green@4 {
+						label = "system-status1:g";
+						reg = <0x4>;
+						linux,default-trigger = "timer-suspend";
+					};
+
+					led5: system-status2-green@5 {
+						label = "system-status2:g";
+						reg = <0x5>;
+					};
+
+					led6: system-status3-green@6 {
+						label = "system-status3:g";
+						reg = <0x6>;
+					};
+				};
+
+				io_exp: io_exp@4d {
+					compatible = "nxp,pca9698";
+					reg = <0x4d>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#gpio-cells = <2>;
+
+					gpio-line-names = "Mobile_Power_MSP430", "", "", "", "", "", "", "",
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", "", /* Reserved */
+							  "", "", "", "", "", "", "", ""; /* Reserved */
+				};
+
+				tmp75@49 {
+					compatible = "ti,tmp75";
+					reg = <0x49>;
+				};
+
+				rtc@68 {
+					compatible = "st,m41t80";
+					reg = <0x68>;
+					wakeup-source;
+				};
+			};
+
+			adc: adc@fc030000 {
+				vddana-supply = <&vdd_3v3_lp_reg>;
+				vref-supply = <&vdd_3v3_lp_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_adc_default &pinctrl_adtrg_default>;
+				status = "okay";
+			};
+
+			pinctrl@fc038000 {
+				gpio-line-names = "", "", "", "", "", "", "", "", /* PA0  ..  7 */
+						  "", "", "", "", "", "", "", "", /* PA8  .. 15 */
+						  "", "", "", "", "", "", "", "", /* PA16 .. 23 */
+						  "", "", "", "", "", "", "", "", /* PA24 .. 31 */
+						  "", "DIPSW0", "DIPSW1", "DIPSW2", "DIPSW3", "", "", "",
+						  "", "", "", "", "", "", "", "", /* PB8  .. 15 */
+						  "", "", "", "", "", "", "", "", /* PB16 .. 23 */
+						  "SW_INIT_N", "SW_OPT", "", "", "", "", "", "",
+						  "", "MobileLED_G3", "MobileLED_R3", "MobileLED_G2",
+						  "MobileLED_R2", "PowerLED_G", "", "PHY_RESET_N",
+						  "", "", "DB9_DTR", "DB9_DSR", "DB9_DCD", "DB9_RI",
+						  "DB9_FORCEOFF_N", "XIOUSB_ENABLE", "XIOUSB_OVC",
+						  "XIOIRQ_N", "", "", "", "", "",
+						  "Mobile_PWRKEY", "Mobile_RESET_N", "Mobile_SLEEP_N",
+						  "Mobile_READY_N","Mobile_WAKEUP_N", "", "", "", "",
+						  "", "", "", "", "", "", "DI0", "DI1",
+						  "DI2", "DI3", "DO0", "DO1", "MSP430_RST",
+						  "MSP430_TEST", "", "",
+						  "", "", "", "", "", "", "", "", /* PD16 .. 23 */
+						  "", "", "", "", "", "", "", ""; /* PD24 .. 31 */
+				/*
+				 * There is no real pinmux for ADC, if the pin
+				 * is not requested by another peripheral then
+				 * the muxing is done when channel is enabled.
+				 * Requesting pins for ADC is GPIO is
+				 * encouraged to prevent conflicts and to
+				 * disable bias in order to be in the same
+				 * state when the pin is not muxed to the adc.
+				 */
+				pinctrl_adc_default: adc_default {
+					pinmux = <PIN_PD19__GPIO>;
+					bias-disable;
+				};
+
+				/*
+				 * The ADTRG pin can work on any edge type.
+				 * In here it's being pulled up, so need to
+				 * connect it to ground to get an edge e.g.
+				 * Trigger can be configured on falling, rise
+				 * or any edge, and the pull-up can be changed
+				 * to pull-down or left floating according to
+				 * needs.
+				 */
+				pinctrl_adtrg_default: adtrg_default {
+					pinmux = <PIN_PD31__ADTRG>;
+					bias-pull-up;
+				};
+
+				pinctrl_charger_chglev: charger_chglev {
+					pinmux = <PIN_PA12__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_charger_irq: charger_irq {
+					pinmux = <PIN_PB13__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_charger_lbo: charger_lbo {
+					pinmux = <PIN_PC8__GPIO>;
+					bias-pull-up;
+				};
+
+				pinctrl_flx0_default: flx0_default {
+					pinmux = <PIN_PB28__FLEXCOM0_IO0>,
+						 <PIN_PB29__FLEXCOM0_IO1>,
+						 <PIN_PB31__FLEXCOM0_IO3>,
+						 <PIN_PC0__FLEXCOM0_IO4>,
+						 <PIN_PC10__GPIO>,
+						 <PIN_PC11__GPIO>,
+						 <PIN_PC12__GPIO>,
+						 <PIN_PC13__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_flx2_default: flx2_default {
+					pinmux = <PIN_PD26__FLEXCOM2_IO0>,
+						 <PIN_PD27__FLEXCOM2_IO1>,
+						 <PIN_PD29__GPIO>,
+						 <PIN_PD30__FLEXCOM2_IO4>;
+					bias-disable;
+				};
+
+				pinctrl_flx4_default: flx4_default {
+					clk {
+						pinmux = <PIN_PC30__FLEXCOM4_IO2>;
+						atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
+						bias-disable;
+					};
+
+					data {
+						pinmux = <PIN_PC28__FLEXCOM4_IO0>,
+							 <PIN_PC29__FLEXCOM4_IO1>,
+							 <PIN_PC31__FLEXCOM4_IO3>,
+							 <PIN_PD0__FLEXCOM4_IO4>;
+						atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+						bias-disable;
+					};
+				};
+
+				pinctrl_i2c0_default: i2c0_default {
+					pinmux = <PIN_PD21__TWD0>,
+						 <PIN_PD22__TWCK0>;
+					bias-disable;
+				};
+
+				pinctrl_i2c1_default: i2c1_default {
+					pinmux = <PIN_PD4__TWD1>,
+						 <PIN_PD5__TWCK1>;
+					bias-disable;
+				};
+
+				pinctrl_key_gpio_default: key_gpio_default {
+					pinmux = <PIN_PB24__GPIO>,
+					         <PIN_PB25__GPIO>;
+					bias-disable;
+					input-schmitt-enable = <1>;
+				};
+
+				pinctrl_led_gpio_default: led_gpio_default {
+					pinmux = <PIN_PC2__GPIO>,
+						 <PIN_PC4__GPIO>,
+						 <PIN_PC23__GPIO>,
+						 <PIN_PC24__GPIO>,
+						 <PIN_PC25__GPIO>,
+						 <PIN_PD12__GPIO>,
+						 <PIN_PD13__GPIO>,
+						 <PIN_PD23__GPIO>,
+						 <PIN_PD25__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_douts_gpio_default: douts_gpio_default {
+					pinmux = <PIN_PC1__GPIO>,
+						 <PIN_PC3__GPIO>,
+						 <PIN_PC5__GPIO>,
+						 <PIN_PD10__GPIO>,
+						 <PIN_PD11__GPIO>;
+					bias-disable;
+					atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
+				};
+
+				pinctrl_macb0_default: macb0_default {
+					pinmux = <PIN_PB14__GTXCK>,
+						 <PIN_PB15__GTXEN>,
+						 <PIN_PB16__GRXDV>,
+						 <PIN_PB17__GRXER>,
+						 <PIN_PB18__GRX0>,
+						 <PIN_PB19__GRX1>,
+						 <PIN_PB20__GTX0>,
+						 <PIN_PB21__GTX1>,
+						 <PIN_PB22__GMDC>,
+						 <PIN_PB23__GMDIO>;
+					bias-disable;
+				};
+
+				pinctrl_macb0_phy_irq: macb0_phy_irq {
+					pinmux = <PIN_PC9__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_sdmmc0_default: sdmmc0_default {
+					cmd_data {
+						pinmux = <PIN_PA1__SDMMC0_CMD>,
+							 <PIN_PA2__SDMMC0_DAT0>,
+							 <PIN_PA3__SDMMC0_DAT1>,
+							 <PIN_PA4__SDMMC0_DAT2>,
+							 <PIN_PA5__SDMMC0_DAT3>;
+						bias-disable;
+					};
+
+					ck_cd_rstn_vddsel {
+						pinmux = <PIN_PA0__SDMMC0_CK>,
+							 <PIN_PA10__SDMMC0_RSTN>,
+							 <PIN_PA13__SDMMC0_CD>;
+						bias-disable;
+					};
+				};
+
+				pinctrl_sdmmc1_default: sdmmc1_default {
+					cmd_data {
+						pinmux = <PIN_PA28__SDMMC1_CMD>,
+							 <PIN_PA18__SDMMC1_DAT0>,
+							 <PIN_PA19__SDMMC1_DAT1>,
+							 <PIN_PA20__SDMMC1_DAT2>,
+							 <PIN_PA21__SDMMC1_DAT3>,
+							 <PIN_PA27__GPIO>;
+						bias-disable;
+					};
+
+					conf-ck_cd {
+						pinmux = <PIN_PA22__SDMMC1_CK>,
+							 <PIN_PA30__SDMMC1_CD>;
+						bias-disable;
+					};
+				};
+
+				pinctrl_spi0_default: spi0_default {
+					pinmux = <PIN_PA14__SPI0_SPCK>,
+						 <PIN_PA15__SPI0_MOSI>,
+						 <PIN_PA16__SPI0_MISO>,
+						 <PIN_PA17__SPI0_NPCS0>;
+					bias-disable;
+				};
+
+				pinctrl_uart1_default: uart1_default {
+					pinmux = <PIN_PD2__URXD1>,
+						 <PIN_PD3__UTXD1>;
+					bias-disable;
+				};
+
+				pinctrl_uart3_default: uart3_default {
+					pinmux = <PIN_PB11__URXD3>,
+						 <PIN_PB12__UTXD3>;
+					bias-disable;
+				};
+
+				pinctrl_usb_default: usb_default {
+					pinmux = <PIN_PA31__GPIO>,
+						 <PIN_PC15__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_gpio_in_default: gpio_in_default {
+					pinmux = <PIN_PB1__GPIO>,
+						 <PIN_PB2__GPIO>,
+						 <PIN_PB3__GPIO>,
+						 <PIN_PB4__GPIO>,
+						 <PIN_PC23__GPIO>,
+						 <PIN_PC27__GPIO>,
+						 <PIN_PD6__GPIO>,
+						 <PIN_PD7__GPIO>,
+						 <PIN_PD8__GPIO>,
+						 <PIN_PD9__GPIO>;
+					input-schmitt-enable;
+					input-debounce;
+				};
+
+				pinctrl_xioirq_default: xioirq_default {
+					pinmux = <PIN_PC17__GPIO>;
+					bias-disable;
+					input-schmitt-enable;
+				};
+			};
+
+			secumod@fc040000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				gpio-line-names = "BU_DI0",
+						  "BU_DI1",
+						  "BU_DI2",
+						  "BU_DI3",
+						  "BU_OPT_SW",
+						  "BU_MSP430_IRQ",
+						  "BU_EXT_RTC_ALARM",
+						  "BU_XIO_WAKEUP";
+
+				pio@bu0 {
+					reg = <0>;
+				};
+
+				pio@bu1 {
+					reg = <1>;
+				};
+
+				pio@bu2 {
+					reg = <2>;
+				};
+
+				pio@bu3 {
+					reg = <3>;
+				};
+
+				pio@bu5 {
+					reg = <5>;
+				};
+
+				pio@bu6 {
+					reg = <6>;
+				};
+
+				pio@bu7 {
+					reg = <7>;
+				};
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_key_gpio_default>;
+
+		sw_init {
+			label = "SW_INIT";
+			gpios = <&pioA PIN_PB24 GPIO_ACTIVE_LOW>;
+			linux,code = <0x100>; /* BTN_0 */
+			wakeup-source;
+		};
+
+		sw_opt {
+			label = "SW_OPT";
+			gpios = <&pioA PIN_PB25 GPIO_ACTIVE_HIGH>;
+			linux,code = <0x101>; /* BTN_1 */
+			wakeup-source;
+		};
+	};
+
+	leds: leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_led_gpio_default &pinctrl_douts_gpio_default>;
+		status = "okay";
+
+		led_g3 {
+			label = "MobileLED_G3";
+			gpios = <&pioA PIN_PC1 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r3 {
+			label = "MobileLED_R3";
+			gpios = <&pioA PIN_PC2 GPIO_ACTIVE_LOW>;
+		};
+
+		led_g2 {
+			label = "MobileLED_G2";
+			gpios = <&pioA PIN_PC3 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r2 {
+			label = "MobileLED_R2";
+			gpios = <&pioA PIN_PC4 GPIO_ACTIVE_LOW>;
+		};
+
+		power_led {
+			label = "PowerLED";
+			gpios = <&pioA PIN_PC5 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		mobile_powerkey {
+			label = "Mobile_PWRKEY";
+			gpios = <&pioA PIN_PC23 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <800 100>;
+		};
+
+		mobile_resetn {
+			label = "Mobile_RESETN";
+			gpios = <&pioA PIN_PC24 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <600 100>;
+		};
+
+		mobile_sleep {
+			label = "Mobile_SLEEP";
+			gpios = <&pioA PIN_PC25 GPIO_ACTIVE_HIGH>;
+		};
+
+		do_0 {
+			label = "DO0";
+			gpios = <&pioA PIN_PD10 GPIO_ACTIVE_LOW>;
+		};
+
+		do_1 {
+			label = "DO1";
+			gpios = <&pioA PIN_PD11 GPIO_ACTIVE_LOW>;
+		};
+
+		msp430_reset {
+			label = "MSP430_RST";
+			gpios = <&pioA PIN_PD12 GPIO_ACTIVE_HIGH>;
+		};
+
+		msp430_test {
+			label = "MSP430_TEST";
+			gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
+		};
+
+		dc12v_ctrl {
+			label = "DC12V_CTRL";
+			gpios = <&pioA PIN_PD23 GPIO_ACTIVE_HIGH>;
+		};
+
+		poe_ctrl {
+			label = "PoE_CTRL";
+			gpios = <&pioA PIN_PD25 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_ioexp: leds_ioexp {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		mobile_power_msp430 {
+			label = "Mobile_Power_Persist";
+			gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+	};
+};
