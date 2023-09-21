@@ -63,17 +63,17 @@
 		pinctrl-0 = <&pinctrl_led_gpio_default>;
 		status = "okay";
 
-		red {
+		led-red {
 			label = "red";
 			gpios = <&pioA PIN_PA7 GPIO_ACTIVE_HIGH>;
 		};
 
-		green {
+		led-green {
 			label = "green";
 			gpios = <&pioA PIN_PA8 GPIO_ACTIVE_HIGH>;
 		};
 
-		blue {
+		led-blue {
 			label = "blue";
 			gpios = <&pioA PIN_PA9 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
@@ -278,12 +278,6 @@
 	status = "okay";
 };
 
-&i2s0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2s0_default>;
-	status = "okay";
-};
-
 &pioA {
 	pinctrl_adc_default: adc-default {
 		pinmux = <PIN_PD25__GPIO>,
@@ -328,7 +322,7 @@
 		bias-disable;
 	};
 
-	pinctrl_i2c0_gpio: i2c0-gpio {
+	pinctrl_i2c0_gpio: i2c0-gpio-default {
 		pinmux = <PIN_PB31__GPIO>,
 			 <PIN_PC0__GPIO>;
 		bias-disable;
@@ -340,18 +334,9 @@
 		bias-disable;
 	};
 
-	pinctrl_i2c1_gpio: i2c1-gpio {
+	pinctrl_i2c1_gpio: i2c1-gpio-default {
 		pinmux = <PIN_PD4__GPIO>,
 			 <PIN_PD5__GPIO>;
-		bias-disable;
-	};
-
-	pinctrl_i2s0_default: i2s0-default {
-		pinmux = <PIN_PD19__I2SC0_CK>,
-			 <PIN_PD20__I2SC0_MCK>,
-			 <PIN_PD21__I2SC0_WS>,
-			 <PIN_PD22__I2SC0_DI0>,
-			 <PIN_PD23__I2SC0_DO0>;
 		bias-disable;
 	};
 
