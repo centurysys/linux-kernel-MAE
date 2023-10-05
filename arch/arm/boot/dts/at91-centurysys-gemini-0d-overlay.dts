@@ -23,27 +23,13 @@
 		target = <&pioA>;
 		__overlay__ {
 			pinctrl_spi6_halow_default: spi6_halow_default {
-				clk {
-					pinmux = <PIN_PC30__FLEXCOM4_IO2>;
-					atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
-					bias-disable;
-				};
-
-				data {
-					pinmux = <PIN_PC28__FLEXCOM4_IO0>,
-					 <PIN_PC29__FLEXCOM4_IO1>,
-					 <PIN_PC31__FLEXCOM4_IO3>,
-					 <PIN_PD0__FLEXCOM4_IO4>;
-					atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
-					bias-disable;
-				};
-
 				gpio {
 					pinmux = <PIN_PC20__GPIO>,
 						 <PIN_PC21__GPIO>,
 						 <PIN_PC22__GPIO>;
 					atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
-					bias-disable;
+					bias-pull-up;
+					output-high;
 				};
 			};
 		};
@@ -80,18 +66,27 @@
 			status = "okay";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_spi6_halow_default>;
 
-			mm610x_sdio: mm610x_sdio@0 {
-				compatible = "morse,mm610x";
+			mm610x_spi: mm610x_spi@0 {
+				compatible = "morse,mm610x-spi";
+				spi-max-frequency = <10000000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spi6_halow_default>;
 				reset-gpios = <&pioA PIN_PC20 GPIO_ACTIVE_LOW>;
 				power-gpios = <&pioA PIN_PC22 GPIO_ACTIVE_HIGH>,
 					      <&pioA PIN_PC21 GPIO_ACTIVE_HIGH>;
+				spi-irq-gpios = <&pioA PIN_PC17 GPIO_ACTIVE_LOW>;
 				reg = <0>;
 				#gpio-cells = <2>;
 				interrupt-parent = <&pioA>;
 				interrupts = <PIN_PC17 IRQ_TYPE_LEVEL_LOW>;
+				status = "okay";
+			};
+
+			spidev: spidev@1 {
+				compatible = "atmel,at91rm9200-spidev";
+				spi-max-frequency = <10000000>;
+				reg = <1>;
 			};
 		};
 	};
@@ -99,14 +94,6 @@
 	fragment@3 {
 		target = <&leds>;
 		__overlay__ {
-			halow_reset {
-				label = "WL_RESET";
-				gpios = <&tca9538 7 GPIO_ACTIVE_LOW>;
-				linux,default-trigger = "oneshot";
-				led-pattern = <500 100>;
-				default-state = "off";
-			};
-
 			halow_power {
 				label = "WL_Power";
 				gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
@@ -121,6 +108,11 @@
 			halow_red {
 				label = "WLAN_R";
 				gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
+			};
+
+			halow_reset {
+				label = "HALOW_RESET";
+				gpios = <&pioA PIN_PC20 GPIO_ACTIVE_LOW>;
 			};
 		};
 	};
