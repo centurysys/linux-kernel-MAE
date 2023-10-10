@@ -69,7 +69,7 @@
 
 			mm610x_spi: mm610x_spi@0 {
 				compatible = "morse,mm610x-spi";
-				spi-max-frequency = <10000000>;
+				spi-max-frequency = <50000000>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi6_halow_default>;
 				reset-gpios = <&pioA PIN_PC20 GPIO_ACTIVE_LOW>;
@@ -85,7 +85,7 @@
 
 			spidev: spidev@1 {
 				compatible = "atmel,at91rm9200-spidev";
-				spi-max-frequency = <10000000>;
+				spi-max-frequency = <50000000>;
 				reg = <1>;
 			};
 		};
