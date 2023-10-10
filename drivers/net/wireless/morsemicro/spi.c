@@ -33,6 +33,7 @@ struct morse_spi {
 
 	/* Memory for command/response transfers */
 	u8 *data;
+	u8 *data_rx;
 
 	/* for bulk data transfers */
 	struct spi_transfer	t;
@@ -109,7 +110,7 @@ struct uaccess *morse_spi_uaccess;
 #define SPI_MAX_TRANSACTION_SIZE  8192        /* Maximum number of bytes per RPi SPI transaction */
 #define SPI_MAX_TRANSFER_SIZE     (64 * 1024) /* Maximum number of bytes per SPI read/write */
 
-#define SPI_CLK_SPEED					140000000   /* We need to set this value to get 50 MHz */
+#define SPI_CLK_SPEED					50000000   /* We need to set this value to get 50 MHz */
 #define MAX_SPI_CLK_SPEED				50000000
 #define SPI_CLK_PERIOD_NANO_S(clk_mhz)	(1000000000/clk_mhz)
 
@@ -176,7 +177,7 @@ static int morse_spi_xfer(struct morse_spi *mspi, unsigned int len)
 	return ret;
 }
 
-static void morse_spi_initsequence(struct morse_spi *mspi)
+static void  __maybe_unused morse_spi_initsequence(struct morse_spi *mspi)
 {
 	struct spi_device *spi = mspi->spi;
 
@@ -194,24 +195,10 @@ static void morse_spi_initsequence(struct morse_spi *mspi)
 	 * the card returns BUSY status, the clock must issue several cycles
 	 * with chipselect high before the card will stop driving its output.
 	 */
-	spi->mode |= SPI_CS_HIGH;
-	if (spi_setup(spi) != 0) {
-		/* Just warn; most cards work without it. */
-		dev_warn(&spi->dev,
-				"can't change chip-select polarity\n");
-		spi->mode &= ~SPI_CS_HIGH;
-	} else {
-		/* We will send only 0xFF for training */
-		memset(mspi->data, 0xFF, 4 * 1024);
-		morse_spi_xfer(mspi, 18);
-
-		spi->mode &= ~SPI_CS_HIGH;
-		if (spi_setup(spi) != 0) {
-			/* Wot, we can't get the same setup we had before? */
-			dev_err(&spi->dev,
-					"can't restore chip-select polarity\n");
-		}
-	}
+	spi->mode |= SPI_NO_CS;
+	memset(mspi->data, 0xFF, 4 * 1024);
+	morse_spi_xfer(mspi, 18);
+	spi->mode &= ~SPI_NO_CS;
 }
 
 static void morse_spi_xfer_init(struct morse_spi *mspi)
@@ -221,7 +208,7 @@ static void morse_spi_xfer_init(struct morse_spi *mspi)
 
 	mspi->m.is_dma_mapped = false;
 	mspi->t.tx_buf = mspi->data;
-	mspi->t.rx_buf = mspi->data;
+	mspi->t.rx_buf = mspi->data_rx;
 	mspi->t.cs_change = 0;
 
 	spi_message_add_tail(&mspi->t, &mspi->m);
@@ -257,7 +244,7 @@ exit:
 
 static int morse_spi_cmd(struct morse_spi *mspi, u8 cmd, u32 arg)
 {
-	int ret = 0;
+	int ret = 0, len;
 	u8 *cp = mspi->data;
 	u8 *end;
 
@@ -277,18 +264,21 @@ static int morse_spi_cmd(struct morse_spi *mspi, u8 cmd, u32 arg)
 	 */
 
 	memset(cp, 0xff, 20);
+	/* clear response buffer */
+	memset(mspi->data_rx, 0xff, 20);
 
 	cp[1] = 0x40 | cmd;
 
-	put_unaligned_be32(arg, cp+2);
+	put_unaligned_be32(arg, cp + 2);
 
-	cp[6] = crc7_be(0, cp+1, 5) | 0x01;
+	cp[6] = crc7_be(0, cp + 1, 5) | 0x01;
 	cp += 7;
 
 	/* Allow 10 read attempts */
 	end = cp + 13;
+	len = end - mspi->data;
 
-	morse_spi_xfer(mspi, end - mspi->data);
+	morse_spi_xfer(mspi, len);
 
 	/*
 	 * Except for data block reads, the whole response will already
@@ -297,7 +287,7 @@ static int morse_spi_cmd(struct morse_spi *mspi, u8 cmd, u32 arg)
 	 * first byte.  After STOP_TRANSMISSION command it may include
 	 * two data bits, but otherwise it's all ones.
 	 */
-	if (!morse_spi_find_response(mspi, mspi->data + 8, end))
+	if (!morse_spi_find_response(mspi, mspi->data_rx + 8, mspi->data_rx + len))
 		/* Couldn't find successful R1 response */
 		ret = -EPROTO;
 
@@ -452,14 +442,16 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	u32 data_size;
 	/* Scale bytes delay to block */
 	u32 extra_bytes = (count * mspi->inter_block_delay_bytes) / MMC_SPI_BLOCKSIZE;
-	int i;
+	int i, len;
 
 	memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
+	memset(mspi->data_rx, 0xFF, MM610X_BUF_SIZE);
 
 	/* Insert command and argument */
-	cp += morse_spi_put_cmd53(fn, address, cp, count, 0, block);
+	len = morse_spi_put_cmd53(fn, address, cp, count, 0, block);
+	cp += len;
 
-	resp = cp;
+	resp = mspi->data_rx + len;
 
 	/*
 	 * Calculate number of clock cycles needed to get data.
@@ -481,7 +473,8 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	cp += data_size;
 
 	end = cp;
-	morse_spi_xfer(mspi, cp - mspi->data);
+	len = cp - mspi->data;
+	morse_spi_xfer(mspi, len);
 
 	/*
 	 * Response will already be stored in the data buffer.  It's
@@ -491,6 +484,7 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 
 	/* Time to verify */
 	cp = resp;
+	end = cp + len;
 	cp = morse_spi_find_response(mspi, cp, end);
 	if (!cp)
 		goto exit;
@@ -522,15 +516,17 @@ static int morse_spi_cmd53_write(struct morse_spi *mspi, u8 fn, u32 address, u8 
 	u8 *end;
 	u8 *ack = cp;
 	u32 data_size;
-	int i;
+	int i, len, ack_offset;
 
 	memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
+	memset(mspi->data_rx, 0xFF, MM610X_BUF_SIZE);
 
 	/* Insert command and argument */
-	cp += morse_spi_put_cmd53(fn, address, cp, count, 1, block);
+	len = morse_spi_put_cmd53(fn, address, cp, count, 1, block);
+	cp += len;
 
 	/* Mark response point */
-	resp = cp;
+	resp = mspi->data_rx + len;
 
 	/* Calculate number of clock cycles needed to get data.
 	 * Transactions are either one block of few bytes (i.e less than
@@ -578,13 +574,18 @@ static int morse_spi_cmd53_write(struct morse_spi *mspi, u8 fn, u32 address, u8 
 
 	/* Do the actual transfer */
 	end = cp;
-	morse_spi_xfer(mspi, cp - mspi->data);
+	len = end - mspi->data;
+	morse_spi_xfer(mspi, len);
 
 	/* Time to verify */
 	cp = resp;
+	end = mspi->data_rx + len;
 	cp = morse_spi_find_response(mspi, cp, end);
 	if (!cp)
 		goto exit;
+
+	ack_offset = ack - mspi->data;
+	ack = mspi->data_rx + ack_offset;
 
 	/* SW-5611:
 	 *
@@ -1003,6 +1004,7 @@ static int morse_spi_remove(struct spi_device *spi)
 		}
 
 		morse_spi_remove_irq(mspi);
+		kfree(mspi->data_rx);
 		kfree(mspi->data);
 #ifdef CONFIG_MORSE_USER_ACCESS
 		uaccess_device_unregister(mors);
@@ -1110,6 +1112,7 @@ static int morse_spi_probe(struct spi_device *spi)
 	/* preallocate dma buffers */
 	mspi = (struct morse_spi *)mors->drv_priv;
 	mspi->data = kmalloc(MM610X_BUF_SIZE, GFP_KERNEL);
+	mspi->data_rx = kmalloc(MM610X_BUF_SIZE, GFP_KERNEL);
 	if (!mspi->data) {
 		morse_err(mors, "%s Failed to allocate DMA buffers (size=%d bytes)\n",
 				__func__, MM610X_BUF_SIZE);
@@ -1297,6 +1300,7 @@ err_uaccess:
 	uaccess_cleanup(morse_spi_uaccess);
 #endif
 err_cfg:
+	kfree(mspi->data_rx);
 	kfree(mspi->data);
 err_nobuf:
 	morse_mac_destroy(mors);
