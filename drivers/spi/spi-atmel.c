@@ -1188,6 +1188,9 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	as = spi_master_get_devdata(spi->master);
 
+	if (spi->mode & SPI_NO_CS)
+		return 0;
+
 	/* see notes above re chipselect */
 	if (!spi->cs_gpiod && (spi->mode & SPI_CS_HIGH)) {
 		dev_warn(&spi->dev, "setup: non GPIO CS can't be active-high\n");
@@ -1255,6 +1258,12 @@ static int atmel_spi_setup(struct spi_device *spi)
 static void atmel_spi_set_cs(struct spi_device *spi, bool enable)
 {
 	struct atmel_spi *as = spi_master_get_devdata(spi->master);
+
+	if (spi->mode & SPI_NO_CS) {
+		cs_deactivate(as, spi);
+		return;
+	}
+
 	/* the core doesn't really pass us enable/disable, but CS HIGH vs CS LOW
 	 * since we already have routines for activate/deactivate translate
 	 * high/low to active/inactive
@@ -1266,7 +1275,6 @@ static void atmel_spi_set_cs(struct spi_device *spi, bool enable)
 	} else {
 		cs_deactivate(as, spi);
 	}
-
 }
 
 static int atmel_spi_one_transfer(struct spi_master *master,
