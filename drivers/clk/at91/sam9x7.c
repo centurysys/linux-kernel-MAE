@@ -64,7 +64,7 @@ enum pll_type {
 
 static const struct clk_master_characteristics mck_characteristics = {
 	.output = { .min = 32000000, .max = 266666667 },
-	.divisors = { 1, 2, 4, 3 },
+	.divisors = { 1, 2, 4, 3, 5},
 	.have_div3_pres = 1,
 };
 
@@ -220,6 +220,10 @@ static const struct {
 			.p = "mainck",
 			.l = &plla_frac_layout,
 			.t = PLL_TYPE_FRAC,
+			/*
+			 * This feeds plla_divpmcck which feeds CPU. It should
+			 * not be disabled.
+			 */
 			.f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
 			.c = &plla_characteristics,
 		},
@@ -229,6 +233,7 @@ static const struct {
 			.p = "plla_fracck",
 			.l = &pll_divpmc_layout,
 			.t = PLL_TYPE_DIV,
+			/* This feeds CPU. It should not be disabled */
 			.f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
 			.eid = PMC_PLLACK,
 			.c = &plla_characteristics,
@@ -274,6 +279,7 @@ static const struct {
 			.f = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
 			     CLK_SET_RATE_PARENT,
 			.c = &audiopll_characteristics,
+			.eid = PMC_AUDIOPMCPLL,
 			.t = PLL_TYPE_DIV,
 		},
 
@@ -284,6 +290,7 @@ static const struct {
 			.f = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
 			     CLK_SET_RATE_PARENT,
 			.c = &audiopll_characteristics,
+			.eid = PMC_AUDIOIOPLL,
 			.t = PLL_TYPE_DIV,
 		},
 	},
@@ -305,6 +312,7 @@ static const struct {
 			.f = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
 			     CLK_SET_RATE_PARENT,
 			.c = &lvdspll_characteristics,
+			.eid = PMC_LVDSPLL,
 			.t = PLL_TYPE_DIV,
 		},
 	},
@@ -314,8 +322,13 @@ static const struct {
 			.n = "plla_div2pmcck",
 			.p = "plla_fracck",
 			.l = &plladiv2_divpmc_layout,
+			/*
+			 * This may feed critical parts of the system like timers.
+			 * It should not be disabled.
+			 */
 			.f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
 			.c = &plladiv2_characteristics,
+			.eid = PMC_PLLADIV2,
 			.t = PLL_TYPE_DIV,
 		},
 	},
@@ -715,8 +728,8 @@ static void __init sam9x7_pmc_setup(struct device_node *np)
 	const char *td_slck_name, *md_slck_name, *mainxtal_name;
 	struct pmc_data *sam9x7_pmc;
 	const char *parent_names[9];
-	void **alloc_mem = NULL;
-	int alloc_mem_size = 0;
+	void **clk_mux_buffer = NULL;
+	int clk_mux_buffer_size = 0;
 	struct clk_hw *main_osc_hw;
 	struct regmap *regmap;
 	struct clk_hw *hw;
@@ -743,17 +756,17 @@ static void __init sam9x7_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	sam9x7_pmc = pmc_data_allocate(PMC_PLLACK + 1,
+	sam9x7_pmc = pmc_data_allocate(PMC_LVDSPLL + 1,
 				       nck(sam9x7_systemck),
 				       nck(sam9x7_periphck),
 				       nck(sam9x7_gck), 8);
 	if (!sam9x7_pmc)
 		return;
 
-	alloc_mem = kmalloc(sizeof(void *) *
-				(ARRAY_SIZE(sam9x7_gck)),
-				GFP_KERNEL);
-	if (!alloc_mem)
+	clk_mux_buffer = kmalloc(sizeof(void *) *
+				 (ARRAY_SIZE(sam9x7_gck)),
+				 GFP_KERNEL);
+	if (!clk_mux_buffer)
 		goto err_free;
 
 	hw = at91_clk_register_main_rc_osc(regmap, "main_rc_osc", 12000000,
@@ -927,18 +940,19 @@ static void __init sam9x7_pmc_setup(struct device_node *np)
 			goto err_free;
 
 		sam9x7_pmc->ghws[sam9x7_gck[i].id] = hw;
-		alloc_mem[alloc_mem_size++] = mux_table;
+		clk_mux_buffer[clk_mux_buffer_size++] = mux_table;
 	}
 
 	of_clk_add_hw_provider(np, of_clk_hw_pmc_get, sam9x7_pmc);
+	kfree(clk_mux_buffer);
 
 	return;
 
 err_free:
-	if (alloc_mem) {
-		for (i = 0; i < alloc_mem_size; i++)
-			kfree(alloc_mem[i]);
-		kfree(alloc_mem);
+	if (clk_mux_buffer) {
+		for (i = 0; i < clk_mux_buffer_size; i++)
+			kfree(clk_mux_buffer[i]);
+		kfree(clk_mux_buffer);
 	}
 	kfree(sam9x7_pmc);
 }
