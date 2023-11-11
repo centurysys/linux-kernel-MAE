@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 1
 SUBLEVEL = 55
-EXTRAVERSION = -linux4microchip-2023.10-rc2
+EXTRAVERSION = -linux4microchip-2023.10-rc3
 NAME = Curry Ramen
 
 # *DOCUMENTATION*
