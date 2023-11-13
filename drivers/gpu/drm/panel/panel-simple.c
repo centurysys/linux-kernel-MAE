@@ -759,8 +759,8 @@ static const struct panel_desc ampire_am_480272h3tmqw_t01h = {
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
-		.width = 105,
-		.height = 67,
+		.width = 99,
+		.height = 58,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
@@ -2117,6 +2117,7 @@ static const struct panel_desc innolux_at043tn24 = {
 		.height = 54,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 };
 
@@ -2728,6 +2729,35 @@ static const struct panel_desc microtips_mf_101hiebcaf0 = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
+static const struct drm_display_mode microtips_mf_103hieb0ga0_mode = {
+	.clock = 93301,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 72,
+	.hsync_end = 1920 + 72 + 72,
+	.htotal = 1920 + 72 + 72 + 72,
+	.vdisplay = 720,
+	.vsync_start = 720 + 3,
+	.vsync_end = 720 + 3 + 3,
+	.vtotal = 720 + 3 + 3 + 2,
+};
+
+static const struct panel_desc microtips_mf_103hieb0ga0 = {
+	.modes = &microtips_mf_103hieb0ga0_mode,
+	.bpc = 8,
+	.num_modes = 1,
+	.size = {
+		.width = 244,
+		.height = 92,
+	},
+	.delay = {
+		.prepare = 50,
+		.disable = 50,
+	},
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
 static const struct display_timing multi_inno_mi0700s4t_6_timing = {
 	.pixelclock = { 29000000, 33000000, 38000000 },
 	.hactive = { 800, 800, 800 },
@@ -3167,6 +3197,7 @@ static const struct drm_display_mode powertip_ph800480t013_idf02_mode = {
 	.vsync_start = 480 + 49,
 	.vsync_end = 480 + 49 + 2,
 	.vtotal = 480 + 49 + 2 + 22,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
 static const struct panel_desc powertip_ph800480t013_idf02  = {
@@ -4219,6 +4250,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "microtips,mf-101hiebcaf0",
 		.data = &microtips_mf_101hiebcaf0,
+	}, {
+		.compatible = "microtips,mf-103hieb0ga0",
+		.data = &microtips_mf_103hieb0ga0,
 	}, {
 		.compatible = "mitsubishi,aa070mc01-ca1",
 		.data = &mitsubishi_aa070mc01,

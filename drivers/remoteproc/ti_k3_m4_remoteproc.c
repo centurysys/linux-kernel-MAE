@@ -6,6 +6,7 @@
  *	Hari Nagalla <hnagalla@ti.com>
  */
 
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
@@ -16,6 +17,7 @@
 #include <linux/remoteproc.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
@@ -44,8 +46,6 @@ static void k3_m4_rproc_mbox_callback(struct mbox_client *client, void *data)
 	const char *name = kproc->rproc->name;
 	u32 msg = omap_mbox_message(data);
 
-	dev_dbg(dev, "mbox msg: 0x%x\n", msg);
-
 	switch (msg) {
 	case RP_MBOX_CRASH:
 		/*
@@ -56,6 +56,14 @@ static void k3_m4_rproc_mbox_callback(struct mbox_client *client, void *data)
 		break;
 	case RP_MBOX_ECHO_REPLY:
 		dev_info(dev, "received echo reply from %s\n", name);
+		break;
+	case RP_MBOX_SHUTDOWN_ACK:
+		dev_dbg(dev, "received shutdown_ack from %s\n", name);
+		complete(&kproc->shut_comp);
+		break;
+	case RP_MBOX_SUSPEND_ACK:
+		dev_dbg(dev, "received suspend_ack from %s\n", name);
+		complete(&kproc->suspend_comp);
 		break;
 	default:
 		/* silently handle all other valid messages */
@@ -165,6 +173,64 @@ static int k3_m4_rproc_unprepare(struct rproc *rproc)
 }
 
 /*
+ * PM notifier call.
+ * This is a callback function for PM notifications. On a resume completion
+ * i.e after all the resume driver calls are handled on PM_POST_SUSPEND,
+ * on a deep sleep the remote core is rebooted.
+ */
+static int m4f_pm_notifier_call(struct notifier_block *bl,
+				unsigned long state, void *unused)
+{
+	struct k3_rproc *kproc = container_of(bl, struct k3_rproc, pm_notifier);
+	unsigned long msg = RP_MBOX_SUSPEND_SYSTEM;
+	unsigned long to = msecs_to_jiffies(3000);
+	int ret;
+
+	switch (state) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_RESTORE_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		if (!device_may_wakeup(kproc->dev)) {
+			rproc_shutdown(kproc->rproc);
+		} else {
+			reinit_completion(&kproc->suspend_comp);
+			ret = mbox_send_message(kproc->mbox, (void *)msg);
+			if (ret < 0) {
+				dev_err(kproc->dev, "PM mbox_send_message failed: %d\n", ret);
+				return ret;
+			}
+			ret = wait_for_completion_timeout(&kproc->suspend_comp, to);
+			if (ret == 0) {
+				dev_err(kproc->dev,
+					"%s: timedout waiting for rproc completion event\n", __func__);
+				return -EBUSY;
+			};
+		}
+		kproc->rproc->state = RPROC_SUSPENDED;
+		break;
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+	case PM_POST_SUSPEND:
+		if (kproc->rproc->state == RPROC_SUSPENDED) {
+			if (!device_may_wakeup(kproc->dev)) {
+				rproc_boot(kproc->rproc);
+			} else {
+				msg = RP_MBOX_ECHO_REQUEST;
+				ret = mbox_send_message(kproc->mbox, (void *)msg);
+				if (ret < 0) {
+					dev_err(kproc->dev,
+						"PM mbox_send_message failed: %d\n", ret);
+					return ret;
+				}
+			}
+			kproc->rproc->state = RPROC_RUNNING;
+		}
+		break;
+	}
+	return 0;
+}
+
+/*
  * Power up the M4F remote processor.
  *
  * This function will be invoked only after the firmware for this rproc
@@ -175,7 +241,6 @@ static int k3_m4_rproc_start(struct rproc *rproc)
 {
 	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
-	u32 boot_addr;
 	int ret;
 
 	if (kproc->ipc_only) {
@@ -188,7 +253,6 @@ static int k3_m4_rproc_start(struct rproc *rproc)
 	if (ret)
 		return ret;
 
-	boot_addr = rproc->bootaddr;
 	ret = k3_rproc_release(kproc);
 	if (ret)
 		goto put_mbox;
@@ -208,8 +272,11 @@ put_mbox:
  */
 static int k3_m4_rproc_stop(struct rproc *rproc)
 {
+	unsigned long to = msecs_to_jiffies(3000);
 	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
+	unsigned long msg = RP_MBOX_SHUTDOWN;
+	int ret;
 
 	if (kproc->ipc_only) {
 		dev_err(dev, "%s cannot be invoked in IPC-only mode\n",
@@ -217,7 +284,26 @@ static int k3_m4_rproc_stop(struct rproc *rproc)
 		return -EINVAL;
 	}
 
+	reinit_completion(&kproc->shut_comp);
+	ret = mbox_send_message(kproc->mbox, (void *)msg);
+	if (ret < 0) {
+		dev_err(dev, "PM mbox_send_message failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = wait_for_completion_timeout(&kproc->shut_comp, to);
+	if (ret == 0) {
+		dev_err(dev, "%s: timedout waiting for rproc completion event\n", __func__);
+		return -EBUSY;
+	};
+
 	mbox_free_channel(kproc->mbox);
+	/* allow some time for the remote core to enter quiescent state
+	 * (ex:wfi) after sending SHUTDOWN ack. Typically, remote core is
+	 * expected to enter 'wfi' right after sending the ack. 1 ms is
+	 * more than sufficient for this prupose
+	 */
+	msleep(1);
 
 	k3_rproc_reset(kproc);
 
@@ -341,6 +427,11 @@ static int k3_m4_rproc_probe(struct platform_device *pdev)
 		goto put_sci;
 	}
 
+	if (device_property_present(dev, "wakeup-source")) {
+		dev_dbg(dev, "registering as wakeup source\n");
+		device_set_wakeup_capable(dev, true);
+	}
+
 	kproc->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(kproc->reset)) {
 		ret = PTR_ERR(kproc->reset);
@@ -355,6 +446,9 @@ static int k3_m4_rproc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(kproc->tsp);
 		goto put_sci;
 	}
+
+	init_completion(&kproc->shut_comp);
+	init_completion(&kproc->suspend_comp);
 
 	ret = ti_sci_proc_request(kproc->tsp);
 	if (ret < 0) {
@@ -414,6 +508,10 @@ static int k3_m4_rproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, kproc);
 
+	/* configure pm notifier calls */
+	kproc->pm_notifier.notifier_call = m4f_pm_notifier_call;
+	register_pm_notifier(&kproc->pm_notifier);
+
 	return 0;
 
 release_mem:
@@ -452,6 +550,9 @@ static int k3_m4_rproc_remove(struct platform_device *pdev)
 		dev_err(dev, "failed to put ti_sci handle, ret = %d\n", ret);
 
 	k3_reserved_mem_exit(kproc);
+
+	unregister_pm_notifier(&kproc->pm_notifier);
+
 	rproc_free(kproc->rproc);
 
 	return 0;

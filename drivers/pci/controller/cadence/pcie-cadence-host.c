@@ -5,12 +5,15 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/list_sort.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
 
 #include "pcie-cadence.h"
+
+#define LINK_RETRAIN_TIMEOUT HZ
 
 static u64 bar_max_size[] = {
 	[RP_BAR0] = _ULL(128 * SZ_2G),
@@ -70,12 +73,34 @@ void __iomem *cdns_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 
 	return rc->cfg_base + (where & 0xfff);
 }
+EXPORT_SYMBOL_GPL(cdns_pci_map_bus);
 
 static struct pci_ops cdns_pcie_host_ops = {
 	.map_bus	= cdns_pci_map_bus,
 	.read		= pci_generic_config_read,
 	.write		= pci_generic_config_write,
 };
+
+static int cdns_pcie_host_training_complete(struct cdns_pcie *pcie)
+{
+	u32 pcie_cap_off = CDNS_PCIE_RP_CAP_OFFSET;
+	unsigned long end_jiffies;
+	u16 lnk_stat;
+
+	/* Wait for link training to complete. Exit after timeout. */
+	end_jiffies = jiffies + LINK_RETRAIN_TIMEOUT;
+	do {
+		lnk_stat = cdns_pcie_rp_readw(pcie, pcie_cap_off + PCI_EXP_LNKSTA);
+		if (!(lnk_stat & PCI_EXP_LNKSTA_LT))
+			break;
+		usleep_range(0, 1000);
+	} while (time_before(jiffies, end_jiffies));
+
+	if (!(lnk_stat & PCI_EXP_LNKSTA_LT))
+		return 0;
+
+	return -ETIMEDOUT;
+}
 
 static int cdns_pcie_host_wait_for_link(struct cdns_pcie *pcie)
 {
@@ -118,6 +143,10 @@ static int cdns_pcie_retrain(struct cdns_pcie *pcie)
 		cdns_pcie_rp_writew(pcie, pcie_cap_off + PCI_EXP_LNKCTL,
 				    lnk_ctl);
 
+		ret = cdns_pcie_host_training_complete(pcie);
+		if (ret)
+			return ret;
+
 		ret = cdns_pcie_host_wait_for_link(pcie);
 	}
 	return ret;
@@ -129,6 +158,15 @@ static void cdns_pcie_host_enable_ptm_response(struct cdns_pcie *pcie)
 
 	val = cdns_pcie_readl(pcie, CDNS_PCIE_LM_PTM_CTRL);
 	cdns_pcie_writel(pcie, CDNS_PCIE_LM_PTM_CTRL, val | CDNS_PCIE_LM_TPM_CTRL_PTMRSEN);
+}
+
+static void cdns_pcie_host_disable_ptm_response(struct cdns_pcie *pcie)
+{
+	u32 val;
+
+	val = cdns_pcie_readl(pcie, CDNS_PCIE_LM_PTM_CTRL);
+	val &= ~CDNS_PCIE_LM_TPM_CTRL_PTMRSEN;
+	cdns_pcie_writel(pcie, CDNS_PCIE_LM_PTM_CTRL, val);
 }
 
 static int cdns_pcie_host_start_link(struct cdns_pcie_rc *rc)
@@ -358,10 +396,10 @@ static int cdns_pcie_host_dma_ranges_cmp(void *priv, const struct list_head *a,
 {
 	struct resource_entry *entry1, *entry2;
 
-        entry1 = container_of(a, struct resource_entry, node);
-        entry2 = container_of(b, struct resource_entry, node);
+	entry1 = container_of(a, struct resource_entry, node);
+	entry2 = container_of(b, struct resource_entry, node);
 
-        return resource_size(entry2->res) - resource_size(entry1->res);
+	return resource_size(entry2->res) - resource_size(entry1->res);
 }
 
 static int cdns_pcie_host_map_dma_ranges(struct cdns_pcie_rc *rc)
@@ -542,3 +580,19 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cdns_pcie_host_setup);
+
+int cdns_pcie_host_remove_setup(struct cdns_pcie_rc *rc)
+{
+	struct cdns_pcie *pcie = &rc->pcie;
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(rc);
+
+	pci_stop_root_bus(bridge->bus);
+	pci_remove_root_bus(bridge->bus);
+	cdns_pcie_host_disable_ptm_response(pcie);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cdns_pcie_host_remove_setup);
+
+MODULE_LICENSE("GPL v2");

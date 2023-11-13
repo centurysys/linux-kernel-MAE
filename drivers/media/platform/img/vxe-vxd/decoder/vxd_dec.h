@@ -176,7 +176,8 @@ enum vxd_cb_type {
  * @type: the type of message
  * @buf_map_id: the buf_map_id of the resource being returned
  */
-typedef void (*vxd_cb)(void *ctx, enum vxd_cb_type type, unsigned int buf_map_id);
+typedef void (*vxd_cb)(void *ctx, enum vxd_cb_type type, unsigned int buf_map_id,
+						unsigned int error_code);
 
 /*
  * struct vxd_return - contains information about items returning from core
@@ -321,13 +322,6 @@ struct vxd_stream {
 };
 
 
-struct vxd_mapping {
-	struct list_head list;
-	unsigned int buf_map_id;
-	unsigned char reuse;
-	unsigned long dma_addr;
-};
-
 /*
  * struct vxd_buffer - holds per buffer info.
  * @buffer: the vb2_v4l2_buffer
@@ -354,6 +348,14 @@ struct vxd_buffer {
 	struct vdecdd_str_unit pic_unit;
 	struct vdecdd_str_unit end_unit;
 	struct bspp_preparsed_data preparsed_data;
+};
+
+struct vxd_mapping {
+	struct list_head list;
+	unsigned int buf_map_id;
+	unsigned char reuse;
+	unsigned long dma_addr;
+	struct vxd_buffer *buf; /* point to the mapped buffer */
 };
 
 typedef void (*decode_cb)(int res_str_id, unsigned int *msg, unsigned int msg_size,
@@ -431,8 +433,28 @@ struct vxd_dec_ctx {
 	unsigned char flag_last;
 	unsigned char num_decoding;
 	unsigned int max_num_ref_frames;
+	unsigned int cap_seq; /* sequence number for capture port */
+	unsigned int out_seq; /* sequence number for output port */
 	struct vdec_str_opconfig str_opcfg;
 	struct vdec_pict_bufconfig pict_bufcfg;
+
+	struct vdec_comsequ_hdrinfo comseq_hdr_info;
+	struct vdec_str_configdata strcfgdata;
+	struct vdecdd_dddev_context     *dev_ctx;
+
+	struct v4l2_ctrl_handler v4l2_ctrl_hdl;
+
+	/* The following are parameters from V4L2 extra-controls */
+
+	/*
+	 * used by the IMG firmware to constrain DPB's utilized
+	 * a value of 0 indicates to let the firmware decide
+	 */
+	unsigned int max_dec_frame_buffering;
+	int override_spec_dpb_buffers;
+	int img_extra_decode_buffers;
+	unsigned int display_pipeline_size;
+
 	void *bspp_context;
 	struct bspp_bitstr_seg bstr_segments[MAX_SEGMENTS];
 	struct lst_t seg_list;
@@ -440,6 +462,7 @@ struct vxd_dec_ctx {
 	struct bspp_ddbuf_array_info fw_pps[MAX_PPSS];
 	decode_cb cb;
 	struct mutex *mutex; /* Per stream mutex */
+	struct mutex *mutex2; /* used as a sequencing mutex, so device_run runs to completion */
 
 	/* The below variable used only in Rtos */
 	void *mm_return_resource; /* Place holder for CB to application */

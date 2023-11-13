@@ -31,8 +31,6 @@
 #include "vdec_mmu_wrapper.h"
 #include "vxd_dec.h"
 
-#define CORE_NUM_DECODE_SLOTS 2
-
 #define MAX_PLATFORM_SUPPORTED_HEIGHT 65536
 #define MAX_PLATFORM_SUPPORTED_WIDTH 65536
 
@@ -4315,10 +4313,20 @@ static int decoder_picture_decoded(struct dec_str_ctx *dec_str_ctx,
 	 * Whenever the error flag is set, we need to handle the error case.
 	 * Need to forward this error to stream processed callback.
 	 */
-	if (error_flag) {
+	switch (error_flag) {
+	case VDEC_ERROR_NONE:
+	case VDEC_ERROR_CORRUPTED_REFERENCE:
+	case VDEC_ERROR_MISSING_REFERENCES:
+	case VDEC_ERROR_MMCO:
+	case VDEC_ERROR_MBS_DROPPED:
+		/* these are not fatal */
+		break;
+	default:
+		/* anything else is */
 		pr_err("%s : %d err_flags: 0x%x\n", __func__, __LINE__, error_flag);
 		ret = dec_str_ctx->str_processed_cb((void *)dec_str_ctx->usr_int_data,
 				VXD_CB_ERROR_FATAL, &error_flag);
+		break;
 	}
 	/*
 	 * check for eos on bitstream and propagate the same to picture

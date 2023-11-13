@@ -119,6 +119,9 @@ struct cqspi_driver_platdata {
 #define CQSPI_TIMEOUT_MS			500
 #define CQSPI_READ_TIMEOUT_MS			10
 
+/* Runtime_pm autosuspend delay */
+#define CQSPI_AUTOSUSPEND_TIMEOUT		2000
+
 #define CQSPI_DUMMY_CLKS_PER_BYTE		8
 #define CQSPI_DUMMY_BYTES_MAX			4
 #define CQSPI_DUMMY_CLKS_MAX			31
@@ -2119,8 +2122,20 @@ static int cqspi_mem_process(struct spi_mem *mem, const struct spi_mem_op *op)
 static int cqspi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	int ret;
+	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
+	struct device *dev = &cqspi->pdev->dev;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to get sync: %d\n", ret);
+		return ret;
+	}
 
 	ret = cqspi_mem_process(mem, op);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
 	if (ret)
 		dev_err(&mem->spi->dev, "operation failed with %d\n", ret);
 
@@ -2170,6 +2185,12 @@ static void cqspi_mem_do_calibration(struct spi_mem *mem,
 
 	f_pdata = &cqspi->f_pdata[mem->spi->chip_select];
 
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to get sync: %d\n", ret);
+		return;
+	}
+
 	/* Check if the op is eligible for PHY mode operation. */
 	if (!cqspi_phy_op_eligible(op))
 		return;
@@ -2185,6 +2206,9 @@ static void cqspi_mem_do_calibration(struct spi_mem *mem,
 	ret = cqspi_phy_calibrate(f_pdata, mem);
 	if (ret)
 		dev_info(&cqspi->pdev->dev, "PHY calibration failed: %d\n", ret);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }
 
 static int cqspi_of_get_flash_pdata(struct platform_device *pdev,
@@ -2319,6 +2343,9 @@ static int cqspi_request_mmap_dma(struct cqspi_st *cqspi)
 	cqspi->rx_chan = dma_request_chan_by_mask(&mask);
 	if (IS_ERR(cqspi->rx_chan)) {
 		int ret = PTR_ERR(cqspi->rx_chan);
+
+		if (ret == -ENODEV)
+			ret = -EPROBE_DEFER;
 
 		cqspi->rx_chan = NULL;
 		return dev_err_probe(&cqspi->pdev->dev, ret, "No Rx DMA available\n");
@@ -2455,10 +2482,10 @@ static int cqspi_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENXIO;
 
-	pm_runtime_enable(dev);
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0)
-		goto probe_pm_failed;
+	ret = pm_runtime_set_active(dev);
+	if (ret)
+		return ret;
+
 
 	ret = clk_prepare_enable(cqspi->clk);
 	if (ret) {
@@ -2512,8 +2539,11 @@ static int cqspi_probe(struct platform_device *pdev)
 			cqspi->slow_sram = true;
 
 		if (of_device_is_compatible(pdev->dev.of_node,
-					    "xlnx,versal-ospi-1.0"))
-			dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+					    "xlnx,versal-ospi-1.0")) {
+			ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+			if (ret)
+				goto probe_reset_failed;
+		}
 	}
 
 	ret = devm_request_irq(dev, irq, cqspi_irq_handler, 0,
@@ -2542,11 +2572,18 @@ static int cqspi_probe(struct platform_device *pdev)
 			goto probe_setup_failed;
 	}
 
+	devm_pm_runtime_enable(dev);
+	pm_runtime_set_autosuspend_delay(dev, CQSPI_AUTOSUSPEND_TIMEOUT);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_get_noresume(dev);
+
 	ret = spi_register_master(master);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register SPI ctlr %d\n", ret);
 		goto probe_setup_failed;
 	}
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 probe_setup_failed:
@@ -2554,9 +2591,6 @@ probe_setup_failed:
 probe_reset_failed:
 	clk_disable_unprepare(cqspi->clk);
 probe_clk_failed:
-	pm_runtime_put_sync(dev);
-probe_pm_failed:
-	pm_runtime_disable(dev);
 	return ret;
 }
 
@@ -2619,7 +2653,8 @@ static int cqspi_resume(struct device *dev)
 	return spi_master_resume(master);
 }
 
-static DEFINE_SIMPLE_DEV_PM_OPS(cqspi_dev_pm_ops, cqspi_suspend, cqspi_resume);
+static DEFINE_RUNTIME_DEV_PM_OPS(cqspi_dev_pm_ops, cqspi_suspend,
+				 cqspi_resume, NULL);
 
 static const struct cqspi_driver_platdata cdns_qspi = {
 	.quirks = CQSPI_DISABLE_DAC_MODE,
@@ -2686,7 +2721,7 @@ static struct platform_driver cqspi_platform_driver = {
 	.remove = cqspi_remove,
 	.driver = {
 		.name = CQSPI_NAME,
-		.pm = &cqspi_dev_pm_ops,
+		.pm = pm_ptr(&cqspi_dev_pm_ops),
 		.of_match_table = cqspi_dt_ids,
 	},
 };

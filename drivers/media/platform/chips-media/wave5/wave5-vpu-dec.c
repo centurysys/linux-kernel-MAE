@@ -4,12 +4,17 @@
  *
  * Copyright (C) 2021 CHIPS&MEDIA INC
  */
+#include <linux/pm_runtime.h>
 
 #include "wave5-helper.h"
 
 #define VPU_DEC_DEV_NAME "C&M Wave5 VPU decoder"
 #define VPU_DEC_DRV_NAME "wave5-dec"
 #define V4L2_CID_VPU_THUMBNAIL_MODE (V4L2_CID_USER_BASE + 0x1001)
+
+#define DEFAULT_SRC_SIZE(width, height) ({			\
+	(width) * (height) / 8 * 3;					\
+})
 
 static const struct vpu_format dec_fmt_list[FMT_TYPES][MAX_FMTS] = {
 	[VPU_FMT_TYPE_CODEC] = {
@@ -51,6 +56,27 @@ static const struct vpu_format dec_fmt_list[FMT_TYPES][MAX_FMTS] = {
 			.min_height = 8,
 		},
 		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_YUV422P,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_NV16,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_NV61,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
 			.v4l2_pix_fmt = V4L2_PIX_FMT_YUV420M,
 			.max_width = 8192,
 			.min_width = 8,
@@ -66,6 +92,27 @@ static const struct vpu_format dec_fmt_list[FMT_TYPES][MAX_FMTS] = {
 		},
 		{
 			.v4l2_pix_fmt = V4L2_PIX_FMT_NV21M,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_YUV422M,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_NV16M,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_NV61M,
 			.max_width = 8192,
 			.min_width = 8,
 			.max_height = 4320,
@@ -177,6 +224,7 @@ static void wave5_handle_bitstream_buffer(struct vpu_instance *inst)
 static void wave5_handle_src_buffer(struct vpu_instance *inst)
 {
 	struct vb2_v4l2_buffer *src_buf;
+	int head = 0;
 
 	src_buf = v4l2_m2m_next_src_buf(inst->v4l2_fh.m2m_ctx);
 	if (src_buf) {
@@ -185,7 +233,13 @@ static void wave5_handle_src_buffer(struct vpu_instance *inst)
 		if (vpu_buf->consumed) {
 			dev_dbg(inst->dev->dev, "%s: already consumed buffer\n", __func__);
 			src_buf = v4l2_m2m_src_buf_remove(inst->v4l2_fh.m2m_ctx);
-			inst->timestamp = src_buf->vb2_buf.timestamp;
+			head = inst->time_stamp.head;
+			inst->time_stamp.buf[head] = src_buf->vb2_buf.timestamp;
+			inst->time_stamp.head++;
+
+			if (IS_WRAP(inst->time_stamp.head, MAX_TIMESTAMP_CIR_BUF) == 0)
+				inst->time_stamp.head = 0;
+
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 		}
 	}
@@ -202,6 +256,14 @@ static void wave5_update_pix_fmt(struct v4l2_pix_format_mplane *pix_mp, unsigned
 		pix_mp->height = round_up(height, 16);
 		pix_mp->plane_fmt[0].bytesperline = round_up(width, 32);
 		pix_mp->plane_fmt[0].sizeimage = width * height * 3 / 2;
+		break;
+	case V4L2_PIX_FMT_YUV422P:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		pix_mp->width = round_up(width, 32);
+		pix_mp->height = round_up(height, 16);
+		pix_mp->plane_fmt[0].bytesperline = round_up(width, 32);
+		pix_mp->plane_fmt[0].sizeimage = width * height * 2;
 		break;
 	case V4L2_PIX_FMT_YUV420M:
 		pix_mp->width = round_up(width, 32);
@@ -222,11 +284,31 @@ static void wave5_update_pix_fmt(struct v4l2_pix_format_mplane *pix_mp, unsigned
 		pix_mp->plane_fmt[1].bytesperline = round_up(width, 32);
 		pix_mp->plane_fmt[1].sizeimage = width * height / 2;
 		break;
+	case V4L2_PIX_FMT_YUV422M:
+		pix_mp->width = round_up(width, 32);
+		pix_mp->height = round_up(height, 16);
+		pix_mp->plane_fmt[0].bytesperline = round_up(width, 32);
+		pix_mp->plane_fmt[0].sizeimage = width * height;
+		pix_mp->plane_fmt[1].bytesperline = round_up(width, 32) / 2;
+		pix_mp->plane_fmt[1].sizeimage = width * height / 2;
+		pix_mp->plane_fmt[2].bytesperline = round_up(width, 32) / 2;
+		pix_mp->plane_fmt[2].sizeimage = width * height / 2;
+		break;
+	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV61M:
+		pix_mp->width = round_up(width, 32);
+		pix_mp->height = round_up(height, 16);
+		pix_mp->plane_fmt[0].bytesperline = round_up(width, 32);
+		pix_mp->plane_fmt[0].sizeimage = width * height;
+		pix_mp->plane_fmt[1].bytesperline = round_up(width, 32);
+		pix_mp->plane_fmt[1].sizeimage = width * height;
+		break;
 	default:
 		pix_mp->width = width;
 		pix_mp->height = height;
 		pix_mp->plane_fmt[0].bytesperline = 0;
-		pix_mp->plane_fmt[0].sizeimage = width * height;
+		pix_mp->plane_fmt[0].sizeimage = max(DEFAULT_SRC_SIZE(width, height),
+						     pix_mp->plane_fmt[0].sizeimage);
 		break;
 	}
 }
@@ -238,19 +320,6 @@ static void wave5_vpu_dec_start_decode(struct vpu_instance *inst)
 	u32 fail_res = 0;
 
 	memset(&pic_param, 0, sizeof(struct dec_param));
-
-	if (inst->state == VPU_INST_STATE_INIT_SEQ) {
-		u32 non_linear_num = inst->dst_buf_count;
-		u32 linear_num = inst->dst_buf_count;
-		u32 stride = inst->dst_fmt.width;
-
-		ret = wave5_vpu_dec_register_frame_buffer_ex(inst, non_linear_num, linear_num,
-							     stride, inst->dst_fmt.height,
-							     COMPRESSED_FRAME_MAP);
-		if (ret)
-			dev_dbg(inst->dev->dev, "%s: vpu_dec_register_frame_buffer_ex fail: %d",
-				__func__, ret);
-	}
 
 	ret = wave5_vpu_dec_start_one_frame(inst, &pic_param, &fail_res);
 	if (ret && fail_res != WAVE5_SYSERR_QUEUEING_FAIL) {
@@ -287,11 +356,68 @@ static void wave5_vpu_dec_stop_decode(struct vpu_instance *inst)
 	v4l2_m2m_job_finish(inst->v4l2_m2m_dev, inst->v4l2_fh.m2m_ctx);
 }
 
+static void wave5_handle_display_frame(struct vpu_instance *inst,
+				       struct dec_output_info *info, int index_to_remove)
+{
+	int stride = info->disp_frame.stride;
+	int height = info->disp_pic_height - info->rc_display.bottom;
+	unsigned int size;
+	int tail = 0;
+	struct vb2_v4l2_buffer *dst_buf =
+		v4l2_m2m_dst_buf_remove_by_idx(inst->v4l2_fh.m2m_ctx,
+					       index_to_remove);
+	if (dst_buf == NULL) {
+		pr_err("%s vb2 buffer not found index_to_remove : %d : %d\n",
+		       __func__, index_to_remove, info->index_frame_display);
+		return;
+	}
+
+	if (inst->dst_fmt.num_planes == 1) {
+		if (inst->output_format == FORMAT_422)
+			size = stride * height * 2;
+		else
+			size = stride * height * 3 / 2;
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, size);
+	} else if (inst->dst_fmt.num_planes == 2) {
+		size = stride * height;
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, size);
+		if (inst->output_format == FORMAT_422)
+			size = stride * height;
+		else
+			size = stride * height / 2;
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 1, size);
+	} else if (inst->dst_fmt.num_planes == 3) {
+		size = stride * height;
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, size);
+		if (inst->output_format == FORMAT_422)
+			size = stride * height / 2;
+		else
+			size = stride * height / 4;
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 1, size);
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 2, size);
+	}
+
+	tail = inst->time_stamp.tail;
+	dst_buf->vb2_buf.timestamp = inst->time_stamp.buf[tail];
+	inst->time_stamp.tail++;
+
+	if (IS_WRAP(inst->time_stamp.tail, MAX_TIMESTAMP_CIR_BUF) == 0)
+		inst->time_stamp.tail = 0;
+
+	dst_buf->field = V4L2_FIELD_NONE;
+	v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
+
+	dev_dbg(inst->dev->dev, "%s: frame_cycle %8u\n",
+		__func__, info->frame_cycle);
+}
+
 static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 {
 	struct dec_output_info dec_output_info;
 	int ret;
 	u32 irq_status;
+	int tail = 0;
+	int index_to_remove = -1;
 
 	if (kfifo_out(&inst->irq_status, &irq_status, sizeof(int)))
 		wave5_vpu_clear_interrupt_ex(inst, irq_status);
@@ -301,6 +427,7 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 		v4l2_m2m_job_finish(inst->v4l2_m2m_dev, inst->v4l2_fh.m2m_ctx);
 		return;
 	}
+	index_to_remove = dec_output_info.index_frame_display;
 	if (dec_output_info.index_frame_decoded == DECODED_IDX_FLAG_NO_FB &&
 	    dec_output_info.index_frame_display == DISPLAY_IDX_FLAG_NO_FB) {
 		dev_dbg(inst->dev->dev, "%s: no more frame buffer\n", __func__);
@@ -308,37 +435,15 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 		wave5_handle_src_buffer(inst);
 
 		if (dec_output_info.index_frame_display >= 0) {
-			struct vb2_v4l2_buffer *dst_buf =
-				v4l2_m2m_dst_buf_remove_by_idx(inst->v4l2_fh.m2m_ctx,
-							       dec_output_info.index_frame_display);
-			int stride = dec_output_info.disp_frame.stride;
-			int height = dec_output_info.disp_pic_height -
-				dec_output_info.rc_display.bottom;
-
-			if (inst->dst_fmt.num_planes == 1) {
-				vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
-						      (stride * height * 3 / 2));
-			} else if (inst->dst_fmt.num_planes == 2) {
-				vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
-						      (stride * height));
-				vb2_set_plane_payload(&dst_buf->vb2_buf, 1,
-						      ((stride / 2) * height));
-			} else if (inst->dst_fmt.num_planes == 3) {
-				vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
-						      (stride * height));
-				vb2_set_plane_payload(&dst_buf->vb2_buf, 1,
-						      ((stride / 2) * (height / 2)));
-				vb2_set_plane_payload(&dst_buf->vb2_buf, 2,
-						      ((stride / 2) * (height / 2)));
-			}
-
-			dst_buf->vb2_buf.timestamp = inst->timestamp;
-			dst_buf->field = V4L2_FIELD_NONE;
-			v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
-
-			dev_dbg(inst->dev->dev, "%s: frame_cycle %8u\n",
-				__func__, dec_output_info.frame_cycle);
-		} else if (dec_output_info.index_frame_display == DISPLAY_IDX_FLAG_SEQ_END &&
+			mutex_lock(inst->inst_lock);
+			index_to_remove =
+				inst->map_index[dec_output_info
+							.index_frame_display];
+			mutex_unlock(inst->inst_lock);
+			wave5_handle_display_frame(inst, &dec_output_info,
+						   index_to_remove);
+		} else if (dec_output_info.index_frame_display ==
+				   DISPLAY_IDX_FLAG_SEQ_END &&
 			   !inst->eos) {
 			static const struct v4l2_event vpu_event_eos = {
 				.type = V4L2_EVENT_EOS
@@ -366,7 +471,13 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 						      vb2_plane_size(&dst_buf->vb2_buf, 2));
 			}
 
-			dst_buf->vb2_buf.timestamp = inst->timestamp;
+			tail = inst->time_stamp.tail;
+			dst_buf->vb2_buf.timestamp = inst->time_stamp.buf[tail];
+			inst->time_stamp.tail++;
+
+			if (IS_WRAP(inst->time_stamp.tail, MAX_TIMESTAMP_CIR_BUF) == 0)
+				inst->time_stamp.tail = 0;
+
 			dst_buf->flags |= V4L2_BUF_FLAG_LAST;
 			dst_buf->field = V4L2_FIELD_NONE;
 			v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
@@ -376,6 +487,9 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 
 			v4l2_m2m_job_finish(inst->v4l2_m2m_dev, inst->v4l2_fh.m2m_ctx);
 		}
+
+		if (inst->state == VPU_INST_STATE_STOP && !inst->eos)
+			inst->ops->start_process(inst);
 	}
 }
 
@@ -496,13 +610,31 @@ static int wave5_vpu_dec_s_fmt_cap(struct file *file, void *fh, struct v4l2_form
 	    inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV12M) {
 		inst->cbcr_interleave = true;
 		inst->nv21 = false;
+		inst->output_format = FORMAT_420;
 	} else if (inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV21 ||
 		   inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV21M) {
 		inst->cbcr_interleave = true;
 		inst->nv21 = true;
+		inst->output_format = FORMAT_420;
+	} else if (inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV16 ||
+		   inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV16M) {
+		inst->cbcr_interleave = true;
+		inst->nv21 = false;
+		inst->output_format = FORMAT_422;
+	} else if (inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV61 ||
+		   inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV61M) {
+		inst->cbcr_interleave = true;
+		inst->nv21 = true;
+		inst->output_format = FORMAT_422;
+	} else if (inst->dst_fmt.pixelformat == V4L2_PIX_FMT_YUV422P ||
+		   inst->dst_fmt.pixelformat == V4L2_PIX_FMT_YUV422M) {
+		inst->cbcr_interleave = false;
+		inst->nv21 = false;
+		inst->output_format = FORMAT_422;
 	} else {
 		inst->cbcr_interleave = false;
 		inst->nv21 = false;
+		inst->output_format = FORMAT_420;
 	}
 
 	return 0;
@@ -638,8 +770,9 @@ static int wave5_vpu_dec_g_selection(struct file *file, void *fh, struct v4l2_se
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
-		s->r.left = 0;
-		s->r.top = 0;
+		s->r.left = inst->pic_crop_rect.left;
+		s->r.top = inst->pic_crop_rect.top;
+
 		if (inst->state > VPU_INST_STATE_OPEN) {
 			s->r.width = inst->conf_win_width;
 			s->r.height = inst->conf_win_height;
@@ -700,6 +833,7 @@ static int wave5_vpu_dec_decoder_cmd(struct file *file, void *fh, struct v4l2_de
 				"Setting EOS for the bitstream, fail: %d\n", ret);
 			return ret;
 		}
+		inst->ops->start_process(inst);
 		break;
 	case V4L2_DEC_CMD_START:
 		break;
@@ -812,23 +946,37 @@ static int wave5_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 		*num_planes = inst_format.num_planes;
 
 		if (*num_planes == 1) {
-			sizes[0] = inst_format.width * inst_format.height * 3 / 2;
+			if (inst->output_format == FORMAT_422)
+				sizes[0] = inst_format.width * inst_format.height * 2;
+			else
+				sizes[0] = inst_format.width * inst_format.height * 3 / 2;
 			if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 				sizes[0] = inst_format.plane_fmt[0].sizeimage;
 			dev_dbg(inst->dev->dev, "%s: size[0]: %u\n", __func__, sizes[0]);
 		} else if (*num_planes == 2) {
 			sizes[0] = inst_format.width * inst_format.height;
-			sizes[1] = inst_format.width * inst_format.height / 2;
+			if (inst->output_format == FORMAT_422)
+				sizes[1] = inst_format.width * inst_format.height;
+			else
+				sizes[1] = inst_format.width * inst_format.height / 2;
 			dev_dbg(inst->dev->dev, "%s: size[0]: %u | size[1]: %u\n",
 				__func__, sizes[0], sizes[1]);
 		} else if (*num_planes == 3) {
 			sizes[0] = inst_format.width * inst_format.height;
-			sizes[1] = inst_format.width * inst_format.height / 4;
-			sizes[2] = inst_format.width * inst_format.height / 4;
+			if (inst->output_format == FORMAT_422) {
+				sizes[1] = inst_format.width * inst_format.height / 2;
+				sizes[2] = inst_format.width * inst_format.height / 2;
+			} else {
+				sizes[1] = inst_format.width * inst_format.height / 4;
+				sizes[2] = inst_format.width * inst_format.height / 4;
+			}
 			dev_dbg(inst->dev->dev, "%s: size[0]: %u | size[1]: %u | size[2]: %u\n",
 				__func__, sizes[0], sizes[1], sizes[2]);
 		}
 	}
+	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		inst->cap_io_mode = q->memory;
+
 
 	if (inst->state == VPU_INST_STATE_NONE && q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		struct dec_open_param open_param;
@@ -836,7 +984,7 @@ static int wave5_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 		memset(&open_param, 0, sizeof(struct dec_open_param));
 		wave5_set_default_dec_openparam(&open_param);
 
-		inst->bitstream_vbuf.size = ALIGN(inst->src_fmt.plane_fmt[0].sizeimage, 1024) * 4;
+		inst->bitstream_vbuf.size = ALIGN((inst->src_fmt.plane_fmt[0].sizeimage * 3), 1024);
 		ret = wave5_vdi_allocate_dma_memory(inst->dev, &inst->bitstream_vbuf);
 		if (ret) {
 			dev_dbg(inst->dev->dev, "%s: alloc bitstream of size %zu fail: %d\n",
@@ -868,45 +1016,33 @@ static int wave5_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 
 	} else if (inst->state == VPU_INST_STATE_INIT_SEQ &&
 		   q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		u32 non_linear_num;
-		u32 fb_stride, fb_height;
-		u32 luma_size, chroma_size;
 
-		if (*num_buffers > inst->min_dst_buf_count &&
+		if (*num_buffers > inst->dst_buf_count &&
 		    *num_buffers < WAVE5_MAX_FBS)
 			inst->dst_buf_count = *num_buffers;
 
 		*num_buffers = inst->dst_buf_count;
-		non_linear_num = inst->dst_buf_count;
-
-		for (i = 0; i < non_linear_num; i++) {
-			struct frame_buffer *frame = &inst->frame_buf[i];
-			struct vpu_buf *vframe = &inst->frame_vbuf[i];
-
-			fb_stride = inst->dst_fmt.width;
-			fb_height = ALIGN(inst->dst_fmt.height, 32);
-			luma_size = fb_stride * fb_height;
-			chroma_size = ALIGN(fb_stride / 2, 16) * fb_height;
-
-			vframe->size = luma_size + chroma_size;
-			ret = wave5_vdi_allocate_dma_memory(inst->dev, vframe);
-			if (ret) {
-				dev_dbg(inst->dev->dev,
-					"%s: Allocating FBC buf of size %zu, fail: %d\n",
-					__func__, vframe->size, ret);
-				return ret;
-			}
-
-			frame->buf_y = vframe->daddr;
-			frame->buf_cb = vframe->daddr + luma_size;
-			frame->buf_cr = (dma_addr_t)-1;
-			frame->size = vframe->size;
-			frame->width = inst->src_fmt.width;
-			frame->stride = fb_stride;
-			frame->map_type = COMPRESSED_FRAME_MAP;
-			frame->update_fb_info = true;
+		inst->map_index =
+			kzalloc((inst->dst_buf_count) * sizeof(unsigned int),
+				GFP_KERNEL);
+		if (!inst->map_index) {
+			ret = -ENOMEM;
+			dev_dbg(inst->dev->dev,
+				"%s: Failed to allocate nenory, fail: %d\n",
+				__func__, ret);
+			goto free_bitstream_vbuf;
 		}
-	} else if (inst->state == VPU_INST_STATE_STOP &&
+		inst->mapped_dma_addr =
+			kzalloc((inst->dst_buf_count) * sizeof(unsigned long),
+				GFP_KERNEL);
+		if (!inst->mapped_dma_addr) {
+			ret = -ENOMEM;
+			dev_dbg(inst->dev->dev,
+				"%s: Failed to allocate nenory, fail: %d\n",
+				__func__, ret);
+			goto free_bitstream_vbuf;
+		}
+	} else if ((inst->state == VPU_INST_STATE_STOP || inst->state == VPU_INST_STATE_PIC_RUN) &&
 		   q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		*num_buffers = 0;
 	}
@@ -918,10 +1054,69 @@ free_bitstream_vbuf:
 	return ret;
 }
 
+static int wave5_prepare_fb(struct vpu_instance *inst)
+{
+	int linear_num;
+	int non_linear_num;
+	int fb_stride, fb_height;
+	int luma_size, chroma_size;
+	int ret, i;
+
+	linear_num = inst->dst_buf_count;
+	non_linear_num = inst->fbc_buf_count;
+
+	for (i = 0; i < non_linear_num; i++) {
+		struct frame_buffer *frame = &inst->frame_buf[i];
+		struct vpu_buf *vframe = &inst->frame_vbuf[i];
+
+		fb_stride = inst->dst_fmt.width;
+		fb_height = ALIGN(inst->dst_fmt.height, 32);
+		luma_size = fb_stride * fb_height;
+		chroma_size = ALIGN(fb_stride / 2, 16) * fb_height;
+
+		vframe->size = luma_size + chroma_size;
+		ret = wave5_vdi_allocate_dma_memory(inst->dev, vframe);
+		if (ret) {
+			dev_dbg(inst->dev->dev,
+				"%s: Allocating FBC buf of size %zu, fail: %d\n",
+				__func__, vframe->size, ret);
+			return ret;
+		}
+
+		frame->buf_y = vframe->daddr;
+		frame->buf_cb = vframe->daddr + luma_size;
+		frame->buf_cr = (dma_addr_t)-1;
+		frame->size = vframe->size;
+		frame->width = inst->src_fmt.width;
+		frame->stride = fb_stride;
+		frame->map_type = COMPRESSED_FRAME_MAP;
+		frame->update_fb_info = true;
+	}
+
+	ret = wave5_vpu_dec_register_frame_buffer_ex(inst, non_linear_num, linear_num,
+						     fb_stride, inst->dst_fmt.height,
+						     COMPRESSED_FRAME_MAP);
+	if (ret) {
+		dev_dbg(inst->dev->dev, "%s: vpu_dec_register_frame_buffer_ex fail: %d",
+			__func__, ret);
+		return ret;
+	}
+	if (inst->cap_io_mode == VB2_MEMORY_DMABUF) {
+		for (i = (linear_num - DEC_BUF_OFFSET); i < linear_num; i++)
+			ret = wave5_vpu_dec_set_disp_flag(inst, i);
+	}
+
+	return 0;
+}
+
 static int wave5_vpu_dec_start_streaming_open(struct vpu_instance *inst)
 {
 	struct dec_initial_info initial_info;
 	int ret = 0;
+
+	inst->time_stamp.head = 0;
+	inst->time_stamp.tail = 0;
+	memset(&inst->time_stamp.buf, 0, MAX_TIMESTAMP_CIR_BUF*sizeof(u64));
 
 	memset(&initial_info, 0, sizeof(struct dec_initial_info));
 
@@ -951,16 +1146,33 @@ static int wave5_vpu_dec_start_streaming_open(struct vpu_instance *inst)
 			initial_info.profile, initial_info.min_frame_buffer_count);
 
 		inst->state = VPU_INST_STATE_INIT_SEQ;
-		inst->min_dst_buf_count = initial_info.min_frame_buffer_count + 1;
-		inst->dst_buf_count = inst->min_dst_buf_count;
+		inst->fbc_buf_count = initial_info.min_frame_buffer_count + 1;
+		inst->dst_buf_count = initial_info.frame_buf_delay + 1;
+
+		memset(&inst->pic_crop_rect, 0x0, sizeof(struct vpu_rect));
+
+		inst->pic_crop_rect.right = initial_info.pic_crop_rect.right;
+		inst->pic_crop_rect.left = initial_info.pic_crop_rect.left;
+		inst->pic_crop_rect.top = initial_info.pic_crop_rect.top;
+		inst->pic_crop_rect.bottom = initial_info.pic_crop_rect.bottom;
 
 		inst->conf_win_width = initial_info.pic_width - initial_info.pic_crop_rect.right;
 		inst->conf_win_height = initial_info.pic_height - initial_info.pic_crop_rect.bottom;
 
+		if (initial_info.pic_crop_rect.left != 0)
+			inst->conf_win_width = inst->conf_win_width - initial_info.pic_crop_rect.left;
+
+		if (initial_info.pic_crop_rect.top != 0)
+			inst->conf_win_height = inst->conf_win_height - initial_info.pic_crop_rect.top;
+
 		ctrl = v4l2_ctrl_find(&inst->v4l2_ctrl_hdl,
 				      V4L2_CID_MIN_BUFFERS_FOR_CAPTURE);
 		if (ctrl)
-			v4l2_ctrl_s_ctrl(ctrl, inst->min_dst_buf_count);
+			v4l2_ctrl_s_ctrl(ctrl, inst->dst_buf_count);
+
+		inst->frame_rate = (initial_info.f_rate_numerator /
+					initial_info.f_rate_denominator);
+		wave5_instance_set_clk(inst);
 
 		if (initial_info.pic_width != inst->src_fmt.width ||
 		    initial_info.pic_height != inst->src_fmt.height) {
@@ -970,8 +1182,6 @@ static int wave5_vpu_dec_start_streaming_open(struct vpu_instance *inst)
 					     initial_info.pic_height);
 		}
 		v4l2_event_queue_fh(&inst->v4l2_fh, &vpu_event_src_ch);
-
-		wave5_handle_src_buffer(inst);
 	}
 
 	return ret;
@@ -1022,8 +1232,8 @@ static int wave5_vpu_dec_start_streaming_seek(struct vpu_instance *inst)
 			__func__, initial_info.pic_width, initial_info.pic_height,
 			initial_info.profile, initial_info.min_frame_buffer_count);
 
-		inst->min_dst_buf_count = initial_info.min_frame_buffer_count + 1;
-		inst->dst_buf_count = inst->min_dst_buf_count;
+		inst->fbc_buf_count = initial_info.min_frame_buffer_count + 1;
+		inst->dst_buf_count = initial_info.frame_buf_delay + 1;
 
 		inst->conf_win_width = initial_info.pic_width - initial_info.pic_crop_rect.right;
 		inst->conf_win_height = initial_info.pic_height - initial_info.pic_crop_rect.bottom;
@@ -1031,7 +1241,7 @@ static int wave5_vpu_dec_start_streaming_seek(struct vpu_instance *inst)
 		ctrl = v4l2_ctrl_find(&inst->v4l2_ctrl_hdl,
 				      V4L2_CID_MIN_BUFFERS_FOR_CAPTURE);
 		if (ctrl)
-			v4l2_ctrl_s_ctrl(ctrl, inst->min_dst_buf_count);
+			v4l2_ctrl_s_ctrl(ctrl, inst->dst_buf_count);
 
 		if (initial_info.pic_width != inst->src_fmt.width ||
 		    initial_info.pic_height != inst->src_fmt.height) {
@@ -1067,23 +1277,75 @@ static void wave5_vpu_dec_buf_queue_dst(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vpu_instance *inst = vb2_get_drv_priv(vb->vb2_queue);
-	int ret;
+	unsigned long addr;
+	int ret, i, act_index = -1;
 
-	vbuf->sequence = inst->queued_dst_buf_num++;
-	ret = wave5_vpu_dec_clr_disp_flag(inst, vb->index);
-	if (ret) {
-		dev_dbg(inst->dev->dev,
-			"%s: Clearing the display flag of buffer index: %u, fail: %d\n",
-			__func__, vb->index, ret);
+	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+	if (vb->vb2_queue->memory == VB2_MEMORY_DMABUF) {
+		mutex_lock(inst->inst_lock);
+		if (vb->index < (inst->dst_buf_count - DEC_BUF_OFFSET)) {
+			if (inst->queued_dst_buf_num <
+			    (inst->dst_buf_count - DEC_BUF_OFFSET)) {
+				ret = wave5_vpu_dec_clr_disp_flag(inst,
+								  vb->index);
+				inst->map_index[vb->index] = vb->index;
+			} else {
+				for (i = 0; i < inst->dst_buf_count; i++) {
+					if (inst->mapped_dma_addr[i] == addr) {
+						act_index = i;
+						break;
+					}
+				}
+				if (act_index >= 0) {
+					ret = wave5_vpu_dec_clr_disp_flag(
+						inst, act_index);
+					if (ret) {
+						dev_dbg(inst->dev->dev,
+							"%s: Clearing the display flag of buffer index: %u, fail: %d\n",
+							__func__, vb->index,
+							ret);
+					}
+					inst->map_index[act_index] = vb->index;
+				} else {
+					pr_err("%s Address not found for index : %d: %lx\n",
+					       __func__, vb->index, addr);
+					v4l2_m2m_dst_buf_remove_by_idx(
+						inst->v4l2_fh.m2m_ctx,
+						vb->index);
+					v4l2_m2m_buf_done(
+						to_vb2_v4l2_buffer(vb),
+						VB2_BUF_STATE_ERROR);
+					mutex_unlock(inst->inst_lock);
+					return;
+				}
+			}
+			vbuf->sequence = inst->queued_dst_buf_num++;
+		}
+		mutex_unlock(inst->inst_lock);
+	} else {
+		inst->map_index[vb->index] = vb->index;
+		vbuf->sequence = inst->queued_dst_buf_num++;
+		ret = wave5_vpu_dec_clr_disp_flag(inst, vb->index);
+		if (ret) {
+			dev_dbg(inst->dev->dev,
+				"%s: Clearing the display flag of buffer index: %u, fail: %d\n",
+				__func__, vb->index, ret);
+		}
 	}
 
 	if (inst->state == VPU_INST_STATE_INIT_SEQ) {
 		dma_addr_t buf_addr_y = 0, buf_addr_cb = 0, buf_addr_cr = 0;
 		u32 buf_size = 0;
-		u32 non_linear_num = inst->dst_buf_count;
+		u32 fb_index = inst->fbc_buf_count + vb->index;
 		u32 fb_stride = inst->dst_fmt.width;
 		u32 luma_size = fb_stride * inst->dst_fmt.height;
-		u32 chroma_size = (fb_stride / 2) * (inst->dst_fmt.height / 2);
+		u32 chroma_size;
+
+		inst->mapped_dma_addr[vb->index] = addr;
+		if (inst->output_format == FORMAT_422)
+			chroma_size = fb_stride * inst->dst_fmt.height / 2;
+		else
+			chroma_size = fb_stride * inst->dst_fmt.height / 4;
 
 		if (inst->dst_fmt.num_planes == 1) {
 			buf_size = vb2_plane_size(&vbuf->vb2_buf, 0);
@@ -1104,14 +1366,14 @@ static void wave5_vpu_dec_buf_queue_dst(struct vb2_buffer *vb)
 			buf_addr_cb = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 1);
 			buf_addr_cr = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 2);
 		}
-		inst->frame_buf[vb->index + non_linear_num].buf_y = buf_addr_y;
-		inst->frame_buf[vb->index + non_linear_num].buf_cb = buf_addr_cb;
-		inst->frame_buf[vb->index + non_linear_num].buf_cr = buf_addr_cr;
-		inst->frame_buf[vb->index + non_linear_num].size = buf_size;
-		inst->frame_buf[vb->index + non_linear_num].width = inst->src_fmt.width;
-		inst->frame_buf[vb->index + non_linear_num].stride = fb_stride;
-		inst->frame_buf[vb->index + non_linear_num].map_type = LINEAR_FRAME_MAP;
-		inst->frame_buf[vb->index + non_linear_num].update_fb_info = true;
+		inst->frame_buf[fb_index].buf_y = buf_addr_y;
+		inst->frame_buf[fb_index].buf_cb = buf_addr_cb;
+		inst->frame_buf[fb_index].buf_cr = buf_addr_cr;
+		inst->frame_buf[fb_index].size = buf_size;
+		inst->frame_buf[fb_index].width = inst->src_fmt.width;
+		inst->frame_buf[fb_index].stride = fb_stride;
+		inst->frame_buf[fb_index].map_type = LINEAR_FRAME_MAP;
+		inst->frame_buf[fb_index].update_fb_info = true;
 	}
 
 	if (!vb2_is_streaming(vb->vb2_queue))
@@ -1130,8 +1392,15 @@ static void wave5_vpu_dec_buf_queue(struct vb2_buffer *vb)
 		__func__, vb->type, vb->index, vb2_plane_size(&vbuf->vb2_buf, 0),
 		vb2_plane_size(&vbuf->vb2_buf, 1), vb2_plane_size(&vbuf->vb2_buf, 2));
 
-	v4l2_m2m_buf_queue(inst->v4l2_fh.m2m_ctx, vbuf);
-
+	if ((vb->vb2_queue->memory == VB2_MEMORY_DMABUF) &&
+	    (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)) {
+		if (vb->index < (inst->dst_buf_count - DEC_BUF_OFFSET))
+			v4l2_m2m_buf_queue(inst->v4l2_fh.m2m_ctx, vbuf);
+		else
+			v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
+	} else {
+		v4l2_m2m_buf_queue(inst->v4l2_fh.m2m_ctx, vbuf);
+	}
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		wave5_vpu_dec_buf_queue_src(vb);
 	else if (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
@@ -1162,6 +1431,10 @@ static int wave5_vpu_dec_start_streaming(struct vb2_queue *q, unsigned int count
 			}
 		}
 	}
+
+	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	    inst->state == VPU_INST_STATE_INIT_SEQ)
+		ret = wave5_prepare_fb(inst);
 
 	return ret;
 }
@@ -1308,7 +1581,7 @@ static int wave5_vpu_open_dec(struct file *filp)
 	struct video_device *vdev = video_devdata(filp);
 	struct vpu_device *dev = video_drvdata(filp);
 	struct vpu_instance *inst = NULL;
-	int ret = 0;
+	int ret = 0, err;
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
@@ -1323,7 +1596,6 @@ static int wave5_vpu_open_dec(struct file *filp)
 	v4l2_fh_add(&inst->v4l2_fh);
 
 	INIT_LIST_HEAD(&inst->list);
-	list_add_tail(&inst->list, &dev->instances);
 
 	inst->v4l2_m2m_dev = v4l2_m2m_init(&wave5_vpu_dec_m2m_ops);
 	if (IS_ERR(inst->v4l2_m2m_dev)) {
@@ -1372,6 +1644,32 @@ static int wave5_vpu_open_dec(struct file *filp)
 		ret = inst->id;
 		goto cleanup_inst;
 	}
+	inst->inst_lock = kzalloc(sizeof(*inst->inst_lock), GFP_KERNEL);
+	if (!inst->inst_lock) {
+		ret = -ENOMEM;
+		goto cleanup_inst;
+	}
+	mutex_init(inst->inst_lock);
+
+	err = pm_runtime_resume_and_get(inst->dev->dev);
+	if (err) {
+		dev_err(inst->dev->dev, "runtime resume failed %d\n", err);
+		ret = -EINVAL;
+		goto cleanup_inst;
+	}
+
+	ret = mutex_lock_interruptible(&dev->dev_lock);
+	if (ret)
+		goto cleanup_inst;
+
+	if (dev->irq < 0 && !hrtimer_active(&dev->hrtimer) && list_empty(&dev->instances))
+		hrtimer_start(&dev->hrtimer, ns_to_ktime(dev->vpu_poll_interval * NSEC_PER_MSEC),
+			      HRTIMER_MODE_REL_PINNED);
+
+	list_add_tail(&inst->list, &dev->instances);
+
+	mutex_unlock(&dev->dev_lock);
+	wave5_vdi_allocate_sram(inst->dev);
 
 	return 0;
 

@@ -5378,8 +5378,11 @@ nl80211_parse_mbssid_elems(struct wiphy *wiphy, struct nlattr *attrs)
 	if (!wiphy->mbssid_max_interfaces)
 		return ERR_PTR(-EINVAL);
 
-	nla_for_each_nested(nl_elems, attrs, rem_elems)
+	nla_for_each_nested(nl_elems, attrs, rem_elems) {
+		if (num_elems >= 255)
+			return ERR_PTR(-EINVAL);
 		num_elems++;
+	}
 
 	elems = kzalloc(struct_size(elems, elem, num_elems), GFP_KERNEL);
 	if (!elems)
@@ -10542,6 +10545,8 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		if (!info->attrs[NL80211_ATTR_MLD_ADDR])
 			return -EINVAL;
 		req.ap_mld_addr = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
+		if (!is_valid_ether_addr(req.ap_mld_addr))
+			return -EINVAL;
 	}
 
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,

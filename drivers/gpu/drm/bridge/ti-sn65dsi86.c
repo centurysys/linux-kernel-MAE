@@ -152,6 +152,7 @@
  * @ln_assign:    Value to program to the LN_ASSIGN register.
  * @ln_polrs:     Value for the 4-bit LN_POLRS field of SN_ENH_FRAME_REG.
  * @comms_enabled: If true then communication over the aux channel is enabled.
+ * @plugged:       Plug connection status
  * @comms_mutex:   Protects modification of comms_enabled.
  *
  * @gchip:        If we expose our GPIOs, this is used.
@@ -170,10 +171,10 @@
  * @pwm_refclk_freq: Cache for the reference clock input to the PWM.
  */
 struct ti_sn65dsi86 {
-	struct auxiliary_device		bridge_aux;
-	struct auxiliary_device		gpio_aux;
-	struct auxiliary_device		aux_aux;
-	struct auxiliary_device		pwm_aux;
+	struct auxiliary_device		*bridge_aux;
+	struct auxiliary_device		*gpio_aux;
+	struct auxiliary_device		*aux_aux;
+	struct auxiliary_device		*pwm_aux;
 
 	struct device			*dev;
 	struct regmap			*regmap;
@@ -190,6 +191,7 @@ struct ti_sn65dsi86 {
 	u8				ln_assign;
 	u8				ln_polrs;
 	bool				comms_enabled;
+	bool				plugged;
 	struct mutex			comms_mutex;
 
 #if defined(CONFIG_OF_GPIO)
@@ -298,6 +300,10 @@ static void ti_sn_bridge_set_refclk_freq(struct ti_sn65dsi86 *pdata)
 		if (refclk_lut[i] == refclk_rate)
 			break;
 
+	/* avoid buffer overflow and "1" is the default rate in the datasheet. */
+	if (i >= refclk_lut_size)
+		i = 1;
+
 	regmap_update_bits(pdata->regmap, SN_DPPLL_SRC_REG, REFCLK_FREQ_MASK,
 			   REFCLK_FREQ(i));
 
@@ -363,7 +369,7 @@ static int __maybe_unused ti_sn65dsi86_resume(struct device *dev)
 	/* td2: min 100 us after regulators before enabling the GPIO */
 	usleep_range(100, 110);
 
-	gpiod_set_value(pdata->enable_gpio, 1);
+	gpiod_set_value_cansleep(pdata->enable_gpio, 1);
 
 	/*
 	 * If we have a reference clock we can enable communication w/ the
@@ -386,7 +392,7 @@ static int __maybe_unused ti_sn65dsi86_suspend(struct device *dev)
 	if (pdata->refclk)
 		ti_sn65dsi86_disable_comms(pdata);
 
-	gpiod_set_value(pdata->enable_gpio, 0);
+	gpiod_set_value_cansleep(pdata->enable_gpio, 0);
 
 	ret = regulator_bulk_disable(SN_REGULATOR_SUPPLY_NUM, pdata->supplies);
 	if (ret)
@@ -464,27 +470,34 @@ static void ti_sn65dsi86_delete_aux(void *data)
 	auxiliary_device_delete(data);
 }
 
-/*
- * AUX bus docs say that a non-NULL release is mandatory, but it makes no
- * sense for the model used here where all of the aux devices are allocated
- * in the single shared structure. We'll use this noop as a workaround.
- */
-static void ti_sn65dsi86_noop(struct device *dev) {}
+static void ti_sn65dsi86_aux_device_release(struct device *dev)
+{
+	struct auxiliary_device *aux = container_of(dev, struct auxiliary_device, dev);
+
+	kfree(aux);
+}
 
 static int ti_sn65dsi86_add_aux_device(struct ti_sn65dsi86 *pdata,
-				       struct auxiliary_device *aux,
+				       struct auxiliary_device **aux_out,
 				       const char *name)
 {
 	struct device *dev = pdata->dev;
+	struct auxiliary_device *aux;
 	int ret;
+
+	aux = kzalloc(sizeof(*aux), GFP_KERNEL);
+	if (!aux)
+		return -ENOMEM;
 
 	aux->name = name;
 	aux->dev.parent = dev;
-	aux->dev.release = ti_sn65dsi86_noop;
+	aux->dev.release = ti_sn65dsi86_aux_device_release;
 	device_set_of_node_from_dev(&aux->dev, dev);
 	ret = auxiliary_device_init(aux);
-	if (ret)
+	if (ret) {
+		kfree(aux);
 		return ret;
+	}
 	ret = devm_add_action_or_reset(dev, ti_sn65dsi86_uninit_aux, aux);
 	if (ret)
 		return ret;
@@ -493,6 +506,8 @@ static int ti_sn65dsi86_add_aux_device(struct ti_sn65dsi86 *pdata,
 	if (ret)
 		return ret;
 	ret = devm_add_action_or_reset(dev, ti_sn65dsi86_delete_aux, aux);
+	if (!ret)
+		*aux_out = aux;
 
 	return ret;
 }
@@ -679,10 +694,11 @@ static int ti_sn_attach_host(struct ti_sn65dsi86 *pdata)
 	if (IS_ERR(dsi))
 		return PTR_ERR(dsi);
 
-	/* TODO: setting to 4 MIPI lanes always for now */
-	dsi->lanes = 4;
+	/* TODO: setting to 2 MIPI lanes always for now */
+	dsi->lanes = 2;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
+		MIPI_DSI_MODE_NO_EOT_PACKET | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 
 	/* check if continuous dsi clock is required or not */
 	pm_runtime_get_sync(dev);
@@ -1057,6 +1073,15 @@ static void ti_sn_bridge_atomic_enable(struct drm_bridge *bridge,
 		return;
 	}
 
+	/*
+	 * Disable ASSR Display Authentication, since its supported only in eDP
+	 * and not spupperted in DP
+	 */
+	regmap_write(pdata->regmap, 0xFF, 0x7);
+	regmap_write(pdata->regmap, 0x16, 0x1);
+	regmap_write(pdata->regmap, 0xFF, 0x0);
+	regmap_update_bits(pdata->regmap, 0x5A, BIT(0), 0);
+
 	max_dp_lanes = ti_sn_get_max_lanes(pdata);
 	pdata->dp_lanes = min(pdata->dp_lanes, max_dp_lanes);
 
@@ -1071,26 +1096,6 @@ static void ti_sn_bridge_atomic_enable(struct drm_bridge *bridge,
 
 	/* set dsi clk frequency value */
 	ti_sn_bridge_set_dsi_rate(pdata);
-
-	/*
-	 * The SN65DSI86 only supports ASSR Display Authentication method and
-	 * this method is enabled for eDP panels. An eDP panel must support this
-	 * authentication method. We need to enable this method in the eDP panel
-	 * at DisplayPort address 0x0010A prior to link training.
-	 *
-	 * As only ASSR is supported by SN65DSI86, for full DisplayPort displays
-	 * we need to disable the scrambler.
-	 */
-	if (pdata->bridge.type == DRM_MODE_CONNECTOR_eDP) {
-		drm_dp_dpcd_writeb(&pdata->aux, DP_EDP_CONFIGURATION_SET,
-				   DP_ALTERNATE_SCRAMBLER_RESET_ENABLE);
-
-		regmap_update_bits(pdata->regmap, SN_TRAINING_SETTING_REG,
-				   SCRAMBLE_DISABLE, 0);
-	} else {
-		regmap_update_bits(pdata->regmap, SN_TRAINING_SETTING_REG,
-				   SCRAMBLE_DISABLE, SCRAMBLE_DISABLE);
-	}
 
 	bpp = ti_sn_bridge_get_bpp(connector);
 	/* Set the DP output format (18 bpp or 24 bpp) */
@@ -1163,14 +1168,19 @@ static void ti_sn_bridge_atomic_post_disable(struct drm_bridge *bridge,
 static enum drm_connector_status ti_sn_bridge_detect(struct drm_bridge *bridge)
 {
 	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
-	int val = 0;
+	int val;
+	u8 link_status[DP_LINK_STATUS_SIZE];
 
-	pm_runtime_get_sync(pdata->dev);
-	regmap_read(pdata->regmap, SN_HPD_DISABLE_REG, &val);
-	pm_runtime_put_autosuspend(pdata->dev);
+	if (!pdata->plugged) {
+		pm_runtime_get_sync(pdata->dev);
+		val = drm_dp_dpcd_read_link_status(&pdata->aux, link_status);
+		pm_runtime_put_autosuspend(pdata->dev);
+		if (val > 0)
+			pdata->plugged = true;
+	}
 
-	return val & HPD_DEBOUNCED_STATE ? connector_status_connected
-					 : connector_status_disconnected;
+	return pdata->plugged ? connector_status_connected
+			      : connector_status_disconnected;
 }
 
 static struct edid *ti_sn_bridge_get_edid(struct drm_bridge *bridge,
@@ -1282,8 +1292,11 @@ static int ti_sn_bridge_probe(struct auxiliary_device *adev,
 	pdata->bridge.type = pdata->next_bridge->type == DRM_MODE_CONNECTOR_DisplayPort
 			   ? DRM_MODE_CONNECTOR_DisplayPort : DRM_MODE_CONNECTOR_eDP;
 
+	pdata->plugged = false;
+	pdata->bridge.ops |= DRM_BRIDGE_OP_DETECT;
+
 	if (pdata->bridge.type == DRM_MODE_CONNECTOR_DisplayPort)
-		pdata->bridge.ops = DRM_BRIDGE_OP_EDID | DRM_BRIDGE_OP_DETECT;
+		pdata->bridge.ops |= DRM_BRIDGE_OP_EDID;
 
 	drm_bridge_add(&pdata->bridge);
 

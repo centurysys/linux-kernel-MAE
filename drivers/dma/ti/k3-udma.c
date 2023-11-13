@@ -1014,9 +1014,14 @@ static int udma_stop(struct udma_chan *uc)
 		if (!uc->cyclic && !uc->desc)
 			udma_push_to_ring(uc, -1);
 
-		udma_rchanrt_write(uc, UDMA_CHAN_RT_PEER_RT_EN_REG,
-				   UDMA_PEER_RT_EN_ENABLE |
-				   UDMA_PEER_RT_EN_TEARDOWN);
+		/* FIXME: Doing a forced teardown for McASP PDMA to prevent channel corruption */
+		if (uc->cyclic && uc->config.ep_type == PSIL_EP_PDMA_XY &&
+		    uc->config.enable_acc32 && uc->config.enable_burst)
+			udma_rchanrt_write(uc, UDMA_CHAN_RT_PEER_RT_EN_REG, 0);
+		else
+			udma_rchanrt_write(uc, UDMA_CHAN_RT_PEER_RT_EN_REG,
+					   UDMA_PEER_RT_EN_ENABLE |
+					   UDMA_PEER_RT_EN_TEARDOWN);
 		break;
 	case DMA_MEM_TO_DEV:
 		udma_tchanrt_write(uc, UDMA_CHAN_RT_PEER_RT_EN_REG,
@@ -4308,6 +4313,15 @@ static struct udma_match_data j721e_mcu_data = {
 	},
 };
 
+static struct udma_soc_data j721s2_bcdma_soc_data = {
+	.oes = {
+		.bcdma_tchan_data = 0x800,
+		.bcdma_tchan_ring = 0xa00,
+		.bcdma_rchan_data = 0xe00,
+		.bcdma_rchan_ring = 0x1000,
+	},
+};
+
 static struct udma_soc_data am62a_dmss_csi_soc_data = {
 	.oes = {
 		.bcdma_rchan_data = 0xe00,
@@ -4326,6 +4340,19 @@ static struct udma_match_data am62a_bcdma_csirx_data = {
 	},
 	.soc_data = &am62a_dmss_csi_soc_data,
 	.order_id = 8,
+};
+
+static struct udma_match_data j721s2_bcdma_data = {
+	.type = DMA_TYPE_BCDMA,
+	.psil_base = 0x2000,
+	.enable_memcpy_support = false,
+	.burst_size = {
+		TI_SCI_RM_UDMAP_CHAN_BURST_SIZE_64_BYTES, /* Normal Channels */
+		0, /* No H Channels */
+		0, /* No UH Channels */
+	},
+	.soc_data = &j721s2_bcdma_soc_data,
+	.order_id = 15,
 };
 
 static struct udma_match_data am64_bcdma_data = {
@@ -4381,6 +4408,10 @@ static const struct of_device_id udma_of_match[] = {
 		.compatible = "ti,am62a-dmss-bcdma-csirx",
 		.data = &am62a_bcdma_csirx_data,
 	},
+	{
+		.compatible = "ti,j721s2-dmss-bcdma-csi",
+		.data = &j721s2_bcdma_data,
+	},
 	{ /* Sentinel */ },
 };
 
@@ -4425,6 +4456,7 @@ static const struct soc_device_attribute k3_soc_devices[] = {
 	{ .family = "AM62X", .data = &am64_soc_data },
 	{ .family = "AM62AX", .data = &am64_soc_data },
 	{ .family = "J784S4", .data = &j721e_soc_data },
+	{ .family = "AM62PX", .data = &am64_soc_data },
 	{ /* sentinel */ }
 };
 
@@ -4449,6 +4481,7 @@ static int udma_get_mmrs(struct platform_device *pdev, struct udma_dev *ud)
 		break;
 	case DMA_TYPE_BCDMA:
 		ud->bchan_cnt = BCDMA_CAP2_BCHAN_CNT(cap2);
+		ud->bchan_cnt += BCDMA_CAP3_HBCHAN_CNT(cap3) + BCDMA_CAP3_UBCHAN_CNT(cap3);
 		ud->tchan_cnt = BCDMA_CAP2_TCHAN_CNT(cap2);
 		ud->rchan_cnt = BCDMA_CAP2_RCHAN_CNT(cap2);
 		ud->rflow_cnt = ud->rchan_cnt;

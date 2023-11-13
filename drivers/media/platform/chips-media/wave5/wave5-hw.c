@@ -111,6 +111,19 @@ static int wave5_wait_vcpu_bus_busy(struct vpu_device *vpu_dev, unsigned int add
 	return wave5_wait_fio_readl(vpu_dev, addr, 0);
 }
 
+static dma_addr_t wave5_read_reg_for_mem_addr(struct vpu_instance *inst,
+					      unsigned int reg_addr)
+{
+	dma_addr_t addr;
+	dma_addr_t high_addr = inst->dev->ext_addr;
+	u32 val;
+
+	val = vpu_read_reg(inst->dev, reg_addr);
+	addr = ((high_addr << 32) | val);
+
+	return addr;
+}
+
 bool wave5_vpu_is_init(struct vpu_device *vpu_dev)
 {
 	return vpu_read_reg(vpu_dev, W5_VCPU_CUR_PC) != 0;
@@ -304,7 +317,6 @@ static void remap_page(struct vpu_device *vpu_dev, dma_addr_t code_base, u32 ind
 int wave5_vpu_init(struct device *dev, u8 *fw, size_t size)
 {
 	struct vpu_buf *common_vb;
-	struct dma_vpu_buf *sram_vb;
 	dma_addr_t code_base, temp_base;
 	u32 code_size, temp_size;
 	u32 i, reg_val;
@@ -347,7 +359,7 @@ int wave5_vpu_init(struct device *dev, u8 *fw, size_t size)
 
 	vpu_write_reg(vpu_dev, W5_HW_OPTION, 0);
 
-	reg_val = (WAVE5_PROC_AXI_EXT_ADDR & 0xFFFF);
+	reg_val = (vpu_dev->ext_addr & 0xFFFF);
 	wave5_fio_writel(vpu_dev, W5_BACKBONE_PROC_EXT_ADDR, reg_val);
 	reg_val = ((WAVE5_PROC_AXI_AXPROT & 0x7) << 4) |
 		(WAVE5_PROC_AXI_AXCACHE & 0xF);
@@ -381,10 +393,6 @@ int wave5_vpu_init(struct device *dev, u8 *fw, size_t size)
 		wave5_fio_writel(vpu_dev, W5_BACKBONE_PROG_AXI_ID, reg_val);
 	}
 
-	sram_vb = &vpu_dev->sram_buf;
-
-	vpu_write_reg(vpu_dev, W5_ADDR_SEC_AXI, sram_vb->daddr);
-	vpu_write_reg(vpu_dev, W5_SEC_AXI_SIZE, sram_vb->size);
 	vpu_write_reg(vpu_dev, W5_VPU_BUSY_STATUS, 1);
 	vpu_write_reg(vpu_dev, W5_COMMAND, W5_INIT_VPU);
 	vpu_write_reg(vpu_dev, W5_VPU_REMAP_CORE_START, 1);
@@ -411,10 +419,15 @@ int wave5_vpu_build_up_dec_param(struct vpu_instance *inst,
 	int ret;
 	struct dec_info *p_dec_info = &inst->codec_info->dec_info;
 	u32 bs_endian;
-	struct dma_vpu_buf *sram_vb;
 	struct vpu_device *vpu_dev = inst->dev;
 
 	p_dec_info->cycle_per_tick = 256;
+	if (vpu_dev->sram_buf.size) {
+		p_dec_info->sec_axi_info.use_bit_enable = 1;
+		p_dec_info->sec_axi_info.use_ip_enable = 1;
+		p_dec_info->sec_axi_info.use_lf_row_enable = 1;
+	}
+
 	switch (inst->std) {
 	case W_HEVC_DEC:
 		p_dec_info->seq_change_mask = SEQ_CHANGE_ENABLE_ALL_HEVC;
@@ -448,14 +461,13 @@ int wave5_vpu_build_up_dec_param(struct vpu_instance *inst,
 
 	vpu_write_reg(inst->dev, W5_CMD_DEC_VCORE_INFO, 1);
 
-	sram_vb = &vpu_dev->sram_buf;
-	p_dec_info->sec_axi_info.buf_base = sram_vb->daddr;
-	p_dec_info->sec_axi_info.buf_size = sram_vb->size;
-
 	wave5_vdi_clear_memory(inst->dev, &p_dec_info->vb_work);
 
 	vpu_write_reg(inst->dev, W5_ADDR_WORK_BASE, p_dec_info->vb_work.daddr);
 	vpu_write_reg(inst->dev, W5_WORK_SIZE, p_dec_info->vb_work.size);
+
+	vpu_write_reg(inst->dev, W5_CMD_ADDR_SEC_AXI, vpu_dev->sram_buf.daddr);
+	vpu_write_reg(inst->dev, W5_CMD_SEC_AXI_SIZE, vpu_dev->sram_buf.size);
 
 	vpu_write_reg(inst->dev, W5_CMD_DEC_BS_START_ADDR, p_dec_info->stream_buf_start_addr);
 	vpu_write_reg(inst->dev, W5_CMD_DEC_BS_SIZE, p_dec_info->stream_buf_size);
@@ -465,7 +477,7 @@ int wave5_vpu_build_up_dec_param(struct vpu_instance *inst,
 	bs_endian = (~bs_endian & VDI_128BIT_ENDIAN_MASK);
 	vpu_write_reg(inst->dev, W5_CMD_BS_PARAM, bs_endian);
 	vpu_write_reg(inst->dev, W5_CMD_EXT_ADDR, (param->pri_axprot << 20) |
-			(param->pri_axcache << 16) | param->pri_ext_addr);
+			(param->pri_axcache << 16) | inst->dev->ext_addr);
 	vpu_write_reg(inst->dev, W5_CMD_NUM_CQ_DEPTH_M1, (COMMAND_QUEUE_DEPTH - 1));
 	vpu_write_reg(inst->dev, W5_CMD_ERR_CONCEAL, (param->error_conceal_unit << 2) |
 			(param->error_conceal_mode));
@@ -707,12 +719,14 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 	size_t remain, idx, j, i, cnt_8_chunk;
 	u32 start_no, end_no;
 	u32 reg_val, cbcr_interleave, nv21, pic_size;
-	u32 endian, yuv_format;
+	u32 endian;
 	u32 addr_y, addr_cb, addr_cr;
 	u32 table_width = init_info->pic_width;
 	u32 table_height = init_info->pic_height;
 	u32 mv_col_size, frame_width, frame_height, fbc_y_tbl_size, fbc_c_tbl_size;
 	struct vpu_buf vb_buf;
+	bool justified = WTL_RIGHT_JUSTIFIED;
+	u32 format_no = WTL_PIXEL_8BIT;
 	u32 color_format = 0;
 	u32 pixel_order = 1;
 	u32 bwb_flag = (map_type == LINEAR_FRAME_MAP) ? 1 : 0;
@@ -833,21 +847,23 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 		vpu_write_reg(inst->dev, W5_CMD_SET_FB_TASK_BUF_SIZE, vb_buf.size);
 	} else {
 		pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
+
+		if (inst->output_format == FORMAT_422)
+			color_format = 1;
+		else
+			color_format = 0;
 	}
 	endian = wave5_vdi_convert_endian(inst->dev, fb_arr[0].endian);
 	vpu_write_reg(inst->dev, W5_PIC_SIZE, pic_size);
 
-	yuv_format = 0;
-	color_format = 0;
-
-	reg_val =
-		(bwb_flag << 28) |
-		(pixel_order << 23) | /* PIXEL ORDER in 128bit. first pixel in low address */
-		(yuv_format << 20) |
-		(color_format << 19) |
-		(nv21 << 17) |
-		(cbcr_interleave << 16) |
-		(fb_arr[0].stride);
+	reg_val = (bwb_flag << 28) |
+		  (pixel_order << 23) |
+		  (justified << 22) |
+		  (format_no << 20) |
+		  (color_format << 19) |
+		  (nv21 << 17) |
+		  (cbcr_interleave << 16) |
+		  (fb_arr[0].stride);
 	vpu_write_reg(inst->dev, W5_COMMON_PIC_INFO, reg_val);
 
 	remain = count;
@@ -973,9 +989,9 @@ int wave5_vpu_decode(struct vpu_instance *inst, struct dec_param *option, u32 *f
 	vpu_write_reg(inst->dev, W5_BS_OPTION, bs_option);
 
 	/* secondary AXI */
-	reg_val = p_dec_info->sec_axi_info.wave.use_bit_enable |
-		(p_dec_info->sec_axi_info.wave.use_ip_enable << 9) |
-		(p_dec_info->sec_axi_info.wave.use_lf_row_enable << 15);
+	reg_val = p_dec_info->sec_axi_info.use_bit_enable |
+		(p_dec_info->sec_axi_info.use_ip_enable << 9) |
+		(p_dec_info->sec_axi_info.use_lf_row_enable << 15);
 	vpu_write_reg(inst->dev, W5_USE_SEC_AXI, reg_val);
 
 	/* set attributes of user buffer */
@@ -1217,7 +1233,6 @@ int wave5_vpu_re_init(struct device *dev, u8 *fw, size_t size)
 
 	if (old_code_base != code_base + W5_REMAP_INDEX1 * W5_REMAP_MAX_SIZE) {
 		int ret;
-		struct dma_vpu_buf *sram_vb;
 
 		ret = wave5_vdi_write_memory(vpu_dev, common_vb, 0, fw, size,
 					     VDI_128BIT_LITTLE_ENDIAN);
@@ -1246,7 +1261,7 @@ int wave5_vpu_re_init(struct device *dev, u8 *fw, size_t size)
 
 		vpu_write_reg(vpu_dev, W5_HW_OPTION, 0);
 
-		reg_val = (WAVE5_PROC_AXI_EXT_ADDR & 0xFFFF);
+		reg_val = (vpu_dev->ext_addr & 0xFFFF);
 		wave5_fio_writel(vpu_dev, W5_BACKBONE_PROC_EXT_ADDR, reg_val);
 		reg_val = ((WAVE5_PROC_AXI_AXPROT & 0x7) << 4) |
 			(WAVE5_PROC_AXI_AXCACHE & 0xF);
@@ -1280,10 +1295,6 @@ int wave5_vpu_re_init(struct device *dev, u8 *fw, size_t size)
 			wave5_fio_writel(vpu_dev, W5_BACKBONE_PROG_AXI_ID, reg_val);
 		}
 
-		sram_vb = &vpu_dev->sram_buf;
-
-		vpu_write_reg(vpu_dev, W5_ADDR_SEC_AXI, sram_vb->daddr);
-		vpu_write_reg(vpu_dev, W5_SEC_AXI_SIZE, sram_vb->size);
 		vpu_write_reg(vpu_dev, W5_VPU_BUSY_STATUS, 1);
 		vpu_write_reg(vpu_dev, W5_COMMAND, W5_INIT_VPU);
 		vpu_write_reg(vpu_dev, W5_VPU_REMAP_CORE_START, 1);
@@ -1306,7 +1317,7 @@ int wave5_vpu_re_init(struct device *dev, u8 *fw, size_t size)
 	return setup_wave5_properties(dev);
 }
 
-static int wave5_vpu_sleep_wake(struct device *dev, bool i_sleep_wake, const uint16_t *code,
+int wave5_vpu_sleep_wake(struct device *dev, bool i_sleep_wake, const uint16_t *code,
 				size_t size)
 {
 	u32 reg_val;
@@ -1364,7 +1375,7 @@ static int wave5_vpu_sleep_wake(struct device *dev, bool i_sleep_wake, const uin
 
 		vpu_write_reg(vpu_dev, W5_HW_OPTION, 0);
 
-		reg_val = (WAVE5_PROC_AXI_EXT_ADDR & 0xFFFF);
+		reg_val = (vpu_dev->ext_addr & 0xFFFF);
 		wave5_fio_writel(vpu_dev, W5_BACKBONE_PROC_EXT_ADDR, reg_val);
 		reg_val = ((WAVE5_PROC_AXI_AXPROT & 0x7) << 4) |
 			(WAVE5_PROC_AXI_AXCACHE & 0xF);
@@ -1664,7 +1675,7 @@ dma_addr_t wave5_vpu_dec_get_rd_ptr(struct vpu_instance *inst)
 	if (ret)
 		return inst->codec_info->dec_info.stream_rd_ptr;
 
-	return vpu_read_reg(inst->dev, W5_RET_QUERY_DEC_BS_RD_PTR);
+	return wave5_read_reg_for_mem_addr(inst, W5_RET_QUERY_DEC_BS_RD_PTR);
 }
 
 int wave5_dec_set_rd_ptr(struct vpu_instance *inst, dma_addr_t addr)
@@ -1688,16 +1699,16 @@ int wave5_vpu_build_up_enc_param(struct device *dev, struct vpu_instance *inst,
 	int ret;
 	struct enc_info *p_enc_info = &inst->codec_info->enc_info;
 	u32 reg_val;
-	struct dma_vpu_buf *sram_vb;
 	u32 bs_endian;
 	struct vpu_device *vpu_dev = dev_get_drvdata(dev);
 	dma_addr_t buffer_addr;
 	size_t buffer_size;
 
 	p_enc_info->cycle_per_tick = 256;
-	sram_vb = &vpu_dev->sram_buf;
-	p_enc_info->sec_axi_info.buf_base = sram_vb->daddr;
-	p_enc_info->sec_axi_info.buf_size = sram_vb->size;
+	if (vpu_dev->sram_buf.size) {
+		p_enc_info->sec_axi_info.use_enc_rdo_enable = 1;
+		p_enc_info->sec_axi_info.use_enc_lf_enable = 1;
+	}
 
 	if (vpu_dev->product == PRODUCT_ID_521)
 		p_enc_info->vb_work.size = WAVE521ENC_WORKBUF_SIZE;
@@ -1713,13 +1724,16 @@ int wave5_vpu_build_up_enc_param(struct device *dev, struct vpu_instance *inst,
 	vpu_write_reg(inst->dev, W5_ADDR_WORK_BASE, p_enc_info->vb_work.daddr);
 	vpu_write_reg(inst->dev, W5_WORK_SIZE, p_enc_info->vb_work.size);
 
+	vpu_write_reg(inst->dev, W5_CMD_ADDR_SEC_AXI, vpu_dev->sram_buf.daddr);
+	vpu_write_reg(inst->dev, W5_CMD_SEC_AXI_SIZE, vpu_dev->sram_buf.size);
+
 	reg_val = wave5_vdi_convert_endian(vpu_dev, open_param->stream_endian);
 	bs_endian = (~reg_val & VDI_128BIT_ENDIAN_MASK);
 
 	reg_val = (open_param->line_buf_int_en << 6) | bs_endian;
 	vpu_write_reg(inst->dev, W5_CMD_BS_PARAM, reg_val);
 	vpu_write_reg(inst->dev, W5_CMD_EXT_ADDR, (open_param->pri_axprot << 20) |
-			(open_param->pri_axcache << 16) | open_param->pri_ext_addr);
+			(open_param->pri_axcache << 16) | inst->dev->ext_addr);
 	vpu_write_reg(inst->dev, W5_CMD_NUM_CQ_DEPTH_M1, (COMMAND_QUEUE_DEPTH - 1));
 
 	reg_val = 0;
@@ -2470,8 +2484,8 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_SRC_AXI_SEL, DEFAULT_SRC_AXI);
 	/* secondary AXI */
-	reg_val = (p_enc_info->sec_axi_info.wave.use_enc_rdo_enable << 11) |
-		(p_enc_info->sec_axi_info.wave.use_enc_lf_enable << 15);
+	reg_val = (p_enc_info->sec_axi_info.use_enc_rdo_enable << 11) |
+		(p_enc_info->sec_axi_info.use_enc_lf_enable << 15);
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_USE_SEC_AXI, reg_val);
 
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_REPORT_PARAM, 0);
@@ -2708,10 +2722,10 @@ int wave5_vpu_enc_get_result(struct vpu_instance *inst, struct enc_output_info *
 	result->recon_frame_index = vpu_read_reg(inst->dev, W5_RET_ENC_PIC_IDX);
 	result->enc_pic_byte = vpu_read_reg(inst->dev, W5_RET_ENC_PIC_BYTE);
 	result->enc_src_idx = vpu_read_reg(inst->dev, W5_RET_ENC_USED_SRC_IDX);
-	p_enc_info->stream_wr_ptr = vpu_read_reg(inst->dev, W5_RET_ENC_WR_PTR);
-	p_enc_info->stream_rd_ptr = vpu_read_reg(inst->dev, W5_RET_ENC_RD_PTR);
+	p_enc_info->stream_wr_ptr = wave5_read_reg_for_mem_addr(inst, W5_RET_ENC_WR_PTR);
+	p_enc_info->stream_rd_ptr = wave5_read_reg_for_mem_addr(inst, W5_RET_ENC_RD_PTR);
 
-	result->bitstream_buffer = vpu_read_reg(inst->dev, W5_RET_ENC_RD_PTR);
+	result->bitstream_buffer = wave5_read_reg_for_mem_addr(inst, W5_RET_ENC_RD_PTR);
 	result->rd_ptr = p_enc_info->stream_rd_ptr;
 	result->wr_ptr = p_enc_info->stream_wr_ptr;
 

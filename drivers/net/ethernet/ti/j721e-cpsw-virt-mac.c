@@ -1271,7 +1271,7 @@ static int virt_cpsw_nuss_of(struct virt_cpsw_common *common)
 	struct device *dev = common->dev;
 	struct device_node *port_np;
 	struct virt_cpsw_port *port;
-	u8 *mac_addr;
+	u8 mac_addr[ETH_ALEN];
 	int ret;
 
 	ret = of_property_read_u32(dev->of_node, "ti,psil-base",
@@ -1424,15 +1424,19 @@ static bool virt_cpsw_dev_check(const struct net_device *ndev)
 static int virt_cpsw_inetaddr_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr)
 {
-	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
 	struct rpmsg_remotedev_eth_switch_ops *rdev_ops;
-	struct net_device *ndev = ifa->ifa_dev->dev;
 	struct virt_cpsw_common *common;
+	struct in_ifaddr *ifa;
 	int ret = 0;
+
+	if (!ndev)
+		return NOTIFY_DONE;
 
 	if (!virt_cpsw_dev_check(ndev))
 		goto out;
 
+	ifa = (struct in_ifaddr *)ptr;
 	common = virt_ndev_to_common(ndev);
 	rdev_ops = common->rdev_switch_ops;
 	switch (event) {

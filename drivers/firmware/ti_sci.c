@@ -31,6 +31,8 @@
 /* Low power mode memory context size */
 #define LPM_CTX_MEM_SIZE 0x80000
 
+#define AM62X_DEV_MCU_M4FSS0_CORE0_DEV_ID 9
+
 /* List of all TI SCI devices active in system */
 static LIST_HEAD(ti_sci_list);
 /* Protection for the entire list */
@@ -91,13 +93,10 @@ struct ti_sci_desc {
  * @dev:	Device pointer
  * @desc:	SoC description for this instance
  * @nb:	Reboot Notifier block
- * @pm_nb:	PM notifier block
  * @d:		Debugfs file entry
  * @debug_region: Memory region where the debug message are available
  * @debug_region_size: Debug region size
  * @debug_buffer: Buffer allocated to copy debug messages.
- * @lpm_region: Memory region where the FS Stub LPM Firmware will be stored
- * @lpm_region_size: LPM region size
  * @handle:	Instance of TI SCI handle to send to clients.
  * @cl:		Mailbox Client
  * @chan_tx:	Transmit mailbox channel
@@ -109,21 +108,15 @@ struct ti_sci_desc {
  * @ctx_mem_buf: Low power context memory buffer
  * @fw_caps:	FW/SoC low power capabilities
  * @users:	Number of users of this instance
- * @is_suspending: Flag set to indicate in suspend path.
- * @lpm_firmware_loaded: Flag to indicate if LPM firmware has been loaded
- * @lpm_firmware_name: Name of firmware binary to load from fw search path
  */
 struct ti_sci_info {
 	struct device *dev;
 	struct notifier_block nb;
-	struct notifier_block pm_nb;
 	const struct ti_sci_desc *desc;
 	struct dentry *d;
 	void __iomem *debug_region;
 	char *debug_buffer;
 	size_t debug_region_size;
-	void __iomem *lpm_region;
-	size_t lpm_region_size;
 	struct ti_sci_handle handle;
 	struct mbox_client cl;
 	struct mbox_chan *chan_tx;
@@ -136,15 +129,11 @@ struct ti_sci_info {
 	u64 fw_caps;
 	/* protected by ti_sci_list_mutex */
 	int users;
-	bool is_suspending;
-	bool lpm_firmware_loaded;
-	const char *lpm_firmware_name;
 };
 
 #define cl_to_ti_sci_info(c)	container_of(c, struct ti_sci_info, cl)
 #define handle_to_ti_sci_info(h) container_of(h, struct ti_sci_info, handle)
 #define reboot_to_ti_sci_info(n) container_of(n, struct ti_sci_info, nb)
-#define pm_nb_to_ti_sci_info(n) container_of(n, struct ti_sci_info, pm_nb)
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -441,14 +430,14 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 
 	ret = 0;
 
-	if (!info->is_suspending) {
+	if (system_state <= SYSTEM_RUNNING) {
 		/* And we wait for the response. */
 		timeout = msecs_to_jiffies(info->desc->max_rx_timeout_ms);
 		if (!wait_for_completion_timeout(&xfer->done, timeout))
 			ret = -ETIMEDOUT;
 	} else {
 		/*
-		 * If we are suspending, we cannot use wait_for_completion_timeout
+		 * If we are !running, we cannot use wait_for_completion_timeout
 		 * during noirq phase, so we must manually poll the completion.
 		 */
 		ret = read_poll_timeout_atomic(try_wait_for_completion, done_state,
@@ -3536,41 +3525,18 @@ static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
 	return NOTIFY_BAD;
 }
 
-static int ti_sci_load_lpm_firmware(struct device *dev, struct ti_sci_info *info)
-{
-	const struct firmware *firmware;
-	int ret = 0;
-
-	/* If no firmware name is set, do not attempt to load. */
-	if (!info->lpm_firmware_name)
-		return -EINVAL;
-
-	ret = request_firmware_direct(&firmware, info->lpm_firmware_name, dev);
-	if (ret) {
-		dev_warn(dev, "Cannot load %s\n", info->lpm_firmware_name);
-		return ret;
-	}
-
-	if (firmware->size > info->lpm_region_size) {
-		release_firmware(firmware);
-		return -ENOMEM;
-	}
-
-	memcpy_toio(info->lpm_region, firmware->data, firmware->size);
-
-	release_firmware(firmware);
-
-	return ret;
-}
-static void ti_sci_set_is_suspending(struct ti_sci_info *info, bool is_suspending)
-{
-	info->is_suspending = is_suspending;
-}
-
 static int ti_sci_prepare_system_suspend(struct ti_sci_info *info)
 {
 #if IS_ENABLED(CONFIG_SUSPEND)
-	u8 mode;
+	u8 mode, unused;
+	u8 mcu_state = 0;
+
+	/*
+	 * Dev ID 9 is AM62X_DEV_MCU_M4FSS0_CORE0. Check state to determine
+	 * MCU only or deep sleep mode
+	 */
+	ti_sci_get_device_state(&info->handle, AM62X_DEV_MCU_M4FSS0_CORE0_DEV_ID,
+				NULL, NULL, &mcu_state, &unused);
 
 	/* Map and validate the target Linux suspend state to TISCI LPM. */
 	switch (pm_suspend_target_state) {
@@ -3578,10 +3544,10 @@ static int ti_sci_prepare_system_suspend(struct ti_sci_info *info)
 		/* S2MEM is not supported by the firmware. */
 		if (!(info->fw_caps & MSG_FLAG_CAPS_LPM_DEEP_SLEEP))
 			return 0;
-		/* S2MEM can't continue if the LPM firmware is not loaded. */
-		if (!info->lpm_firmware_loaded)
-			return -EINVAL;
-		mode = TISCI_MSG_VALUE_SLEEP_MODE_DEEP_SLEEP;
+
+		mode = mcu_state ? TISCI_MSG_VALUE_SLEEP_MODE_MCU_ONLY
+			: TISCI_MSG_VALUE_SLEEP_MODE_DEEP_SLEEP;
+
 		break;
 	default:
 		/*
@@ -3604,15 +3570,14 @@ static int ti_sci_suspend(struct device *dev)
 	struct ti_sci_info *info = dev_get_drvdata(dev);
 	int ret;
 
+	ret = ti_sci_cmd_set_io_isolation(&info->handle, TISCI_MSG_VALUE_IO_ENABLE);
+	if (ret)
+		return ret;
+	dev_dbg(dev, "%s: set isolation: %d\n", __func__, ret);
+
 	ret = ti_sci_prepare_system_suspend(info);
 	if (ret)
 		return ret;
-	/*
-	 * We must switch operation to polled mode now as drivers and the genpd
-	 * layer may make late TI SCI calls to change clock and device states
-	 * from the noirq phase of suspend.
-	 */
-	ti_sci_set_is_suspending(info, true);
 
 	return 0;
 }
@@ -3620,41 +3585,30 @@ static int ti_sci_suspend(struct device *dev)
 static int ti_sci_resume(struct device *dev)
 {
 	struct ti_sci_info *info = dev_get_drvdata(dev);
+	u32 source;
+	u64 time;
+	int ret = 0;
 
-	ti_sci_set_is_suspending(info, false);
+	ret = ti_sci_cmd_set_io_isolation(&info->handle, TISCI_MSG_VALUE_IO_DISABLE);
+	if (ret)
+		return ret;
+	dev_dbg(dev, "%s: disable isolation: %d\n", __func__, ret);
+
+	ti_sci_msg_cmd_lpm_wake_reason(&info->handle, &source, &time);
+	dev_info(dev, "%s: wakeup source: 0x%X\n", __func__, source);
 
 	return 0;
 }
 
-static DEFINE_SIMPLE_DEV_PM_OPS(ti_sci_pm_ops, ti_sci_suspend, ti_sci_resume);
-
-static int tisci_pm_handler(struct notifier_block *nb, unsigned long pm_event,
-			    void *unused)
-{
-	struct ti_sci_info *info = pm_nb_to_ti_sci_info(nb);
-	int ret;
-
-	/* Load the LPM firmware on PM_SUSPEND_PREPARE if not loaded yet */
-	if (pm_event != PM_SUSPEND_PREPARE || info->lpm_firmware_loaded)
-		return NOTIFY_DONE;
-
-	ret = ti_sci_load_lpm_firmware(info->dev, info);
-	if (ret) {
-		dev_err(info->dev, "Failed to load LPM firmware (%d)\n", ret);
-		return NOTIFY_BAD;
-	}
-
-	info->lpm_firmware_loaded = true;
-
-	return NOTIFY_OK;
-}
+static const struct dev_pm_ops ti_sci_pm_ops = {
+	.suspend_noirq = ti_sci_suspend,
+	.resume_noirq = ti_sci_resume,
+};
 
 static int ti_sci_init_suspend(struct platform_device *pdev,
 			       struct ti_sci_info *info)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
-	int ret;
 
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	info->ctx_mem_buf = dma_alloc_attrs(info->dev, LPM_CTX_MEM_SIZE,
@@ -3667,44 +3621,7 @@ static int ti_sci_init_suspend(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpm");
-	if (!res) {
-		dev_warn(dev,
-			 "lpm region is required for suspend but not provided.\n");
-		ret = -EINVAL;
-		goto err;
-	}
-
-	info->lpm_region = devm_ioremap_resource(dev, res);
-	if (IS_ERR(info->lpm_region)) {
-		ret = PTR_ERR(info->lpm_region);
-		goto err;
-	}
-	info->lpm_region_size = resource_size(res);
-
-	if (of_property_read_string(dev->of_node, "firmware-name",
-				    &info->lpm_firmware_name)) {
-		dev_warn(dev,
-			 "firmware-name is required for suspend but not provided.\n");
-		ret = -EINVAL;
-		goto err;
-	}
-
-	info->pm_nb.notifier_call = tisci_pm_handler;
-	info->pm_nb.priority = 128;
-
-	ret = register_pm_notifier(&info->pm_nb);
-	if (ret) {
-		dev_err(dev, "pm_notifier registration fail (%d)\n", ret);
-		goto err;
-	}
-
 	return 0;
-err:
-	dma_free_coherent(info->dev, LPM_CTX_MEM_SIZE,
-			  info->ctx_mem_buf,
-			  info->ctx_mem_addr);
-	return ret;
 }
 
 /* Description for K2G */
@@ -3896,9 +3813,6 @@ static int ti_sci_remove(struct platform_device *pdev)
 	of_platform_depopulate(dev);
 
 	info = platform_get_drvdata(pdev);
-
-	if (info->pm_nb.notifier_call)
-		unregister_pm_notifier(&info->pm_nb);
 
 	if (info->nb.notifier_call)
 		unregister_restart_handler(&info->nb);
