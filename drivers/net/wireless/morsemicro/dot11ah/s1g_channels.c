@@ -445,7 +445,7 @@ static const struct morse_dot11ah_ch_map mors_jp_map = {
 			CHANS1GHZ(8, 926, 500, IEEE80211_CHAN_2MHZ, 62),
 			/* 4MHz */
 			CHANS1GHZ(36, 924, 500, IEEE80211_CHAN_4MHZ, 42), /* Overlap 11ah ch4 */
-			CHANS1GHZ(38, 925, 500, IEEE80211_CHAN_4MHZ, 58), /* Overlap 11ah ch4 */
+//			CHANS1GHZ(38, 925, 500, IEEE80211_CHAN_4MHZ, 58), /* Overlap 11ah ch4 */
 		},
 }; /* End JP Map */
 
