@@ -430,7 +430,7 @@ static const struct morse_dot11ah_ch_map mors_jp_map = {
 		.calculate_primary_s1g = &calculate_primary_s1g_channel_jp,
 		.s1g_op_chan_pri_chan_to_5g = &s1g_op_chan_pri_chan_to_5g_jp,
 		.get_pri_1mhz_chan = &get_pri_1mhz_chan_jp,
-		.num_mapped_channels = 11,
+		.num_mapped_channels = 10,
 		.s1g_channels = {
 			/* 1MHz */
 			CHANS1GHZ(13, 923, 0, IEEE80211_CHAN_1MHZ, 36),
