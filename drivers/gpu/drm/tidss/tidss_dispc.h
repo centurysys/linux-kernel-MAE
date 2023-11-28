@@ -62,6 +62,7 @@ enum dispc_dss_subrevision {
 	DISPC_AM625,
 	DISPC_AM62A7,
 	DISPC_AM62P51,
+	DISPC_AM62P52,
 	DISPC_AM65X,
 	DISPC_J721E,
 };
@@ -97,7 +98,7 @@ struct dispc_features {
 	bool vid_lite[TIDSS_MAX_PLANES];
 	u32 vid_order[TIDSS_MAX_PLANES];
 	u32 num_outputs;
-	const enum dispc_output_type output_type[TIDSS_MAX_OUTPUTS];
+	enum dispc_output_type output_type[TIDSS_MAX_OUTPUTS];
 	u32 output_source_vp[TIDSS_MAX_OUTPUTS];
 };
 
@@ -105,6 +106,7 @@ extern const struct dispc_features dispc_k2g_feats;
 extern const struct dispc_features dispc_am625_feats;
 extern const struct dispc_features dispc_am62a7_feats;
 extern const struct dispc_features dispc_am62p51_feats;
+extern const struct dispc_features dispc_am62p52_feats;
 extern const struct dispc_features dispc_am65x_feats;
 extern const struct dispc_features dispc_j721e_feats;
 
