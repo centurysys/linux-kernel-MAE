@@ -897,7 +897,7 @@ static int mcp251x_open(struct net_device *net)
 		flags = IRQF_TRIGGER_FALLING;
 
 	ret = request_threaded_irq(spi->irq, NULL, mcp251x_can_ist,
-				   flags | IRQF_ONESHOT, dev_name(&spi->dev),
+				   flags | IRQF_ONESHOT | IRQF_SHARED, dev_name(&spi->dev),
 				   priv);
 	if (ret) {
 		dev_err(&spi->dev, "failed to acquire irq %d\n", spi->irq);
