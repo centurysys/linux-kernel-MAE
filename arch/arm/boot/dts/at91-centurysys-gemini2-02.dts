@@ -155,6 +155,14 @@
 			default-state = "keep";
 		};
 
+		sim2_select_msp430 {
+			label = "SIM2_SEL";
+			gpios = <&io_exp 7 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
 		sim_led@r0 {
 			label = "SIM1_R";
 			gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
@@ -530,7 +538,7 @@
 		#size-cells = <0>;
 		#gpio-cells = <2>;
 
-		gpio-line-names = "Mobile_Power_MSP430", "", "", "", "", "", "", "",
+		gpio-line-names = "Mobile_Power_MSP430", "", "", "", "", "", "", "SIM2_SEL",
 				  "", "", "", "", "", "", "", "", /* Reserved */
 				  "", "", "", "", "", "", "", "", /* Reserved */
 				  "", "", "", "", "", "", "", "", /* Reserved */
