@@ -154,6 +154,26 @@
 			retain-state-shutdown;
 			default-state = "keep";
 		};
+
+		sim_led@r0 {
+			label = "SIM1_R";
+			gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
+		};
+
+		sim_led@g0 {
+			label = "SIM1_G";
+			gpios = <&tca9538 1 GPIO_ACTIVE_LOW>;
+		};
+
+		sim_led@r1 {
+			label = "SIM2_R";
+			gpios = <&tca9538 2 GPIO_ACTIVE_LOW>;
+		};
+
+		sim_led@g1 {
+			label = "SIM2_G";
+			gpios = <&tca9538 3 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
@@ -526,6 +546,23 @@
 		compatible = "st,m41t80";
 		reg = <0x68>;
 		wakeup-source;
+	};
+
+	tca9538: tca9538@72 {
+		compatible = "nxp,pca9538";
+		reg = <0x72>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+
+		gpio-line-names = "SIM0_LED_R",
+				  "SIM0_LED_G",
+				  "SIM1_LED_R",
+				  "SIM1_LED_G",
+				  "SIM_CD",
+				  "SIM2_CD",
+				  "Reserved6",
+				  "Reserved7";
 	};
 };
 
