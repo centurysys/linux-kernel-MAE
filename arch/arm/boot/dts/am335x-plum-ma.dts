@@ -3780,14 +3780,14 @@
 	phy-handle = <&ethphy0>;
 
 	phy-mode = "rgmii-txid";
-	dual_emac_res_vlan = <1>;
+	dual_emac_res_vlan = <4094>;
 };
 
 &cpsw_emac1 {
 	phy-handle = <&ethphy1>;
 
 	phy-mode = "rgmii-txid";
-	dual_emac_res_vlan = <2>;
+	dual_emac_res_vlan = <4095>;
 };
 
 &mmc1 {
