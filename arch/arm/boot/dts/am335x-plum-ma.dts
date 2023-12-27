@@ -2398,6 +2398,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "SIM_CD", "ModuleMainPowerGood", "", "",
+				  "", "", "", "";
+
 		stat@0 {
 			label = "SIM_CD";
 			reg = <0>;
@@ -2421,6 +2424,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "SIM_CD", "ModuleMainPowerGood", "", "",
+				  "", "", "", "";
 
 		stat@0 {
 			label = "SIM_CD";
@@ -2582,6 +2588,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "SIM_CD", "ModuleMainPowerGood", "", "",
+				  "", "", "", "";
+
 		stat@0 {
 			label = "SIM_CD";
 			reg = <0>;
@@ -2605,6 +2614,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "SIM_CD", "ModuleMainPowerGood", "ModuleAvailable",
+				  "", "", "", "", "";
 
 		stat@0 {
 			label = "SIM_CD";
@@ -2635,6 +2647,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "SIM_CD", "", "ModuleAvailable", "",
+				  "BootUp", "", "", "";
+
 		stat@0 {
 			label = "SIM_CD";
 			reg = <0>;
@@ -2663,6 +2678,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "SIM_CD", "", "MobuleAvailable", "RI",
+				  "BootUp", "", "", "";
 
 		stat@0 {
 			label = "SIM_CD";
@@ -2698,6 +2716,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "SIM_CD", "ModuleMainPowerGood", "MobuleAvailable",
+				  "WAKE_N", "", "", "", "";
+
 		stat@0 {
 			label = "SIM_CD";
 			reg = <0>;
@@ -2731,6 +2752,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "RI", "EMG_RI", "ANTINF_0", "ANTINF_1",
+				  "MOS_IND", "RESET_CHK", "PS_HOLD", "AREA_IND";
 
 		stat@0 {
 			label = "RI";
@@ -2786,6 +2810,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "SIM_CD", "ModuleMainPowerGood", "", "RI",
+				  "", "", "", "";
+
 		stat@0 {
 			label = "SIM_CD";
 			reg = <0>;
@@ -2824,6 +2851,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "SIM_CD", "", "", "RI",
+				  "", "", "", "";
 
 		stat@0 {
 			label = "SIM_CD";
@@ -3113,6 +3143,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "DI_00", "DI_01", "DI_02", "DI_03",
+				  "DI_04", "DI_05", "DI_06", "DI_07";
+
 		din@0 {
 			label = "DI_00";
 			reg = <0>;
@@ -3174,6 +3207,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "DI_00", "DI_01", "DI_02", "DI_03",
+				  "DI_04", "DI_05", "DI_06", "DI_07";
 
 		din@0 {
 			label = "DI_00";
@@ -3266,6 +3302,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "DI_00", "DI_01", "", "",
+				  "", "", "", "";
+
 		din@0 {
 			label = "DI_00";
 			reg = <0>;
@@ -3292,6 +3331,9 @@
 
 		reg-names = "dat";
 		status = "disabled";
+
+		gpio-line-names = "DI_00", "", "", "",
+				  "", "", "", "";
 
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -3332,6 +3374,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "DI_08", "DI_09", "DI_10", "DI_11",
+				  "DI_12", "DI_13", "DI_14", "DI_15";
 
 		din@0 {
 			label = "DI_08";
@@ -3393,6 +3438,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "DI_16", "DI_17", "DI_18", "DI_19",
+				  "DI_20", "DI_21", "DI_22", "DI_23";
 
 		din@0 {
 			label = "DI_16";
@@ -3507,6 +3555,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "xio_PowerFail", "xio_RI", "", "",
+				  "", "", "", "";
+
 		stat@0 {
 			label = "xio_PowerFail";
 			reg = <0>;
@@ -3535,6 +3586,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "", "", "", "",
+				  "", "", "", "xio_WakeUpMPU";
+
 		stat@7 {
 			label = "xio_WakeUpMPU";
 			reg = <7>;
@@ -3558,6 +3612,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		gpio-line-names = "", "xio_RI", "", "",
+				  "", "", "", "";
+
 		stat@1 {
 			label = "xio_RI";
 			reg = <1>;
@@ -3580,6 +3637,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "xio_PowerFail", "xio_RI", "xio_EMG_RI", "xio_RESET_CHK",
+				  "xio_PS_HOLD", "", "", "";
 
 		stat@0 {
 			label = "xio_PowerFail";
@@ -3623,6 +3683,9 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		gpio-line-names = "xio_PowerFail", "xio_RI", "xio_CBS_ETWS", "xio_SMS",
+				  "xio_LEDGMS", "xio_LEDG", "", "";
 
 		stat@0 {
 			label = "xio_PowerFail";
@@ -3877,8 +3940,6 @@
 };
 
 &rtc {
-//	clocks = <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
-//	clock-names = "int-clk";
 	system-power-controller;
 };
 

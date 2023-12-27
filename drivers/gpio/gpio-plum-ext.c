@@ -514,7 +514,7 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	}
 #endif
 
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+#ifdef CONFIG_GPIO_PLUM_EXPORT_BY_DT
 	port->gc.bgpio_names = devm_kzalloc(dev, sizeof(char *) * port->gc.ngpio, GFP_KERNEL);
 
 	for_each_child_of_node(np, child) {
@@ -552,7 +552,7 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+#ifdef CONFIG_GPIO_PLUM_EXPORT_BY_DT
 	{
 		int i, status, gpio;
 

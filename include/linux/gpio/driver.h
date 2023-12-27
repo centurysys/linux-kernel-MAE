@@ -448,7 +448,7 @@ struct gpio_chip {
 	spinlock_t bgpio_lock;
 	unsigned long bgpio_data;
 	unsigned long bgpio_dir;
-# ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+# if defined(CONFIG_GPIO_GENERIC_EXPORT_BY_DT) || defined(CONFIG_GPIO_PLUM_EXPORT_BY_DT)
 	const char **bgpio_names;
 # endif
 #endif /* CONFIG_GPIO_GENERIC */

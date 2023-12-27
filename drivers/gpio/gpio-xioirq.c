@@ -157,7 +157,9 @@ static void xioirq_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 
 static int xioirq_gpio_probe(struct platform_device *pdev)
 {
+#ifdef CONFIG_GPIO_PLUM_EXPORT_BY_DT
 	struct device_node *np = pdev->dev.of_node, *child;
+#endif
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct xioirq_gpio *port;
@@ -195,7 +197,7 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	port->gc.owner = THIS_MODULE;
 	port->gc.dbg_show = xioirq_gpio_dbg_show;
 
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+#ifdef CONFIG_GPIO_PLUM_EXPORT_BY_DT
 	port->gc.bgpio_names = devm_kzalloc(dev, sizeof(char *) * port->gc.ngpio, GFP_KERNEL);
 
 	for_each_child_of_node(np, child) {
@@ -231,7 +233,7 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_GPIO_GENERIC_EXPORT_BY_DT
+#ifdef CONFIG_GPIO_PLUM_EXPORT_BY_DT
 	{
 		int i, status, gpio;
 

@@ -772,6 +772,10 @@ config GPIO_PLUM_DI
 	depends on OF
 	select OF_GPIO
 
+config GPIO_PLUM_EXPORT_BY_DT
+	bool "Export Plum-Ext GPIO by device-tree"
+	depends on GPIO_PLUM_DI
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
