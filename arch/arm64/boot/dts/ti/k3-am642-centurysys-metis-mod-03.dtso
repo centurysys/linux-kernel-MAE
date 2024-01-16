@@ -17,7 +17,9 @@
 		gpios = <&main_gpio1 18 GPIO_ACTIVE_HIGH>;
 		default-state = "on";
 	};
+};
 
+&leds_msp430 {
 	mobile5g_power_msp430 {
 		label = "Mobile_Power";
 		gpios = <&io_exp 2 GPIO_ACTIVE_HIGH>;
