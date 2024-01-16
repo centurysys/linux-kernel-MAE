@@ -218,6 +218,11 @@
 			label = "DO_T0";
 			gpios = <&main_gpio1 1 GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	leds_msp430: leds-msp430 {
+		compatible = "gpio-leds";
+		status = "okay";
 
 		has_pcie {
 			label = "Has_PCIe";
