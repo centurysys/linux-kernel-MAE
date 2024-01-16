@@ -24,7 +24,9 @@
 		linux,default-trigger = "oneshot";
 		led-pattern = <200 100>;
 	};
+};
 
+&leds_msp430 {
 	mobile_power_msp430 {
 		label = "Mobile_Power_MSP430";
 		gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;

@@ -214,6 +214,13 @@
 		};
 	};
 
+	leds_msp430: leds-msp430 {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		/* placeholder */
+	};
+
 	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
