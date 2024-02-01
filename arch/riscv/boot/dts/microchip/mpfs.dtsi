@@ -405,18 +405,20 @@
 		can0: can@2010c000 {
 			compatible = "microchip,mpfs-can";
 			reg = <0x0 0x2010c000 0x0 0x1000>;
-			clocks = <&clkcfg CLK_CAN0>;
+			clocks = <&clkcfg CLK_CAN0>, <&clkcfg CLK_MSSPLL3>;
 			interrupt-parent = <&plic>;
 			interrupts = <56>;
+			resets = <&clkcfg CLK_CAN0>;
 			status = "disabled";
 		};
 
 		can1: can@2010d000 {
 			compatible = "microchip,mpfs-can";
 			reg = <0x0 0x2010d000 0x0 0x1000>;
-			clocks = <&clkcfg CLK_CAN1>;
+			clocks = <&clkcfg CLK_CAN1>, <&clkcfg CLK_MSSPLL3>;
 			interrupt-parent = <&plic>;
 			interrupts = <57>;
+			resets = <&clkcfg CLK_CAN1>;
 			status = "disabled";
 		};
 
@@ -562,6 +564,21 @@
 			interrupt-parent = <&plic>;
 			interrupts = <110>;
 			clocks = <&scbclk>;
+			status = "disabled";
+		};
+	};
+
+	fabric-bus4@22000000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		crypto: crypto@22000000 {
+			compatible = "microchip,mpfs-crypto";
+			reg = <0x0 0x22000000 0x0 0x10000>;
+			clocks = <&clkcfg CLK_ATHENA>, <&clkcfg CLK_MSSPLL1>;
+			interrupt-parent = <&plic>;
+			interrupts = <112>;
 			status = "disabled";
 		};
 	};
