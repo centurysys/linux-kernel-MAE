@@ -470,8 +470,11 @@
 
 &i2c1 {
 	dmas = <0>, <0>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1_default>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	sda-gpios = <&pioA PIN_PD4 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&pioA PIN_PD5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	i2c-digital-filter;
 	i2c-digital-filter-width-ns = <35>;
 	status = "okay";
@@ -692,6 +695,12 @@
 	pinctrl_i2c1_default: i2c1_default {
 		pinmux = <PIN_PD4__TWD1>,
 			 <PIN_PD5__TWCK1>;
+		bias-disable;
+	};
+
+	pinctrl_i2c1_gpio: i2c1_gpio {
+		pinmux = <PIN_PD4__GPIO>,
+			 <PIN_PD5__GPIO>;
 		bias-disable;
 	};
 
