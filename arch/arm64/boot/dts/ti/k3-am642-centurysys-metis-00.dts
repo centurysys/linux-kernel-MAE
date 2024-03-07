@@ -593,6 +593,7 @@
 	non-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
+	status = "okay";
 };
 
 &sdhci1 {
@@ -606,6 +607,7 @@
 	disable-wp;
 	ti,fails-without-test-cd;
 	cd-gpio = <&main_gpio1 77 GPIO_ACTIVE_LOW>;
+	status = "okay";
 };
 
 &serdes_ln_ctrl {
