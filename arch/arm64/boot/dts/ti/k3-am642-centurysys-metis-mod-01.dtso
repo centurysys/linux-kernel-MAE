@@ -27,14 +27,6 @@
 };
 
 &leds_msp430 {
-	mobile_power_msp430 {
-		label = "Mobile_Power_MSP430";
-		gpios = <&io_exp 0 GPIO_ACTIVE_HIGH>;
-		retain-state-suspended;
-		retain-state-shutdown;
-		default-state = "keep";
-	};
-
 	sim_select {
 		label = "SIM_Sel";
 		gpios = <&io_exp 7 GPIO_ACTIVE_HIGH>;
