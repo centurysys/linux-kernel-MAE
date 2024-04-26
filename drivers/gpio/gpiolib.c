@@ -4409,7 +4409,7 @@ core_initcall(gpiolib_dev_init);
 
 #ifdef CONFIG_DEBUG_FS
 
-static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
+void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 {
 	unsigned		i;
 	struct gpio_chip	*gc = gdev->chip;
@@ -4441,6 +4441,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 		seq_printf(s, "\n");
 	}
 }
+EXPORT_SYMBOL_GPL(gpiolib_dbg_show);
 
 static void *gpiolib_seq_start(struct seq_file *s, loff_t *pos)
 {
