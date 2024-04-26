@@ -401,6 +401,8 @@ static unsigned plum_gpio_get_wakeup_enable(struct gpio_chip *gc, unsigned offse
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
 
+extern void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev);
+
 static void plum_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 {
 	struct plum_gpio *port = gpiochip_get_data(gc);
@@ -446,6 +448,8 @@ static void plum_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 	}
 #endif
 	seq_printf(s, "-----------------------------\n");
+
+	gpiolib_dbg_show(s, gc->gpiodev);
 }
 #else
 #define plum_gpio_dbg_show NULL

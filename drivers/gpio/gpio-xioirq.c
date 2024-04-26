@@ -135,6 +135,8 @@ static void xioirq_gpio_irq_handler(struct irq_desc *desc)
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
 
+extern void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev);
+
 static void xioirq_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 {
 	struct xioirq_gpio *port = gpiochip_get_data(gc);
@@ -150,6 +152,8 @@ static void xioirq_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			   readb_relaxed(port->base + XIO_VALUE));
 	}
 	seq_printf(s, "-----------------------------\n");
+
+	gpiolib_dbg_show(s, gc->gpiodev);
 }
 #else
 #define xioirq_gpio_dbg_show NULL
