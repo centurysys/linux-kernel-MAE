@@ -718,6 +718,11 @@ config RTC_DRV_SD3078
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-sd3078
 
+config RTC_DRV_DSK324SR
+	tristate "DAISHINKU DSK324SR"
+	depends on RTC_I2C_AND_SPI
+	select REGMAP_I2C if I2C
+
 endif # I2C
 
 comment "SPI RTC drivers"
