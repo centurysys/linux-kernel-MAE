@@ -45,6 +45,15 @@ dtb-$(CONFIG_ARCH_K3) += k3-am642-sk.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am642-tqma64xxl-mbax4xxl.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am64-tqma64xxl-mbax4xxl-sdcard.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am64-tqma64xxl-mbax4xxl-wlan.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-00.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-01.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-02.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-03.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-01.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-02.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-01.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-02.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-03.dtbo
 
 # Boards with AM65x SoC
 k3-am654-gp-evm-dtbs := k3-am654-base-board.dtb \

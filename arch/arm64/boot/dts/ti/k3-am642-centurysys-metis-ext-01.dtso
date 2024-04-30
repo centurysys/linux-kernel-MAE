@@ -1,0 +1,281 @@
+// SPDX-License-Identifier: GPL-2.0
+/**
+ * DT overlay for AD2488 expansion board on Century Systems MA-X3xx
+ *
+ * Copyright (C) 2022 Century Systems
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "k3-pinctrl.h"
+
+&main_pmx0 {
+	main_spi0_pins_default: main-spi0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0210, PIN_INPUT, 0) /* (D13) SPI0_CLK */
+			AM64X_IOPAD(0x0208, PIN_OUTPUT, 0) /* (D12) SPI0_CS0 */
+			AM64X_IOPAD(0x020c, PIN_OUTPUT, 0) /* (C13) SPI0_CS1 */
+			AM64X_IOPAD(0x0214, PIN_OUTPUT, 0) /* (A13) SPI0_D0 */
+			AM64X_IOPAD(0x0218, PIN_INPUT, 0) /* (A14) SPI0_D1 */
+		>;
+	};
+
+	main_i2c2_tca9539_pins_default: main-i2c2-tca9539-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x01c8, PIN_INPUT, 7) /* (R5) PRG0_PRU1_GPO6.GPIO1_26 */
+		>;
+	};
+
+	main_i2c2_pca9505_3e_pins_default: main-i2c2-pca9505-3e-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x021c, PIN_INPUT, 7) /* (B14) SPI1_CS0.GPIO1_47 */
+		>;
+	};
+
+	main_i2c2_pca9505_3f_pins_default: main-i2c2-pca9505-3f-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0220, PIN_INPUT, 7) /* (D14) SPI1_CS1.GPIO1_48 */
+		>;
+	};
+};
+
+&main_spi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_spi0_pins_default>;
+	ti,pindir-d0-out-d1-in = <1>;
+	status = "okay";
+
+	ads8688@0 {
+		compatible = "ti,ads8688";
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+		spi-cs-low;
+		data-size = <16>;
+	};
+};
+
+&main_i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c2_pins_default>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	tca9539: tca9539@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_tca9539_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "MSP430_EXT1_RST",
+				  "MSP430_EXT1_TEST",
+				  "MSP430_EXT2_RST",
+				  "MSP430_EXT2_TEST",
+				  "",
+				  "ADC_RESETn",
+				  "ADC_PowerFault",
+				  "ADC_PowerCtrl",
+				  "RS232_DTR",
+				  "RS232_DSR",
+				  "RS232_RI",
+				  "RS232_DCD",
+				  "", "", "", "";
+	};
+
+	pca9505_3e: pca9505@3e {
+		compatible = "nxp,pca9505";
+		reg = <0x3e>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_pca9505_3e_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <47 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "EXT_DI0", "EXT_DI1", "EXT_DI2", "EXT_DI3",
+				  "EXT_DI4", "EXT_DI5", "EXT_DI6", "EXT_DI7",
+				  "EXT_DI8", "EXT_DI9", "EXT_DI10", "EXT_DI11",
+				  "", "", "EXT_CounterINT1", "EXT_24V_Fail",
+				  "Filtered_DI0", "Filtered_DI1", "Filtered_DI2", "Filtered_DI3",
+				  "Filtered_DI4", "Filtered_DI5", "Filtered_DI6", "Filtered_DI7",
+				  "Filtered_DI8", "Filtered_DI9", "Filtered_DI10", "Filtered_DI11",
+				  "", "", "", "",
+				  "EXT_DO0", "EXT_DO1", "EXT_DO2", "EXT_DO3",
+				  "", "", "", "EXT_24V_ON";
+	};
+
+	pca9505_3f: pca9505@3f {
+		compatible = "nxp,pca9505";
+		reg = <0x3f>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_pca9505_3f_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <48 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "EXT_DI12", "EXT_DI13", "EXT_DI14", "EXT_DI15",
+				  "EXT_DI16", "EXT_DI17", "EXT_DI18", "EXT_DI19",
+				  "EXT_DI20", "EXT_DI21", "EXT_DI22", "EXT_DI23",
+				  "", "", "EXT_CounterINT2", "",
+				  "Filtered_DI12", "Filtered_DI13", "Filtered_DI14", "Filtered_DI15",
+				  "Filtered_DI16", "Filtered_DI17", "Filtered_DI18", "Filtered_DI19",
+				  "Filtered_DI20", "Filtered_DI21", "Filtered_DI22", "Filtered_DI23",
+				  "", "", "", "",
+				  "EXT_DO4", "EXT_DO5", "EXT_DO6", "EXT_DO7",
+				  "", "", "", "";
+	};
+};
+
+&main_uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart2_pins_default>;
+	status = "okay";
+};
+
+&main_uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart5_pins_default>;
+	linux,rs485-enabled-at-boot-time;
+	rs485-rts-active-low;
+	status = "okay";
+};
+
+&{/} {
+	leds_ext: leds_ext {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		msp430_ext1_rst {
+			label = "MSP430_EXT1_RST";
+			gpios = <&tca9539 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		msp430_ext1_test {
+			label = "MSP430_EXT1_TEST";
+			gpios = <&tca9539 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		msp430_ext2_rst {
+			label = "MSP430_EXT2_RST";
+			gpios = <&tca9539 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		msp430_ext2_test {
+			label = "MSP430_EXT2_TEST";
+			gpios = <&tca9539 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		adc_reset_n {
+			label = "ADC_RESET";
+			gpios = <&tca9539 5 GPIO_ACTIVE_LOW>;
+			default-trigger = "oneshot";
+		};
+
+		adc_power {
+			label = "ADC_Power";
+			gpios = <&tca9539 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_ext_3e: leds_ext_3e {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		ext_do0 {
+			label = "EXT_DO0";
+			gpios = <&pca9505_3e 32 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do1 {
+			label = "EXT_DO1";
+			gpios = <&pca9505_3e 33 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do2 {
+			label = "EXT_DO2";
+			gpios = <&pca9505_3e 34 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do3 {
+			label = "EXT_DO3";
+			gpios = <&pca9505_3e 35 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_24v_on {
+			label = "EXT_24V_ON";
+			gpios = <&pca9505_3e 39 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+	};
+
+	leds_ext_3f: leds_ext_3f {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		ext_do4 {
+			label = "EXT_DO4";
+			gpios = <&pca9505_3f 32 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do5 {
+			label = "EXT_DO5";
+			gpios = <&pca9505_3f 33 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do6 {
+			label = "EXT_DO6";
+			gpios = <&pca9505_3f 34 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do7 {
+			label = "EXT_DO7";
+			gpios = <&pca9505_3f 35 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+	};
+};
