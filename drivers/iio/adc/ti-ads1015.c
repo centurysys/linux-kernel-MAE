@@ -124,6 +124,10 @@ static const int ads1015_scale[] = {	/* 12bit ADC */
 	6144, 11
 };
 
+static const int tla2021_scale[] = {	/* 12bit ADC */
+	2048, 11,
+};
+
 static const int ads1115_scale[] = {	/* 16bit ADC */
 	256, 15,
 	512, 15,
@@ -1184,8 +1188,8 @@ static const struct ads1015_chip_data tla2021_data = {
 	.info		= &tla2024_info,
 	.data_rate	= ads1015_data_rate,
 	.data_rate_len	= ARRAY_SIZE(ads1015_data_rate),
-	.scale		= ads1015_scale,
-	.scale_len	= ARRAY_SIZE(ads1015_scale),
+	.scale		= tla2021_scale,
+	.scale_len	= ARRAY_SIZE(tla2021_scale),
 	.has_comparator	= false,
 };
 
