@@ -366,6 +366,11 @@ static const struct iio_chan_spec tla2024_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
 };
 
+static const struct iio_chan_spec tla2021_channels[] = {
+	ADS1015_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1, 12, 4, NULL, 0),
+	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
+};
+
 
 #ifdef CONFIG_PM
 static int ads1015_set_power_state(struct ads1015_data *data, bool on)
@@ -1173,10 +1178,22 @@ static const struct ads1015_chip_data tla2024_data = {
 	.has_comparator	= false,
 };
 
+static const struct ads1015_chip_data tla2021_data = {
+	.channels	= tla2021_channels,
+	.num_channels	= ARRAY_SIZE(tla2021_channels),
+	.info		= &tla2024_info,
+	.data_rate	= ads1015_data_rate,
+	.data_rate_len	= ARRAY_SIZE(ads1015_data_rate),
+	.scale		= ads1015_scale,
+	.scale_len	= ARRAY_SIZE(ads1015_scale),
+	.has_comparator	= false,
+};
+
 static const struct i2c_device_id ads1015_id[] = {
 	{ "ads1015", (kernel_ulong_t)&ads1015_data },
 	{ "ads1115", (kernel_ulong_t)&ads1115_data },
 	{ "tla2024", (kernel_ulong_t)&tla2024_data },
+	{ "tla2021", (kernel_ulong_t)&tla2021_data },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);
@@ -1185,6 +1202,7 @@ static const struct of_device_id ads1015_of_match[] = {
 	{ .compatible = "ti,ads1015", .data = &ads1015_data },
 	{ .compatible = "ti,ads1115", .data = &ads1115_data },
 	{ .compatible = "ti,tla2024", .data = &tla2024_data },
+	{ .compatible = "ti,tla2021", .data = &tla2021_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ads1015_of_match);
