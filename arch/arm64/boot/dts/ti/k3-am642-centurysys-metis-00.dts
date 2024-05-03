@@ -538,6 +538,17 @@
 		};
 	};
 
+	adc@49 {
+		compatible = "ti,tla2021";
+		reg = <0x49>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		channel@0 {	/* Voltage over AIN0 and AIN1. */
+			reg = <0>;
+		};
+	};
+
 	temp_senser: tmp75b@4a {
 		compatible = "ti,tmp75b";
 		reg = <0x4a>;
