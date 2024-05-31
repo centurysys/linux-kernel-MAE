@@ -63,6 +63,12 @@
 			reg = <0x00 0xa0100000 0x00 0xf00000>;
 			no-map;
 		};
+
+		rtos_ipc_memory_region: ipc-memories@a5000000 {
+			reg = <0x00 0xa5000000 0x00 0x00800000>;
+			alignment = <0x1000>;
+			no-map;
+		};
 	};
 
 	vusb_main: regulator-0 {
@@ -643,6 +649,15 @@
 	};
 };
 
+&mailbox0_cluster6 {
+	status = "okay";
+
+	mbox_m4_0: mbox-m4-0 {
+		ti,mbox-rx = <0 0 2>;
+		ti,mbox-tx = <1 0 2>;
+	};
+};
+
 &pcie0_rc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_ctrl_pins_default>;
@@ -651,11 +666,6 @@
 	phy-names = "pcie-phy";
 	num-lanes = <1>;
 	status = "okay";
-};
-
-/* set R5F subsystem to single-CPU mode */
-&main_r5fss0 {
-	ti,cluster-mode = <2>;
 };
 
 &main_r5fss0_core0 {
