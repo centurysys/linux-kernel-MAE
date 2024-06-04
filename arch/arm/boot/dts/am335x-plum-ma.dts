@@ -1928,10 +1928,11 @@
 	dtr-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 	dsr-gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
 	dcd-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
-	ri-gpios  = <&gpio0 27 GPIO_ACTIVE_LOW>;
+	rng-gpios = <&gpio0 27 GPIO_ACTIVE_LOW>;
 
 	txe-gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
 	rxe-gpios = <&gpio3 21 GPIO_ACTIVE_LOW>;
+	rs485-txe-active-high;
 
 	status = "okay";
 };
