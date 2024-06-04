@@ -2188,9 +2188,9 @@
 		interrupts = <22 8>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
-		txen_gpio = <&gpiox_0x18 0 GPIO_ACTIVE_HIGH>;
-		rxen_gpio = <&gpiox_0x18 1 GPIO_ACTIVE_LOW>;
-		type_gpio = <&gpiox_0x18 2 GPIO_ACTIVE_HIGH>;
+		linux,rs485-enabled-at-boot-time;
+		rts-gpios = <&gpiox_0x18 0 GPIO_ACTIVE_HIGH>;
+		rxe-gpios = <&gpiox_0x18 1 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&uartx3_pins>;
@@ -2215,9 +2215,9 @@
 		interrupts = <22 8>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
-		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
-		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
-		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
+		linux,rs485-enabled-at-boot-time;
+		rts-gpios = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
+		rxe-gpios = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
 	};
 
 	uartx2_0x30_lcad: uart@2,0x30_LCAD {
@@ -2239,9 +2239,9 @@
 		interrupts = <22 8>;
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
-		txen_gpio = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
-		rxen_gpio = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
-		type_gpio = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
+		linux,rs485-enabled-at-boot-time;
+		rts-gpios = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
+		rxe-gpios = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
 	};
 
 	uartx2_0xa0_locad: uart@2,0xa0_LOCAD {
@@ -3013,6 +3013,9 @@
 		compatible = "basic-mmio-gpio", "linux,basic-mmio-gpio";
 		gpio-controller;
 		reg-names = "dat";
+
+		gpio-line-names = "TxEnable", "nRxEnable", "", "",
+				  "", "", "", "";
 
 		status = "disabled";
 	};

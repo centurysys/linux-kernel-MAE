@@ -22,6 +22,7 @@ enum mctrl_gpio_idx {
 	UART_GPIO_RI = UART_GPIO_RNG,
 	UART_GPIO_RTS,
 	UART_GPIO_DTR,
+	UART_GPIO_RXE,
 	UART_GPIO_MAX,
 };
 
