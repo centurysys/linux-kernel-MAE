@@ -36,6 +36,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/platform_data/serial-omap.h>
 
+#include "serial_mctrl_gpio.h"
+
 #define OMAP_MAX_HSUART_PORTS	10
 
 #define UART_BUILD_REVISION(x, y)	(((x) << 8) | (y))
@@ -153,6 +155,7 @@ struct uart_omap_port {
 	u32			features;
 
 	struct gpio_desc	*rts_gpiod;
+	struct mctrl_gpios	*gpios;
 
 	struct pm_qos_request	pm_qos_request;
 	u32			latency;
@@ -270,11 +273,23 @@ serial_omap_get_divisor(struct uart_port *port, unsigned int baud)
 	return port->uartclk/(mode * baud);
 }
 
+static void serial_omap_disable_ms(struct uart_port *port)
+{
+	struct uart_omap_port *up = to_uart_omap_port(port);
+
+	mctrl_gpio_disable_ms(up->gpios);
+
+	up->ier &= ~UART_IER_MSI;
+	serial_out(up, UART_IER, up->ier);
+}
+
 static void serial_omap_enable_ms(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
 
 	dev_dbg(up->port.dev, "serial_omap_enable_ms+%d\n", up->port.line);
+
+	mctrl_gpio_enable_ms(up->gpios);
 
 	pm_runtime_get_sync(up->dev);
 	up->ier |= UART_IER_MSI;
@@ -660,7 +675,8 @@ static unsigned int serial_omap_get_mctrl(struct uart_port *port)
 		ret |= TIOCM_DSR;
 	if (status & UART_MSR_CTS)
 		ret |= TIOCM_CTS;
-	return ret;
+
+	return mctrl_gpio_get(up->gpios, &ret);
 }
 
 static void serial_omap_set_mctrl(struct uart_port *port, unsigned int mctrl)
@@ -696,6 +712,8 @@ static void serial_omap_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		up->efr &= ~UART_EFR_RTS;
 	serial_out(up, UART_EFR, up->efr);
 	serial_out(up, UART_LCR, lcr);
+
+	mctrl_gpio_set(up->gpios, mctrl);
 
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
@@ -802,6 +820,8 @@ static void serial_omap_shutdown(struct uart_port *port)
 	dev_dbg(up->port.dev, "serial_omap_shutdown+%d\n", up->port.line);
 
 	pm_runtime_get_sync(up->dev);
+	serial_omap_disable_ms(port);
+
 	/*
 	 * Disable interrupts from this port
 	 */
@@ -1615,7 +1635,7 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 	if (ret)
 		return ret;
 
-	if (of_property_read_bool(np, "rs485-rts-active-high")) {
+	if (of_property_read_bool(np, "rs485-txe-active-high")) {
 		rs485conf->flags |= SER_RS485_RTS_ON_SEND;
 		rs485conf->flags &= ~SER_RS485_RTS_AFTER_SEND;
 	} else {
@@ -1626,7 +1646,7 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 	/* check for tx enable gpio */
 	gflags = rs485conf->flags & SER_RS485_RTS_AFTER_SEND ?
 		GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
-	up->rts_gpiod = devm_gpiod_get_optional(dev, "rts", gflags);
+	up->rts_gpiod = devm_gpiod_get_optional(dev, "txe", gflags);
 	if (IS_ERR(up->rts_gpiod)) {
 		ret = PTR_ERR(up->rts_gpiod);
 	        if (ret == -EPROBE_DEFER)
@@ -1637,7 +1657,7 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 		 */
 		up->rts_gpiod = NULL;
 	} else {
-		gpiod_set_consumer_name(up->rts_gpiod, "omap-serial");
+		gpiod_set_consumer_name(up->rts_gpiod, "omap-serial-TxE");
 	}
 
 	return 0;
@@ -1647,6 +1667,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 {
 	struct omap_uart_port_info *omap_up_info = dev_get_platdata(&pdev->dev);
 	struct uart_omap_port *up;
+	struct mctrl_gpios *gpios;
 	struct resource *mem;
 	void __iomem *base;
 	int uartirq = 0;
@@ -1709,6 +1730,14 @@ static int serial_omap_probe(struct platform_device *pdev)
 	if (!up->wakeirq)
 		dev_info(up->port.dev, "no wakeirq for uart%d\n",
 			 up->port.line);
+
+	gpios = mctrl_gpio_init(&up->port, 0);
+	if (IS_ERR(gpios)) {
+		ret = PTR_ERR(gpios);
+		goto err_rs485;
+	} else {
+		up->gpios = gpios;
+	}
 
 	ret = serial_omap_probe_rs485(up, &pdev->dev);
 	if (ret < 0)
