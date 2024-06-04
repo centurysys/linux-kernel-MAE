@@ -35,6 +35,7 @@ static const struct {
 	{ "rng", TIOCM_RNG, GPIOD_IN, },
 	{ "rts", TIOCM_RTS, GPIOD_OUT_LOW, },
 	{ "dtr", TIOCM_DTR, GPIOD_OUT_LOW, },
+	{ "rxe", 0, GPIOD_OUT_LOW, },
 };
 
 static bool mctrl_gpio_flags_is_dir_out(unsigned int idx)
@@ -53,7 +54,8 @@ void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 		return;
 
 	for (i = 0; i < UART_GPIO_MAX; i++)
-		if (gpios->gpio[i] && mctrl_gpio_flags_is_dir_out(i)) {
+		if (gpios->gpio[i] && mctrl_gpio_flags_is_dir_out(i) &&
+		    mctrl_gpios_desc[i].mctrl != 0) {
 			desc_array[count] = gpios->gpio[i];
 			__assign_bit(count, values,
 				     mctrl & mctrl_gpios_desc[i].mctrl);
@@ -146,6 +148,11 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 
 		if (IS_ERR(gpios->gpio[i]))
 			return ERR_CAST(gpios->gpio[i]);
+
+		if (mctrl_gpios_desc[i].mctrl == 0) {
+			/* always on */
+			gpiod_set_value(gpios->gpio[i], 1);
+		}
 	}
 
 	return gpios;
