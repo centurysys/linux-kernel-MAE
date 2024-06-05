@@ -2190,8 +2190,9 @@
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
 		linux,rs485-enabled-at-boot-time;
-		rts-gpios = <&gpiox_0x18 0 GPIO_ACTIVE_HIGH>;
-		rxe-gpios = <&gpiox_0x18 1 GPIO_ACTIVE_LOW>;
+		rts-gpios  = <&gpiox_0x18 0 GPIO_ACTIVE_HIGH>;
+		rxe-gpios  = <&gpiox_0x18 1 GPIO_ACTIVE_LOW>;
+		type-gpios = <&gpiox_0x18 2 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&uartx3_pins>;
@@ -2217,8 +2218,9 @@
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
 		linux,rs485-enabled-at-boot-time;
-		rts-gpios = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
-		rxe-gpios = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
+		rts-gpios  = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
+		rxe-gpios  = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
+		type-gpios = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
 	};
 
 	uartx2_0x30_lcad: uart@2,0x30_LCAD {
@@ -2241,8 +2243,9 @@
 		irq-gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
 
 		linux,rs485-enabled-at-boot-time;
-		rts-gpios = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
-		rxe-gpios = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
+		rts-gpios  = <&gpiox_0x1a 0 GPIO_ACTIVE_HIGH>;
+		rxe-gpios  = <&gpiox_0x1a 1 GPIO_ACTIVE_LOW>;
+		type-gpios = <&gpiox_0x1a 2 GPIO_ACTIVE_HIGH>;
 	};
 
 	uartx2_0xa0_locad: uart@2,0xa0_LOCAD {

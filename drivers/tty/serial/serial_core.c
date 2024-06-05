@@ -3292,6 +3292,25 @@ int uart_get_rs485_mode(struct uart_port *port)
 	u32 rs485_delay[2];
 	int ret;
 
+	if (device_property_present(dev, "type-gpios")) {
+		struct gpio_desc *gpio;
+
+		gpio = devm_gpiod_get_index_optional(dev, "type", 0, GPIOD_IN);
+		if (!IS_ERR(gpio)) {
+			int value;
+			char *port_type;
+
+			value = gpiod_get_value(gpio);
+			devm_gpiod_put(dev, gpio);
+
+			port_type = (value == 0) ? "RS232C" : "RS485";
+			dev_info(dev, "Port type is %s.\n", port_type);
+
+			if (value == 0)
+				return 0;
+		}
+	}
+
 	ret = device_property_read_u32_array(dev, "rs485-rts-delay",
 					     rs485_delay, 2);
 	if (!ret) {
