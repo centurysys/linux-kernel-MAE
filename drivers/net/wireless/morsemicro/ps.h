@@ -12,7 +12,6 @@
 /** The default period of time to wait to re-evaluate powersave */
 #define DEFAULT_BUS_TIMEOUT_MS (5)
 
-
 int morse_ps_enable(struct morse *mors);
 
 int morse_ps_disable(struct morse *mors);
@@ -30,5 +29,4 @@ int morse_ps_init(struct morse *mors, bool enable, bool enable_dynamic_ps);
 
 void morse_ps_finish(struct morse *mors);
 
-
-#endif  /* !_MORSE_PS_H_ */
+#endif /* !_MORSE_PS_H_ */

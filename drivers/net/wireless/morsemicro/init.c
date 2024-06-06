@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 Morse Micro
+ * Copyright 2017-2023 Morse Micro
  *
  */
 
@@ -7,7 +7,6 @@
 #include <linux/stringify.h>
 #include "debug.h"
 #include "morse.h"
-
 
 uint test_mode;
 #ifdef CONFIG_MORSE_ENABLE_TEST_MODES
@@ -22,8 +21,7 @@ char serial[SERIAL_SIZE_MAX] = "default";
 module_param_string(serial, serial, sizeof(serial), 0644);
 
 char board_config_file[BCF_SIZE_MAX] = "";
-module_param_string(bcf, board_config_file,
-					sizeof(board_config_file), 0644);
+module_param_string(bcf, board_config_file, sizeof(board_config_file), 0644);
 MODULE_PARM_DESC(bcf, "BCF filename to load");
 
 /* Verify OTP before using chip */
@@ -35,12 +33,21 @@ static int __init morse_init(void)
 	int ret = 0;
 
 	pr_info("morse micro driver registration. Version %s\n", DRV_VERSION);
+
 	/*
-	 * if debug_mask=0 then the driver will set quiet mode
-	 * (errors and warnings won't show up in dmesg)
+	 * Maintain backwards compatibility (for now)
+	 * Start with most verbose level, i.e. LSB.
 	 */
-	if (debug_mask)
-		debug_mask |= MORSE_MSG_ERR;
+	if (debug_mask & 0x01)
+		morse_init_log_levels(MORSE_MSG_DEBUG);
+	else if (debug_mask & 0x02)
+		morse_init_log_levels(MORSE_MSG_INFO);
+	else if (debug_mask & 0x04)
+		morse_init_log_levels(MORSE_MSG_WARN);
+	else if (debug_mask & 0x08)
+		morse_init_log_levels(MORSE_MSG_ERR);
+	else
+		morse_init_log_levels(MORSE_MSG_NONE);
 
 #ifdef CONFIG_MORSE_SDIO
 	ret = morse_sdio_init();
@@ -54,11 +61,6 @@ static int __init morse_init(void)
 		pr_err("morse_spi_failed() failed: %d\n", ret);
 #endif
 
-#ifdef CONFIG_MORSE_USB
-	ret = morse_usb_init();
-	if (ret)
-		pr_err("morse_usb_failed() failed: %d\n", ret);
-#endif
 
 	return ret;
 }
@@ -70,9 +72,6 @@ static void __exit morse_exit(void)
 #endif
 #ifdef CONFIG_MORSE_SPI
 	morse_spi_exit();
-#endif
-#ifdef CONFIG_MORSE_USB
-	morse_usb_exit();
 #endif
 
 }

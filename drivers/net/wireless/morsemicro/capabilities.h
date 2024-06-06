@@ -47,7 +47,7 @@ enum morse_caps_flags {
 	MORSE_CAPS_RAW,
 	MORSE_CAPS_MCS8,
 	MORSE_CAPS_MCS9,
-	MORSE_CAPS_ASYMETRIC_BA_SUPPORT,
+	MORSE_CAPS_ASYMMETRIC_BA_SUPPORT,
 	MORSE_CAPS_DAC,
 	MORSE_CAPS_CAC,
 	MORSE_CAPS_TXOP_SHARING_IMPLICIT_ACK,
@@ -100,10 +100,11 @@ enum morse_caps_flags {
 
 struct morse_caps {
 	u32 flags[CAPABILITIES_FLAGS_WIDTH];
-	u8  ampdu_mss;
-	u8  beamformee_sts_capability;
-	u8  number_sounding_dimensions;
-	u8  maximum_ampdu_length_exponent;
+	u8 ampdu_mss;
+	u8 beamformee_sts_capability;
+	u8 number_sounding_dimensions;
+	u8 maximum_ampdu_length_exponent;
+	u8 morse_mmss_offset;
 };
 
 /* Shorten the verbosity for referencing the firmware flags */
@@ -118,12 +119,11 @@ struct morse_caps {
  * @param flag The capability flag to check
  * @return true if the capability is supported, false if otherwise
  */
-static inline bool morse_caps_supported(struct morse_caps *caps,
-	enum morse_caps_flags flag)
+static inline bool morse_caps_supported(struct morse_caps *caps, enum morse_caps_flags flag)
 {
-	const unsigned long *flags_ptr = (unsigned long *) caps->flags;
+	const unsigned long *flags_ptr = (unsigned long *)caps->flags;
 
 	return test_bit(flag, flags_ptr);
 }
 
-#endif  /* !_MORSE_CAPABILITIES_H_ */
+#endif /* !_MORSE_CAPABILITIES_H_ */

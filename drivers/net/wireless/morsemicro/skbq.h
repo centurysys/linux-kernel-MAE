@@ -18,39 +18,41 @@
 struct morse;
 
 struct morse_skbq {
-	u32 pkt_seq;			/* SKB sequence used in tx_status */
+	u32 pkt_seq;		/* SKB sequence used in tx_status */
 	u16 flags;
-	u32 skbq_size;			/* current off loaded size */
+	u32 skbq_size;		/* current off loaded size */
 	spinlock_t lock;
-	struct morse *mors;		/* mainly for debugging */
+	struct morse *mors;	/* mainly for debugging */
 	struct sk_buff_head skbq;
-	struct sk_buff_head pending;	/* packets sent pending feeback */
+	struct sk_buff_head pending;	/* packets sent pending feedback */
 	struct work_struct dispatch_work;
 };
 
+/**
+ * morse_skbq_purge() - Remove and free all entries in sk_buff_head queue.
+ *
+ * @mq The Morse SKBQ object. If non-null, the MQ will be locked prior
+ *     to the purge.
+ * @skbq The queue to purge.
+ *
+ * Return: Number of SKBs purged from the queue
+ */
 int morse_skbq_purge(struct morse_skbq *mq, struct sk_buff_head *skbq);
 u32 morse_skbq_space(struct morse_skbq *mq);
 u32 morse_skbq_size(struct morse_skbq *mq);
-int morse_skbq_deq(struct morse_skbq *mq,
-			  struct sk_buff_head *skbq,
-			  int size);
-int morse_skbq_deq_num_items(struct morse_skbq *mq,
-			  struct sk_buff_head *skbq,
-			  int num_items);
-struct sk_buff *morse_skbq_alloc_skb(struct morse_skbq *mq,
-				     unsigned int length);
-int morse_skbq_skb_tx(struct morse_skbq *mq, struct sk_buff *skb,
-	struct morse_skb_tx_info *tx_info, u8 channel);
+int morse_skbq_deq(struct morse_skbq *mq, struct sk_buff_head *skbq, int size);
+int morse_skbq_deq_num_items(struct morse_skbq *mq, struct sk_buff_head *skbq, int num_items);
+struct sk_buff *morse_skbq_alloc_skb(struct morse_skbq *mq, unsigned int length);
+int morse_skbq_skb_tx(struct morse_skbq *mq, struct sk_buff **skb,
+		      struct morse_skb_tx_info *tx_info, u8 channel);
+int morse_skbq_put(struct morse_skbq *mq, struct sk_buff *skb);
 int morse_skbq_enq(struct morse_skbq *mq, struct sk_buff_head *skbq);
 int morse_skbq_enq_prepend(struct morse_skbq *mq, struct sk_buff_head *skbq);
 int morse_skbq_tx_complete(struct morse_skbq *mq, struct sk_buff_head *skbq);
-struct sk_buff *morse_skbq_get_pending_by_id(struct morse *mors,
-					     struct morse_skbq *mq,
-					     u32 seq);
+struct sk_buff *morse_skbq_get_pending_by_id(struct morse *mors, struct morse_skbq *mq, u32 seq);
 struct sk_buff *morse_skbq_tx_pending(struct morse_skbq *mq);
 void morse_skbq_show(const struct morse_skbq *mq, struct seq_file *file);
-void morse_skbq_init(struct morse *mors, bool from_chip,
-		     struct morse_skbq *mq, u16 flags);
+void morse_skbq_init(struct morse *mors, bool from_chip, struct morse_skbq *mq, u16 flags);
 void morse_skbq_finish(struct morse_skbq *mq);
 
 void morse_skbq_mon_dump(struct morse *mors, struct seq_file *file);
@@ -70,7 +72,7 @@ void morse_skbq_mon_dump(struct morse *mors, struct seq_file *file);
  * @return error code (0) on success else non-zero
  */
 int morse_skbq_skb_finish(struct morse_skbq *mq, struct sk_buff *skb,
-	struct morse_skb_tx_status *tx_sts);
+			  struct morse_skb_tx_status *tx_sts);
 
 /**
  * @brief Flush pending and in-flight tx SKBs from the queue.
@@ -91,8 +93,7 @@ int morse_skbq_tx_flush(struct morse_skbq *mq);
  *
  * @return number of pending tx statuses that got removed
  */
-int morse_skbq_check_for_stale_tx(struct morse *mors,
-	struct morse_skbq *mq);
+int morse_skbq_check_for_stale_tx(struct morse *mors, struct morse_skbq *mq);
 
 /**
  * @brief Return the value of the modparam `tx_status_lifetime_ms`
@@ -151,4 +152,13 @@ void morse_skbq_data_traffic_pause(struct morse *mors);
  */
 void morse_skbq_data_traffic_resume(struct morse *mors);
 
-#endif  /* !_MORSE_SKBQ_H_ */
+/**
+ * @brief Verify checksum for the SKB to catch SDIO bus read errors.
+ *
+ * @param data The page containing the skb to verify the checksum
+ *
+ * @return true if the check matches the fw calculated checksum
+ */
+bool morse_validate_skb_checksum(u8 *data);
+
+#endif /* !_MORSE_SKBQ_H_ */

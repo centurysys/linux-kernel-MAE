@@ -34,7 +34,7 @@ enum morse_twt_state {
 	MORSE_TWT_STATE_AGREEMENT,
 };
 
-/* This stucture is packed as control and params form the TWT IE. This allows the use of memcpy. */
+/* This structure is packed as control and params form the TWT IE. This allows the use of memcpy. */
 struct morse_twt_agreement_data {
 	/** First wakeup time in us with reference to the TSF */
 	u64 wake_time_us;
@@ -89,7 +89,6 @@ struct morse_twt_wake_interval {
 	struct list_head agreements;
 };
 
-
 static inline struct morse_vif *morse_twt_to_morse_vif(struct morse_twt *twt)
 {
 	return container_of(twt, struct morse_vif, twt);
@@ -120,15 +119,11 @@ int morse_twt_sta_remove_addr(struct morse *mors, struct morse_vif *mors_vif, u8
  *
  * @mors	The morse chip struct
  * @tx		The TWT data to send
- * @skb		The sk_buff which should contain a (re)assoc frame
+ * @ies_mask	Array of information elements.
  * @size	Size of the TWT IE (can be found using morse_twt_get_ie_size())
- *
- * Return:	The updated sk_buff or NULL on error
  */
-struct sk_buff *morse_twt_insert_ie(struct morse *mors,
-				    struct morse_twt_event *tx,
-				    struct sk_buff *skb,
-				    u8 size);
+void morse_twt_insert_ie(struct morse *mors,
+			 struct morse_twt_event *tx, struct dot11ah_ies_mask *ies_mask, u8 size);
 
 /**
  * morse_twt_dequeue_tx() -	removes TX data from the queue it is in. It will also handle
@@ -160,10 +155,13 @@ int morse_twt_get_ie_size(struct morse *mors, struct morse_twt_event *event);
  * @mors	The morse chip struct
  * @mors_vif	The morse VIF struct
  * @addr	Destination address to get TX data for
+ * @flow_id	Flow id to match if not NULL
  *
  * Return:	TX data for the destination address or NULL if none available or error
  */
-struct morse_twt_event *morse_twt_peek_tx(struct morse *mors, struct morse_vif *mors_vif, u8 *addr);
+struct morse_twt_event *morse_twt_peek_tx(struct morse *mors,
+					  struct morse_vif *mors_vif,
+					  const u8 *addr, const u8 *flow_id);
 
 /**
  * morse_twt_parse_ie() - Parse a TWT IE and fills out an event
@@ -217,7 +215,8 @@ void morse_twt_install_pending_agreements(struct morse *mors, struct morse_vif *
  * @mors_vif	The morse VIF struct
  * @event	The event to queue
  */
-void morse_twt_queue_event(struct morse *mors, struct morse_vif *mors_vif, struct morse_twt_event *event);
+void morse_twt_queue_event(struct morse *mors,
+			   struct morse_vif *mors_vif, struct morse_twt_event *event);
 
 /**
  * morse_twt_handle_event() - Process a TWT event
@@ -235,7 +234,7 @@ void morse_twt_handle_event(struct morse_vif *mors_vif, u8 *addr);
 void morse_twt_handle_event_work(struct work_struct *work);
 
 /**
- * morse_twt_init() - Intialise TWT
+ * morse_twt_init() - Initialise TWT
  *
  * @mors	The morse chip struct
  *
@@ -244,7 +243,7 @@ void morse_twt_handle_event_work(struct work_struct *work);
 int morse_twt_init(struct morse *mors);
 
 /**
- * morse_twt_init_vif() - Intialise TWT for a VIF, this should be done after morse_twt_init()
+ * morse_twt_init_vif() - Initialise TWT for a VIF, this should be done after morse_twt_init()
  *
  * @mors	The morse chip struct
  * @mors_vif	The virtual interface
@@ -254,7 +253,7 @@ int morse_twt_init(struct morse *mors);
 int morse_twt_init_vif(struct morse *mors, struct morse_vif *vif);
 
 /**
- * morse_twt_finish_vif() - Intialise TWT for a VIF, this should be done before morse_twt_finish()
+ * morse_twt_finish_vif() - Initialise TWT for a VIF, this should be done before morse_twt_finish()
  *
  * @mors	The morse chip struct
  * @mors_vif	The virtual interface
@@ -273,7 +272,7 @@ int morse_twt_finish_vif(struct morse *mors, struct morse_vif *vif);
 int morse_twt_finish(struct morse *mors);
 
 /**
- * morse_twt_initialise_agreement() - Initialises the twt agremeent that needs to be sent to the FW
+ * morse_twt_initialise_agreement() - Initialises the twt agreement that needs to be sent to the FW
  * This is only used when we want to directly set the twt params in the FW bypassing the TWT IE
  * insertion
  *

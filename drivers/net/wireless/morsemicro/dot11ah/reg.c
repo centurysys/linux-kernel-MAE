@@ -6,18 +6,19 @@
 #include <linux/string.h>
 
 #include "dot11ah.h"
+#include "debug.h"
+
+#define AUTO_BW	NL80211_RRF_AUTO_BW
 
 /**
  * DOC: How To Modify Regulatory (reg.c) and Channel Mapping (s1g_channels.c)
  *
  * - Both are covered here as they are dependent.
- * The available channel maps are stored in `s1g_channels.c`, in the
- *  `channel_map` array.
+ * The available channel maps are stored in `s1g_channels.c`, in the `channel_map` array.
  * This array is built of `morse_dot11ah_ch_map` structs.
  *
- * This struct defines a region/country alpha for the map along with an
- * array of `morse_dot11ah_channels`, which are the explicit map between
- * a 5g channel and:
+ * This struct defines a region/country alpha for the map along with an array of
+ * `morse_dot11ah_channels`, which are the explicit map between a 5g channel and:
  * - An s1g channel
  * - the s1g frequency
  * - the s1g bandwidth.
@@ -74,17 +75,17 @@ static struct morse_regdomain mors_au_regdom = {
 	.alpha2 = "AU",
 	.reg_rules = {
 		/* S1G Actual Frequencies */
-		MORSE_REG_RULE(915, 916, 1, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-		MORSE_REG_RULE(916, 920, 4, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-		MORSE_REG_RULE(920, 928, 8, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(915, 916, 1, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(916, 920, 4, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(920, 928, 8, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 
 		/* S1G->11ac Mapped Frequencies */
 		/* 27 => 112 */
-		MORSE_REG_RULE(5550, 5570, 20, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5550, 5570, 20, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 29 -> 35 => 116 -> 128 */
-		MORSE_REG_RULE(5570, 5650, 80, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5570, 5650, 80, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 37 -> 51 => 149 -> 177 */
-		MORSE_REG_RULE(5735, 5895, 160, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5735, 5895, 160, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 	}
 };
 
@@ -103,14 +104,14 @@ static struct morse_regdomain mors_eu_regdom = {
 	.alpha2 = "EU",
 	.reg_rules = {
 		/* S1G Actual Frequencies */
-		MORSE_REG_RULE(863, 868, 1, 0, 16, NL80211_RRF_AUTO_BW, 1000, 280, false, 0, 0, 0),
-		MORSE_REG_RULE_KHZ(916400, 919400, 1000, 0, 16, NL80211_RRF_AUTO_BW, 1000, 280, false, 0, 0, 0),
+		MORSE_REG_RULE(863, 868, 1, 0, 16, AUTO_BW, 1000, 280, false, 0, 0, 0),
+		MORSE_REG_RULE_KHZ(916400, 919400, 1000, 0, 16, AUTO_BW, 1000, 280, false, 0, 0, 0),
 
 		/* S1G->11ac Mapped Frequencies */
 		/* 1 -> 3 => 132 -> 136 */
-		MORSE_REG_RULE(5650, 5690, 20, 0, 16, NL80211_RRF_AUTO_BW, 1000, 280, false, 0, 0, 0),
+		MORSE_REG_RULE(5650, 5690, 20, 0, 16, AUTO_BW, 1000, 280, false, 0, 0, 0),
 		/* 5 -> 9 => 36 -> 44 */
-		MORSE_REG_RULE(5170, 5230, 20, 0, 16, NL80211_RRF_AUTO_BW, 1000, 280, false, 0, 0, 0),
+		MORSE_REG_RULE(5170, 5230, 20, 0, 16, AUTO_BW, 1000, 280, false, 0, 0, 0),
 	},
 };
 
@@ -119,38 +120,45 @@ static struct morse_regdomain mors_in_regdom = {
 	.alpha2 = "IN",
 	.reg_rules = {
 		/* S1G Actual Frequencies */
-		MORSE_REG_RULE(865, 868, 1, 0, 16, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-
+		MORSE_REG_RULE(865, 868, 1, 0, 16, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* S1G->11ac Mapped Frequencies */
 		/* 5 -> 9 => 36 -> 44 */
-		MORSE_REG_RULE(5170, 5230, 20, 0, 16, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5170, 5230, 20, 0, 16, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 	},
 };
 
 static struct morse_regdomain mors_jp_regdom = {
-	.n_reg_rules = 3,
+	.n_reg_rules = 2,
 	.alpha2 =  "JP",
 	.reg_rules = {
 		/* S1G Actual Frequencies */
 		/* 13 -> 21*/
-		MORSE_REG_RULE(922, 928, 1, 0, 16, NL80211_RRF_AUTO_BW, 1000, 1000, true, 2000, 50000, 2000),
+		MORSE_REG_RULE(922, 928, 1, 0, 16, AUTO_BW, 1000, 1000, true, 2000, 50000, 2000),
 		/* S1G->11ac Mapped Frequencies */
-		MORSE_REG_RULE(5170, 5330, 80, 0, 16, NL80211_RRF_AUTO_BW, 1000, 1000, true, 2000, 50000, 2000),
+		MORSE_REG_RULE(5170, 5330, 80, 0, 16, AUTO_BW, 1000, 1000, true, 2000, 50000, 2000),
 	},
 };
 
 static struct morse_regdomain mors_kr_regdom = {
-	.n_reg_rules = 3,
+	.n_reg_rules = 7,
 	.alpha2 =  "KR",
 	.reg_rules = {
 		/* S1G Actual Frequencies */
-		MORSE_REG_RULE_KHZ(917500, 923500, 4000, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-
+		MORSE_REG_RULE_KHZ(917500, 921500, 2000, 0, 4, AUTO_BW, 10000, 10000,
+				   false, 0, 0, 0),
+		MORSE_REG_RULE_KHZ(921500, 923500, 2000, 0, 10, AUTO_BW, 10000, 10000,
+				   false, 0, 0, 0),
+		MORSE_REG_RULE_KHZ(919500, 923500, 4000, 0, 4, AUTO_BW, 10000, 10000,
+				   false, 0, 0, 0),
 		/* S1G->11ac Mapped Frequencies */
-		/* 1 -> 3 => 132 -> 136 */
-		MORSE_REG_RULE(5650, 5690, 40, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-		/* 5 -> 11 => 36 -> 48 */
-		MORSE_REG_RULE(5170, 5250, 80, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		/* 1, 2, 3 => 132, 134, 136 */
+		MORSE_REG_RULE(5650, 5690, 40, 0, 5, AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		/* 5, 6, 7 => 36, 38, 40 */
+		MORSE_REG_RULE(5170, 5210, 40, 0, 5, AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		/* 9, 10, 11 => 44, 46, 48 */
+		MORSE_REG_RULE(5210, 5250, 40, 0, 10, AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		/* 8 => 42 */
+		MORSE_REG_RULE(5170, 5250, 80, 0, 5, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 	},
 };
 
@@ -158,15 +166,14 @@ static struct morse_regdomain mors_nz_regdom = {
 	.n_reg_rules = 4,
 	.alpha2 =  "NZ",
 	.reg_rules = {
-		MORSE_REG_RULE(920, 928, 8, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-
+		MORSE_REG_RULE(920, 928, 8, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* S1G->11ac Mapped Frequencies */
 		/* 27 => 112 */
-		MORSE_REG_RULE(5550, 5570, 20, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5550, 5570, 20, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 29 -> 35 => 116 -> 128 */
-		MORSE_REG_RULE(5570, 5650, 80, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5570, 5650, 80, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 37 -> 51 => 149 -> 177 */
-		MORSE_REG_RULE(5735, 5895, 160, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5735, 5895, 160, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 	},
 };
 
@@ -175,17 +182,17 @@ static struct morse_regdomain mors_sg_regdom = {
 	.alpha2 =  "SG",
 	.reg_rules = {
 		/* S1G Actual Frequencies */
-		MORSE_REG_RULE(866, 869, 2, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-		MORSE_REG_RULE(920, 925, 4, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(866, 869, 2, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(920, 925, 4, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* S1G->11ac Mapped Frequencies */
 		/* 7 => 40 */
-		MORSE_REG_RULE(5190, 5210, 20, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5190, 5210, 20, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 9 -> 11 => 44 -> 48 */
-		MORSE_REG_RULE(5210, 5250, 40, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5210, 5250, 40, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 37 -> 43 => 149 -> 161 */
-		MORSE_REG_RULE(5735, 5815, 80, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5735, 5815, 80, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 45 => 165 */
-		MORSE_REG_RULE(5815, 5835, 20, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5815, 5835, 20, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 	},
 };
 
@@ -194,19 +201,19 @@ static struct morse_regdomain mors_us_regdom = {
 	.alpha2 =  "US",
 	.reg_rules = {
 		/* S1G Actual Frequencies */
-		MORSE_REG_RULE(902, 904, 2, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-		MORSE_REG_RULE(904, 920, 16, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
-		MORSE_REG_RULE(920, 928, 8, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(902, 904, 2, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(904, 920, 16, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(920, 928, 8, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 
 		/* S1G->11ac Mapped Frequencies */
 		/* 1 -> 3 => 132 -> 136 */
-		MORSE_REG_RULE(5650, 5690, 40, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5650, 5690, 40, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 5 -> 19 => 36 -> 64 */
-		MORSE_REG_RULE(5170, 5330, 160, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5170, 5330, 160, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 21 -> 35 => 100 -> 128 */
-		MORSE_REG_RULE(5490, 5650, 160, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5490, 5650, 160, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 		/* 37 -> 51 => 149 -> 177 */
-		MORSE_REG_RULE(5735, 5895, 160, 0, 30, NL80211_RRF_AUTO_BW, 10000, 10000, false, 0, 0, 0),
+		MORSE_REG_RULE(5735, 5895, 160, 0, 30, AUTO_BW, 10000, 10000, false, 0, 0, 0),
 	},
 };
 
@@ -263,10 +270,10 @@ EXPORT_SYMBOL(morse_reg_set_alpha);
 struct ieee80211_regdomain *morse_regdom_to_ieee80211(const struct morse_regdomain *morse_domain)
 {
 	struct ieee80211_regdomain *new = kmalloc(sizeof(*new) + (morse_domain->n_reg_rules *
-								  (sizeof(struct ieee80211_reg_rule))), GFP_KERNEL);
+						(sizeof(struct ieee80211_reg_rule))), GFP_KERNEL);
 	int i;
 
-	if (new == NULL)
+	if (!new)
 		return NULL;
 
 	new->n_reg_rules = morse_domain->n_reg_rules;
@@ -295,7 +302,6 @@ const struct morse_reg_rule *morse_regdom_get_rule_for_freq(const char *alpha, i
 }
 EXPORT_SYMBOL(morse_regdom_get_rule_for_freq);
 
-
 int morse_mac_set_country_info_from_regdom(const struct morse_regdomain *morse_domain,
 				struct s1g_operation_parameters *params,
 				struct dot11ah_country_ie *country_ie)
@@ -307,6 +313,8 @@ int morse_mac_set_country_info_from_regdom(const struct morse_regdomain *morse_d
 	int end_chan = 0;
 	int eirp;
 	int bw;
+	int ret;
+
 	u8 op_bw_mhz = MORSE_OPERATING_CH_WIDTH_DEFAULT;
 	u8 pri_bw_mhz = MORSE_PRIM_CH_WIDTH_DEFAULT;
 	u8 chan_centre_freq_num = MORSE_OPERATING_CHAN_DEFAULT;
@@ -321,8 +329,13 @@ int morse_mac_set_country_info_from_regdom(const struct morse_regdomain *morse_d
 		chan_centre_freq_num = params->chan_centre_freq_num;
 	}
 
-	strncpy(country_ie->country, morse_domain->alpha2,
-			ARRAY_SIZE(country_ie->country) - 1);
+	ret = strscpy(country_ie->country, morse_domain->alpha2,
+			ARRAY_SIZE(country_ie->country));
+
+	/* alpha2 has 2 characters */
+	if (ret < 2)
+		dot11ah_warn("Invalid alpha2 string\n");
+
 	country_ie->country[2] = MORSE_GLOBAL_OPERATING_CLASS_TABLE;
 
 	oper_triplet = &country_ie->ie_triplet;
@@ -330,9 +343,9 @@ int morse_mac_set_country_info_from_regdom(const struct morse_regdomain *morse_d
 	oper_triplet->op_triplet_id = MORSE_COUNTRY_OPERATING_TRIPLET_ID;
 	oper_triplet->primary_band_op_class = pri_ch_op_class;
 	oper_triplet->coverage_class = 0;
-	oper_triplet->start_chan = morse_dot11ah_calculate_primary_s1g_channel(
-							op_bw_mhz, pri_bw_mhz,
-							chan_centre_freq_num, pri_1mhz_chan_idx);
+	oper_triplet->start_chan = morse_dot11ah_calc_prim_s1g_chan(op_bw_mhz, pri_bw_mhz,
+						    chan_centre_freq_num, pri_1mhz_chan_idx);
+
 	oper_triplet->chan_num = 1;
 
 	for (i = 0; i < morse_domain->n_reg_rules; i++) {

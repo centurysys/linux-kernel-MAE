@@ -19,11 +19,13 @@ void __dot11ah_info(u32 level, const char *func, int line, const char *fmt, ...)
 __printf(4, 5)
 void __dot11ah_warn(u32 level, const char *func, int line, const char *fmt, ...);
 __printf(4, 5)
+void __dot11ah_warn_ratelimited(u32 level, const char *func, int line, const char *fmt, ...);
+__printf(4, 5)
 void __dot11ah_err(u32 level, const char *func, int line, const char *fmt, ...);
 
 #ifndef dot11ah_dbg
 #define dot11ah_debug(f, a...)	\
-		__dot11ah_debug((dot11ah_debug_mask & DOT11AH_MSG_DEBUG), __func__, __LINE__, f, ##a)
+	__dot11ah_debug((dot11ah_debug_mask & DOT11AH_MSG_DEBUG), __func__, __LINE__, f, ##a)
 #endif
 #ifndef dot11ah_info
 #define dot11ah_info(f, a...)	\
@@ -31,11 +33,18 @@ void __dot11ah_err(u32 level, const char *func, int line, const char *fmt, ...);
 #endif
 #ifndef dot11ah_warn
 #define dot11ah_warn(f, a...)	\
-		__dot11ah_warn((dot11ah_debug_mask & DOT11AH_MSG_WARN) ? 0xFFFFFFFF : 0, __func__, __LINE__, f, ##a)
+	__dot11ah_warn((dot11ah_debug_mask & DOT11AH_MSG_WARN) ? 0xFFFFFFFF : 0, \
+		__func__, __LINE__, f, ##a)
+#endif
+#ifndef dot11ah_warn_ratelimited
+#define dot11ah_warn_ratelimited(f, a...)	\
+		__dot11ah_warn_ratelimited((dot11ah_debug_mask & DOT11AH_MSG_WARN) ? \
+			0xFFFFFFFF : 0, __func__, __LINE__, f, ##a)
 #endif
 #ifndef dot11ah_err
 #define dot11ah_err(f, a...)	\
-		__dot11ah_err((dot11ah_debug_mask & DOT11AH_MSG_ERR) ? 0xFFFFFFFF : 0, __func__, __LINE__, f, ##a)
+		__dot11ah_err((dot11ah_debug_mask & DOT11AH_MSG_ERR) ? 0xFFFFFFFF : 0, \
+				__func__, __LINE__, f, ##a)
 #endif
 
 #ifndef dot11ah_hexdump_warn
@@ -47,11 +56,12 @@ void __dot11ah_err(u32 level, const char *func, int line, const char *fmt, ...);
 #endif
 
 #ifndef DOT11AH_WARN_ON
-#define DOT11AH_WARN_ON(condition) \
+#define DOT11AH_WARN_ON(_condition) \
 	do { \
+		bool _assertion = (_condition); \
 		if (dot11ah_debug_mask & DOT11AH_MSG_WARN) \
-			WARN_ON(condition); \
-		else if (dot11ah_debug_mask && (condition)) \
+			WARN_ON(_assertion); \
+		else if (dot11ah_debug_mask && (_assertion)) \
 			pr_warn("%s:%d: WARN_ON ASSERTED\n", __func__, __LINE__); \
 	} while (0)
 #endif

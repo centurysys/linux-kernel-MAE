@@ -8,22 +8,25 @@ else
 endif
 
 # Set 0 to a version number. This is done to match the Linux expectations
-override MORSE_VERSION = "0-rel_1_7_2_2023_Mar_15"
+override MORSE_VERSION = "0-rel_1_10_2_2023_Nov_22"
+
+USING_CLANG := $(shell $(CC) -v 2>&1 | grep -c "clang version")
 
 ccflags-$(CONFIG_MORSE_USER_ACCESS) += "-DCONFIG_MORSE_USER_ACCESS"
-#ccflags-y += $(DEBFLAGS) -Werror
 ccflags-y += $(DEBFLAGS) -Wall -Werror
-ccflags-y += -Wno-stringop-truncation -Wmaybe-uninitialized
-ccflags-y += -Wno-address-of-packed-member -Wno-missing-attributes
+ccflags-y += -Wno-address-of-packed-member
+ifeq ($(USING_CLANG), 0)
+ccflags-y += -Wno-stringop-truncation -Wmaybe-uninitialized -Wno-missing-attributes
+endif
 ccflags-y += "-DMORSE_VERSION=$(MORSE_VERSION)"
 ccflags-y += -I$(KERNEL_SRC)
 ccflags-$(CONFIG_MORSE_SDIO) += "-DCONFIG_MORSE_SDIO"
 ccflags-$(CONFIG_MORSE_SPI) += "-DCONFIG_MORSE_SPI"
-ccflags-$(CONFIG_MORSE_USB) += "-DCONFIG_MORSE_USB"
 ccflags-$(CONFIG_MORSE_VENDOR_COMMAND) += "-DCONFIG_MORSE_VENDOR_COMMAND"
 ccflags-$(CONFIG_MORSE_DEBUGFS) += "-DCONFIG_MORSE_DEBUGFS"
 ccflags-$(CONFIG_MORSE_ENABLE_TEST_MODES) += "-DCONFIG_MORSE_ENABLE_TEST_MODES"
 ccflags-$(CONFIG_MORSE_HW_TRACE) += "-DCONFIG_MORSE_HW_TRACE"
+ccflags-$(CONFIG_MORSE_DEBUG_IRQ) += "-DCONFIG_MORSE_DEBUG_IRQ"
 ccflags-$(CONFIG_MORSE_DEBUG_TXSTATUS) += "-DCONFIG_MORSE_DEBUG_TXSTATUS"
 ccflags-$(CONFIG_MORSE_RC) += "-DCONFIG_MORSE_RC"
 ccflags-$(CONFIG_MORSE_IPMON) += "-DCONFIG_MORSE_IPMON"
@@ -51,6 +54,9 @@ ccflags-y += "-DCONFIG_MORSE_SDIO_RESET_TIME=$(CONFIG_MORSE_SDIO_RESET_TIME)"
 # Default enable_ps to POWERSAVE_MODE_FULLY_ENABLED
 CONFIG_MORSE_POWERSAVE_MODE ?= 2
 ccflags-y += "-DCONFIG_MORSE_POWERSAVE_MODE=$(CONFIG_MORSE_POWERSAVE_MODE)"
+
+CONFIG_MORSE_SDIO_ALIGNMENT ?= 2
+ccflags-y += "-DCONFIG_MORSE_SDIO_ALIGNMENT=$(CONFIG_MORSE_SDIO_ALIGNMENT)"
 
 ifeq ($(CONFIG_MORSE_DHCP_OFFLOAD),y)
 	ccflags-y += "-DENABLE_DHCP_OFFLOAD_DEFAULT=1"
@@ -109,18 +115,21 @@ morse-y += of.o
 morse-y += firmware.o
 morse-y += pager_if_hw.o
 morse-y += pager_if_sw.o
-morse-y += yaps.o
-morse-y += yaps-hw.o
 morse-y += watchdog.o
 morse-y += event.o
 morse-y += crc16_xmodem.o
 morse-y += offload.o
 morse-y += vendor_ie.o
 morse-y += bus_test.o
+morse-y += wiphy.o
+morse-y += ocs.o
+morse-y += mbssid.o
+morse-y += mesh.o
+morse-y += page_slicing.o
+morse-y += pv1.o
 morse-$(CONFIG_MORSE_MONITOR) += monitor.o
 morse-$(CONFIG_MORSE_SDIO) += sdio.o
 morse-$(CONFIG_MORSE_SPI) += spi.o
-morse-$(CONFIG_MORSE_USB) += usb.o
 morse-$(CONFIG_MORSE_VENDOR_COMMAND) += vendor.o
 morse-$(CONFIG_MORSE_USER_ACCESS) += uaccess.o
 morse-$(CONFIG_MORSE_HW_TRACE) += hw_trace.o

@@ -16,19 +16,17 @@ struct uaccess {
 };
 
 struct uaccess_device {
-	struct cdev	cdev;
-	struct device	*device;
-	struct uaccess	*uaccess;
-	struct morse	*mors;
+	struct cdev cdev;
+	struct device *device;
+	struct uaccess *uaccess;
+	struct morse *mors;
 };
 
 struct uaccess *uaccess_alloc(void);
 int uaccess_init(struct uaccess *uaccess);
 void uaccess_cleanup(struct uaccess *uaccess);
 
-int uaccess_device_register(struct morse *mors,
-			struct uaccess *uaccess,
-			struct device *parent);
+int uaccess_device_register(struct morse *mors, struct uaccess *uaccess, struct device *parent);
 void uaccess_device_unregister(struct morse *mors);
 
-#endif  /* !_MORSE_UACCESS_H_ */
+#endif /* !_MORSE_UACCESS_H_ */

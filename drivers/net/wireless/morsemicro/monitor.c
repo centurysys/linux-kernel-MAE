@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 Morse Micro
+ * Copyright 2017-2023 Morse Micro
  *
  */
 #include <net/xfrm.h>
@@ -8,6 +8,7 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 
+#include "morse.h"
 #include "debug.h"
 #include "mac.h"
 #include "s1g_radiotap.h"
@@ -15,8 +16,6 @@
 
 #define RT_ZERO_LEN_PSDU_DATA			0x2
 #define RT_ZERO_LEN_PSDU_VENDOR_SPECIFIC	0xff
-
-#define HZ_TO_MHZ(x)	(x / 1000000)
 
 #ifndef IEEE80211_RADIOTAP_AMPDU_EOF
 #define IEEE80211_RADIOTAP_AMPDU_EOF 0x0040
@@ -54,7 +53,7 @@ struct morse_collision_radiotap_hdr {
 struct zero_length_psdu {
 	u8 psdu_type;
 	u8 ndp_type;
-	__le64 ndp[0];
+	__le64 ndp[];
 } __packed;
 
 struct ampdu_header {
@@ -65,13 +64,12 @@ struct ampdu_header {
 } __packed;
 
 struct padding {
-	u8 padding[1];
+	u8 padding;
 } __packed;
 
-static struct net_device *morse_mon; /* global monitor netdev */
+static struct net_device *morse_mon;	/* global monitor netdev */
 
-static netdev_tx_t morse_mon_xmit(struct sk_buff *skb,
-				  struct net_device *dev)
+static netdev_tx_t morse_mon_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	/* TODO: allow packet injection */
 	dev_kfree_skb(skb);
@@ -79,12 +77,12 @@ static netdev_tx_t morse_mon_xmit(struct sk_buff *skb,
 }
 
 static const struct net_device_ops morse_mon_ops = {
-	.ndo_start_xmit		= morse_mon_xmit,
+	.ndo_start_xmit = morse_mon_xmit,
 #if KERNEL_VERSION(5, 10, 11) > LINUX_VERSION_CODE
-	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_change_mtu = eth_change_mtu,
 #endif
-	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
 };
 
 static void morse_mon_setup(struct net_device *dev)
@@ -137,13 +135,17 @@ void morse_mon_rx(struct morse *mors, struct sk_buff *rx_skb,
 	struct padding *align_padding;
 	enum dot11_rt_s1g_bandwidth bw;
 	int ndp_sub_type;
+	u32 bw_mhz;
+	u8 mcs_index;
+	enum dot11_bandwidth bw_idx = morse_ratecode_bw_index_get(hdr_rx_status->morse_ratecode);
 
 	if (hdr_rx_status->flags & MORSE_RX_STATUS_FLAGS_NDP) {
 		/* Null Data Packets contain no data, therefore no
 		 * mcs encoding. The STF/LTF are usually BPSK, therefore
 		 * the NDP mcs rate can always be considered as 0.
 		 */
-		hdr_rx_status->rate = 0;
+		morse_ratecode_mcs_index_set(&hdr_rx_status->morse_ratecode, 0);
+		morse_ratecode_nss_index_set(&hdr_rx_status->morse_ratecode, NSS_TO_NSS_IDX(1));
 
 		/**
 		 * BSS COLOR is not present in NDP frames.
@@ -158,144 +160,128 @@ void morse_mon_rx(struct morse *mors, struct sk_buff *rx_skb,
 	 * to append to our skb depending on the packet type
 	 */
 	if (hdr_rx_status->flags & MORSE_RX_STATUS_FLAGS_NDP) {
-		skb = skb_copy_expand(rx_skb,
-				      sizeof(*hdr) +
-				      sizeof(*psdu),
-				      0,
-				      GFP_KERNEL);
-		if (skb == NULL)
+		skb = skb_copy_expand(rx_skb, sizeof(*hdr) + sizeof(*psdu), 0, GFP_KERNEL);
+		if (!skb)
 			return;
 		psdu = (struct zero_length_psdu *)skb_push(skb, sizeof(*psdu));
 
-		/* Set bits for 0 length PSDU radiotap field*/
-		psdu->psdu_type =
-			IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_CMAC;
+		/* Set bits for 0 length PSDU radiotap field */
+		psdu->psdu_type = IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_CMAC;
 
-		ndp_sub_type =
-			MORSE_RX_STATUS_FLAGS_NDP_TYPE_GET(
-				(hdr_rx_status->flags));
+		ndp_sub_type = MORSE_RX_STATUS_FLAGS_NDP_TYPE_GET((hdr_rx_status->flags));
 		psdu->ndp_type = (ndp_sub_type == IEEE80211_NDP_FTYPE_PREQ) ?
-			IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_MANAGEMENT :
-			IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_CONTROL;
+		    IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_MANAGEMENT :
+		    IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_CONTROL;
 
-		if (hdr_rx_status->flags & MORSE_RX_STATUS_FLAGS_NDP_2MHZ) {
+		if (bw_idx == DOT11_BANDWIDTH_2MHZ) {
 			psdu->ndp[0] &= IEEE80211_RADIOTAP_HALOW_MASK_NDP_2MHZ;
-			psdu->ndp[0] |=
-				IEEE80211_RADIOTAP_HALOW_MASK_NDP_BW_2MHZ;
+			psdu->ndp[0] |= IEEE80211_RADIOTAP_HALOW_MASK_NDP_BW_2MHZ;
 		} else {
 			psdu->ndp[0] &= IEEE80211_RADIOTAP_HALOW_MASK_NDP_1MHZ;
 		}
 	} else {
 		int len = sizeof(*hdr) +
-			  sizeof(*ampdu_hdr) +
-			  sizeof(*s1g_info_hdr) +
-			  sizeof(*align_padding);
+		    sizeof(*ampdu_hdr) + sizeof(*s1g_info_hdr) + sizeof(*align_padding);
 		skb = skb_copy_expand(rx_skb, len, 0, GFP_KERNEL);
-		if (skb == NULL)
+		if (!skb)
 			return;
 
-		s1g_info_hdr = (struct radiotap_s1g_tlv *)skb_push(skb,
-						 sizeof(*s1g_info_hdr));
+		s1g_info_hdr = (struct radiotap_s1g_tlv *)skb_push(skb, sizeof(*s1g_info_hdr));
 
-		if (hdr_rx_status->flags & MORSE_RX_STATUS_FLAGS_AMPDU) {
-			ampdu_hdr = (struct ampdu_header *)skb_push(skb,
-						      sizeof(*ampdu_hdr));
-		}
+		if (hdr_rx_status->flags & MORSE_RX_STATUS_FLAGS_AMPDU)
+			ampdu_hdr = (struct ampdu_header *)skb_push(skb, sizeof(*ampdu_hdr));
 
 		/* Add padding to keep the radiotap alignment.
 		 * This is required for most packets, except ndps.
 		 */
-		align_padding = (struct padding *)skb_push(skb,
-					 sizeof(*align_padding));
+		align_padding = (struct padding *)skb_push(skb, sizeof(*align_padding));
 	}
+	bw_mhz = morse_ratecode_bw_index_to_s1g_bw_mhz(bw_idx);
+	mcs_index = morse_ratecode_mcs_index_get(hdr_rx_status->morse_ratecode);
+	bw = int_bw_to_radiotap_bw_enum(bw_mhz);
+	if (bw == DOT11_RT_S1G_BW_INVALID)
+		MORSE_ERR(mors, "Packet with invalid BW '%d' received\n", bw_mhz);
 
-	bw = int_bw_to_radiotap_bw_enum(hdr_rx_status->bw_mhz);
-	if (bw == DOT11_RT_S1G_BW_INVALID) {
-		morse_err(mors, "Packet with invalid BW '%d' received\n",
-			hdr_rx_status->bw_mhz);
-	}
-
-	hdr = (struct morse_radiotap_hdr *) skb_push(skb, sizeof(*hdr));
+	hdr = (struct morse_radiotap_hdr *)skb_push(skb, sizeof(*hdr));
 	/* No flags set for now */
 	hdr->rt_flags = 0;
 	hdr->hdr.it_len = cpu_to_le16(sizeof(*hdr));
 	hdr->rt_tsft = cpu_to_le64(hdr_rx_status->rx_timestamp_us);
 	hdr->hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	hdr->hdr.it_pad = 0;
-	hdr->hdr.it_present = cpu_to_le32(
-		BIT(IEEE80211_RADIOTAP_FLAGS) |
-		BIT(IEEE80211_RADIOTAP_CHANNEL) |
-		BIT(IEEE80211_RADIOTAP_TSFT) |
-		BIT(IEEE80211_RADIOTAP_DBM_ANTSIGNAL));
+	hdr->hdr.it_present = cpu_to_le32(BIT(IEEE80211_RADIOTAP_FLAGS) |
+					  BIT(IEEE80211_RADIOTAP_CHANNEL) |
+					  BIT(IEEE80211_RADIOTAP_TSFT) |
+					  BIT(IEEE80211_RADIOTAP_DBM_ANTSIGNAL));
 
 	/* Size and flag rtp data conditionally */
 	if (hdr_rx_status->flags & MORSE_RX_STATUS_FLAGS_NDP) {
 		hdr->hdr.it_len += cpu_to_le16(sizeof(*psdu));
-		hdr->hdr.it_present |= cpu_to_le32(
-			BIT(IEEE80211_RADIOTAP_ZERO_LEN_PSDU));
+		hdr->hdr.it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_ZERO_LEN_PSDU));
 		hdr->rt_rate_or_zl_psdu = RT_ZERO_LEN_PSDU_DATA;
 	} else {
-		hdr->hdr.it_present |= cpu_to_le32(
-			BIT(IEEE80211_RADIOTAP_RATE) |
-			BIT(IEEE80211_RADIOTAP_HALOW_TLV));
+		enum morse_rate_preamble pream =
+			morse_ratecode_preamble_get(hdr_rx_status->morse_ratecode);
+		enum dot11_rt_s1g_ppdu_format ppdu_format = DOT11_RT_S1G_PPDU_S1G_SHORT;
+
+		if (pream == MORSE_RATE_PREAMBLE_S1G_LONG)
+			ppdu_format = DOT11_RT_S1G_PPDU_S1G_LONG;
+		else if (pream == MORSE_RATE_PREAMBLE_S1G_1M)
+			ppdu_format = DOT11_RT_S1G_PPDU_S1G_1M;
+
+		hdr->hdr.it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_RATE) |
+						   BIT(IEEE80211_RADIOTAP_HALOW_TLV));
 
 		/* Set MSB of rate so it is interpreted as an MCS index */
-		hdr->rt_rate_or_zl_psdu = BIT(7) | hdr_rx_status->rate;
+		hdr->rt_rate_or_zl_psdu =
+		    BIT(7) | morse_ratecode_mcs_index_get(hdr_rx_status->morse_ratecode);
 
-		hdr->hdr.it_len += cpu_to_le16(sizeof(*s1g_info_hdr) +
-					       sizeof(*align_padding));
+		hdr->hdr.it_len += cpu_to_le16(sizeof(*s1g_info_hdr) + sizeof(*align_padding));
 
 		if (hdr_rx_status->flags & MORSE_RX_STATUS_FLAGS_FCS_INCLUDED)
 			hdr->rt_flags |= IEEE80211_RADIOTAP_F_FCS;
 
-		/* Populate the s1g info rdtp header*/
+		/* Populate the s1g info rdtp header */
 		/* TODO Parse in RX status info e.g. MCS type */
 		s1g_info_hdr->type = cpu_to_le16(DOT11_RT_TLV_S1G_TYPE);
 		s1g_info_hdr->length = cpu_to_le16(DOT11_RT_TLV_S1G_LENGTH);
 
-		s1g_info_hdr->known = cpu_to_le16(
-			DOT11_RT_S1G_KNOWN_PPDU_FMT |
-			DOT11_RT_S1G_KNOWN_GI |
-			DOT11_RT_S1G_KNOWN_BW |
-			DOT11_RT_S1G_KNOWN_MCS |
-			DOT11_RT_S1G_KNOWN_RES_IND |
-			DOT11_RT_S1G_KNOWN_COLOR |
-			DOT11_RT_S1G_KNOWN_UPL_IND);
+		s1g_info_hdr->known = cpu_to_le16(DOT11_RT_S1G_KNOWN_PPDU_FMT |
+						  DOT11_RT_S1G_KNOWN_GI |
+						  DOT11_RT_S1G_KNOWN_BW |
+						  DOT11_RT_S1G_KNOWN_MCS |
+						  DOT11_RT_S1G_KNOWN_RES_IND |
+						  DOT11_RT_S1G_KNOWN_COLOR |
+						  DOT11_RT_S1G_KNOWN_UPL_IND);
 
-		s1g_info_hdr->data1 = cpu_to_le16(
-			DOT11_RT_S1G_DAT1_PPDU_FMT_SET(
-				MORSE_RX_STATUS_FLAGS_PPDU_FMT_GET(
-							hdr_rx_status->flags)) |
-			DOT11_RT_S1G_DAT1_GI_SET(
-				MORSE_RX_STATUS_FLAGS_SGI_GET(hdr_rx_status->flags)) |
-			DOT11_RT_S1G_DAT1_BW_SET(bw) |
-			DOT11_RT_S1G_DAT1_MCS_SET(hdr_rx_status->rate) |
-			DOT11_RT_S1G_DAT1_RES_IND_SET(
-				MORSE_RX_STATUS_FLAGS_RI_GET(
-					hdr_rx_status->flags)));
+		s1g_info_hdr->data1 = cpu_to_le16(DOT11_RT_S1G_DAT1_PPDU_FMT_SET(ppdu_format) |
+						  DOT11_RT_S1G_DAT1_GI_SET(morse_ratecode_sgi_get
+								   (hdr_rx_status->morse_ratecode))
+						  | DOT11_RT_S1G_DAT1_BW_SET(bw) |
+						  DOT11_RT_S1G_DAT1_MCS_SET(mcs_index) |
+						  DOT11_RT_S1G_DAT1_RES_IND_SET
+						  (MORSE_RX_STATUS_FLAGS_RI_GET
+						   (hdr_rx_status->flags)));
 
-		s1g_info_hdr->data2 = cpu_to_le16(
-			DOT11_RT_S1G_DAT2_RSSI_SET((s8) hdr_rx_status->rssi) |
-			DOT11_RT_S1G_DAT2_COLOR_SET(hdr_rx_status->bss_color) |
-			DOT11_RT_S1G_DAT2_UPL_IND_SET(
-				MORSE_RX_STATUS_FLAGS_UPL_IND_GET(
-							hdr_rx_status->flags)));
+		s1g_info_hdr->data2 =
+		    cpu_to_le16(DOT11_RT_S1G_DAT2_RSSI_SET((s8)hdr_rx_status->rssi) |
+				DOT11_RT_S1G_DAT2_COLOR_SET(hdr_rx_status->bss_color) |
+				DOT11_RT_S1G_DAT2_UPL_IND_SET(MORSE_RX_STATUS_FLAGS_UPL_IND_GET
+							      (hdr_rx_status->flags)));
 	}
 
 	if (hdr_rx_status->flags & MORSE_RX_STATUS_FLAGS_AMPDU) {
-		hdr->hdr.it_present |= cpu_to_le32(
-			BIT(IEEE80211_RADIOTAP_AMPDU_STATUS));
+		hdr->hdr.it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_AMPDU_STATUS));
 		ampdu_hdr->flags = cpu_to_le16(IEEE80211_RADIOTAP_AMPDU_EOF |
-				   IEEE80211_RADIOTAP_AMPDU_LAST_KNOWN |
-				   IEEE80211_RADIOTAP_AMPDU_IS_LAST);
+					       IEEE80211_RADIOTAP_AMPDU_LAST_KNOWN |
+					       IEEE80211_RADIOTAP_AMPDU_IS_LAST);
 		ampdu_hdr->ref_num = 1;
 		hdr->hdr.it_len += cpu_to_le16(sizeof(*ampdu_hdr));
 	}
 
-	hdr->rt_dbm_antsignal = (s8) hdr_rx_status->rssi;
+	hdr->rt_dbm_antsignal = (s8)hdr_rx_status->rssi;
 
-	/* Convert freq in Hz to MHz, half spaced channels are rounded down */
-	hdr->rt_channel = cpu_to_le16(HZ_TO_MHZ(hdr_rx_status->freq_hz));
+	hdr->rt_channel = cpu_to_le16(hdr_rx_status->freq_mhz);
 	if (hdr->rt_channel <= 700)
 		flags = IEEE80211_CHAN_700MHZ;
 	else if (hdr->rt_channel <= 800)
@@ -324,21 +310,21 @@ void morse_mon_sig_field_error(const struct morse_evt_sig_field_error_evt *sig_f
 		return;
 
 	skb = dev_alloc_skb(sizeof(*hdr));
-	if (skb == NULL)
+	if (!skb)
 		return;
 
-	hdr = (struct morse_collision_radiotap_hdr *) skb_put(skb, sizeof(*hdr));
+	hdr = (struct morse_collision_radiotap_hdr *)skb_put(skb, sizeof(*hdr));
 	hdr->hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	hdr->hdr.it_pad = 0;
 	hdr->hdr.it_len = cpu_to_le16(sizeof(*hdr));
 	hdr->hdr.it_present =
-		cpu_to_le32(BIT(IEEE80211_RADIOTAP_TSFT) | BIT(IEEE80211_RADIOTAP_TIMESTAMP));
+	    cpu_to_le32(BIT(IEEE80211_RADIOTAP_TSFT) | BIT(IEEE80211_RADIOTAP_TIMESTAMP));
 
 	hdr->rt_tsft = cpu_to_le64(sig_field_error_evt->start_timestamp);
 	hdr->timestamp.timestamp = cpu_to_le64(sig_field_error_evt->end_timestamp);
 	hdr->timestamp.accuracy = 0;
 	hdr->timestamp.unit_position =
-		IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US | IEEE80211_RADIOTAP_TIMESTAMP_SPOS_EO_PPDU;
+	    IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US | IEEE80211_RADIOTAP_TIMESTAMP_SPOS_EO_PPDU;
 	hdr->timestamp.flags = IEEE80211_RADIOTAP_TIMESTAMP_FLAG_64BIT;
 
 	/* Populate skb headers */
@@ -356,9 +342,8 @@ int morse_mon_init(struct morse *mors)
 {
 	int err = 0;
 
-	morse_mon = alloc_netdev(0, "morse%d", NET_NAME_UNKNOWN,
-				 morse_mon_setup);
-	if (morse_mon == NULL) {
+	morse_mon = alloc_netdev(0, "morse%d", NET_NAME_UNKNOWN, morse_mon_setup);
+	if (!morse_mon) {
 		err = -ENOMEM;
 		goto alloc_netdev_err;
 	}

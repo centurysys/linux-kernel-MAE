@@ -9,10 +9,11 @@
 #include "capabilities.h"
 #include "misc.h"
 
-#define BCF_DATABASE_SIZE	(1024)	/* From firmware */
-#define MORSE_FW_DIR		"morse"
-#define MORSE_FW_MAX_SIZE	(13 * 32 * 1024)
-#define MORSE_BCF_MAX_SIZE	(BCF_DATABASE_SIZE * 1024)
+#define BCF_DATABASE_SIZE               (1024)	/* From firmware */
+#define MORSE_FW_DIR                    "morse"
+#define MORSE_FW_THIN_LMAC_SUFFIX       "tlm"
+#define MORSE_FW_VIRTUAL_STA_SUFFIX     "vs"
+#define MORSE_FW_EXT                    ".bin"
 
 #define IFLASH_BASE_ADDR	0x400000
 #define DFLASH_BASE_ADDR	0xC00000
@@ -23,9 +24,8 @@
 #define FW_CAPABILITIES_FLAGS_WIDTH (4)
 
 #if (FW_CAPABILITIES_FLAGS_WIDTH > CAPABILITIES_FLAGS_WIDTH)
-	#error "Capability subset filled by firmware is to big"
+#error "Capability subset filled by firmware is to big"
 #endif
-
 
 enum morse_fw_info_tlv_type {
 	MORSE_FW_INFO_TLV_BCF_ADDR = 1
@@ -34,23 +34,27 @@ enum morse_fw_info_tlv_type {
 struct morse_fw_info_tlv {
 	__le16 type;
 	__le16 length;
-	u8 val[0];
+	u8 val[];
 } __packed;
 
-enum morse_fw_host_table_capab_tag {
+enum morse_fw_extended_host_table_tag {
 	/* The S1G capability tag */
-	MORSE_FW_HOST_TABLE_CAPAB_TAG_S1G = 0,
+	MORSE_FW_HOST_TABLE_TAG_S1G_CAPABILITIES = 0,
+	MORSE_FW_HOST_TABLE_TAG_PAGER_BYPASS_TX_STATUS = 1,
+	MORSE_FW_HOST_TABLE_TAG_INSERT_SKB_CHECKSUM = 2,
+	MORSE_FW_HOST_TABLE_TAG_PAGER_PKT_MEMORY = 4,
 };
-struct fw_capabilities_header {
+
+struct extended_host_table_tlv_hdr {
 	/** The tag used to identify which capability this represents */
 	__le16 tag;
 	/** The length of the capability structure including this header */
 	__le16 length;
 } __packed;
 
-struct fw_capabilities_s1g {
+struct extended_host_table_capabilities_s1g {
 	/** The common header for the capabilities */
-	struct fw_capabilities_header header;
+	struct extended_host_table_tlv_hdr header;
 	/** The capability flags */
 	__le32 flags[FW_CAPABILITIES_FLAGS_WIDTH];
 	/**
@@ -76,22 +80,47 @@ struct fw_capabilities_s1g {
 	 * (2^(13 + exponent) - 1) is the length
 	 */
 	u8 maximum_ampdu_length;
+	/**
+	 * Offset to apply to the specification's mmss table to signal further
+	 * minimum mpdu start spacing.
+	 */
+	u8 morse_mmss_offset;
 } __packed;
+
+struct extended_host_table_pager_bypass_tx_status {
+	struct extended_host_table_tlv_hdr header;
+	__le32 tx_status_buffer_addr;
+};
+
+struct extended_host_table_insert_skb_checksum {
+	struct extended_host_table_tlv_hdr header;
+	u8 insert_and_validate_checksum;
+};
+
+
+struct extended_host_table_pager_pkt_memory {
+	struct extended_host_table_tlv_hdr header;
+	/** Base address of packet memory */
+	__le32 base_addr;
+	/** Length (bytes) of one page */
+	u16 page_len;
+	/** Length (bytes) reserved at start of page (should not be modified) */
+	u8 page_len_reserved;
+	/** Number of pages */
+	u8 num;
+};
 
 struct extended_host_table {
 	/** The length of this table */
 	__le32 extended_host_table_length;
 	/** Device MAC address */
 	u8 dev_mac_addr[6];
-	/** The S1G capabilities */
-	struct fw_capabilities_s1g s1g_caps;
-	/** padding to the nearest 4 byte boundary */
-	u8 padding[2];
+
+	/** Data TLVs in the extended host table*/
+	u8 ext_host_table_data_tlvs[];
 } __packed;
 
-int morse_firmware_init(struct morse *mors,
-			const char *fw_name,
-			bool dl_firmware, bool chk_firmware);
+int morse_firmware_init(struct morse *mors, uint test_mode);
 
 /**
  * @brief Perform non-destructive-reset of the chip,
@@ -104,15 +133,24 @@ int morse_firmware_init(struct morse *mors,
 int morse_firmware_exec_ndr(struct morse *mors);
 
 /**
- * morse_firmware_read_ext_host_table - Read the firmware's extended host table for device capabilities
+ * morse_firmware_build_fw_path() - Build path to the firmware image.
+ * @mors: The global morse config object.
+ *
+ * Caller must kfree() the returned value.
+ *
+ * Return: allocated firmware path, or %NULL on error
+ */
+char *morse_firmware_build_fw_path(struct morse *mors);
+
+/**
+ * morse_firmware_parse_extended_host_table - Read and parse the firmware's extended host table
  *
  * @mors pointer to the chip object
- * @ext_host_table pointer to the extended host table to fill
  *
  * Return: 0 if the table was read successfully, error if otherwise.
  */
-int morse_firmware_read_ext_host_table(struct morse *mors, struct extended_host_table *ext_host_table);
+int morse_firmware_parse_extended_host_table(struct morse *mors);
 
 int morse_firmware_get_host_table_ptr(struct morse *mors);
 
-#endif  /* !_MORSE_FW_H_ */
+#endif /* !_MORSE_FW_H_ */

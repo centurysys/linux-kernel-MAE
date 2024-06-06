@@ -20,19 +20,19 @@
 
 #include "morse.h"
 
-// Compute the CRC a bit at a time.
-uint16_t crc16xmodem_bit(uint16_t crc, void const *mem, size_t len);
+/* Compute the CRC a bit at a time. */
+u16 crc16xmodem_bit(u16 crc, void const *mem, size_t len);
 
-// Compute the CRC of the high bits in the low byte of val.
-uint16_t crc16xmodem_rem(uint16_t crc, unsigned int val, unsigned int bits);
+/* Compute the CRC of the high bits in the low byte of val. */
+u16 crc16xmodem_rem(u16 crc, unsigned int val, unsigned int bits);
 
-// Compute the CRC a byte at a time.
-uint16_t crc16xmodem_byte(uint16_t crc, void const *mem, size_t len);
+/* Compute the CRC a byte at a time. */
+u16 crc16xmodem_byte(u16 crc, void const *mem, size_t len);
 
-// Compute the CRC a word at a time.
-uint16_t crc16xmodem_word(uint16_t crc, void const *mem, size_t len);
+/* Compute the CRC a word at a time. */
+u16 crc16xmodem_word(u16 crc, void const *mem, size_t len);
 
-// Compute the combination of two CRCs.
-uint16_t crc16xmodem_comb(uint16_t crc1, uint16_t crc2, uint64_t len2);
+/* Compute the combination of two CRCs. */
+u16 crc16xmodem_comb(u16 crc1, u16 crc2, u64 len2);
 
 #endif /* !_MORSE_CRC16_XMODEM_H_ */

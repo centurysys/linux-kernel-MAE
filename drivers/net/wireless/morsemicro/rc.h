@@ -23,7 +23,7 @@ struct morse_rc {
 };
 
 struct morse_rc_sta {
-	struct mmrc_table tb;
+	struct mmrc_table *tb;
 	struct list_head list;
 
 	unsigned long last_update;
@@ -33,32 +33,28 @@ int morse_rc_init(struct morse *mors);
 
 int morse_rc_deinit(struct morse *mors);
 
-int morse_rc_sta_add(struct morse *mors,
-		     struct ieee80211_sta *sta);
+int morse_rc_sta_add(struct morse *mors, struct ieee80211_vif *vif, struct ieee80211_sta *sta);
 
-bool morse_rc_set_fixed_rate(struct morse *mors,
-			struct ieee80211_sta *sta,
-			int mcs,
-			int bw,
-			int ss,
-			int guard);
+#define morse_rc_set_fixed_rate(mors, sta, mcs, bw, ss, guard) \
+	_morse_rc_set_fixed_rate(mors, sta, mcs, bw, ss, guard, __func__)
+bool _morse_rc_set_fixed_rate(struct morse *mors,
+			      struct ieee80211_sta *sta,
+			      int mcs, int bw, int ss, int guard, const char *caller);
 
-void morse_rc_sta_remove(struct morse *mors,
-			 struct ieee80211_sta *sta);
+void morse_rc_sta_remove(struct morse *mors, struct ieee80211_sta *sta);
 
 void morse_rc_sta_fill_tx_rates(struct morse *mors,
-			    struct morse_skb_tx_info *tx_info,
-			    struct sk_buff *skb,
-			    struct ieee80211_sta *sta,
-			    int tx_bw,
-			    bool rts_allowed);
+				struct morse_skb_tx_info *tx_info,
+				struct sk_buff *skb,
+				struct ieee80211_sta *sta, int tx_bw, bool rts_allowed);
 
 void morse_rc_sta_feedback_rates(struct morse *mors,
-				 struct sk_buff *skb,
-				 struct morse_skb_tx_status *tx_sts);
+				 struct sk_buff *skb, struct morse_skb_tx_status *tx_sts);
 
-void morse_rc_sta_state_check(struct morse *mors, struct ieee80211_sta *sta,
-		enum ieee80211_sta_state old_state, enum ieee80211_sta_state new_state);
+void morse_rc_sta_state_check(struct morse *mors,
+			      struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+			      enum ieee80211_sta_state old_state,
+			      enum ieee80211_sta_state new_state);
 
 /*
  * Reinitialize the associated stations when there is a change in BW.
@@ -66,5 +62,4 @@ void morse_rc_sta_state_check(struct morse *mors, struct ieee80211_sta *sta,
  */
 void morse_rc_reinit_stas(struct morse *mors, struct ieee80211_vif *vif);
 
-#endif  /* !_MORSE_RC_H_ */
-
+#endif /* !_MORSE_RC_H_ */

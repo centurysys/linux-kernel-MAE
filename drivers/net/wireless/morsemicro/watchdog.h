@@ -87,4 +87,4 @@ int morse_watchdog_resume(struct morse *mors);
  */
 int morse_watchdog_get_interval(struct morse *mors);
 
-#endif  /* !_MORSE_WATCHDOG_H_ */
+#endif /* !_MORSE_WATCHDOG_H_ */

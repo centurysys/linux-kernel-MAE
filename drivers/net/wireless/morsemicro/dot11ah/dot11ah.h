@@ -11,7 +11,6 @@
 #include <linux/ieee80211.h>
 #include "s1g_ieee80211.h"
 
-
 #define IEEE80211_FC_NEXT_TBTT					0x0100
 #define IEEE80211_FC_COMPRESS_SSID				0x0200
 #define IEEE80211_FC_ANO					0x0400
@@ -22,75 +21,30 @@
 
 #define STYPE_S1G_BEACON_BSS_BW_OFFSET				11
 
-#define IEEE80211AH_GET_FC_BSS_BW(x) ((x & IEEE80211_FC_BSS_BW) >> STYPE_S1G_BEACON_BSS_BW_OFFSET)
-
-/* Offsets and values for 9.4.2.200.2 S1G Capabilities Information field */
-/* Note these are 0 indexed in code, 1 indexed in the standard */
-/* Octet 1  */
-#define S1G_CAP0_SUPP_WIDTH_OFFSET   6
-#define S1G_CAP0_SET_SUPP_WIDTH(x) ((x << S1G_CAP0_SUPP_WIDTH_OFFSET) & S1G_CAP0_SUPP_CH_WIDTH)
-#define S1G_CAP0_GET_SUPP_WIDTH(x) ((x & S1G_CAP0_SUPP_CH_WIDTH) >> S1G_CAP0_SUPP_WIDTH_OFFSET)
-#define S1G_CAP0_SUPP_2MHZ  S1G_CAP0_SET_SUPP_WIDTH(0)
-#define S1G_CAP0_SUPP_4MHZ  S1G_CAP0_SET_SUPP_WIDTH(1)
-#define S1G_CAP0_SUPP_8MHZ  S1G_CAP0_SET_SUPP_WIDTH(2)
-#define S1G_CAP0_SUPP_16MHZ S1G_CAP0_SET_SUPP_WIDTH(3)
-
-/* Octet 2  */
-/* Octet 3  */
-/**
- * 802.11me Table 9-300 (Subfields of the S1G Capabilities Information field).
- *
- * Set to 0 if RX of travelling pilots is not supported
- * Set to 1 if RX of 1NSS travelling pilots is supported with STBC
- * 2 is reserved
- * Set to 3 if RX of 1NSS & 2NSS is sipported with STBC
- */
-#define S1G_CAP2_GET_TRAV_PILOT(byte2) \
-	(((byte2) >> 6) & 0x03)
-#define S1G_CAP2_SET_TRAV_PILOT(trav_pilot) \
-	(((trav_pilot & 0x3) << 6))
-
-enum trav_pilot_support {
-	TRAV_PILOT_RX_NOT_SUPPORTED = 0,
-	TRAV_PILOT_RX_1NSS = 1,
-	TRAV_PILOT_RESERVED1 = 2,
-	TRAV_PILOT_RX_1_2_NSS = 3
-};
-
-/* Octet 4  */
-#define S1G_CAP3_MPDU_MAX_LEN_OFFSET 2
-#define S1G_CAP3_SET_MPDU_MAX_LEN(x) ((x << S1G_CAP3_MPDU_MAX_LEN_OFFSET) & S1G_CAP3_MAX_MPDU_LEN)
-#define S1G_CAP3_MPDU_MAX_LEN_3895   S1G_CAP3_SET_MPDU_MAX_LEN(0)
-#define S1G_CAP3_MPDU_MAX_LEN_7991   S1G_CAP3_SET_MPDU_MAX_LEN(1)
-
-#define S1G_CAP3_MAX_AMPDU_LEN_EXP_OFFSET 3
-#define S1G_CAP3_SET_MAX_AMPDU_LEN_EXP(x) ((x << S1G_CAP3_MAX_AMPDU_LEN_EXP_OFFSET) &\
-					  S1G_CAP3_MAX_AMPDU_LEN_EXP)
-
-#define S1G_CAP3_MIN_AMPDU_START_SPC_OFFSET 5
-#define S1G_CAP3_SET_MIN_AMPDU_START_SPC(x) ((x << S1G_CAP3_MIN_AMPDU_START_SPC_OFFSET) &\
-					S1G_CAP3_MIN_MPDU_START)
-/* Octet 5  */
-#define S1G_CAP4_STA_TYPE_OFFSET	6
-#define S1G_CAP4_SET_STA_TYPE(x) ((x << S1G_CAP4_STA_TYPE_OFFSET) & S1G_CAP4_STA_TYPE)
-#define S1G_CAP4_STA_TYPE_BOTH		S1G_CAP4_SET_STA_TYPE(0)
-#define S1G_CAP4_STA_TYPE_SENSOR	S1G_CAP4_SET_STA_TYPE(1)
-#define S1G_CAP4_STA_TYPE_NON_SENSOR	S1G_CAP4_SET_STA_TYPE(2)
-/* Octet 6  */
-/* Octet 7  */
-/* Octet 8  */
-/* Octet 9  */
-#define S1G_CAP8_COLOR_OFFSET	2
-#define S1G_CAP8_SET_COLOR(x)	((x << S1G_CAP8_COLOR_OFFSET) & S1G_CAP8_COLOR)
-#define S1G_CAP8_GET_COLOR(x)	((x & S1G_CAP8_COLOR) >> S1G_CAP8_COLOR_OFFSET)
-/* Octet 10 */
+#define IEEE80211AH_GET_FC_BSS_BW(_x) \
+				(((_x) & IEEE80211_FC_BSS_BW) >> STYPE_S1G_BEACON_BSS_BW_OFFSET)
 
 #define IEEE80211AH_MCS7_1SS_RX_SUPPORT			(0x01)
 #define IEEE80211AH_MCS7_1SS_TX_SUPPORT			(0x02)
 
-
+#define WLAN_EID_S1G_OPEN_LOOP_LINK_MARGIN_IDX		(207)
 #define WLAN_EID_S1G_RPS				(208)
+#define WLAN_EID_PAGE_SLICE				(209)
+#define WLAN_EID_S1G_SECTOR_OPERATION			(212)
+#define WLAN_EID_CHANGE_SEQUENCE			(215)
+#define WLAN_EID_SUBCHANNEL_SELECTIVE_TRANSMISSION	(220)
 #define WLAN_EID_S1G_CAC				(222)
+#define WLAN_EID_TSF_TIMER_ACCURACY			(223)
+#define WLAN_EID_S1G_RELAY				(224)
+#define WLAN_EID_REACHABLE_ADDRESS			(225)
+#define WLAN_EID_S1G_RELAY_DISCOVERY			(226)
+#define WLAN_EID_PV1_PROBE_RESPONSE_OPTION		(229)
+#define WLAN_EID_EL_OPERATION				(230)
+#define WLAN_EID_SECTORIZED_GROUP_ID_LIST		(231)
+#define WLAN_EID_HEADER_COMPRESSION			(233)
+#define WLAN_EID_SST_OPERATION				(234)
+#define WLAN_EID_S1G_MAX_AWAY_DURATION			(235)
+#define WLAN_EID_S1G_RELAY_ACTIVATION			(236)
 
 #if KERNEL_VERSION(5, 10, 11) > MAC80211_VERSION_CODE
 #define IEEE80211_NDP_FTYPE_CF_END			(0)
@@ -102,94 +56,21 @@ enum trav_pilot_support {
 #define IEEE80211_NDP_FTYPE_PAGING			(6)
 #define IEEE80211_NDP_FTYPE_PREQ			(7)
 
+#define WLAN_EID_REDUCED_NEIGHBOR_REPORT		(201)
 #define WLAN_EID_AID_REQUEST				(210)
 #define WLAN_EID_AID_RESPONSE				(211)
 #define WLAN_EID_S1G_BCN_COMPAT				(213)
 #define WLAN_EID_S1G_SHORT_BCN_INTERVAL			(214)
 #define WLAN_EID_S1G_CAPABILITIES			(217)
 #define WLAN_EID_S1G_OPERATION				(232)
+#define WLAN_EID_CAG_NUMBER				(237)
+#define WLAN_EID_AP_CSN					(239)
+#define WLAN_EID_FILS_INDICATION			(240)
+#define WLAN_EID_DILS					(241)
 #define WLAN_EID_RSNX					(244)
 #endif
 
-#if KERNEL_VERSION(5, 10, 0) > MAC80211_VERSION_CODE
-#define S1G_CAP0_S1G_LONG			BIT(0)
-#define S1G_CAP0_SGI_1MHZ			BIT(1)
-#define S1G_CAP0_SGI_2MHZ			BIT(2)
-#define S1G_CAP0_SGI_4MHZ			BIT(3)
-#define S1G_CAP0_SGI_8MHZ			BIT(4)
-#define S1G_CAP0_SGI_16MHZ			BIT(5)
-#define S1G_CAP0_SUPP_CH_WIDTH			GENMASK(7, 6)
-
-#define S1G_SUPP_CH_WIDTH_2			0
-#define S1G_SUPP_CH_WIDTH_4			1
-#define S1G_SUPP_CH_WIDTH_8			2
-#define S1G_SUPP_CH_WIDTH_16			3
-#define S1G_SUPP_CH_WIDTH_MAX(cap) ((1 << FIELD_GET(S1G_CAP0_SUPP_CH_WIDTH, \
-						    cap[0])) << 1)
-
-#define S1G_CAP1_RX_LDPC			BIT(0)
-#define S1G_CAP1_TX_STBC			BIT(1)
-#define S1G_CAP1_RX_STBC			BIT(2)
-#define S1G_CAP1_SU_BFER			BIT(3)
-#define S1G_CAP1_SU_BFEE			BIT(4)
-#define S1G_CAP1_BFEE_STS			GENMASK(7, 5)
-
-#define S1G_CAP2_SOUNDING_DIMENSIONS		GENMASK(2, 0)
-#define S1G_CAP2_MU_BFER			BIT(3)
-#define S1G_CAP2_MU_BFEE			BIT(4)
-#define S1G_CAP2_PLUS_HTC_VHT			BIT(5)
-#define S1G_CAP2_TRAVELING_PILOT		GENMASK(7, 6)
-
-#define S1G_CAP3_RD_RESPONDER			BIT(0)
-#define S1G_CAP3_HT_DELAYED_BA			BIT(1)
-#define S1G_CAP3_MAX_MPDU_LEN			BIT(2)
-#define S1G_CAP3_MAX_AMPDU_LEN_EXP		GENMASK(4, 3)
-#define S1G_CAP3_MIN_MPDU_START			GENMASK(7, 5)
-
-#define S1G_CAP4_UPLINK_SYNC			BIT(0)
-#define S1G_CAP4_DYNAMIC_AID			BIT(1)
-#define S1G_CAP4_BAT				BIT(2)
-#define S1G_CAP4_TIME_ADE			BIT(3)
-#define S1G_CAP4_NON_TIM			BIT(4)
-#define S1G_CAP4_GROUP_AID			BIT(5)
-#define S1G_CAP4_STA_TYPE			GENMASK(7, 6)
-
-#define S1G_CAP5_CENT_AUTH_CONTROL		BIT(0)
-#define S1G_CAP5_DIST_AUTH_CONTROL		BIT(1)
-#define S1G_CAP5_AMSDU				BIT(2)
-#define S1G_CAP5_AMPDU				BIT(3)
-#define S1G_CAP5_ASYMMETRIC_BA			BIT(4)
-#define S1G_CAP5_FLOW_CONTROL			BIT(5)
-#define S1G_CAP5_SECTORIZED_BEAM		GENMASK(7, 6)
-
-#define S1G_CAP6_OBSS_MITIGATION		BIT(0)
-#define S1G_CAP6_FRAGMENT_BA			BIT(1)
-#define S1G_CAP6_NDP_PS_POLL			BIT(2)
-#define S1G_CAP6_RAW_OPERATION			BIT(3)
-#define S1G_CAP6_PAGE_SLICING			BIT(4)
-#define S1G_CAP6_TXOP_SHARING_IMP_ACK		BIT(5)
-#define S1G_CAP6_VHT_LINK_ADAPT			GENMASK(7, 6)
-
-#define S1G_CAP7_TACK_AS_PS_POLL		BIT(0)
-#define S1G_CAP7_DUP_1MHZ			BIT(1)
-#define S1G_CAP7_MCS_NEGOTIATION		BIT(2)
-#define S1G_CAP7_1MHZ_CTL_RESPONSE_PREAMBLE	BIT(3)
-#define S1G_CAP7_NDP_BFING_REPORT_POLL		BIT(4)
-#define S1G_CAP7_UNSOLICITED_DYN_AID		BIT(5)
-#define S1G_CAP7_SECTOR_TRAINING_OPERATION	BIT(6)
-#define S1G_CAP7_TEMP_PS_MODE_SWITCH		BIT(7)
-
-#define S1G_CAP8_TWT_GROUPING			BIT(0)
-#define S1G_CAP8_BDT				BIT(1)
-#define S1G_CAP8_COLOR				GENMASK(4, 2)
-#define S1G_CAP8_TWT_REQUEST			BIT(5)
-#define S1G_CAP8_TWT_RESPOND			BIT(6)
-#define S1G_CAP8_PV1_FRAME			BIT(7)
-
-#define S1G_CAP9_LINK_ADAPT_PER_CONTROL_RESPONSE BIT(0)
-
 #define S1G_OPER_CH_WIDTH_PRIMARY_1MHZ	BIT(0)
-#endif
 
 #define IEEE80211AH_AMPDU_SUPPORTED		(BIT(3))
 
@@ -348,7 +229,6 @@ struct morse_dot11ah_channel {
 	u16 hw_value_map;
 };
 
-
 enum station_type {
 	STA_TYPE_MIXED = 0x00,
 	STA_TYPE_SENSOR = 0x01,
@@ -426,9 +306,10 @@ static const int s1g_fc_bss_bw_lookup_max[8] = {
 	[7] = 16,
 };
 
-#define MORSE_IS_FC_BSS_BW_SUBFIELD_VALID(fc_bss_bw)	((fc_bss_bw != MORSE_FC_BSS_BW_INVALID) && \
-	(fc_bss_bw < ARRAY_SIZE(s1g_fc_bss_bw_lookup_min)) && \
-	(fc_bss_bw != MORSE_FC_BSS_BW_UNDEFINED))
+#define MORSE_IS_FC_BSS_BW_SUBFIELD_VALID(_fc_bss_bw) \
+	(((_fc_bss_bw) != MORSE_FC_BSS_BW_INVALID) && \
+	 ((_fc_bss_bw) < ARRAY_SIZE(s1g_fc_bss_bw_lookup_min)) && \
+	 ((_fc_bss_bw) != MORSE_FC_BSS_BW_UNDEFINED))
 
 /* TODO: replace with ieee80211_mgmt.s1g_assoc_resp defined now in K5.10 */
 struct morse_dot11ah_s1g_assoc_resp {
@@ -441,7 +322,7 @@ struct morse_dot11ah_s1g_assoc_resp {
 	__le16 capab_info;
 	__le16 status_code;
 	/* followed by Supported rates */
-	u8 variable[0];
+	u8 variable[];
 };
 
 struct morse_dot11ah_cssid_item {
@@ -452,9 +333,13 @@ struct morse_dot11ah_cssid_item {
 	u8 bssid[ETH_ALEN];
 	int ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	/** Set to true if beacon contains MESH ID otherwise false */
+	bool mesh_beacon;
 	int ies_len;
 	u8 *ies;
 	u8 fc_bss_bw_subfield;
+	/** Beacon interval */
+	u16 beacon_int;
 };
 
 enum morse_dot11ah_region {
@@ -488,9 +373,8 @@ struct dot11ah_short_beacon_ie {
 	__le16 short_beacon_int;
 } __packed;
 
-
 /* TODO: replace with ieee80211_s1g_bcn_compat_ie defined now in K5.10 */
-struct dot11ah_s1g_beacon_compatibility_ie {
+struct dot11ah_s1g_bcn_compat_ie {
 	__le16 information;
 	__le16 beacon_interval;
 	__le32 tsf_completion;
@@ -523,7 +407,7 @@ struct s1g_operation_params_expanded {
 	u8 op_bw;
 };
 
-/** CAC control field - 0: centralised control, 1: distributed control */
+/** CAC control field - 0: centralized control, 1: distributed control */
 #define DOT11AH_S1G_CAC_CONTROL		BIT(0)
 /** CAC deferral field - 0: use a threshold value, 1: use a deferral time */
 #define DOT11AH_S1G_CAC_DEFERRAL	BIT(1)
@@ -573,10 +457,12 @@ struct dot11ah_country_ie {
  * @len: Length of the individual information element value
  * @next: Pointer to next ie_element of the same element ID (if multiple of the same IE in a single
  * management frame eg. VENDOR_SPECIFIC or EXTENSION)
+ * @needs_free: Indicates 'ptr' is dynamically allocated and will need to be explicitly freed
  */
 struct ie_element {
-	const u8 *ptr;
+	u8 *ptr;
 	u8 len;
+	bool needs_free;
 	struct ie_element *next;
 };
 
@@ -637,8 +523,25 @@ int morse_dot11ah_s1g_to_11n_rx_packet_size(struct ieee80211_vif *vif,
 void morse_dot11ah_s1g_to_11n_rx_packet(struct ieee80211_vif *vif,
 	struct sk_buff *skb, int length_11n, struct dot11ah_ies_mask *ies_mask);
 
-int morse_dot11ah_11n_to_s1g_tx_packet_size(
-	struct ieee80211_vif *vif, struct sk_buff *skb, bool short_beacon, struct dot11ah_ies_mask *ies_mask);
+/**
+ * morse_dot11ah_s1g_to_probe_resp_ies_size() - Precompute size for IE translation.
+ * @ies_mask: Parsed S1G IEs.
+ *
+ * Return: length of buffer needed to hold translated IEs.
+ */
+int morse_dot11ah_s1g_to_probe_resp_ies_size(struct dot11ah_ies_mask *ies_mask);
+
+/**
+ * morse_dot11ah_s1g_to_probe_resp_ies() - Translate S1G Probe Response IEs.
+ * @ies_11n: Buffer to be populated with translated IEs.
+ * @length_11n: Length of @ies_11n.
+ * @ies_mask: Parsed S1G IEs.
+ *
+ * Use the companion function morse_dot11ah_s1g_to_probe_resp_ies_size()
+ * to compute the size of the buffer needed to hold the translated IEs.
+ */
+void morse_dot11ah_s1g_to_probe_resp_ies(u8 *ies_11n, int length_11n,
+					 struct dot11ah_ies_mask *ies_mask);
 
 struct dot11ah_ies_mask *morse_dot11ah_ies_mask_alloc(void);
 
@@ -648,13 +551,25 @@ void morse_dot11ah_mask_ies(struct dot11ah_ies_mask *ies_mask, bool mask_ext_cap
 
 void morse_dot11ah_ies_mask_clear(struct dot11ah_ies_mask *ies_mask);
 
-u8 *morse_dot11_insert_ie_from_ies_mask(u8 *pos, const struct dot11ah_ies_mask *ies_mask, int eid);
+u8 *morse_dot11_insert_ie_from_ies_mask(u8 *pos, const struct dot11ah_ies_mask *ies_mask, u8 eid);
 
+/**
+ * morse_dot11ah_11n_to_s1g_tx_packet() - translate the packet header only in place.
+ * @vif: pointer to the virtual interface
+ * @skb: pointer to the packet buffer
+ * @s1g_length: the input packet header length
+ * @short_beacon: indication for S1G short beacon packet
+ * @ies_mask: contains array of the packet information elements.
+ *
+ * It will translate the packet header only per type/subtype and will update the
+ * skb parameter with the new S1G header. It relies on an already parsed ies_mask
+ * from the input skb data. Any change to the IEs will be done in ies_mask which
+ * will be later consumed according to the standard order back into the skb.
+ */
 void morse_dot11ah_11n_to_s1g_tx_packet(struct ieee80211_vif *vif,
 	struct sk_buff *skb, int s1g_length, bool short_beacon, struct dot11ah_ies_mask *ies_mask);
 
-bool morse_mac_find_channel_info_for_bssid(
-	u8 bssid[ETH_ALEN], struct morse_channel_info *info);
+bool morse_mac_find_channel_info_for_bssid(u8 bssid[ETH_ALEN], struct morse_channel_info *info);
 
 int morse_dot11_find_bssid_on_channel(u32 op_chan_freq_hz, u8 bssid[ETH_ALEN]);
 
@@ -666,25 +581,51 @@ bool morse_dot11ah_find_s1g_caps_for_bssid(u8 *bssid, struct ieee80211_s1g_cap *
 
 bool morse_dot11ah_find_bss_bw(u8 *bssid, u8 *fc_bss_bw_subfield);
 
-bool morse_dot11ah_find_s1g_operation_for_ssid(
-	const char *ssid, size_t ssid_len, struct s1g_operation_parameters *params);
+bool morse_dot11ah_find_s1g_operation_for_ssid(const char *ssid, size_t ssid_len,
+					       struct s1g_operation_parameters *params);
 
-int morse_dot11ah_prim_1mhz_channel_loc_to_idx(
-	int op_bw_mhz, int pr_bw_mhz, int pr_chan_num, int chan_centre_freq_num, int chan_loc);
+/**
+ * morse_dot11ah_prim_1mhz_channel_loc_to_idx() - Convert primary 1MHz channel number to 1MHz index
+ * @op_bw_mhz: Operating bandwidth of the BSS
+ * @pr_bw_mhz: Bandwidth of the primary channel
+ * @pri_ch_num: Channel number of the primary channel
+ * @chan_centre_freq_num: Channel number of the operating channel - aka the centre frequency index
+ * @chan_loc: Location of the 1MHz primary within the 2MHz primary.
+ *
+ * Given the BSS channel parameters, determine the 1MHz primary channel index (0-7) within
+ * the operating channel. E.g. In an 8MHz BSS there are 8 x 1MHz channels, their location
+ * within the channel's spectrum can be referred to by an index of 0-7, index 0 being the
+ * lowest in the spectrum.
+ *
+ * Return: Index of the primary 1MHz channel within the operating channel, < 0 for invalid params
+ */
+int morse_dot11ah_prim_1mhz_chan_loc_to_idx(int op_bw_mhz, int pr_bw_mhz, int pr_chan_num,
+					    int chan_centre_freq_num, int chan_loc);
 
-int morse_dot11ah_calculate_primary_s1g_channel(
-	int op_bw_mhz, int pr_bw_mhz, int chan_centre_freq_num, int pr_1mhz_chan_idx);
+int morse_dot11ah_calc_prim_s1g_chan(int op_bw_mhz, int pr_bw_mhz,
+				     int chan_centre_freq_num, int pr_1mhz_chan_idx);
 
-int morse_dot11ah_calculate_primary_s1g_channel_loc(
-	int prim_cent_freq, int op_chan_centre_freq, int op_bw_mhz);
+int morse_dot11_calc_prim_s1g_chan_loc(int prim_cent_freq, int op_chan_centre_freq, int op_bw_mhz);
+
+/**
+ * morse_dot11ah_find_no_of_mesh_neighbors - Finds number of mesh neighbors available
+ * in the cssid list
+ * @beacon_int: beacon interval of the Mesh BSS.
+ *
+ * Return: Number of mesh neighbors available in the cssid list.
+ */
+int morse_dot11ah_find_no_of_mesh_neighbors(u16 beacon_int);
 
 int morse_dot11ah_channel_set_map(const char *alpha);
 
 int morse_update_reg_rules_to_country_ie(struct dot11ah_country_ie *country_ie,
-						int start_chan, int end_chan, int eirp, int reg_rule);
+					 int start_chan, int end_chan, int eirp, int reg_rule);
 
 const struct morse_dot11ah_channel
-	*morse_dot11ah_channel_get_s1g(struct ieee80211_channel *chan_5g);
+	*morse_dot11ah_s1g_freq_to_s1g(int freq, int bw);
+
+const struct morse_dot11ah_channel
+	*morse_dot11ah_5g_chan_to_s1g(struct ieee80211_channel *chan_5g);
 
 const struct morse_dot11ah_channel
 	*morse_dot11ah_channel_chandef_to_s1g(struct cfg80211_chan_def *chan_5g);
@@ -693,20 +634,102 @@ int morse_dot11ah_s1g_chan_to_5g_chan(int chan_s1g);
 
 u32 morse_dot11ah_channel_get_flags(int chan_s1g);
 
+/**
+ * morse_dot11ah_find_cssid() - Find the cssid list entry matching with given cssid.
+ * @cssid: the cssid to find
+ *
+ * Use of this function and any returned items must be protected with cssid_list_lock
+ * Please pass cssid generated from bssid while using morse_dot11ah_find_cssid for mesh networks.
+ * Otherwise, it is preferred to use morse_dot11ah_find_bssid to fetch cssid entry.
+ *
+ * Return: the cssid list entry if entry with matching cssid found.
+ */
 struct morse_dot11ah_cssid_item *morse_dot11ah_find_cssid(u32 cssid);
 
 struct morse_dot11ah_cssid_item *morse_dot11ah_find_bssid(u8 bssid[ETH_ALEN]);
 
-void morse_dot11ah_store_cssid(
-	u32 cssid, int length, const u8 *ssid, u16 capab_info, u8 *s1g_ies, int s1g_ies_len, u8 *bssid);
+/**
+ * morse_dot11ah_store_cssid() - Stores BSS information and S1G IEs.
+ * @ies_mask: contains array of information elements.
+ * @capab_info: capability information of the network.
+ * @s1g_ies: S1G information elements to store.
+ * @s1g_ies_len: length of the S1G information elements.
+ * @bssid: identifier of the BSS network.
+ *
+ * Stores BSS information and S1G IEs by creating unique identifier i.e, cssid
+ * from BSSID for mesh networks or from SSID IE for other type of networks.
+ *
+ * Return: cssid of the BSS network.
+ */
+u32 morse_dot11ah_store_cssid(struct dot11ah_ies_mask *ies_mask, u16 capab_info, u8 *s1g_ies,
+			      int s1g_ies_len, u8 *bssid);
 
-int morse_dot11ah_parse_ies(const u8 *start, size_t len, struct dot11ah_ies_mask *ies_mask);
+int morse_dot11ah_parse_ies(u8 *start, size_t len, struct dot11ah_ies_mask *ies_mask);
+
+/**
+ * morse_dot11_ies_create_ie_element() - creates or finds pointer for the given EID.
+ * @ies_mask: contains array of information elements.
+ * @eid: the ID of the information elements.
+ * @length: size of the EID data.
+ * @alloc: whether to dynamically allocate room for the given EID.
+ * @only_one: whether to allow a single entry for the given EID.
+ *
+ * This function handles 4 different cases of pointer creation/finding in the ies_mask:
+ * alloc allows the caller to decide if they need allocated memory for this field,
+ * or if existing memory can be relied upon. Relying on existing memory allows
+ * for use cases where the memory is stored in a buffer that will last at least
+ * as long as the ies_mask field itself, such as static memory or a pre-existing
+ * packet that will still exist after the ies_mask struct is done with. Allocated
+ * memory satisfies all other use cases.
+ *
+ * only_one adds a check to ensure that this operation isn't adding a new IE when
+ * there's already that's present. Warnings will be printed to dmesg if something
+ * already exists, and it will be overridden. If you deliberately want to override,
+ * clear it first. If only_one is false, the element will be added in addition to
+ * others for the same EID.
+ *
+ * Return: the new element pointer to copy to or NULL if no memory could be allocated.
+ */
+struct ie_element *morse_dot11_ies_create_ie_element(struct dot11ah_ies_mask *ies_mask,
+	u8 eid, int length, bool alloc, bool only_one);
 
 const u8 *morse_dot11_find_ie(u8 eid, const u8 *ies, int length);
 
 u8 *morse_dot11_insert_ie(u8 *dst, const u8 *src, u8 eid, u8 len);
 
 u8 *morse_dot11_insert_ie_no_header(u8 *dst, const u8 *src, u8 len);
+
+/**
+ * morse_dot11_clear_eid_from_ies_mask() - Free/clear EID entry from ies_mask.
+ * @ies_mask: array containing information elements to be freed/cleared
+ * @eid: the ID of the information elements.
+ *
+ * Traverse through the EID entry and its linked list (if set) and free any
+ * dynamically allocated element. It will set its entry pointer to NULL and
+ * reset len to zero.
+ */
+void morse_dot11_clear_eid_from_ies_mask(struct dot11ah_ies_mask *ies_mask, u8 eid);
+
+/**
+ * morse_dot11_insert_ordered_ies_from_ies_mask() - Insert ordered EID and calculate their size.
+ * @pos: The buffer to insert the IEs into
+ * @ies_mask: array containing information elements to be inserted
+ * @frame_control: frame control octets from mgmt frame
+ *
+ * Inserts the required information elements to the frame. The frames inserted
+ * are decided based on the frame_control param. The function also can be used
+ * to determine the size required for SKB, this is achieved by passing pos as
+ * NULL. It is mandatory to support this function with a matching
+ * morse_mgmt_<frame_type_subtype>_ies_order[] and there to indicate the required
+ * information elements and their order, otherwise the variable part of the frame
+ * will not be updated in transmit path.
+ *
+ * Return: The total size of the IES(included header) to be inserting for the
+ * given frame_control type.
+ */
+int morse_dot11_insert_ordered_ies_from_ies_mask(struct sk_buff *skb, u8 *pos,
+					struct dot11ah_ies_mask *ies_mask,
+					__le16 frame_control);
 
 const struct morse_reg_rule *morse_regdom_get_rule_for_freq(const char *alpha, int frequency);
 
@@ -775,4 +798,59 @@ u16 morse_dot11ah_5g_chan_to_s1g_ch(u8 chan_5g, u8 op_class);
 int morse_mac_set_country_info_from_regdom(const struct morse_regdomain *morse_domain,
 					struct s1g_operation_parameters *params,
 					struct dot11ah_country_ie *country_ie);
+
+/**
+ * morse_dot11ah_insert_element() - Insert dynamically allocated EID into ies_mask
+ * @ies_mask: array containing information elements to be inserted
+ * @eid: the ID of the information elements.
+ * @data: eid data to copy into the dynamically allocated ies_mask entry
+ * @length: the eid data length
+ *
+ * Allocating memory for the input data and allowing only one instance of the eid.
+ */
+void morse_dot11ah_insert_element(struct dot11ah_ies_mask *ies_mask, u8 eid,
+				const u8 *data, int length);
+
+/**
+ * morse_dot11ah_is_mesh_peer_known() - Find Mesh Peer with matching BSSID
+ *
+ * @peer_mac_addr: MAC address of Mesh Peer to search for in CSSID list
+ *
+ * Return: true on finding the peer or false on not finding
+ */
+bool morse_dot11ah_is_mesh_peer_known(const u8 *peer_mac_addr);
+
+/**
+ * morse_dot11ah_add_mesh_peer() - Stores Mesh Peer into CSSID list
+ *
+ * @ies_mask: contains array of information elements.
+ * @capab_info: capability information of the network.
+ * @peer_mac_addr: MAC address of Mesh Peer to add to CSSID list.
+ *
+ * Stores BSS information and S1G IEs by creating unique identifier i.e, cssid
+ * from BSSID for mesh networks or from SSID IE for other type of networks.
+ *
+ * Return: cssid of the BSS network.
+ */
+bool morse_dot11ah_add_mesh_peer(struct dot11ah_ies_mask *ies_mask,
+	u16 capab_info, const u8 *peer_mac_addr);
+
+/**
+ * morse_dot11ah_del_mesh_peer() - Delete Mesh Peer with matching BSSID
+ *
+ * @peer_mac_addr: MAC address of Mesh Peer to delete from CSSID list
+ *
+ * Return: true on finding the peer or false on not finding
+ */
+bool morse_dot11ah_del_mesh_peer(const u8 *peer_mac_addr);
+
+/**
+ * morse_dot11ah_is_page_slicing_enabled_on_bss() - Checks if page slicing is enabled in AP(BSS).
+ *
+ * @bssid: identifier of the BSS network.
+ *
+ * Return: True if page slicing is enabled.
+ */
+bool morse_dot11ah_is_page_slicing_enabled_on_bss(u8 *bssid);
+
 #endif  /* !_MORSE_DOT11AH_H_ */

@@ -6,38 +6,36 @@
 #define _MORSE_CHIP_IF_H_
 
 #include "pageset.h"
-#include "yaps.h"
 #include "pager_if_hw.h"
 #include "pager_if_sw.h"
-#include "yaps-hw.h"
+
 
 /** Chip IF interrupt mask. We may use any interrupts in this range */
-#define MORSE_CHIP_IF_IRQ_MASK_ALL	(GENMASK(13, 0))
+#define MORSE_CHIP_IF_IRQ_MASK_ALL	(GENMASK(13, 0) | \
+			MORSE_PAGER_IRQ_BYPASS_TX_STATUS_AVAILABLE)
 
 enum morse_chip_if_flags {
-	MORSE_CHIP_IF_FLAGS_DIR_TO_HOST =		BIT(0),
-	MORSE_CHIP_IF_FLAGS_DIR_TO_CHIP =		BIT(1),
-	MORSE_CHIP_IF_FLAGS_COMMAND =			BIT(2),
+	MORSE_CHIP_IF_FLAGS_DIR_TO_HOST = BIT(0),
+	MORSE_CHIP_IF_FLAGS_DIR_TO_CHIP = BIT(1),
+	MORSE_CHIP_IF_FLAGS_COMMAND = BIT(2),
 	/* Note: There is no support for beacon-specific pagesets yet */
-	MORSE_CHIP_IF_FLAGS_BEACON =			BIT(3),
-	MORSE_CHIP_IF_FLAGS_DATA =			BIT(4)
+	MORSE_CHIP_IF_FLAGS_BEACON = BIT(3),
+	MORSE_CHIP_IF_FLAGS_DATA = BIT(4)
 };
 
 enum morse_chip_if {
 	MORSE_CHIP_IF_PAGESET,
-	MORSE_CHIP_IF_YAPS
 };
 
 /** Event flags for talking to chip interface from skbq or pager */
 enum morse_chip_if_event_flags {
 	MORSE_RX_PEND,
-	MORSE_PAGE_RETURN_PEND,	/* Not relevant for YAPS */
+	MORSE_PAGE_RETURN_PEND,
 	MORSE_TX_COMMAND_PEND,
 	MORSE_TX_BEACON_PEND,
 	MORSE_TX_MGMT_PEND,
 	MORSE_TX_DATA_PEND,
 	MORSE_TX_PACKET_FREED_UP_PEND,
-	MORSE_YAPS_STATUS_REG_READ_PEND,
 	MORSE_DATA_TRAFFIC_PAUSE_PEND,
 	MORSE_DATA_TRAFFIC_RESUME_PEND,
 };
@@ -87,7 +85,7 @@ struct chip_if_ops {
 	 *
 	 * @returns command skbq
 	 */
-	struct morse_skbq * (*skbq_cmd_tc_q)(struct morse *mors);
+	struct morse_skbq *(*skbq_cmd_tc_q)(struct morse *mors);
 
 	/**
 	 * Gets the beacon skbq
@@ -95,7 +93,7 @@ struct chip_if_ops {
 	 *
 	 * @returns beacon skbq
 	 */
-	struct morse_skbq * (*skbq_bcn_tc_q)(struct morse *mors);
+	struct morse_skbq *(*skbq_bcn_tc_q)(struct morse *mors);
 
 	/**
 	 * Gets the mgmt skbq
@@ -103,7 +101,7 @@ struct chip_if_ops {
 	 *
 	 * @returns mgmt skbq
 	 */
-	struct morse_skbq * (*skbq_mgmt_tc_q)(struct morse *mors);
+	struct morse_skbq *(*skbq_mgmt_tc_q)(struct morse *mors);
 
 	/**
 	 * Gets the tx skbq associated with given aci
@@ -112,10 +110,10 @@ struct chip_if_ops {
 	 *
 	 * @returns skbq for skbs of given aci
 	 */
-	struct morse_skbq * (*skbq_tc_q_from_aci)(struct morse *mors, int aci);
+	struct morse_skbq *(*skbq_tc_q_from_aci)(struct morse *mors, int aci);
 
 	/**
-	 * A callback that is called when a hostync interrupt is raised
+	 * A callback that is called when a hostsync interrupt is raised
 	 * @mors: Morse object
 	 * @status: Hostsync interrupt register (bitmask of hostsync IRQs)
 	 *
@@ -154,13 +152,15 @@ struct morse_chip_if_state {
 			struct morse_pageset *pagesets;
 			struct morse_pageset *to_chip_pageset;
 			struct morse_pageset *from_chip_pageset;
-		};
-		struct {
-			struct morse_yaps *yaps;
+			u32 tx_status_addr_location;
+			DECLARE_KFIFO(tx_status_addrs, u32,
+				       MORSE_PAGER_BYPASS_TX_STATUS_FIFO_DEPTH);
+			struct morse_pager_pkt_memory pkt_memory;
 		};
 	};
 	/* See enum morse_chip_if_event_flags for values */
 	unsigned long event_flags;
+	bool validate_skb_checksum;
 };
 
 struct morse_chip_if_host_table {
@@ -173,7 +173,6 @@ struct morse_chip_if_host_table {
 			u32 pager_count;
 			struct morse_pager_hw_entry pager_table[];
 		} __packed;
-		struct morse_yaps_hw_table yaps_info;
 	};
 } __packed;
 

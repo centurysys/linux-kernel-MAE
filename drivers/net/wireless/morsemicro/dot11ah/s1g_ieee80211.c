@@ -15,27 +15,6 @@
  * This should include all modified/missing bits from ieee80211
  */
 
-#if KERNEL_VERSION(5, 10, 11) > MAC80211_VERSION_CODE
-
-u32 ieee80211_channel_to_freq_khz(int chan, enum nl80211_band_s1g band)
-{
-	/* see 802.11 17.3.8.3.2 and Annex J
-	 * there are overlapping channel numbers in 5GHz and 2GHz bands
-	 */
-	if (chan <= 0)
-		return 0; /* not supported */
-	switch (band) {
-	case NL80211_BAND_S1GHZ:
-		return 902000 + chan * 500;
-	default:
-		break;
-	}
-	return 0; /* not supported */
-}
-EXPORT_SYMBOL(ieee80211_channel_to_freq_khz);
-
-#endif
-
 /*
  * This is patched by Morse to support S1G
  */
@@ -55,9 +34,9 @@ int __ieee80211_freq_khz_to_channel(u32 freq)
 				return (freq - 902000) / 500;
 			/* Otherwise use the EU freq offset */
 			return (freq - 901400) / 500;
-			}
-		else
+		} else {
 			return (freq - 863000) / 500;
+		}
 	}
 
 	/* TODO: just handle MHz for now */
@@ -83,4 +62,22 @@ int __ieee80211_freq_khz_to_channel(u32 freq)
 		return 0;
 }
 
+void morse_unii4_band_chan_to_op_class(struct cfg80211_chan_def *chandef, u8 *op_class)
+{
+	u32 freq_5g = chandef->center_freq1;
 
+	if (freq_5g >= 5855 && freq_5g <= 5885) {
+		if (chandef->width ==  NL80211_CHAN_WIDTH_160) {
+			*op_class = 129;
+		} else if (chandef->width == NL80211_CHAN_WIDTH_80) {
+			*op_class = 128;
+		} else if (chandef->width == NL80211_CHAN_WIDTH_40) {
+			if (freq_5g > chandef->chan->center_freq)
+				*op_class = 126;
+			else
+				*op_class = 127;
+		} else {
+			*op_class = 125;
+		}
+	}
+}

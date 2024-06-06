@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 Morse Micro
+ * Copyright 2017-2023 Morse Micro
  *
  */
 
@@ -17,17 +17,17 @@
 #include "uaccess.h"
 #include "bus.h"
 
-#define MORSE_DEV_NAME               "morse"
-#define MORSE_DEV_FILE               MORSE_DEV_NAME"_io"
-#define MORSE_NUM_OF_UACCESS_DEVICES 4
-#define MORSE_DEV_PERMISSIONS        0666
-#define UACCESS_BUFFER_SIZE          ((size_t)(64*512))
+#define MORSE_DEV_NAME			"morse"
+#define MORSE_DEV_FILE			MORSE_DEV_NAME "_io"
+#define MORSE_NUM_OF_UACCESS_DEVICES	4
+#define MORSE_DEV_PERMISSIONS		0666
+#define UACCESS_BUFFER_SIZE		((size_t)(64 * 512))
 
 struct uaccess_file_descriptor {
-	struct morse	*mors;
-	u8		*data;
-	u32		address;
-	struct mutex	lock;
+	struct morse *mors;
+	u8 *data;
+	u32 address;
+	struct mutex lock;
 };
 
 int uaccess_major;
@@ -40,11 +40,11 @@ int uaccess_nr_devs = MORSE_NUM_OF_UACCESS_DEVICES;
 static int uaccess_open(struct inode *inode, struct file *filp)
 {
 	int ret = 0;
-	struct uaccess_device *dev = NULL; /*  device information */
+	struct uaccess_device *dev = NULL;	/*  device information */
 	struct uaccess_file_descriptor *des = NULL;
 
 	dev = container_of(inode->i_cdev, struct uaccess_device, cdev);
-	des = kzalloc(sizeof(struct uaccess_file_descriptor), GFP_KERNEL);
+	des = kzalloc(sizeof(*des), GFP_KERNEL);
 	if (!des) {
 		ret = -ENOMEM;
 		goto exit;
@@ -79,10 +79,7 @@ static int uaccess_release(struct inode *inode, struct file *filp)
 /*
  * Data management: read and write
  */
-static ssize_t uaccess_write(struct file *filp,
-		const char __user *buf,
-		size_t count,
-		loff_t *f_pos)
+static ssize_t uaccess_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	ssize_t ret = 0;
 	struct uaccess_file_descriptor *des = filp->private_data;
@@ -90,7 +87,7 @@ static ssize_t uaccess_write(struct file *filp,
 	if (mutex_lock_interruptible(&des->lock))
 		return -ERESTARTSYS;
 	if (copy_from_user(des->data, buf, count)) {
-		morse_pr_err("copy_from_user failed\n");
+		MORSE_PR_ERR(FEATURE_ID_DEFAULT, "copy_from_user failed\n");
 		ret = -EFAULT;
 	} else {
 		count = min(count, UACCESS_BUFFER_SIZE);
@@ -101,26 +98,25 @@ static ssize_t uaccess_write(struct file *filp,
 
 			value = cpu_to_le32(value);
 			ret = morse_reg32_write(des->mors, des->address, value);
-		} else
-			ret = morse_dm_write(des->mors, des->address,
-						(u8 *)des->data, count);
+		} else {
+			ret = morse_dm_write(des->mors, des->address, (u8 *)des->data, count);
+		}
 		morse_release_bus(des->mors);
 
 		if (ret < 0) {
-			morse_pr_err("write failed (errno=%zu, address=0x%04X, length=%zu bytes)\n",
-				ret, des->address, count);
+			MORSE_PR_ERR(FEATURE_ID_DEFAULT,
+				     "write failed (errno=%zu, address=0x%04X, length=%zu bytes)\n",
+				     ret, des->address, count);
 			ret = -EFAULT;
-		} else
+		} else {
 			ret = count;
+		}
 	}
 	mutex_unlock(&des->lock);
 	return ret;
 }
 
-static ssize_t uaccess_read(struct file *filp,
-		char __user *buf,
-		size_t count,
-		loff_t *f_pos)
+static ssize_t uaccess_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
 {
 	ssize_t ret = 0;
 	struct uaccess_file_descriptor *des = filp->private_data;
@@ -130,17 +126,16 @@ static ssize_t uaccess_read(struct file *filp,
 	count = min(count, UACCESS_BUFFER_SIZE);
 
 	morse_claim_bus(des->mors);
-	if (count == sizeof(u32)) {
-		ret = morse_reg32_read(des->mors, des->address,
-					(u32 *)des->data);
-	} else
-		ret = morse_dm_read(des->mors, des->address,
-					(u8 *)des->data, count);
+	if (count == sizeof(u32))
+		ret = morse_reg32_read(des->mors, des->address, (u32 *)des->data);
+	else
+		ret = morse_dm_read(des->mors, des->address, (u8 *)des->data, count);
 	morse_release_bus(des->mors);
 
 	if (ret < 0) {
-		morse_pr_err("read failed (errno=%zu, address=0x%04X, length=%zu bytes)\n",
-				ret, des->address, count);
+		MORSE_PR_ERR(FEATURE_ID_DEFAULT,
+			     "read failed (errno=%zu, address=0x%04X, length=%zu bytes)\n",
+			     ret, des->address, count);
 		ret = -EFAULT;
 	} else {
 		ret = count;
@@ -155,46 +150,42 @@ static ssize_t uaccess_read(struct file *filp,
 /*
  * The ioctl() implementation
  */
-static long uaccess_ioctl(struct file *filp,
-			unsigned int cmd,
-			unsigned long arg)
+static long uaccess_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
 	int ret = 0;
 	struct uaccess_file_descriptor *des = filp->private_data;
-	/*  extract the type and number bitfields
-	 *  sanity check: return ENOTTY (inappropriate ioctl) before
-	 *  access_ok()
+
+	/* Extract the type and number bitfields.
+	 * Sanity check: return ENOTTY (inappropriate ioctl) before access_ok().
 	 */
-	if ((_IOC_TYPE(cmd) != UACCESS_IOC_MAGIC) ||
-			(_IOC_NR(cmd) > UACCESS_IOC_MAXNR)) {
-		morse_pr_err("Wrong ioctl command parameters\n");
+	if ((_IOC_TYPE(cmd) != UACCESS_IOC_MAGIC) || (_IOC_NR(cmd) > UACCESS_IOC_MAXNR)) {
+		MORSE_PR_ERR(FEATURE_ID_DEFAULT, "Wrong ioctl command parameters\n");
 		ret = -ENOTTY;
 		goto exit;
 	}
-	/*  the direction is a bitmask, and VERIFY_WRITE catches R/W
-	 *  transfers. `Type' is user-oriented, while access_ok is
-	    kernel-oriented, so the concept of "read" and "write" is reversed
+
+	/* The direction is a bitmask, and VERIFY_WRITE catches R/W transfers.
+	 * `Type' is user-oriented while access_ok is kernel-oriented, so the concept of 'read'
+	 * and 'write' is reversed.
 	 */
 	if (_IOC_DIR(cmd) & _IOC_READ) {
-		err = !access_ok(
 #if KERNEL_VERSION(5, 4, 83) > LINUX_VERSION_CODE
-			VERIFY_WRITE,
+		err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+#else
+		err = !access_ok((void __user *)arg, _IOC_SIZE(cmd));
 #endif
-			(void __user *)arg,
-				_IOC_SIZE(cmd));
 	} else {
-		if (_IOC_DIR(cmd) & _IOC_WRITE) {
-			err =  !access_ok(
+		if (_IOC_DIR(cmd) & _IOC_WRITE)
 #if KERNEL_VERSION(5, 4, 83) > LINUX_VERSION_CODE
-				VERIFY_READ,
+			err =  !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+#else
+			err =  !access_ok((void __user *)arg, _IOC_SIZE(cmd));
 #endif
-				(void __user *)arg,
-					_IOC_SIZE(cmd));
-		}
 	}
+
 	if (err) {
-		morse_pr_err("Wrong ioctl access direction\n");
+		MORSE_PR_ERR(FEATURE_ID_DEFAULT, "Wrong ioctl access direction\n");
 		ret = -EFAULT;
 		goto exit;
 	}
@@ -204,12 +195,10 @@ static long uaccess_ioctl(struct file *filp,
 
 	switch (cmd) {
 	case UACCESS_IOC_SET_ADDRESS:
-		{
-			des->address = (u32)arg;
-		}
+		des->address = (u32)arg;
 		break;
-	default:  /*  redundant, as cmd was checked against MAXNR */
-		morse_pr_warn("Redundant IOCTL\n");
+	default:		/*  redundant, as cmd was checked against MAXNR */
+		MORSE_PR_WARN(FEATURE_ID_DEFAULT, "Redundant IOCTL\n");
 		ret = -ENOTTY;
 	}
 
@@ -227,9 +216,7 @@ static const struct file_operations uaccess_fops = {
 	.release = uaccess_release,
 };
 
-int uaccess_device_register(struct morse *mors,
-		struct uaccess *uaccess,
-		struct device *parent)
+int uaccess_device_register(struct morse *mors, struct uaccess *uaccess, struct device *parent)
 {
 	int ret = 0;
 	struct uaccess_device *dev = &mors->udev;
@@ -244,27 +231,25 @@ int uaccess_device_register(struct morse *mors,
 
 	/*  Fail gracefully if need be */
 	if (ret) {
-		morse_pr_err("Error %d adding user access device '%s'",
-			ret, MORSE_DEV_FILE);
+		MORSE_PR_ERR(FEATURE_ID_DEFAULT,
+			     "Error %d adding user access device '%s'", ret, MORSE_DEV_FILE);
 		goto exit;
 	}
 
 	/*  create a /dev entry for uaccess drivers */
-	new_device = device_create(uaccess->drv_class, parent, devno, NULL,
-				   "%s", MORSE_DEV_FILE);
+	new_device = device_create(uaccess->drv_class, parent, devno, NULL, "%s", MORSE_DEV_FILE);
 	if (!new_device) {
-		morse_pr_err("Can't create device node '/dev/%s'\n",
-			MORSE_DEV_FILE);
+		MORSE_PR_ERR(FEATURE_ID_DEFAULT,
+			     "Can't create device node '/dev/%s'\n", MORSE_DEV_FILE);
 		goto cleanup;
 	}
 
-	/* TODO: Allocate communication memroy */
+	/* TODO: Allocate communication memory */
 	dev->uaccess = uaccess;
 	dev->device = new_device;
 	dev->mors = mors;
 
-	pr_info("%s: Device node '/dev/%s' created successfully\n",
-		MORSE_DEV_FILE, MORSE_DEV_FILE);
+	pr_info("%s: Device node '/dev/%s' created successfully\n", MORSE_DEV_FILE, MORSE_DEV_FILE);
 	goto exit;
 cleanup:
 	dev->device = NULL;
@@ -291,7 +276,7 @@ struct uaccess *uaccess_alloc(void)
 {
 	struct uaccess *uaccess;
 
-	uaccess = kzalloc(sizeof(struct uaccess), GFP_KERNEL);
+	uaccess = kzalloc(sizeof(*uaccess), GFP_KERNEL);
 	if (!uaccess)
 		return ERR_PTR(-ENOMEM);
 
@@ -307,15 +292,13 @@ int uaccess_init(struct uaccess *uaccess)
 	/*  major unless directed otherwise at load time. */
 	if (uaccess_major) {
 		devno = MKDEV(uaccess_major, uaccess_minor);
-		ret = register_chrdev_region(devno, uaccess_nr_devs,
-				MORSE_DEV_NAME);
+		ret = register_chrdev_region(devno, uaccess_nr_devs, MORSE_DEV_NAME);
 	} else {
-		ret = alloc_chrdev_region(&devno, uaccess_minor,
-				uaccess_nr_devs, MORSE_DEV_NAME);
+		ret = alloc_chrdev_region(&devno, uaccess_minor, uaccess_nr_devs, MORSE_DEV_NAME);
 		uaccess_major = MAJOR(devno);
 	}
 	if (ret < 0) {
-		morse_pr_err("uaccess can't get major %d\n", uaccess_major);
+		MORSE_PR_ERR(FEATURE_ID_DEFAULT, "uaccess can't get major %d\n", uaccess_major);
 		goto exit;
 	}
 	pr_info("uaccess char driver major number is %d\n", uaccess_major);
@@ -324,7 +307,7 @@ int uaccess_init(struct uaccess *uaccess)
 	uaccess->drv_class = class_create(THIS_MODULE, MORSE_DEV_NAME);
 	if (IS_ERR(uaccess->drv_class)) {
 		ret = -ENOMEM;
-		morse_pr_err(MORSE_DEV_NAME " class_create failed\n");
+		MORSE_PR_ERR(FEATURE_ID_DEFAULT, MORSE_DEV_NAME " class_create failed\n");
 		goto unregister_region;
 	}
 	return 0;
@@ -336,7 +319,7 @@ exit:
 
 void uaccess_cleanup(struct uaccess *uaccess)
 {
-	if (uaccess != NULL && !IS_ERR(uaccess->drv_class)) {
+	if (uaccess && !IS_ERR(uaccess->drv_class)) {
 		/* We have a valid init */
 		dev_t devno = MKDEV(uaccess_major, uaccess_minor);
 

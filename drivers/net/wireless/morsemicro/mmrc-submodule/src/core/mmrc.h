@@ -34,15 +34,31 @@
 /**
  * Rate upper limit for attempts
  */
-#define MMRC_MAX_CHAIN_ATTEMPTS 1
+#define MMRC_MAX_CHAIN_ATTEMPTS 2
+
+#ifndef MMRC_SUPP_NUM_MCS
+#define MMRC_SUPP_NUM_MCS	(MMRC_MCS7 + 1)
+#endif
+#ifndef MMRC_SUPP_NUM_BW
+#define MMRC_SUPP_NUM_BW	(MMRC_BW_8MHZ + 1)
+#endif
+#ifndef MMRC_SUPP_NUM_GUARD
+#define MMRC_SUPP_NUM_GUARD	(MMRC_GUARD_SHORT + 1)
+#endif
+#ifndef MMRC_SUPP_NUM_NSS
+#define MMRC_SUPP_NUM_NSS	(MMRC_SPATIAL_STREAM_1 + 1)
+#endif
 
 /**
- * The max size of a probability table for a STA
+ * The default rows of a probability table for a STA.
+ * It is derived from hardware support of: 1/2/4/8 MHz, L/SGI,
+ * 4 NSS and 10 MCS [0..9] and MCS10 twice for 1 MHz channels only.
  *
- * Max 8 MHz and 1 SS supported for now
+ * E.g. For MCS 0-7, BW 1,2,4,8 MHz, LGI and SGI, 1SS, MCS10
+ * Total: (8 mcs) * (4 bandwidths) * (2 GI) * (1 NSS) + (2 MCS10) = 66
  */
-#define MMRC_MAX_TABLE_SIZE (MMRC_GUARD_MAX * (MMRC_BW_8MHZ + 1) * \
-				(MMRC_SPATIAL_STREAM_1 + 1) * MMRC_MCS_MAX)
+#define MMRC_DEFAULT_TABLE_SIZE	\
+	((MMRC_SUPP_NUM_MCS * MMRC_SUPP_NUM_BW * MMRC_SUPP_NUM_GUARD * MMRC_SUPP_NUM_NSS) + 2)
 
 /**
  * The frequency of MMRC stat table updates
@@ -54,7 +70,6 @@
  */
 #define MMRC_MASK(x) (1u << (x))
 
-
 /**
  * Flags to be used with a mmrc_rate
  */
@@ -63,13 +78,11 @@ enum mmrc_flags {
 	MMRC_FLAGS_CTS_RTS,
 };
 
-
 /**
  * Rates supported by the MMRC module
  */
 enum mmrc_mcs_rate {
-	MMRC_MCS_UNUSED = -1,
-	MMRC_MCS0 = 0,
+	MMRC_MCS0,
 	MMRC_MCS1,
 	MMRC_MCS2,
 	MMRC_MCS3,
@@ -82,73 +95,77 @@ enum mmrc_mcs_rate {
 #if MMRC_MODE == MMRC_MODE_80211AH
 	MMRC_MCS10,
 #endif
-	MMRC_MCS_MAX,
+	MMRC_MCS_UNUSED,
 };
-
 
 /**
  * Bandwidths supported by the MMRC module
  */
 enum mmrc_bw {
-#if MMRC_MODE == MMRC_MODE_80211AH
-	MMRC_BW_1MHZ,
-#endif
-	MMRC_BW_2MHZ,
-	MMRC_BW_4MHZ,
-	MMRC_BW_8MHZ,
-	MMRC_BW_16MHZ,
-	MMRC_BW_MAX,
+	MMRC_BW_1MHZ	= 0,
+	MMRC_BW_2MHZ	= 1,
+	MMRC_BW_4MHZ	= 2,
+	MMRC_BW_8MHZ	= 3,
+	MMRC_BW_16MHZ	= 4,
+	MMRC_BW_20MHZ	= MMRC_BW_1MHZ,
+	MMRC_BW_40MHZ	= MMRC_BW_2MHZ,
+	MMRC_BW_80MHZ	= MMRC_BW_4MHZ,
+	MMRC_BW_160MHZ	= MMRC_BW_8MHZ,
+	MMRC_BW_MAX	= 5,
 };
-
 
 /**
  * Spatial streams supported by the MMRC module
  */
 enum mmrc_spatial_stream {
-	MMRC_SPATIAL_STREAM_1,
-	MMRC_SPATIAL_STREAM_2,
-	MMRC_SPATIAL_STREAM_3,
-	MMRC_SPATIAL_STREAM_4,
+	MMRC_SPATIAL_STREAM_1	= 0,
+	MMRC_SPATIAL_STREAM_2	= 1,
+	MMRC_SPATIAL_STREAM_3	= 2,
+	MMRC_SPATIAL_STREAM_4	= 3,
 	MMRC_SPATIAL_STREAM_MAX,
 };
-
 
 /**
  * Guards supported by the MMRC module
  */
 enum mmrc_guard {
-	MMRC_GUARD_LONG,
-	MMRC_GUARD_SHORT,
+	MMRC_GUARD_LONG		= 0,
+	MMRC_GUARD_SHORT	= 1,
 	MMRC_GUARD_MAX,
 };
 
+#define MMRC_RATE_TO_BITFIELD(x)     ((x) & 0xF)
+#define MMRC_ATTEMPTS_TO_BITFIELD(x) ((x) & 0x7)
+#define MMRC_GUARD_TO_BITFIELD(x)    ((x) & 0x1)
+#define MMRC_SS_TO_BITFIELD(x)       ((x) & 0x3)
+#define MMRC_BW_TO_BITFIELD(x)       ((x) & 0x7)
+#define MMRC_FLAGS_TO_BITFIELD(x)    ((x) & 0x7)
 
 /**
  * A single rate chain
  */
 struct mmrc_rate {
 	/** The MCS for this entry in the rate table */
-	enum mmrc_mcs_rate rate;
+	u8 rate		: 4;
 
 	/** The number of attempts at this rate */
-	uint32_t attempts;
+	u8 attempts	: 3;
 
-	/** The Guard to be used for this rate */
-	enum mmrc_guard guard;
+	/** The guard to be used for this rate */
+	u8 guard	: 1;
 
 	/** The spatial streams to be used for this rate */
-	enum mmrc_spatial_stream ss;
+	u8 ss		: 2;
 
 	/** The bandwidth for this rate */
-	enum mmrc_bw bw;
+	u8 bw		: 3;
 
 	/** The flags for this rate */
-	uint16_t flags;
+	u8 flags	: 3;
 
 	/** The index in the mmrc_table */
-	uint16_t index;
+	u16 index;
 };
-
 
 /**
  * Rate table generated on a per packet basis
@@ -158,77 +175,85 @@ struct mmrc_rate_table {
 	struct mmrc_rate rates[MMRC_MAX_CHAIN_LENGTH];
 };
 
+#define GUARD_PER_BW(bw, guard)		(MMRC_MASK(guard) << (2 * (bw)))
 
 /**
  * Capabilities of an individual STA
  */
 struct mmrc_sta_capabilities {
 	/** The maximum number of output rates */
-	uint8_t max_rates;
+	u8 max_rates	: 3;
 
 	/** The maximum retries */
-	uint8_t max_retries;
+	u8 max_retries	: 3;
 
-	/** The supported bandwidths of the STA */
-	uint16_t bandwidth;
+	/** The supported bandwidths of the STA (bitfield) */
+	u8 bandwidth	: 5;
 
-	/** The supported spatial streams of the STA */
-	uint16_t spatial_streams;
+	/** The supported spatial streams of the STA (bitfield) */
+	u8 spatial_streams	: 4;
 
-	/** The supported rates of the STA */
-	uint16_t rates;
+	/** The supported rates of the STA (bitfield) */
+	u16 rates	: 11;
 
-	/** The supported guards of the STA */
-	uint8_t guard;
-	uint8_t guard_per_bw[MMRC_BW_MAX];
+	/** The supported guards of the STA (bitfield) */
+	u8 guard	: 2;
 
-	/** Flag of relevant features supported by the STA. e.g. dynamic SMPS... */
-	uint16_t sta_flags;
+	/** Flags of relevant features supported by the STA, e.g. dynamic SMPS... */
+	u8 sta_flags	: 4;
+
+	/** Per BW supported guards of the STA (2 bits per BW) */
+	u16 guard_per_bw	: 10;
 };
-
 
 /**
  * Statistics table of a STA
  */
 struct mmrc_stats_table {
+	/** The average calculated running throughput counter of this rate */
+	u32 avg_throughput_counter;
+
+	/** The average running throughput sum of this rate */
+	u32 sum_throughput;
+
+	/** The maximum observed calculated throughput of this rate */
+	u32 max_throughput;
+
+	/** The number of attempts at sending a packet at this rate since the last update */
+	u16 sent;
+
+	/** The number of successfully sent packets at this rate since the last	update */
+	u16 sent_success;
+
+	/** The number of succesful MPDUs in acknowledged AMPDUs at this rate since the
+	 * last update
+	 */
+	u16 back_mpdu_success;
+
+	/** The number of failed MPDUs in acknowledged AMPDUs at this rate since the last update */
+	u16 back_mpdu_failure;
+
+	/** The total attempts of packets sent at this rate */
+	u32 total_sent;
+
+	/** The total successful attempts at sending at this rate */
+	u32 total_success;
+	/**
+	 * A store of evidence as to how relevant a rate is based on how many
+	 * times it has been attempted recently
+	 */
+	u16 evidence;
+
 	/**
 	 * The probability this rate will successfully transmit.
 	 * This is updated based on the configured EWMA value and the
 	 * period set in the configured timer
 	 */
-	uint32_t prob;
+	u8 prob;
 
-	/** The PHY theoretical calculated throughput of this rate */
-	uint32_t throughput;
-
-	/** The average calculated running throughput counter of this rate */
-	uint32_t avg_throughput_counter;
-
-	/** The average running throughput sum of this rate */
-	uint32_t sum_throughput;
-
-	/** The maximum observed calculated throughput of this rate */
-	uint32_t max_throughput;
-
-	/** The number of attempts at sending a packet at this rate since the last update */
-	uint32_t sent;
-
-	/** The number of successfully sent packets at this rate since the last	update */
-	uint32_t sent_success;
-
-	/** The total attempts of packets sent at this rate */
-	uint32_t total_sent;
-
-	/** The total successful attempts at sending at this rate */
-	uint32_t total_success;
-
-	/**
-	 * A store of evidence as to how relevant a rate is based on how many
-	 * times it has been attempted recently
-	 */
-	uint32_t evidence;
+	/** Have we sent aggregates at this rate since the last update */
+	bool have_sent_ampdus;
 };
-
 
 /**
  * Store of information the MMRC module requires for a STA
@@ -259,29 +284,41 @@ struct mmrc_table {
 	/** The index of the fixed rate */
 	struct mmrc_rate fixed_rate;
 
+	/** Number of rate control cycles performed */
+	u32 cycle_cnt;
+
+	/** Used to do additional lookarounds when traffic is very low */
+	u32 last_lookaround_cycle;
+
 	/** Used to decide when to do a lookaround */
-	uint8_t lookaround_cnt;
+	u8 lookaround_cnt;
 
 	/** The ratio of using normal rate and sampling */
-	uint8_t lookaround_wrap;
-
-	/** Counter for analysis purposes */
-	uint32_t total_lookaround;
+	u8 lookaround_wrap;
 
 	/**
 	 * A counter that is used to determine when we should force a lookaround.
 	 * Should be a portion of the above lookaround with less constraints
 	 */
-	uint32_t forced_lookaround;
+	u8 forced_lookaround;
+
+	/** Index of the current lookaround rate */
+	u16 current_lookaround_rate_index;
+
+	/** Counter of attempts at the current lookaround rate */
+	u8 current_lookaround_rate_attempts;
+
+	/** Counter for analysis purposes */
+	u32 total_lookaround;
 
 	/**
 	 * A counter to detect if the current best rate is optimal
 	 * and may slow down sample frequency.
 	 */
-	uint32_t stability_cnt;
+	u32 stability_cnt;
 
 	/** Threshold for sample frequency switch. */
-	uint32_t stability_cnt_threshold;
+	u32 stability_cnt_threshold;
 
 	/**
 	 * The probability table for the STA. This MUST always be the last
@@ -290,9 +327,8 @@ struct mmrc_table {
 	 * @note The table may not always be of length @ref MMRC_MAX_TABLE_SIZE as the
 	 * @c mmrc_table may be allocated using @ref mmrc_memory_required_for_caps
 	 */
-	struct mmrc_stats_table table[MMRC_MAX_TABLE_SIZE];
+	struct mmrc_stats_table table[MMRC_DEFAULT_TABLE_SIZE];
 };
-
 
 /**
  * Initialise the mmrc table, based on the capabilities provided
@@ -306,7 +342,6 @@ struct mmrc_table {
  */
 void mmrc_sta_init(struct mmrc_table *tb, struct mmrc_sta_capabilities *caps);
 
-
 /**
  * Calculate the size of the mmrc_table required for these capabilities.
  *
@@ -315,7 +350,6 @@ void mmrc_sta_init(struct mmrc_table *tb, struct mmrc_sta_capabilities *caps);
  * @returns size_t the size of an mmrc_table for this STA
  */
 size_t mmrc_memory_required_for_caps(struct mmrc_sta_capabilities *caps);
-
 
 /**
  * Get a retry chain from MMRC for a specific mmrc_table.
@@ -328,7 +362,6 @@ void mmrc_get_rates(struct mmrc_table *tb,
 		    struct mmrc_rate_table *out,
 		    size_t size);
 
-
 /**
  * Feedback to MMRC so the appropriate stats table can be updated.
  *
@@ -339,9 +372,7 @@ void mmrc_get_rates(struct mmrc_table *tb,
  */
 void mmrc_feedback(struct mmrc_table *tb,
 		   struct mmrc_rate_table *rates,
-		   int32_t retry_count);
-
-
+		   s32 retry_count);
 
 /**
  * Feedback to MMRC based on aggregated frames.
@@ -355,10 +386,9 @@ void mmrc_feedback(struct mmrc_table *tb,
  */
 void mmrc_feedback_agg(struct mmrc_table *tb,
 		       struct mmrc_rate_table *rates,
-		       int32_t retry_count,
-		       uint32_t success,
-		       uint32_t failure);
-
+		       s32 retry_count,
+		       u32 success,
+		       u32 failure);
 
 /**
  * Update an MMRC table from the most recent stats.
@@ -382,21 +412,19 @@ bool mmrc_set_fixed_rate(struct mmrc_table *tb, struct mmrc_rate fixed_rate);
  * Calculate the amount of rows occupied by a stations capabilities
  *
  * @param caps A pointer to the desired station capabilities
- * @returns uint16_t the total number of rows to accommodate all
+ * @returns u16 the total number of rows to accommodate all
  *                   capabilities options
  */
-uint16_t rows_from_sta_caps(struct mmrc_sta_capabilities *caps);
-
+u16 rows_from_sta_caps(struct mmrc_sta_capabilities *caps);
 
 /**
  * Calculate the transmit time of a given rate in the mmrc_table based on a
  * default packet size in microseconds
  *
  * @param rate  The rate to calculate the tx time for
- * @returns uint32_t The tx time of the given rate
+ * @returns u32 The tx time of the given rate
  */
-uint32_t get_tx_time(struct mmrc_rate *rate);
-
+u32 get_tx_time(struct mmrc_rate *rate);
 
 /**
  * Validates that the combinations if a given rate is valid
@@ -405,15 +433,6 @@ uint32_t get_tx_time(struct mmrc_rate *rate);
  * @returns bool If the rate is valid
  */
 bool validate_rate(struct mmrc_rate *rate);
-
-
-/**
- * Calculate and update the index of the input rate
- *
- * @param rate The rate with all parameters except index to update
- */
-void rate_update_index(struct mmrc_table *tb, struct mmrc_rate *rate);
-
 
 /**
  * Takes an index in an mmrc_table and calculate the capabilities
@@ -424,8 +443,7 @@ void rate_update_index(struct mmrc_table *tb, struct mmrc_rate *rate);
  *              upper index limit use rows_from_sta_caps())
  * @returns struct mmrc_rate with the updated rate parameters
  */
-struct mmrc_rate get_rate_row(struct mmrc_table *tb, uint16_t index);
-
+struct mmrc_rate get_rate_row(struct mmrc_table *tb, u16 index);
 
 /**
  * Set a fixed rate.
@@ -434,8 +452,16 @@ struct mmrc_rate get_rate_row(struct mmrc_table *tb, uint16_t index);
  * @param fixed_rate The fixed rate to be set
  *
  * @param tb A pointer to a mmrc table to update
- * @param rate The rate to be updated with the currect index
+ * @param rate The rate to be updated with the current index
  */
 void rate_update_index(struct mmrc_table *tb, struct mmrc_rate *rate);
+
+/**
+ * Calculate the theoretical thoughput of a given rate
+ *
+ * @param rate The rate with updated index, bandwidth, spatial-streams and guard
+ * @returns u32 The standard data rate in Kbps
+ */
+u32 mmrc_calculate_theoretical_throughput(struct mmrc_rate rate);
 
 #endif /* _MMRC_H_ */

@@ -8,8 +8,9 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-/** Maximum number of RAWs (limited by QoS User Priority) */
-#define MAX_NUM_RAWS	(8)
+#define MAX_NUM_RAWS_USER_PRIO	(8)	/* Limited by QoS User Priority */
+#define MAX_NUM_RAWS_INTERNAL	(1)	/* Internal (e.g. used by OCS) */
+#define MAX_NUM_RAWS		(MAX_NUM_RAWS_USER_PRIO + MAX_NUM_RAWS_INTERNAL)
 
 #define MORSE_RAW_DEFAULT_START_AID			(1)
 
@@ -34,23 +35,23 @@ struct morse_cmd_raw;
  * @IEEE80211_S1G_RPS_RAW_TYPE_TRIGGERING: triggering RAW type
  */
 enum ieee80211_s1g_rps_raw_type {
-	IEEE80211_S1G_RPS_RAW_TYPE_GENERIC		= 0,
-	IEEE80211_S1G_RPS_RAW_TYPE_SOUNDING		= 1,
-	IEEE80211_S1G_RPS_RAW_TYPE_SIMPLEX		= 2,
-	IEEE80211_S1G_RPS_RAW_TYPE_TRIGGERING		= 3,
+	IEEE80211_S1G_RPS_RAW_TYPE_GENERIC = 0,
+	IEEE80211_S1G_RPS_RAW_TYPE_SOUNDING = 1,
+	IEEE80211_S1G_RPS_RAW_TYPE_SIMPLEX = 2,
+	IEEE80211_S1G_RPS_RAW_TYPE_TRIGGERING = 3,
 };
 
 enum ieee80211_s1g_rps_raw_sounding_type {
-	IEEE80211_S1G_RPS_RAW_TYPE_SST_SOUNDING		= 0,
-	IEEE80211_S1G_RPS_RAW_TYPE_SST_REPORT		= 1,
-	IEEE80211_S1G_RPS_RAW_TYPE_SECTOR_SOUNDING	= 2,
-	IEEE80211_S1G_RPS_RAW_TYPE_SECTOR_REPORT	= 3,
+	IEEE80211_S1G_RPS_RAW_TYPE_SST_SOUNDING = 0,
+	IEEE80211_S1G_RPS_RAW_TYPE_SST_REPORT = 1,
+	IEEE80211_S1G_RPS_RAW_TYPE_SECTOR_SOUNDING = 2,
+	IEEE80211_S1G_RPS_RAW_TYPE_SECTOR_REPORT = 3,
 };
 
 enum ieee80211_s1g_rps_raw_simplex_type {
-	IEEE80211_S1G_RPS_RAW_TYPE_AP_PM		= 0,
-	IEEE80211_S1G_RPS_RAW_TYPE_NON_TIM		= 1,
-	IEEE80211_S1G_RPS_RAW_TYPE_OMNI			= 2,
+	IEEE80211_S1G_RPS_RAW_TYPE_AP_PM = 0,
+	IEEE80211_S1G_RPS_RAW_TYPE_NON_TIM = 1,
+	IEEE80211_S1G_RPS_RAW_TYPE_OMNI = 2,
 };
 
 /** Structure with configuration parameters specific to the Generic RAW */
@@ -68,7 +69,7 @@ struct morse_raw_config_generic_t {
 	bool cross_slot_boundary;
 
 	/** Number of slots in the RAW. */
-	uint16_t num_slots;
+	u16 num_slots;
 
 	/** Duration of the slot in the RAW in microseconds, maximum duration is 246260us. */
 	u32 slot_duration_us;
@@ -88,7 +89,7 @@ struct morse_raw_config_simplex_t {
 	/** Type of Simplex RAW. */
 	enum ieee80211_s1g_rps_raw_simplex_type simplex_type;
 
-	/** Whether to exlude non-AP STAs, if not exluded then define group. */
+	/** Whether to exclude non-AP STAs. If not excluded then define group. */
 	bool exclude_non_ap_sta;
 };
 
@@ -158,7 +159,7 @@ struct morse_raw_config {
 	/** Whether or not the RAW uses channel indication */
 	bool has_channel_indication;
 
-	/* Optional periodic configuration information.*/
+	/* Optional periodic configuration information. */
 	/** Whether or not the RAW is periodic. */
 	bool is_periodic;
 	/** Period of the RAW in number of beacons. */
@@ -198,18 +199,6 @@ u8 morse_raw_get_rps_ie_size(struct morse *mors);
  * Return: a pointer to the RPS IE or NULL on error.
  */
 u8 *morse_raw_get_rps_ie(struct morse *mors);
-
-/**
- * morse_raw_set_configs() - Sets the RAW configurations which can contain a mixture of types.
- *
- * @mors:		Morse chip struct
- * @config_list		List of RAW configurations
- * @num_configs		Number of RAW configurations in the list.
- *
- * Return 0 on success otherwise -EINVAL if a RAW configuration is invalid.
- */
-int morse_raw_set_configs(
-	struct morse *mors, struct morse_raw_config * const *config_list, u8 num_configs);
 
 /**
  * morse_raw_refresh_aids() - update the AID assignments in the current RAW configuration

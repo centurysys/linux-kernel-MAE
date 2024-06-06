@@ -9,7 +9,6 @@
 
 #include "morse.h"
 
-
 /**
  * struct morse_bus_ops - bus callback operations.
  *
@@ -34,17 +33,21 @@ struct morse_bus_ops {
 	void (*claim)(struct morse *mors);
 	void (*set_irq)(struct morse *mors, bool enable);
 	void (*release)(struct morse *mors);
+	unsigned int bulk_alignment;
 };
 
-static inline int morse_dm_write(struct morse *mors, u32 addr,
-						    const u8 *data, u32 len)
+/** Default TX alignment for bus's which don't care.
+ *  mac80211 will give us SKBs aligned to the 2 byte boundary, so 2 is effectively a noop
+ */
+#define MORSE_DEFAULT_BULK_ALIGNMENT	(2)
+
+static inline int morse_dm_write(struct morse *mors, u32 addr, const u8 *data, u32 len)
 {
 	return mors->bus_ops->dm_write(mors, addr, data, len);
 }
 
 /* morse_dm_read - len must be rounded up to the nearest 4-byte boundary */
-static inline int morse_dm_read(struct morse *mors, u32 addr,
-						     u8 *data, u32 len)
+static inline int morse_dm_read(struct morse *mors, u32 addr, u8 *data, u32 len)
 {
 	return mors->bus_ops->dm_read(mors, addr, data, len);
 }
@@ -87,4 +90,9 @@ static inline void morse_bus_set_irq(struct morse *mors, bool enable)
 int morse_bus_test(struct morse *mors, const char *bus_name);
 int morse_skb_tx(struct morse *mors, struct sk_buff *skb, u8 channel);
 
-#endif  /* !_MORSE_BUS_H_ */
+enum morse_host_bus_type {
+	MORSE_HOST_BUS_TYPE_SDIO,
+	MORSE_HOST_BUS_TYPE_SPI,
+};
+
+#endif /* !_MORSE_BUS_H_ */

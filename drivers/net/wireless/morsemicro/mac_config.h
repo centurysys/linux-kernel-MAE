@@ -6,7 +6,6 @@
  *
  */
 
-
 /*
  * Enable/Disabe various WiFi Config options
  * To enable a configuration, replace the #undef with #define
@@ -18,7 +17,6 @@
 #undef MORSE_MAC_CONFIG_HT_CAP
 #undef MORSE_MAC_CONFIG_IEEE80211_HW
 #undef MORSE_MAC_CONFIG_WIPHY
-#undef MORSE_MAC_CONFIG_RX_STATUS_MACTIME
 #undef MORSE_MAC_CONFIX_RX_STATUS_SIG
 
-#endif  /* !_MORSE_MAC_CFG_H_ */
+#endif /* !_MORSE_MAC_CFG_H_ */

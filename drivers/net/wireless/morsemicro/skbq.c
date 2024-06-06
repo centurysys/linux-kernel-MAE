@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 Morse Micro
+ * Copyright 2017-2023 Morse Micro
  *
  */
 
@@ -17,15 +17,23 @@
 #include "command.h"
 #include "skb_header.h"
 #include "ipmon.h"
+#include "wiphy.h"
+#include "bus.h"
 
 /* Enable/Disable avoid buffer bloating */
 static int max_txq_len __read_mostly = 22;
 module_param(max_txq_len, int, 0644);
 MODULE_PARM_DESC(max_txq_len, "Maximum number of queued TX packets");
 
-static uint32_t tx_status_lifetime_ms __read_mostly = (15 * 1000); /* 15 sec default lifetime */
+static u32 tx_status_lifetime_ms __read_mostly = (15 * 1000);	/* 15 sec default lifetime */
 module_param(tx_status_lifetime_ms, uint, 0644);
-MODULE_PARM_DESC(tx_status_lifetime_ms, "Maximum lifetime for pending tx packets before considered dropped");
+MODULE_PARM_DESC(tx_status_lifetime_ms,
+		 "Maximum lifetime for pending tx packets before considered dropped");
+
+#define MORSE_SKB_DBG(_m, _f, _a...)		morse_dbg(FEATURE_ID_SKB, _m, _f, ##_a)
+#define MORSE_SKB_INFO(_m, _f, _a...)		morse_info(FEATURE_ID_SKB, _m, _f, ##_a)
+#define MORSE_SKB_WARN(_m, _f, _a...)		morse_warn(FEATURE_ID_SKB, _m, _f, ##_a)
+#define MORSE_SKB_ERR(_m, _f, _a...)		morse_err(FEATURE_ID_SKB, _m, _f, ##_a)
 
 /**
  * Private driver data stored in skb control buffer after a packet has been given to the chip, and
@@ -39,11 +47,11 @@ struct morse_tx_status_drv_data {
 };
 
 static int __skbq_data_tx_finish(struct morse_skbq *mq, struct sk_buff *skb,
-			struct morse_skb_tx_status *tx_sts);
+				 struct morse_skb_tx_status *tx_sts);
 
 static struct sk_buff *__skbq_get_pending_by_id(struct morse *mors,
-			struct morse_skbq *mq,
-			u32 pkt_id);
+						struct morse_skbq *mq,
+						u32 pkt_id, struct ieee80211_vif *vif);
 
 #ifndef CONFIG_MORSE_RC
 /**
@@ -51,13 +59,12 @@ static struct sk_buff *__skbq_get_pending_by_id(struct morse *mors,
  */
 static void
 morse_skb_tx_status_to_tx_control(struct morse *mors, struct sk_buff *skb,
-	struct morse_skb_tx_status *tx_sts,
-	struct ieee80211_tx_info *txi)
+				  struct morse_skb_tx_status *tx_sts, struct ieee80211_tx_info *txi)
 {
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
 	struct morse_sta *msta = NULL;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_rate *r = &txi->status.rates[0];
 	int i, count = min_t(int, MORSE_SKB_MAX_RATES, IEEE80211_TX_MAX_RATES);
 	/* There will always be at least one rate tried. */
@@ -65,7 +72,7 @@ morse_skb_tx_status_to_tx_control(struct morse *mors, struct sk_buff *skb,
 
 	/* Need the RCU lock to find a station, and must hold it until we're done with sta */
 	rcu_read_lock();
-	vif = (txi->control.vif) ? txi->control.vif : morse_get_vif(mors);
+	vif = txi->control.vif ? txi->control.vif : morse_get_vif_from_tx_status(mors, tx_sts);
 	sta = ieee80211_find_sta(vif, hdr->addr1);
 	if (sta)
 		msta = (struct morse_sta *)sta->drv_priv;
@@ -79,9 +86,9 @@ morse_skb_tx_status_to_tx_control(struct morse *mors, struct sk_buff *skb,
 		mors->debug.page_stats.tx_ps_filtered++;
 		txi->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 
-		morse_dbg(mors, "from_chip ps filtered [sn:%d]%s\n",
-			IEEE80211_SEQ_TO_SN(hdr->seq_ctrl),
-			!!(txi->flags & IEEE80211_TX_INTFL_RETRIED) ?
+		MORSE_SKB_DBG(mors, "from_chip ps filtered [sn:%d]%s\n",
+			      IEEE80211_SEQ_TO_SN(hdr->seq_ctrl),
+			      !!(txi->flags & IEEE80211_TX_INTFL_RETRIED) ?
 				" mac80211 will drop" : "");
 
 		/* Clear TX CTL AMPDU flag so that this frame gets rescheduled in
@@ -90,8 +97,8 @@ morse_skb_tx_status_to_tx_control(struct morse *mors, struct sk_buff *skb,
 		 */
 		txi->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		if (msta && !msta->tx_ps_filter_en) {
-			morse_dbg(mors, "TX ps filter set sta[%pM],[sn:%d]\n",
-				msta->addr, IEEE80211_SEQ_TO_SN(hdr->seq_ctrl));
+			MORSE_SKB_DBG(mors, "TX ps filter set sta[%pM],[sn:%d]\n",
+				      msta->addr, IEEE80211_SEQ_TO_SN(hdr->seq_ctrl));
 			msta->tx_ps_filter_en = true;
 		}
 	}
@@ -106,13 +113,16 @@ morse_skb_tx_status_to_tx_control(struct morse *mors, struct sk_buff *skb,
 
 	for (i = 0; i < count; i++) {
 		if (tx_sts->rates[i].count > 0) {
+			u8 mcs_index =
+			    morse_ratecode_mcs_index_get(tx_sts->rates[i].morse_ratecode);
+
 			last_i = i;
-			r[i].count =  tx_sts->rates[i].count;
+			r[i].count = tx_sts->rates[i].count;
 
 			/* Update MCS0/10 failure stats. */
-			if (tx_sts->rates[i].mcs == 0)
+			if (mcs_index == 0)
 				mors->debug.mcs_stats_tbl.mcs0.tx_fail += tx_sts->rates[i].count;
-			if (tx_sts->rates[i].mcs == 10)
+			if (mcs_index == 10)
 				mors->debug.mcs_stats_tbl.mcs10.tx_fail += tx_sts->rates[i].count;
 		} else {
 			r[i].idx = -1;
@@ -121,10 +131,12 @@ morse_skb_tx_status_to_tx_control(struct morse *mors, struct sk_buff *skb,
 
 	/* Check if the last attempt was successful and if it was MCS0/10. */
 	if (tx_sts->rates[last_i].count > 0) {
-		if (tx_sts->rates[last_i].mcs == 0) {
+		u8 mcs_index = morse_ratecode_mcs_index_get(tx_sts->rates[i].morse_ratecode);
+
+		if (mcs_index == 0) {
 			mors->debug.mcs_stats_tbl.mcs0.tx_success++;
 			mors->debug.mcs_stats_tbl.mcs0.tx_fail--;
-		} else if (tx_sts->rates[last_i].mcs == 10) {
+		} else if (mcs_index == 10) {
 			mors->debug.mcs_stats_tbl.mcs10.tx_success++;
 			mors->debug.mcs_stats_tbl.mcs10.tx_fail--;
 		}
@@ -144,23 +156,20 @@ static inline u32 __morse_skbq_space(const struct morse_skbq *mq)
 
 static inline bool __morse_skbq_over_threshold(struct morse_skbq *mq)
 {
-	return max_txq_len ?
-		(mq->skbq.qlen >= max_txq_len) :
-		(__morse_skbq_space(mq) <= 2 * 1024);
+	return max_txq_len ? (mq->skbq.qlen >= max_txq_len) : (__morse_skbq_space(mq) <= 2 * 1024);
 }
 
 static inline bool __morse_skbq_under_threshold(struct morse_skbq *mq)
 {
 	return max_txq_len ?
-		(mq->skbq.qlen < (max_txq_len - 2)) :
-		(__morse_skbq_space(mq) >= (5 * 1024));
+	    (mq->skbq.qlen < (max_txq_len - 2)) : (__morse_skbq_space(mq) >= (5 * 1024));
 }
 
 static int __morse_skbq_put(struct morse_skbq *mq, struct sk_buff *skb)
 {
 	if (skb->len > __morse_skbq_space(mq)) {
-		morse_info(mq->mors, "Morse SKBQ out of memory %d:%d:%d\n",
-			   skb->len, __morse_skbq_space(mq), mq->skbq_size);
+		MORSE_SKB_INFO(mq->mors, "Morse SKBQ out of memory %d:%d:%d\n",
+			       skb->len, __morse_skbq_space(mq), mq->skbq_size);
 		return -ENOMEM;
 	}
 	__skb_queue_tail(&mq->skbq, skb);
@@ -170,27 +179,25 @@ static int __morse_skbq_put(struct morse_skbq *mq, struct sk_buff *skb)
 
 static void __morse_skbq_pkt_id(struct morse_skbq *mq, struct sk_buff *skb)
 {
-	struct morse_buff_skb_header *hdr =
-				(struct morse_buff_skb_header *)skb->data;
+	struct morse_buff_skb_header *hdr = (struct morse_buff_skb_header *)skb->data;
 
 	hdr->tx_info.pkt_id = cpu_to_le32(mq->pkt_seq++);
 }
 
-static struct morse_skbq *__morse_skbq_match_tx_status_to_skbq(
-	struct morse *mors,
-	const struct morse_skb_tx_status *tx_sts)
+static struct morse_skbq *__morse_skbq_match_tx_status_to_skbq(struct morse *mors,
+						       const struct morse_skb_tx_status *tx_sts)
 {
 	struct morse_skbq *mq = NULL;
 
 	switch (tx_sts->channel) {
 	case MORSE_SKB_CHAN_DATA:
 	case MORSE_SKB_CHAN_DATA_NOACK:
-	case MORSE_SKB_CHAN_LOOPBACK: {
-		int aci = dot11_tid_to_ac(tx_sts->tid);
+	case MORSE_SKB_CHAN_LOOPBACK:{
+			int aci = dot11_tid_to_ac(tx_sts->tid);
 
-		mq = mors->cfg->ops->skbq_tc_q_from_aci(mors, aci);
-		break;
-	}
+			mq = mors->cfg->ops->skbq_tc_q_from_aci(mors, aci);
+			break;
+		}
 	case MORSE_SKB_CHAN_MGMT:
 		mq = mors->cfg->ops->skbq_mgmt_tc_q(mors);
 		break;
@@ -198,15 +205,15 @@ static struct morse_skbq *__morse_skbq_match_tx_status_to_skbq(
 		mq = mors->cfg->ops->skbq_bcn_tc_q(mors);
 		break;
 	default:
-		morse_err(mors, "unexpected channel on reported tx status [%d]\n",
-			  tx_sts->channel);
+		MORSE_SKB_ERR(mors, "unexpected channel on reported tx status [%d]\n",
+			      tx_sts->channel);
 	}
 
 	return mq;
 }
 
 static void insert_pending_skb_to_skbq(struct morse_skbq *mq,
-	struct sk_buff *skb, __le32 insertion_id)
+				       struct sk_buff *skb, __le32 insertion_id)
 {
 	struct sk_buff *pfirst, *pnext;
 	struct morse_buff_skb_header *mhdr;
@@ -218,15 +225,15 @@ static void insert_pending_skb_to_skbq(struct morse_skbq *mq,
 	/* Add the size back to the SKBq */
 	mq->skbq_size += skb->len;
 
-	if (tail == NULL) {
+	if (!tail) {
 		/* List is empty */
 		__skb_queue_tail(&mq->skbq, skb);
 		return;
 	}
 
 	/* Check if it should just be inserted on to the end */
-	mhdr = (struct morse_buff_skb_header *) tail->data;
-	MORSE_WARN_ON(insertion_id == mhdr->tx_info.pkt_id);
+	mhdr = (struct morse_buff_skb_header *)tail->data;
+	MORSE_WARN_ON(FEATURE_ID_SKB, insertion_id == mhdr->tx_info.pkt_id);
 	if (insertion_id >= mhdr->tx_info.pkt_id) {
 		__skb_queue_tail(&mq->skbq, skb);
 		return;
@@ -234,9 +241,9 @@ static void insert_pending_skb_to_skbq(struct morse_skbq *mq,
 
 	/* Otherwise, re-insert to correct spot in skbq */
 	skb_queue_walk_safe(&mq->skbq, pfirst, pnext) {
-		mhdr = (struct morse_buff_skb_header *) pfirst->data;
+		mhdr = (struct morse_buff_skb_header *)pfirst->data;
 
-		MORSE_WARN_ON(insertion_id == mhdr->tx_info.pkt_id);
+		MORSE_WARN_ON(FEATURE_ID_SKB, insertion_id == mhdr->tx_info.pkt_id);
 		if (insertion_id <= mhdr->tx_info.pkt_id) {
 			__skb_queue_before(&mq->skbq, pfirst, skb);
 			return;
@@ -247,20 +254,20 @@ static void insert_pending_skb_to_skbq(struct morse_skbq *mq,
 	BUG_ON(1);
 }
 
-static void __skbq_drop_pending_skb(struct morse_skbq *mq, struct sk_buff *skb)
+static void __skbq_drop_pending_skb(struct morse_skbq *mq, struct sk_buff *skb,
+				    struct ieee80211_vif *vif)
 {
 	struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(skb);
 
 	__skb_unlink(skb, &mq->pending);
-	skb_pull(skb, sizeof(struct morse_buff_skb_header));
+	skb_pull(skb, sizeof(struct morse_buff_skb_header) +
+			((struct morse_buff_skb_header *)skb->data)->tail);
 
 	/* If this frame is the last frame in a PS-Poll or u-APSD SP,
 	 * then mac80211 must be informed that the SP is now over.
 	 */
 	if (txi->flags & IEEE80211_TX_STATUS_EOSP) {
-		struct ieee80211_vif *vif = (txi->control.vif) ? txi->control.vif :
-			morse_get_vif(mq->mors);
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 		struct ieee80211_sta *sta;
 
 		if (vif) {
@@ -277,21 +284,20 @@ static void __skbq_drop_pending_skb(struct morse_skbq *mq, struct sk_buff *skb)
 }
 
 static bool tx_skb_is_ps_filtered(struct morse_skbq *mq, struct sk_buff *skb,
-	struct morse_skb_tx_status *tx_sts)
+				  struct morse_skb_tx_status *tx_sts)
 {
 	struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(skb);
-	struct ieee80211_vif *vif = (txi->control.vif) ?
-		txi->control.vif : morse_get_vif(mq->mors);
+	struct ieee80211_vif *vif = txi->control.vif ?
+	    txi->control.vif : morse_get_vif_from_tx_status(mq->mors, tx_sts);
 	struct morse_vif *mors_if = ieee80211_vif_to_morse_vif(vif);
 
 	BUG_ON(!(tx_sts->flags & MORSE_TX_STATUS_FLAGS_PS_FILTERED));
 
-	if ((tx_sts->flags & MORSE_TX_STATUS_PAGE_INVALID) ||
-		!mors_if->supports_ps_filter) {
+	if (!mors_if->supports_ps_filter) {
 		/* Do not rebuffer invalid pages, or on VIFs that do not support
 		 * PS filtering.
 		 */
-		__skbq_drop_pending_skb(mq, skb);
+		__skbq_drop_pending_skb(mq, skb, vif);
 		return true;
 	}
 
@@ -309,64 +315,72 @@ static bool tx_skb_is_ps_filtered(struct morse_skbq *mq, struct sk_buff *skb,
 	return true;
 }
 
-static void morse_skbq_tx_status_process(struct morse *mors,
-					 struct sk_buff *skb, u8 channel)
+static void morse_skbq_tx_status_process(struct morse *mors, struct sk_buff *skb)
 {
 	int i;
 	int mismatch = 0;
-	struct morse_skb_tx_status *tx_sts =
-		(struct morse_skb_tx_status *)skb->data;
+	struct morse_skb_tx_status *tx_sts = (struct morse_skb_tx_status *)skb->data;
 	int count = skb->len / sizeof(*tx_sts);
-
-	BUG_ON(channel != 0xFF);
 
 	for (i = 0; i < count; tx_sts++, i++) {
 		struct sk_buff *tx_skb;
-		struct morse_skbq *mq = __morse_skbq_match_tx_status_to_skbq(
-			mors, tx_sts);
-		bool is_ps_filtered =
-			(tx_sts->flags & MORSE_TX_STATUS_FLAGS_PS_FILTERED);
+		struct ieee80211_vif *vif;
+		struct morse_skbq *mq = __morse_skbq_match_tx_status_to_skbq(mors, tx_sts);
+		bool is_ps_filtered = (tx_sts->flags & MORSE_TX_STATUS_FLAGS_PS_FILTERED);
+
 		if (!mq) {
-			morse_dbg(mors, "No pending skbq match found [pktid:%d chan:%d]\n",
-				tx_sts->pkt_id, tx_sts->channel);
+			MORSE_SKB_DBG(mors, "No pending skbq match found [pktid:%d chan:%d]\n",
+				      tx_sts->pkt_id, tx_sts->channel);
 			mismatch++;
 			continue;
 		}
 
+		vif = morse_get_vif_from_tx_status(mq->mors, tx_sts);
+
 		spin_lock_bh(&mq->lock);
-		tx_skb = __skbq_get_pending_by_id(mors,
-			mq, tx_sts->pkt_id);
+		tx_skb = __skbq_get_pending_by_id(mors, mq, tx_sts->pkt_id, vif);
 		if (!tx_skb) {
-			morse_dbg(mors, "No pending pkt match found [pktid:%d chan:%d]\n",
-				tx_sts->pkt_id, tx_sts->channel);
+			MORSE_SKB_DBG(mors, "No pending pkt match found [pktid:%d chan:%d]\n",
+				      tx_sts->pkt_id, tx_sts->channel);
 			mismatch++;
 			spin_unlock_bh(&mq->lock);
 			continue;
 		}
 
-		if (tx_sts->flags & MORSE_TX_STATUS_PAGE_INVALID)
+		if (tx_sts->flags & MORSE_TX_STATUS_PAGE_INVALID) {
+			/* Drop invalid SKBs */
 			mors->debug.page_stats.tx_status_page_invalid++;
-
-		if (is_ps_filtered) {
-			if (tx_skb_is_ps_filtered(mq, tx_skb, tx_sts)) {
-				/* Has been consumed by tx_skb_is_ps_filtered */
-				spin_unlock_bh(&mq->lock);
-				continue;
-			}
+			__skbq_drop_pending_skb(mq, tx_skb, vif);
+			spin_unlock_bh(&mq->lock);
+			continue;
 		}
 
-		skb_pull(tx_skb, sizeof(struct morse_buff_skb_header));
+		if (tx_sts->flags & MORSE_TX_STATUS_DUTY_CYCLE_CANT_SEND) {
+			/* Drop SKBs that can't be sent due to duty cycle restrictions  */
+			mors->debug.page_stats.tx_status_duty_cycle_cant_send++;
+			__skbq_drop_pending_skb(mq, tx_skb, vif);
+			spin_unlock_bh(&mq->lock);
+			continue;
+		}
+
+		if (is_ps_filtered && tx_skb_is_ps_filtered(mq, tx_skb, tx_sts)) {
+			/* Has been consumed by tx_skb_is_ps_filtered */
+			spin_unlock_bh(&mq->lock);
+			continue;
+		}
+
+		skb_pull(tx_skb, sizeof(struct morse_buff_skb_header) +
+				((struct morse_buff_skb_header *)tx_skb->data)->tail);
 
 		morse_skbq_skb_finish(mq, tx_skb, tx_sts);
 
 		spin_unlock_bh(&mq->lock);
 	}
 
-	morse_dbg(mors, "TX status %d (%d mismatch)\n", count, mismatch);
+	MORSE_SKB_DBG(mors, "TX status %d (%d mismatch)\n", count, mismatch);
 
 	if (mors->ps.enable &&
-		!mors->ps.suspended &&
-		(mors->cfg->ops->skbq_get_tx_buffered_count(mors) == 0)) {
+	    !mors->ps.suspended && (mors->cfg->ops->skbq_get_tx_buffered_count(mors) == 0)) {
 		/* Evaluate ps to check if it was gated on a pending tx status */
 		queue_delayed_work(mors->chip_wq, &mors->ps.delayed_eval_work, 0);
 	}
@@ -389,46 +403,60 @@ static void morse_skbq_dispatch_work(struct work_struct *dispatch_work)
 
 	skb_queue_walk_safe(&skbq, pfirst, pnext) {
 		__skb_unlink(pfirst, &skbq);
-		/* Header endianess has already be adjusted */
+		/* Header endianness has already be adjusted */
 		hdr = (struct morse_buff_skb_header *)pfirst->data;
 		channel = hdr->channel;
-		/* Remove alignment tail */
-		__skb_trim(pfirst, pfirst->len - hdr->tail);
 		/* Remove morse header */
 		__skb_pull(pfirst, sizeof(*hdr));
-		if (channel == MORSE_SKB_CHAN_COMMAND)
+
+		switch (channel) {
+		case MORSE_SKB_CHAN_COMMAND:
 			/* Commands/Events */
-			morse_cmd_resp_process(mors, pfirst, channel);
-		else if (channel == MORSE_SKB_CHAN_TX_STATUS) {
-			morse_skbq_tx_status_process(mors, pfirst, channel);
+			morse_cmd_resp_process(mors, pfirst);
+			break;
+		case MORSE_SKB_CHAN_TX_STATUS:
+			morse_skbq_tx_status_process(mors, pfirst);
+			fallthrough;
+		case MORSE_SKB_CHAN_LOOPBACK:
 			dev_kfree_skb_any(pfirst);
-		} else if (channel == MORSE_SKB_CHAN_LOOPBACK) {
-			dev_kfree_skb_any(pfirst);
-		} else
-			morse_mac_skb_recv(mors, pfirst, channel,
-					   &hdr->rx_status);
+			break;
+		default:
+			morse_mac_skb_recv(mors, pfirst, &hdr->rx_status);
+			break;
+		}
 		count++;
 	}
 
-	/* rerun recv in case skbq was full and we coudln't copy data */
+	/* rerun recv in case skbq was full and we couldn't copy data */
 	set_bit(MORSE_RX_PEND, &mors->chip_if->event_flags);
 	queue_work(mors->chip_wq, &mors->chip_if_work);
 }
 
-/**
- * Remove and free all entries in a queue.
- */
+int morse_skbq_put(struct morse_skbq *mq, struct sk_buff *skb)
+{
+	int ret;
+
+	spin_lock_bh(&mq->lock);
+	ret = __morse_skbq_put(mq, skb);
+	spin_unlock_bh(&mq->lock);
+	return ret;
+}
+
 int morse_skbq_purge(struct morse_skbq *mq, struct sk_buff_head *skbq)
 {
 	struct sk_buff *skb;
 	int cnt = 0;
 
-	spin_lock_bh(&mq->lock);
+	if (mq)
+		spin_lock_bh(&mq->lock);
+
 	while ((skb = __skb_dequeue(skbq))) {
 		cnt++;
 		dev_kfree_skb_any(skb);
 	}
-	spin_unlock_bh(&mq->lock);
+
+	if (mq)
+		spin_unlock_bh(&mq->lock);
 
 	return cnt;
 }
@@ -453,9 +481,7 @@ int morse_skbq_enq(struct morse_skbq *mq, struct sk_buff_head *skbq)
 	return count;
 }
 
-int morse_skbq_deq(struct morse_skbq *mq,
-			  struct sk_buff_head *skbq,
-			  int size)
+int morse_skbq_deq(struct morse_skbq *mq, struct sk_buff_head *skbq, int size)
 {
 	int count = 0;
 	struct sk_buff *pfirst, *pnext;
@@ -475,9 +501,7 @@ int morse_skbq_deq(struct morse_skbq *mq,
 }
 
 /* Remove given number of items from the head of the queue. */
-int morse_skbq_deq_num_items(struct morse_skbq *mq,
-			  struct sk_buff_head *skbq,
-			  int num_items)
+int morse_skbq_deq_num_items(struct morse_skbq *mq, struct sk_buff_head *skbq, int num_items)
 {
 	int count = 0;
 	struct sk_buff *pfirst, *pnext;
@@ -582,7 +606,6 @@ void morse_skbq_may_wake_tx_queues(struct morse *mors)
 	clear_bit(MORSE_STATE_FLAG_DATA_QS_STOPPED, &mors->state_flags);
 }
 
-
 static int morse_skbq_tx(struct morse_skbq *mq, struct sk_buff *skb, u8 channel)
 {
 	struct morse *mors = mq->mors;
@@ -593,12 +616,12 @@ static int morse_skbq_tx(struct morse_skbq *mq, struct sk_buff *skb, u8 channel)
 	spin_lock_bh(&mq->lock);
 	rc = __morse_skbq_put(mq, skb);
 	if (rc) {
-		morse_err(mors, "__morse_skbq_put channel %d failed (%d)\n", channel, rc);
+		MORSE_SKB_ERR(mors, "__morse_skbq_put channel %d failed (%d)\n", channel, rc);
 		if (channel == MORSE_SKB_CHAN_DATA) {
 			u16 queue = skb_get_queue_mapping(skb);
 
-			morse_err(mors, "__morse_skbq_put queue %d status %d\n",
-				queue,  ieee80211_queue_stopped(mors->hw, queue));
+			MORSE_SKB_ERR(mors, "__morse_skbq_put queue %d status %d\n",
+				      queue, ieee80211_queue_stopped(mors->hw, queue));
 		}
 	}
 
@@ -609,24 +632,25 @@ static int morse_skbq_tx(struct morse_skbq *mq, struct sk_buff *skb, u8 channel)
 	spin_unlock_bh(&mq->lock);
 
 	/* For data packets stop queues */
-	if ((channel == MORSE_SKB_CHAN_DATA) && mq_over_threshold)
+	if (channel == MORSE_SKB_CHAN_DATA && mq_over_threshold)
 		morse_skbq_stop_tx_queues(mors);
 
 #ifdef CONFIG_MORSE_IPMON
 	{
 		struct morse_buff_skb_header *hdr;
-		static uint64_t time_start;
+		static u64 time_start;
 
-		hdr = (struct morse_buff_skb_header *) skb->data;
+		hdr = (struct morse_buff_skb_header *)skb->data;
 		if (channel == MORSE_SKB_CHAN_DATA)
 			morse_ipmon(&time_start, skb, skb->data + sizeof(*hdr),
-					le16_to_cpu(hdr->len), IPMON_LOC_CLIENT_DRV2,
-					mors->debug.page_stats.queue_stop);
+				    le16_to_cpu(hdr->len), IPMON_LOC_CLIENT_DRV2,
+				    mors->debug.page_stats.queue_stop);
 	}
 #endif
 
 	switch (channel) {
 	case MORSE_SKB_CHAN_DATA:
+	case MORSE_SKB_CHAN_WIPHY:
 	case MORSE_SKB_CHAN_LOOPBACK:
 	case MORSE_SKB_CHAN_DATA_NOACK:
 		if (morse_is_data_tx_allowed(mors)) {
@@ -647,7 +671,7 @@ static int morse_skbq_tx(struct morse_skbq *mq, struct sk_buff *skb, u8 channel)
 		queue_work(mors->chip_wq, &mors->chip_if_work);
 		break;
 	default:
-		morse_err(mors, "Invalid SKB channel: %d\n", channel);
+		MORSE_SKB_ERR(mors, "Invalid SKB channel: %d\n", channel);
 		break;
 	}
 
@@ -663,8 +687,8 @@ static inline struct morse_tx_status_drv_data *__get_tx_status_driver_data(struc
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
 	BUILD_BUG_ON(sizeof(struct morse_tx_status_drv_data) >
-		sizeof(tx_info->status.status_driver_data));
-	return (struct morse_tx_status_drv_data *) &tx_info->status.status_driver_data[0];
+		     sizeof(tx_info->status.status_driver_data));
+	return (struct morse_tx_status_drv_data *)&tx_info->status.status_driver_data[0];
 }
 
 /**
@@ -692,7 +716,6 @@ static inline bool __has_pending_tx_skb_timed_out(struct sk_buff *skb)
 	return time_is_before_jiffies(info->jiffies_when_expired);
 }
 
-
 int morse_skbq_tx_complete(struct morse_skbq *mq, struct sk_buff_head *skbq)
 {
 	bool skb_awaits_tx_status = false;
@@ -701,25 +724,26 @@ int morse_skbq_tx_complete(struct morse_skbq *mq, struct sk_buff_head *skbq)
 	struct sk_buff *peek = skb_peek(skbq);
 	struct morse_buff_skb_header *hdr;
 
-	if (peek == NULL)
+	if (!peek)
 		return 0;
 
 	/* Move sent packets to pending list waiting for feedback */
 	spin_lock_bh(&mq->lock);
 	skb_queue_walk_safe(skbq, pfirst, pnext) {
 		__skb_unlink(pfirst, skbq);
-		hdr = (struct morse_buff_skb_header *) pfirst->data;
+		hdr = (struct morse_buff_skb_header *)pfirst->data;
 		/* Firmware doesn't give status on beacons
 		 * so just free them, otherwise queue and wait response
 		 */
 		if (hdr->channel == MORSE_SKB_CHAN_BEACON ||
-		    hdr->channel == MORSE_SKB_CHAN_LOOPBACK) {
+		    hdr->channel == MORSE_SKB_CHAN_LOOPBACK ||
+		    hdr->channel == MORSE_SKB_CHAN_WIPHY) {
 			if (hdr->channel == MORSE_SKB_CHAN_BEACON)
-				morse_mac_esca_beacon_tx_done(mors, pfirst);
+				morse_mac_ecsa_beacon_tx_done(mors, pfirst);
 			dev_kfree_skb_any(pfirst);
 		} else {
-			/* SKB has been given to the chip. Store the time and queue the skb onto the pending
-			 * queue while we wait for the tx_status
+			/* SKB has been given to the chip. Store the time and queue the skb onto the
+			 * pending queue while we wait for the tx_status
 			 */
 			__skbq_tx_move_to_pending(mq, pfirst);
 			skb_awaits_tx_status = true;
@@ -732,7 +756,7 @@ int morse_skbq_tx_complete(struct morse_skbq *mq, struct sk_buff_head *skbq)
 
 		if (mors->stale_status.enabled)
 			mod_timer(&mors->stale_status.timer, jiffies +
-				msecs_to_jiffies(morse_skbq_get_tx_status_lifetime_ms()));
+				  msecs_to_jiffies(morse_skbq_get_tx_status_lifetime_ms()));
 
 		spin_unlock_bh(&mors->stale_status.lock);
 	}
@@ -759,8 +783,8 @@ struct sk_buff *morse_skbq_tx_pending(struct morse_skbq *mq)
  * older packet ids that are in the list
  */
 static struct sk_buff *__skbq_get_pending_by_id(struct morse *mors,
-					struct morse_skbq *mq,
-					u32 pkt_id)
+						struct morse_skbq *mq,
+						u32 pkt_id, struct ieee80211_vif *vif)
 {
 	struct sk_buff *pfirst, *pnext;
 	struct sk_buff *ret = NULL;
@@ -774,13 +798,12 @@ static struct sk_buff *__skbq_get_pending_by_id(struct morse *mors,
 			ret = pfirst;
 			break;
 
-		} else if (hdr->tx_info.pkt_id < pkt_id &&
-				__has_pending_tx_skb_timed_out(pfirst)) {
+		} else if (hdr->tx_info.pkt_id < pkt_id && __has_pending_tx_skb_timed_out(pfirst)) {
 			/* Returned TX statuses may appear out-of-order during AMPDU */
-			morse_dbg(mors,
-				"%s: pending TX SKB timed out [id:%d,chan:%d] (curr:%d)\n",
-				__func__, hdr->tx_info.pkt_id, hdr->channel, pkt_id);
-			__skbq_drop_pending_skb(mq, pfirst);
+			MORSE_SKB_DBG(mors,
+				      "%s: pending TX SKB timed out [id:%d,chan:%d] (curr:%d)\n",
+				      __func__, hdr->tx_info.pkt_id, hdr->channel, pkt_id);
+			__skbq_drop_pending_skb(mq, pfirst, vif);
 			mq->mors->debug.page_stats.tx_status_flushed++;
 		}
 	}
@@ -788,8 +811,7 @@ static struct sk_buff *__skbq_get_pending_by_id(struct morse *mors,
 	return ret;
 }
 
-int morse_skbq_check_for_stale_tx(struct morse *mors,
-	struct morse_skbq *mq)
+int morse_skbq_check_for_stale_tx(struct morse *mors, struct morse_skbq *mq)
 {
 	int flushed = 0;
 	struct sk_buff *pfirst;
@@ -801,13 +823,18 @@ int morse_skbq_check_for_stale_tx(struct morse *mors,
 	/* Move sent packets to pending list waiting for feedback */
 	spin_lock_bh(&mq->lock);
 	skb_queue_walk_safe(&mq->pending, pfirst, pnext) {
-		struct morse_buff_skb_header *hdr =
-			(struct morse_buff_skb_header *)pfirst->data;
+		struct ieee80211_vif *vif;
+		struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(pfirst);
+		struct morse_buff_skb_header *hdr = (struct morse_buff_skb_header *)pfirst->data;
 
 		if (__has_pending_tx_skb_timed_out(pfirst)) {
-			morse_dbg(mors, "%s: TX SKB timed out [id:%d,chan:%d]\n",
-				__func__, hdr->tx_info.pkt_id, hdr->channel);
-			__skbq_drop_pending_skb(mq, pfirst);
+			MORSE_SKB_DBG(mors, "%s: TX SKB timed out [id:%d,chan:%d]\n",
+				      __func__, hdr->tx_info.pkt_id, hdr->channel);
+
+			vif = (txi->control.vif) ? txi->control.vif :
+			    morse_get_vif_from_vif_id(mors, MORSE_TX_CONF_FLAGS_VIF_ID_GET
+				      (le32_to_cpu(hdr->tx_info.flags)));
+			__skbq_drop_pending_skb(mq, pfirst, vif);
 			mq->mors->debug.page_stats.tx_status_flushed++;
 			flushed++;
 		}
@@ -818,13 +845,13 @@ int morse_skbq_check_for_stale_tx(struct morse *mors,
 }
 
 /* Convert QoS NULL functions indicating PM set to NULL function.
- * This is a workaround a linux bug where only a check on null functions
+ * This is a workaround a Linux bug where only a check on null functions
  * is used to start power management. This was fixed in v5.5 and later.
  * For v5.5 and later kernels this function shouldn't be called.
  */
 static void __skbq_qosnullfunc_to_nullfunc(struct sk_buff *skb)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc = hdr->frame_control;
 
 	if (ieee80211_is_qos_nullfunc(fc) && ieee80211_has_pm(fc)) {
@@ -844,24 +871,24 @@ static int __skbq_cmd_finish(struct morse_skbq *mq, struct sk_buff *skb)
 		dev_kfree_skb(skb);
 	} else if (mq->skbq.qlen > 0) {
 		/* Command was probably timed out before being sent */
-		morse_info(mors, "Command pending queue empty. Removing from SKBQ.\n");
+		MORSE_SKB_INFO(mors, "Command pending queue empty. Removing from SKBQ.\n");
 		__skb_unlink(skb, &mq->skbq);
 		if (mq->skbq_size >= skb->len)
 			mq->skbq_size -= skb->len;
 		dev_kfree_skb(skb);
 	} else {
-		morse_info(mors, "Command Q not found\n");
+		MORSE_SKB_INFO(mors, "Command Q not found\n");
 	}
 
 	return 0;
 }
 
 struct morse_skbq_mon_ent {
-	uint8_t sa[ETH_ALEN];
-	uint8_t da[ETH_ALEN];
-	uint32_t tot_sent;
-	uint32_t qsize_cur;
-	uint32_t qsize_max;
+	u8 sa[ETH_ALEN];
+	u8 da[ETH_ALEN];
+	u32 tot_sent;
+	u32 qsize_cur;
+	u32 qsize_max;
 };
 
 struct morse_skbq_mon_tbl {
@@ -893,16 +920,16 @@ void morse_skbq_mon_dump(struct morse *mors, struct seq_file *file)
 		if (is_zero_ether_addr(ent->sa))
 			break;
 		seq_printf(file, "%3d %pM %pM %-8d %-8d %-8d\n",
-			i, ent->sa, ent->da, ent->tot_sent, ent->qsize_cur, ent->qsize_max);
+			   i, ent->sa, ent->da, ent->tot_sent, ent->qsize_cur, ent->qsize_max);
 	}
 
 	ent = &morse_skbq_mon->ent_mcast;
 	seq_printf(file, "%3s %-35s %-8d %-8d %-8d\n",
-		"-", "Multicast/Broadcast", ent->tot_sent, ent->qsize_cur, ent->qsize_max);
+		   "-", "Multicast/Broadcast", ent->tot_sent, ent->qsize_cur, ent->qsize_max);
 
 	ent = &morse_skbq_mon->ent_all;
 	seq_printf(file, "%3s %-35s %-8d %-8d %-8d\n",
-		"-", "All Tx", ent->tot_sent, ent->qsize_cur, ent->qsize_max);
+		   "-", "All Tx", ent->tot_sent, ent->qsize_cur, ent->qsize_max);
 
 	/* reset the table */
 	memset(morse_skbq_mon, 0, sizeof(*morse_skbq_mon));
@@ -915,11 +942,11 @@ void morse_skbq_mon_dump(struct morse *mors, struct seq_file *file)
  * @add - if true, create a new entry if not found
  */
 static struct morse_skbq_mon_ent *morse_skbq_mon_get(struct morse *mors,
-		struct sk_buff *skb, bool add)
+						     struct sk_buff *skb, bool add)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
-	uint8_t *sa = ieee80211_get_SA(hdr);
-	uint8_t *da = ieee80211_get_DA(hdr);
+	u8 *sa = ieee80211_get_SA(hdr);
+	u8 *da = ieee80211_get_DA(hdr);
 	struct morse_skbq_mon_ent *ent;
 	int i;
 
@@ -938,10 +965,8 @@ static struct morse_skbq_mon_ent *morse_skbq_mon_get(struct morse *mors,
 
 	for (i = 0; i < ARRAY_SIZE(morse_skbq_mon->ent); i++) {
 		ent = &morse_skbq_mon->ent[i];
-		if (memcmp(sa, ent->sa, ETH_ALEN) == 0 &&
-		    memcmp(da, ent->da, ETH_ALEN) == 0) {
+		if (memcmp(sa, ent->sa, ETH_ALEN) == 0 && memcmp(da, ent->da, ETH_ALEN) == 0)
 			return ent;
-		}
 		if (is_zero_ether_addr(ent->sa)) {
 			if (!add)
 				break;
@@ -951,12 +976,12 @@ static struct morse_skbq_mon_ent *morse_skbq_mon_get(struct morse *mors,
 			ent->tot_sent = 0;
 			ent->qsize_cur = 0;
 			ent->qsize_max = 0;
-			morse_info(mors, "%s: add i=%d [%pM->%pM]\n", __func__, i, sa, da);
+			MORSE_SKB_INFO(mors, "%s: add i=%d [%pM->%pM]\n", __func__, i, sa, da);
 			return ent;
 		}
 	}
 
-	morse_info(mors, "%s: [%pM %pM] NOT found\n", __func__, sa, da);
+	MORSE_SKB_INFO(mors, "%s: [%pM %pM] NOT found\n", __func__, sa, da);
 
 	return NULL;
 }
@@ -991,12 +1016,12 @@ static void morse_skbq_mon_adjust(struct morse *mors, struct sk_buff *skb, bool 
 			ent_all->qsize_max = ent_all->qsize_cur;
 	} else {
 		if (ent->qsize_cur == 0 || ent_all->qsize_cur == 0) {
-			morse_err(mors,
-				"%s: [%pM %pM] Unexpected ctr %d/%d %d/%d %d/%d\n",
-				__func__, ent->sa, ent->da,
-				ent->qsize_cur, ent_all->qsize_cur,
-				ent->tot_sent, ent_all->tot_sent,
-				ent->qsize_max, ent_all->qsize_max);
+			MORSE_SKB_ERR(mors,
+				      "%s: [%pM %pM] Unexpected ctr %d/%d %d/%d %d/%d\n",
+				      __func__, ent->sa, ent->da,
+				      ent->qsize_cur, ent_all->qsize_cur,
+				      ent->tot_sent, ent_all->tot_sent,
+				      ent->qsize_max, ent_all->qsize_max);
 			return;
 		}
 		ent->qsize_cur--;
@@ -1006,8 +1031,7 @@ static void morse_skbq_mon_adjust(struct morse *mors, struct sk_buff *skb, bool 
 
 #ifndef CONFIG_MORSE_RC
 static void morse_skbq_tx_status_fill(struct morse *mors,
-				struct sk_buff *skb,
-				struct morse_skb_tx_status *tx_sts)
+				      struct sk_buff *skb, struct morse_skb_tx_status *tx_sts)
 {
 	struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(skb);
 
@@ -1035,8 +1059,7 @@ static void morse_skbq_tx_status_fill(struct morse *mors,
 	if (txi->flags & IEEE80211_TX_CTL_AMPDU) {
 		txi->flags |= IEEE80211_TX_STAT_AMPDU;
 		txi->status.ampdu_len = 1;
-		txi->status.ampdu_ack_len =
-			txi->flags & IEEE80211_TX_STAT_ACK ? 1 : 0;
+		txi->status.ampdu_ack_len = txi->flags & IEEE80211_TX_STAT_ACK ? 1 : 0;
 	}
 
 	ieee80211_tx_status(mors->hw, skb);
@@ -1045,14 +1068,9 @@ static void morse_skbq_tx_status_fill(struct morse *mors,
 
 /* TX status/Response received remove packet from pending TX finish */
 static int __skbq_data_tx_finish(struct morse_skbq *mq, struct sk_buff *skb,
-			 struct morse_skb_tx_status *tx_sts)
+				 struct morse_skb_tx_status *tx_sts)
 {
 	struct morse *mors = mq->mors;
-	struct ieee80211_vif *vif = morse_get_vif(mors);
-	struct morse_vif *mors_if = NULL;
-
-	if (vif)
-		mors_if = (struct morse_vif *)vif->drv_priv;
 
 	if (morse_skbq_mon)
 		morse_skbq_mon_adjust(mors, skb, 0);
@@ -1077,7 +1095,7 @@ static int __skbq_data_tx_finish(struct morse_skbq *mq, struct sk_buff *skb,
 }
 
 int morse_skbq_skb_finish(struct morse_skbq *mq, struct sk_buff *skb,
-			 struct morse_skb_tx_status *tx_sts)
+			  struct morse_skb_tx_status *tx_sts)
 {
 	int ret_sts;
 
@@ -1089,10 +1107,14 @@ int morse_skbq_skb_finish(struct morse_skbq *mq, struct sk_buff *skb,
 	return ret_sts;
 }
 
+static inline void morse_flush_txskb(struct morse *mors, struct sk_buff *skb)
+{
+	ieee80211_free_txskb(mors->hw, skb);
+}
+
 int morse_skbq_tx_flush(struct morse_skbq *mq)
 {
 	struct sk_buff *pfirst, *pnext;
-	struct morse *mors = mq->mors;
 	int cnt = 0;
 
 	spin_lock_bh(&mq->lock);
@@ -1100,13 +1122,13 @@ int morse_skbq_tx_flush(struct morse_skbq *mq)
 	skb_queue_walk_safe(&mq->pending, pfirst, pnext) {
 		cnt++;
 		__skb_unlink(pfirst, &mq->pending);
-		ieee80211_free_txskb(mors->hw, pfirst);
+		morse_flush_txskb(mq->mors, pfirst);
 	}
 
 	skb_queue_walk_safe(&mq->skbq, pfirst, pnext) {
 		cnt++;
 		__skb_unlink(pfirst, &mq->skbq);
-		ieee80211_free_txskb(mors->hw, pfirst);
+		morse_flush_txskb(mq->mors, pfirst);
 	}
 
 	spin_unlock_bh(&mq->lock);
@@ -1114,8 +1136,7 @@ int morse_skbq_tx_flush(struct morse_skbq *mq)
 	return cnt;
 }
 
-void morse_skbq_init(struct morse *mors, bool from_chip,
-		     struct morse_skbq *mq, u16 flags)
+void morse_skbq_init(struct morse *mors, bool from_chip, struct morse_skbq *mq, u16 flags)
 {
 	spin_lock_init(&mq->lock);
 	__skb_queue_head_init(&mq->skbq);
@@ -1131,7 +1152,7 @@ void morse_skbq_init(struct morse *mors, bool from_chip,
 void morse_skbq_finish(struct morse_skbq *mq)
 {
 	if (mq->skbq_size > 0)
-		morse_info(mq->mors, "Purging a non empty MorseQ. Dropping data!");
+		MORSE_SKB_INFO(mq->mors, "Purging a non empty MorseQ. Dropping data!");
 
 	/* Clean up link to chip_if */
 	mq->mors->cfg->ops->skbq_close(mq);
@@ -1182,89 +1203,96 @@ u32 morse_skbq_space(struct morse_skbq *mq)
 }
 
 /* memory size assumed enough for header */
-static void morse_skb_header_put(const struct morse_buff_skb_header *hdr,
-			     uint8_t *buf)
+static void morse_skb_header_put(const struct morse_buff_skb_header *hdr, u8 *buf)
 {
-	struct morse_buff_skb_header *buf_hdr =
-				(struct morse_buff_skb_header *)buf;
+	struct morse_buff_skb_header *buf_hdr = (struct morse_buff_skb_header *)buf;
 
 	memcpy(buf_hdr, hdr, sizeof(*hdr));
 	/* Adjust endianness */
 	buf_hdr->len = cpu_to_le16(buf_hdr->len);
 }
 
-
 struct sk_buff *morse_skbq_alloc_skb(struct morse_skbq *mq, unsigned int length)
 {
-	size_t offset = (length & 0x03) ?
-			(4 - (unsigned long)(length & 3)) : 0;
-	int skb_len = sizeof(struct morse_buff_skb_header) + length + offset;
+	size_t offset = (length & 0x03) ? (4 - (unsigned long)(length & 3)) : 0;
+	int tx_headroom = sizeof(struct morse_buff_skb_header) +
+			mq->mors->bus_ops->bulk_alignment;
+	int skb_len = tx_headroom + length + offset;
 	struct sk_buff *skb;
 
 	skb = dev_alloc_skb(skb_len);
 	if (!skb)
 		return NULL;
-	skb_put(skb, skb_len);
-	skb_pull(skb, sizeof(struct morse_buff_skb_header));
+	skb_reserve(skb, tx_headroom);
+	skb_put(skb, length);
 	return skb;
 }
 
-int morse_skbq_skb_tx(struct morse_skbq *mq, struct sk_buff *skb,
+int morse_skbq_skb_tx(struct morse_skbq *mq, struct sk_buff **skb_orig,
 		      struct morse_skb_tx_info *tx_info, u8 channel)
 {
 	struct morse_buff_skb_header hdr;
 	struct morse *mors;
 	size_t offset;
+	struct sk_buff *skb = *skb_orig;
 	int ret = 0;
+	u8 *aligned_head;
+	u8 *data;
 
-	if ((mq == NULL) || (skb == NULL))
+	WARN_ON(!mq);
+
+	if (!skb)
 		return -EINVAL;
 
 	mors = mq->mors;
 
-	offset = (skb->len & 0x03) ?
-			(4 - (unsigned long)(skb->len & 3)) : 0;
-
 	if (morse_skbq_mon)
 		morse_skbq_mon_adjust(mors, skb, 1);
 
+	data = skb->data;
+	aligned_head = align_down((data - sizeof(hdr)), mors->bus_ops->bulk_alignment);
+	hdr.sync = MORSE_SKB_HEADER_SYNC;
+	hdr.channel = channel;
+	hdr.len = skb->len;
+	hdr.tail = data - (aligned_head + sizeof(hdr));
+	hdr.checksum_upper = 0;
+	hdr.checksum_lower = 0;
+	if (tx_info)
+		memcpy(&hdr.tx_info, tx_info, sizeof(*tx_info));
+	else
+		memset(&hdr.tx_info, 0, sizeof(hdr.tx_info));
+
+	skb_push(skb, data - aligned_head);
+	morse_skb_header_put(&hdr, skb->data);
+
+	offset = (skb->len & 0x03) ? (4 - (unsigned long)(skb->len & 3)) : 0;
+
 	/* Align size to words */
-	if (offset && (offset > skb_tailroom(skb))) {
-		/* TODO allocat new skb */
+	if (offset && offset > skb_tailroom(skb)) {
+		/* TODO allocate new skb */
 		struct sk_buff *tmp;
 
-		morse_info(mors,
-			"%s Unaligned SKB with not enough tailroom extending\n",
-			  __func__);
+		MORSE_SKB_INFO(mors, "%s Unaligned SKB with not enough tailroom extending\n",
+			       __func__);
 		tmp = skb_copy_expand(skb, skb_headroom(skb),
-					offset + skb_tailroom(skb), GFP_ATOMIC);
+				      offset + skb_tailroom(skb), GFP_ATOMIC);
 		if (!tmp) {
-			morse_err(mors,
-			  "%s Unaligned SKB with not enough tailroom to extend\n",
-			  __func__);
+			MORSE_SKB_ERR(mors,
+				      "%s Unaligned SKB with not enough tailroom to extend\n",
+				      __func__);
 			dev_kfree_skb_any(skb);
 			return -EINVAL;
 		}
 		dev_kfree_skb_any(skb);
 		skb = tmp;
+		*skb_orig = skb;
 	}
-
-	hdr.sync = MORSE_SKB_HEADER_SYNC;
-	hdr.channel = channel;
-	hdr.len = skb->len;
-	hdr.tail = offset;
-	if (tx_info)
-		memcpy(&hdr.tx_info, tx_info, sizeof(*tx_info));
-	else
-		memset(&hdr.tx_info, 0, sizeof(hdr.tx_info));
-	skb_push(skb, sizeof(hdr));
-	morse_skb_header_put(&hdr, skb->data);
 
 	skb_put(skb, offset);
 
 	ret = morse_skbq_tx(mq, skb, channel);
 	if (ret) {
-		morse_err(mors, "morse_skbq_tx fail: %d\n", ret);
+		MORSE_SKB_ERR(mors, "morse_skbq_tx fail: %d\n", ret);
 		dev_kfree_skb_any(skb);
 	}
 	return ret;
@@ -1290,4 +1318,41 @@ void morse_skbq_data_traffic_resume(struct morse *mors)
 	 * data Qs if they were previously stopped.
 	 */
 	set_bit(MORSE_TX_DATA_PEND, &mors->chip_if->event_flags);
+}
+
+bool morse_validate_skb_checksum(u8 *data)
+{
+	struct morse_buff_skb_header *skb_hdr = (struct morse_buff_skb_header *)data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(data + sizeof(*skb_hdr));
+	u16 len = le16_to_cpu(skb_hdr->len) + sizeof(*skb_hdr);
+	u32 *data_to_xor = (u32 *)data;
+	u32 header_xor = (le16_to_cpu(skb_hdr->checksum_upper) << 8) | (skb_hdr->checksum_lower);
+	u32 xor = 0;
+	int i;
+
+	/*
+	 * For data frames the calculate the xor for skb header, mac header and ccmp header. For all
+	 * other channel the xor is calculated for the full skb.
+	 */
+
+	if (skb_hdr->channel == MORSE_SKB_CHAN_DATA &&
+	    (ieee80211_is_data(hdr->frame_control) ||
+		 ieee80211_is_data_qos(hdr->frame_control) ||
+		 morse_dot11ah_is_pv1_qos_data(hdr->frame_control))) {
+		u16 data_len = sizeof(*skb_hdr) + QOS_HDR_SIZE + IEEE80211_CCMP_HDR_LEN;
+
+		len = min(len, data_len);
+		len = ROUND_DOWN_TO_WORD(len);
+	}
+
+	skb_hdr->checksum_upper = 0;
+	skb_hdr->checksum_lower = 0;
+
+	for (i = 0; i < len; i += 4) {
+		xor ^= *data_to_xor;
+		data_to_xor++;
+	}
+	xor = xor & 0x00FFFFFF;
+
+	return xor == header_xor;
 }

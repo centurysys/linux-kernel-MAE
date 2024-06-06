@@ -17,7 +17,8 @@
 
 #define CHANNEL_FLAGS_BW_MASK 0x7c000
 
-#define CHANS1GHZ(channel, frequency, offset, chflags, ch5g)  { \
+/* power should match regdb_Sub-1_GHz.tsv (repo: morse_regdb) */
+#define CHANS1GHZ(channel, frequency, offset, chflags, power, ch5g)  { \
 	.ch = { \
 		.band = NL80211_BAND_5GHZ, \
 		.center_freq = (frequency), \
@@ -25,7 +26,8 @@
 		.hw_value = (channel), \
 		.flags = chflags, \
 		.max_antenna_gain = 0, \
-		.max_power = 21, \
+		.max_power = power, \
+		.max_reg_power = power, \
 	}, \
 	.hw_value_map = ch5g, \
 }
@@ -77,8 +79,8 @@ static int ch_flag_to_chan_bw(enum ieee80211_channel_flags flags)
 	}
 }
 
-static int prim_1mhz_channel_loc_to_idx_default(
-	int op_bw_mhz, int pr_bw_mhz, int pr_chan_num, int chan_centre_freq_num, int chan_loc)
+static int prim_1mhz_channel_loc_to_idx_default(int op_bw_mhz, int pr_bw_mhz, int pr_chan_num,
+						int chan_centre_freq_num, int chan_loc)
 {
 	switch (op_bw_mhz) {
 	case 1:
@@ -100,8 +102,8 @@ static int prim_1mhz_channel_loc_to_idx_default(
 	}
 }
 
-static int prim_1mhz_channel_loc_to_idx_jp(
-	int op_bw_mhz, int pr_bw_mhz, int pr_chan_num, int chan_centre_freq_num, int chan_loc)
+static int prim_1mhz_channel_loc_to_idx_jp(int op_bw_mhz, int pr_bw_mhz, int pr_chan_num,
+					   int chan_centre_freq_num, int chan_loc)
 {
 	switch (op_bw_mhz) {
 	case 1:
@@ -114,15 +116,15 @@ static int prim_1mhz_channel_loc_to_idx_jp(
 			       pr_chan_num == 15 ? 1 :
 			       pr_chan_num == 17 ? 2 :
 			       pr_chan_num == 19 ? 3 :
-			       pr_chan_num == 2  ? chan_loc :
-			       pr_chan_num == 6  ? chan_loc : -EINVAL;
+			       pr_chan_num == 2  ? 0 + chan_loc :
+			       pr_chan_num == 6  ? 2 + chan_loc : -EINVAL;
 		} else if (chan_centre_freq_num == 38) {
 			return pr_chan_num == 15 ? 0 :
 			       pr_chan_num == 17 ? 1 :
 			       pr_chan_num == 19 ? 2 :
 			       pr_chan_num == 21 ? 3 :
-			       pr_chan_num == 4  ? chan_loc :
-			       pr_chan_num == 8  ? chan_loc : -EINVAL;
+			       pr_chan_num == 4  ? 0 + chan_loc :
+			       pr_chan_num == 8  ? 2 + chan_loc : -EINVAL;
 		} else {
 			return -EINVAL;
 		}
@@ -132,8 +134,8 @@ static int prim_1mhz_channel_loc_to_idx_jp(
 	}
 }
 
-static int calculate_primary_s1g_channel_default(
-	int op_bw_mhz, int pr_bw_mhz, int chan_centre_freq_num, int pr_1mhz_chan_idx)
+static int calculate_primary_s1g_channel_default(int op_bw_mhz, int pr_bw_mhz,
+						 int chan_centre_freq_num, int pr_1mhz_chan_idx)
 {
 	int chan_loc = (pr_1mhz_chan_idx % 2);
 
@@ -160,8 +162,8 @@ static int calculate_primary_s1g_channel_default(
 	return -EINVAL;
 }
 
-static int calculate_primary_s1g_channel_jp(
-	int op_bw_mhz, int pr_bw_mhz, int chan_centre_freq_num, int pr_1mhz_chan_idx)
+static int calculate_primary_s1g_channel_jp(int op_bw_mhz, int pr_bw_mhz, int chan_centre_freq_num,
+					    int pr_1mhz_chan_idx)
 {
 	int offset;
 
@@ -203,10 +205,10 @@ static int s1g_op_chan_pri_chan_to_5g_jp(int s1g_op_chan, int s1g_pri_chan)
 	 * entries so to get the correct 5g value, the op chan
 	 * must be considered.
 	 */
-	if (((s1g_op_chan == 4)   ||
-	     (s1g_op_chan == 8)   ||
-	     (s1g_op_chan == 38)) &&
-	     (s1g_pri_chan != 21)) {
+	if ((s1g_op_chan == 4 ||
+	     s1g_op_chan == 8 ||
+	     s1g_op_chan == 38) &&
+	    s1g_pri_chan != 21) {
 		ht20mhz_offset = 12;
 	} else {
 		ht20mhz_offset = 0;
@@ -257,58 +259,58 @@ static const struct morse_dot11ah_ch_map mors_us_map = {
 		.get_pri_1mhz_chan = &get_pri_1mhz_chan_default,
 		.num_mapped_channels = 48,
 		.s1g_channels = {
-			 /* 1MHz */
-			CHANS1GHZ(1, 902, 500, IEEE80211_CHAN_1MHZ, 132),
-			CHANS1GHZ(3, 903, 500, IEEE80211_CHAN_1MHZ, 136),
-			CHANS1GHZ(5, 904, 500, IEEE80211_CHAN_1MHZ, 36),
-			CHANS1GHZ(7, 905, 500, IEEE80211_CHAN_1MHZ, 40),
-			CHANS1GHZ(9, 906, 500, IEEE80211_CHAN_1MHZ, 44),
-			CHANS1GHZ(11, 907, 500, IEEE80211_CHAN_1MHZ, 48),
-			CHANS1GHZ(13, 908, 500, IEEE80211_CHAN_1MHZ, 52),
-			CHANS1GHZ(15, 909, 500, IEEE80211_CHAN_1MHZ, 56),
-			CHANS1GHZ(17, 910, 500, IEEE80211_CHAN_1MHZ, 60),
-			CHANS1GHZ(19, 911, 500, IEEE80211_CHAN_1MHZ, 64),
-			CHANS1GHZ(21, 912, 500, IEEE80211_CHAN_1MHZ, 100),
-			CHANS1GHZ(23, 913, 500, IEEE80211_CHAN_1MHZ, 104),
-			CHANS1GHZ(25, 914, 500, IEEE80211_CHAN_1MHZ, 108),
-			CHANS1GHZ(27, 915, 500, IEEE80211_CHAN_1MHZ, 112),
-			CHANS1GHZ(29, 916, 500, IEEE80211_CHAN_1MHZ, 116),
-			CHANS1GHZ(31, 917, 500, IEEE80211_CHAN_1MHZ, 120),
-			CHANS1GHZ(33, 918, 500, IEEE80211_CHAN_1MHZ, 124),
-			CHANS1GHZ(35, 919, 500, IEEE80211_CHAN_1MHZ, 128),
-			CHANS1GHZ(37, 920, 500, IEEE80211_CHAN_1MHZ, 149),
-			CHANS1GHZ(39, 921, 500, IEEE80211_CHAN_1MHZ, 153),
-			CHANS1GHZ(41, 922, 500, IEEE80211_CHAN_1MHZ, 157),
-			CHANS1GHZ(43, 923, 500, IEEE80211_CHAN_1MHZ, 161),
-			CHANS1GHZ(45, 924, 500, IEEE80211_CHAN_1MHZ, 165),
-			CHANS1GHZ(47, 925, 500, IEEE80211_CHAN_1MHZ, 169),
-			CHANS1GHZ(49, 926, 500, IEEE80211_CHAN_1MHZ, 173),
-			CHANS1GHZ(51, 927, 500, IEEE80211_CHAN_1MHZ, 177),
+			/* 1MHz */
+			CHANS1GHZ(1, 902, 500, IEEE80211_CHAN_1MHZ, 3000, 132),
+			CHANS1GHZ(3, 903, 500, IEEE80211_CHAN_1MHZ, 3000, 136),
+			CHANS1GHZ(5, 904, 500, IEEE80211_CHAN_1MHZ, 3000, 36),
+			CHANS1GHZ(7, 905, 500, IEEE80211_CHAN_1MHZ, 3000, 40),
+			CHANS1GHZ(9, 906, 500, IEEE80211_CHAN_1MHZ, 3000, 44),
+			CHANS1GHZ(11, 907, 500, IEEE80211_CHAN_1MHZ, 3000, 48),
+			CHANS1GHZ(13, 908, 500, IEEE80211_CHAN_1MHZ, 3000, 52),
+			CHANS1GHZ(15, 909, 500, IEEE80211_CHAN_1MHZ, 3000, 56),
+			CHANS1GHZ(17, 910, 500, IEEE80211_CHAN_1MHZ, 3000, 60),
+			CHANS1GHZ(19, 911, 500, IEEE80211_CHAN_1MHZ, 3000, 64),
+			CHANS1GHZ(21, 912, 500, IEEE80211_CHAN_1MHZ, 3000, 100),
+			CHANS1GHZ(23, 913, 500, IEEE80211_CHAN_1MHZ, 3000, 104),
+			CHANS1GHZ(25, 914, 500, IEEE80211_CHAN_1MHZ, 3000, 108),
+			CHANS1GHZ(27, 915, 500, IEEE80211_CHAN_1MHZ, 3000, 112),
+			CHANS1GHZ(29, 916, 500, IEEE80211_CHAN_1MHZ, 3000, 116),
+			CHANS1GHZ(31, 917, 500, IEEE80211_CHAN_1MHZ, 3000, 120),
+			CHANS1GHZ(33, 918, 500, IEEE80211_CHAN_1MHZ, 3000, 124),
+			CHANS1GHZ(35, 919, 500, IEEE80211_CHAN_1MHZ, 3000, 128),
+			CHANS1GHZ(37, 920, 500, IEEE80211_CHAN_1MHZ, 3000, 149),
+			CHANS1GHZ(39, 921, 500, IEEE80211_CHAN_1MHZ, 3000, 153),
+			CHANS1GHZ(41, 922, 500, IEEE80211_CHAN_1MHZ, 3000, 157),
+			CHANS1GHZ(43, 923, 500, IEEE80211_CHAN_1MHZ, 3000, 161),
+			CHANS1GHZ(45, 924, 500, IEEE80211_CHAN_1MHZ, 3000, 165),
+			CHANS1GHZ(47, 925, 500, IEEE80211_CHAN_1MHZ, 3000, 169),
+			CHANS1GHZ(49, 926, 500, IEEE80211_CHAN_1MHZ, 3000, 173),
+			CHANS1GHZ(51, 927, 500, IEEE80211_CHAN_1MHZ, 3000, 177),
 			/* 2MHz */
-			CHANS1GHZ(2, 903, 0, IEEE80211_CHAN_2MHZ, 134),
-			CHANS1GHZ(6, 905, 0, IEEE80211_CHAN_2MHZ, 38),
-			CHANS1GHZ(10, 907, 0, IEEE80211_CHAN_2MHZ, 46),
-			CHANS1GHZ(14, 909, 0, IEEE80211_CHAN_2MHZ, 54),
-			CHANS1GHZ(18, 911, 0, IEEE80211_CHAN_2MHZ, 62),
-			CHANS1GHZ(22, 913, 0, IEEE80211_CHAN_2MHZ, 102),
-			CHANS1GHZ(26, 915, 0, IEEE80211_CHAN_2MHZ, 110),
-			CHANS1GHZ(30, 917, 0, IEEE80211_CHAN_2MHZ, 118),
-			CHANS1GHZ(34, 919, 0, IEEE80211_CHAN_2MHZ, 126),
-			CHANS1GHZ(38, 921, 0, IEEE80211_CHAN_2MHZ, 151),
-			CHANS1GHZ(42, 923, 0, IEEE80211_CHAN_2MHZ, 159),
-			CHANS1GHZ(46, 925, 0, IEEE80211_CHAN_2MHZ, 167),
-			CHANS1GHZ(50, 927, 0, IEEE80211_CHAN_2MHZ, 175),
+			CHANS1GHZ(2, 903, 0, IEEE80211_CHAN_2MHZ, 3000, 134),
+			CHANS1GHZ(6, 905, 0, IEEE80211_CHAN_2MHZ, 3000, 38),
+			CHANS1GHZ(10, 907, 0, IEEE80211_CHAN_2MHZ, 3000, 46),
+			CHANS1GHZ(14, 909, 0, IEEE80211_CHAN_2MHZ, 3000, 54),
+			CHANS1GHZ(18, 911, 0, IEEE80211_CHAN_2MHZ, 3000, 62),
+			CHANS1GHZ(22, 913, 0, IEEE80211_CHAN_2MHZ, 3000, 102),
+			CHANS1GHZ(26, 915, 0, IEEE80211_CHAN_2MHZ, 3000, 110),
+			CHANS1GHZ(30, 917, 0, IEEE80211_CHAN_2MHZ, 3000, 118),
+			CHANS1GHZ(34, 919, 0, IEEE80211_CHAN_2MHZ, 3000, 126),
+			CHANS1GHZ(38, 921, 0, IEEE80211_CHAN_2MHZ, 3000, 151),
+			CHANS1GHZ(42, 923, 0, IEEE80211_CHAN_2MHZ, 3000, 159),
+			CHANS1GHZ(46, 925, 0, IEEE80211_CHAN_2MHZ, 3000, 167),
+			CHANS1GHZ(50, 927, 0, IEEE80211_CHAN_2MHZ, 3000, 175),
 			/* 4MHz */
-			CHANS1GHZ(8, 906, 0, IEEE80211_CHAN_4MHZ, 42),
-			CHANS1GHZ(16, 910, 0, IEEE80211_CHAN_4MHZ, 58),
-			CHANS1GHZ(24, 914, 0, IEEE80211_CHAN_4MHZ, 106),
-			CHANS1GHZ(32, 918, 0, IEEE80211_CHAN_4MHZ, 122),
-			CHANS1GHZ(40, 922, 0, IEEE80211_CHAN_4MHZ, 155),
-			CHANS1GHZ(48, 926, 0, IEEE80211_CHAN_4MHZ, 171),
+			CHANS1GHZ(8, 906, 0, IEEE80211_CHAN_4MHZ, 3000, 42),
+			CHANS1GHZ(16, 910, 0, IEEE80211_CHAN_4MHZ, 3000, 58),
+			CHANS1GHZ(24, 914, 0, IEEE80211_CHAN_4MHZ, 3000, 106),
+			CHANS1GHZ(32, 918, 0, IEEE80211_CHAN_4MHZ, 3000, 122),
+			CHANS1GHZ(40, 922, 0, IEEE80211_CHAN_4MHZ, 3000, 155),
+			CHANS1GHZ(48, 926, 0, IEEE80211_CHAN_4MHZ, 3000, 171),
 			/* 8MHz */
-			CHANS1GHZ(12, 908, 0, IEEE80211_CHAN_8MHZ, 50),
-			CHANS1GHZ(28, 916, 0, IEEE80211_CHAN_8MHZ, 114),
-			CHANS1GHZ(44, 924, 0, IEEE80211_CHAN_8MHZ, 163),
+			CHANS1GHZ(12, 908, 0, IEEE80211_CHAN_8MHZ, 3000, 50),
+			CHANS1GHZ(28, 916, 0, IEEE80211_CHAN_8MHZ, 3000, 114),
+			CHANS1GHZ(44, 924, 0, IEEE80211_CHAN_8MHZ, 3000, 163),
 		},
 }; /* End US Map */
 
@@ -321,32 +323,32 @@ static const struct morse_dot11ah_ch_map mors_au_map = {
 		.num_mapped_channels = 23,
 		.s1g_channels = {
 			 /* 1MHz */
-			CHANS1GHZ(27, 915, 500, IEEE80211_CHAN_1MHZ, 112),
-			CHANS1GHZ(29, 916, 500, IEEE80211_CHAN_1MHZ, 116),
-			CHANS1GHZ(31, 917, 500, IEEE80211_CHAN_1MHZ, 120),
-			CHANS1GHZ(33, 918, 500, IEEE80211_CHAN_1MHZ, 124),
-			CHANS1GHZ(35, 919, 500, IEEE80211_CHAN_1MHZ, 128),
-			CHANS1GHZ(37, 920, 500, IEEE80211_CHAN_1MHZ, 149),
-			CHANS1GHZ(39, 921, 500, IEEE80211_CHAN_1MHZ, 153),
-			CHANS1GHZ(41, 922, 500, IEEE80211_CHAN_1MHZ, 157),
-			CHANS1GHZ(43, 923, 500, IEEE80211_CHAN_1MHZ, 161),
-			CHANS1GHZ(45, 924, 500, IEEE80211_CHAN_1MHZ, 165),
-			CHANS1GHZ(47, 925, 500, IEEE80211_CHAN_1MHZ, 169),
-			CHANS1GHZ(49, 926, 500, IEEE80211_CHAN_1MHZ, 173),
-			CHANS1GHZ(51, 927, 500, IEEE80211_CHAN_1MHZ, 177),
+			CHANS1GHZ(27, 915, 500, IEEE80211_CHAN_1MHZ, 3000, 112),
+			CHANS1GHZ(29, 916, 500, IEEE80211_CHAN_1MHZ, 3000, 116),
+			CHANS1GHZ(31, 917, 500, IEEE80211_CHAN_1MHZ, 3000, 120),
+			CHANS1GHZ(33, 918, 500, IEEE80211_CHAN_1MHZ, 3000, 124),
+			CHANS1GHZ(35, 919, 500, IEEE80211_CHAN_1MHZ, 3000, 128),
+			CHANS1GHZ(37, 920, 500, IEEE80211_CHAN_1MHZ, 3000, 149),
+			CHANS1GHZ(39, 921, 500, IEEE80211_CHAN_1MHZ, 3000, 153),
+			CHANS1GHZ(41, 922, 500, IEEE80211_CHAN_1MHZ, 3000, 157),
+			CHANS1GHZ(43, 923, 500, IEEE80211_CHAN_1MHZ, 3000, 161),
+			CHANS1GHZ(45, 924, 500, IEEE80211_CHAN_1MHZ, 3000, 165),
+			CHANS1GHZ(47, 925, 500, IEEE80211_CHAN_1MHZ, 3000, 169),
+			CHANS1GHZ(49, 926, 500, IEEE80211_CHAN_1MHZ, 3000, 173),
+			CHANS1GHZ(51, 927, 500, IEEE80211_CHAN_1MHZ, 3000, 177),
 			/* 2MHz */
-			CHANS1GHZ(30, 917, 0, IEEE80211_CHAN_2MHZ, 118),
-			CHANS1GHZ(34, 919, 0, IEEE80211_CHAN_2MHZ, 126),
-			CHANS1GHZ(38, 921, 0, IEEE80211_CHAN_2MHZ, 151),
-			CHANS1GHZ(42, 923, 0, IEEE80211_CHAN_2MHZ, 159),
-			CHANS1GHZ(46, 925, 0, IEEE80211_CHAN_2MHZ, 167),
-			CHANS1GHZ(50, 927, 0, IEEE80211_CHAN_2MHZ, 175),
+			CHANS1GHZ(30, 917, 0, IEEE80211_CHAN_2MHZ, 3000, 118),
+			CHANS1GHZ(34, 919, 0, IEEE80211_CHAN_2MHZ, 3000, 126),
+			CHANS1GHZ(38, 921, 0, IEEE80211_CHAN_2MHZ, 3000, 151),
+			CHANS1GHZ(42, 923, 0, IEEE80211_CHAN_2MHZ, 3000, 159),
+			CHANS1GHZ(46, 925, 0, IEEE80211_CHAN_2MHZ, 3000, 167),
+			CHANS1GHZ(50, 927, 0, IEEE80211_CHAN_2MHZ, 3000, 175),
 			/* 4MHz */
-			CHANS1GHZ(32, 918, 0, IEEE80211_CHAN_4MHZ, 122),
-			CHANS1GHZ(40, 922, 0, IEEE80211_CHAN_4MHZ, 155),
-			CHANS1GHZ(48, 926, 0, IEEE80211_CHAN_4MHZ, 171),
+			CHANS1GHZ(32, 918, 0, IEEE80211_CHAN_4MHZ, 3000, 122),
+			CHANS1GHZ(40, 922, 0, IEEE80211_CHAN_4MHZ, 3000, 155),
+			CHANS1GHZ(48, 926, 0, IEEE80211_CHAN_4MHZ, 3000, 171),
 			/* 8MHz */
-			CHANS1GHZ(44, 924, 0, IEEE80211_CHAN_8MHZ, 163),
+			CHANS1GHZ(44, 924, 0, IEEE80211_CHAN_8MHZ, 3000, 163),
 		},
 }; /* End AU Map */
 
@@ -359,32 +361,32 @@ static const struct morse_dot11ah_ch_map mors_nz_map = {
 		.num_mapped_channels = 23,
 		.s1g_channels = {
 			 /* 1MHz */
-			CHANS1GHZ(27, 915, 500, IEEE80211_CHAN_1MHZ, 112),
-			CHANS1GHZ(29, 916, 500, IEEE80211_CHAN_1MHZ, 116),
-			CHANS1GHZ(31, 917, 500, IEEE80211_CHAN_1MHZ, 120),
-			CHANS1GHZ(33, 918, 500, IEEE80211_CHAN_1MHZ, 124),
-			CHANS1GHZ(35, 919, 500, IEEE80211_CHAN_1MHZ, 128),
-			CHANS1GHZ(37, 920, 500, IEEE80211_CHAN_1MHZ, 149),
-			CHANS1GHZ(39, 921, 500, IEEE80211_CHAN_1MHZ, 153),
-			CHANS1GHZ(41, 922, 500, IEEE80211_CHAN_1MHZ, 157),
-			CHANS1GHZ(43, 923, 500, IEEE80211_CHAN_1MHZ, 161),
-			CHANS1GHZ(45, 924, 500, IEEE80211_CHAN_1MHZ, 165),
-			CHANS1GHZ(47, 925, 500, IEEE80211_CHAN_1MHZ, 169),
-			CHANS1GHZ(49, 926, 500, IEEE80211_CHAN_1MHZ, 173),
-			CHANS1GHZ(51, 927, 500, IEEE80211_CHAN_1MHZ, 177),
+			CHANS1GHZ(27, 915, 500, IEEE80211_CHAN_1MHZ, 3000, 112),
+			CHANS1GHZ(29, 916, 500, IEEE80211_CHAN_1MHZ, 3000, 116),
+			CHANS1GHZ(31, 917, 500, IEEE80211_CHAN_1MHZ, 3000, 120),
+			CHANS1GHZ(33, 918, 500, IEEE80211_CHAN_1MHZ, 3000, 124),
+			CHANS1GHZ(35, 919, 500, IEEE80211_CHAN_1MHZ, 3000, 128),
+			CHANS1GHZ(37, 920, 500, IEEE80211_CHAN_1MHZ, 3000, 149),
+			CHANS1GHZ(39, 921, 500, IEEE80211_CHAN_1MHZ, 3000, 153),
+			CHANS1GHZ(41, 922, 500, IEEE80211_CHAN_1MHZ, 3000, 157),
+			CHANS1GHZ(43, 923, 500, IEEE80211_CHAN_1MHZ, 3000, 161),
+			CHANS1GHZ(45, 924, 500, IEEE80211_CHAN_1MHZ, 3000, 165),
+			CHANS1GHZ(47, 925, 500, IEEE80211_CHAN_1MHZ, 3000, 169),
+			CHANS1GHZ(49, 926, 500, IEEE80211_CHAN_1MHZ, 3000, 173),
+			CHANS1GHZ(51, 927, 500, IEEE80211_CHAN_1MHZ, 3000, 177),
 			/* 2MHz */
-			CHANS1GHZ(30, 917, 0, IEEE80211_CHAN_2MHZ, 118),
-			CHANS1GHZ(34, 919, 0, IEEE80211_CHAN_2MHZ, 126),
-			CHANS1GHZ(38, 921, 0, IEEE80211_CHAN_2MHZ, 151),
-			CHANS1GHZ(42, 923, 0, IEEE80211_CHAN_2MHZ, 159),
-			CHANS1GHZ(46, 925, 0, IEEE80211_CHAN_2MHZ, 167),
-			CHANS1GHZ(50, 927, 0, IEEE80211_CHAN_2MHZ, 175),
+			CHANS1GHZ(30, 917, 0, IEEE80211_CHAN_2MHZ, 3000, 118),
+			CHANS1GHZ(34, 919, 0, IEEE80211_CHAN_2MHZ, 3000, 126),
+			CHANS1GHZ(38, 921, 0, IEEE80211_CHAN_2MHZ, 3000, 151),
+			CHANS1GHZ(42, 923, 0, IEEE80211_CHAN_2MHZ, 3000, 159),
+			CHANS1GHZ(46, 925, 0, IEEE80211_CHAN_2MHZ, 3000, 167),
+			CHANS1GHZ(50, 927, 0, IEEE80211_CHAN_2MHZ, 3000, 175),
 			/* 4MHz */
-			CHANS1GHZ(32, 918, 0, IEEE80211_CHAN_4MHZ, 122),
-			CHANS1GHZ(40, 922, 0, IEEE80211_CHAN_4MHZ, 155),
-			CHANS1GHZ(48, 926, 0, IEEE80211_CHAN_4MHZ, 171),
+			CHANS1GHZ(32, 918, 0, IEEE80211_CHAN_4MHZ, 3000, 122),
+			CHANS1GHZ(40, 922, 0, IEEE80211_CHAN_4MHZ, 3000, 155),
+			CHANS1GHZ(48, 926, 0, IEEE80211_CHAN_4MHZ, 3000, 171),
 			/* 8MHz */
-			CHANS1GHZ(44, 924, 0, IEEE80211_CHAN_8MHZ, 163),
+			CHANS1GHZ(44, 924, 0, IEEE80211_CHAN_8MHZ, 3000, 163),
 		},
 }; /* End NZ Map */
 
@@ -397,14 +399,14 @@ static const struct morse_dot11ah_ch_map mors_eu_map = {
 		.num_mapped_channels = 8,
 		.s1g_channels = {
 			/* 1MHz */
-			CHANS1GHZ(1, 863, 500, IEEE80211_CHAN_1MHZ, 132),
-			CHANS1GHZ(3, 864, 500, IEEE80211_CHAN_1MHZ, 136),
-			CHANS1GHZ(5, 865, 500, IEEE80211_CHAN_1MHZ, 36),
-			CHANS1GHZ(7, 866, 500, IEEE80211_CHAN_1MHZ, 40),
-			CHANS1GHZ(9, 867, 500, IEEE80211_CHAN_1MHZ, 44),
-			CHANS1GHZ(31, 916, 900, IEEE80211_CHAN_1MHZ, 120),
-			CHANS1GHZ(33, 917, 900, IEEE80211_CHAN_1MHZ, 124),
-			CHANS1GHZ(35, 918, 900, IEEE80211_CHAN_1MHZ, 128),
+			CHANS1GHZ(1, 863, 500, IEEE80211_CHAN_1MHZ, 1600, 132),
+			CHANS1GHZ(3, 864, 500, IEEE80211_CHAN_1MHZ, 1600, 136),
+			CHANS1GHZ(5, 865, 500, IEEE80211_CHAN_1MHZ, 1600, 36),
+			CHANS1GHZ(7, 866, 500, IEEE80211_CHAN_1MHZ, 1600, 40),
+			CHANS1GHZ(9, 867, 500, IEEE80211_CHAN_1MHZ, 1600, 44),
+			CHANS1GHZ(31, 916, 900, IEEE80211_CHAN_1MHZ, 1600, 120),
+			CHANS1GHZ(33, 917, 900, IEEE80211_CHAN_1MHZ, 1600, 124),
+			CHANS1GHZ(35, 918, 900, IEEE80211_CHAN_1MHZ, 1600, 128),
 		},
 }; /* End EU Map */
 
@@ -417,12 +419,11 @@ static const struct morse_dot11ah_ch_map mors_in_map = {
 		.num_mapped_channels = 3,
 		.s1g_channels = {
 			/* 1MHz */
-			CHANS1GHZ(5, 865, 500, IEEE80211_CHAN_1MHZ, 36),
-			CHANS1GHZ(7, 866, 500, IEEE80211_CHAN_1MHZ, 40),
-			CHANS1GHZ(9, 867, 500, IEEE80211_CHAN_1MHZ,	44),
+			CHANS1GHZ(5, 865, 500, IEEE80211_CHAN_1MHZ, 1600, 36),
+			CHANS1GHZ(7, 866, 500, IEEE80211_CHAN_1MHZ, 1600, 40),
+			CHANS1GHZ(9, 867, 500, IEEE80211_CHAN_1MHZ, 1600, 44),
 		},
 }; /* End IN Map */
-
 
 static const struct morse_dot11ah_ch_map mors_jp_map = {
 		.alpha = "JP",
@@ -430,22 +431,22 @@ static const struct morse_dot11ah_ch_map mors_jp_map = {
 		.calculate_primary_s1g = &calculate_primary_s1g_channel_jp,
 		.s1g_op_chan_pri_chan_to_5g = &s1g_op_chan_pri_chan_to_5g_jp,
 		.get_pri_1mhz_chan = &get_pri_1mhz_chan_jp,
-		.num_mapped_channels = 10,
+		.num_mapped_channels = 11,
 		.s1g_channels = {
 			/* 1MHz */
-			CHANS1GHZ(13, 923, 0, IEEE80211_CHAN_1MHZ, 36),
-			CHANS1GHZ(15, 924, 0, IEEE80211_CHAN_1MHZ, 40),
-			CHANS1GHZ(17, 925, 0, IEEE80211_CHAN_1MHZ, 44),
-			CHANS1GHZ(19, 926, 0, IEEE80211_CHAN_1MHZ, 48),
-			CHANS1GHZ(21, 927, 0, IEEE80211_CHAN_1MHZ, 64),
+			CHANS1GHZ(13, 923, 0, IEEE80211_CHAN_1MHZ, 1600, 36),
+			CHANS1GHZ(15, 924, 0, IEEE80211_CHAN_1MHZ, 1600, 40),
+			CHANS1GHZ(17, 925, 0, IEEE80211_CHAN_1MHZ, 1600, 44),
+			CHANS1GHZ(19, 926, 0, IEEE80211_CHAN_1MHZ, 1600, 48),
+			CHANS1GHZ(21, 927, 0, IEEE80211_CHAN_1MHZ, 1600, 64),
 			/* 2MHz */
-			CHANS1GHZ(2, 923, 500, IEEE80211_CHAN_2MHZ, 38),
-			CHANS1GHZ(6, 925, 500, IEEE80211_CHAN_2MHZ, 46), /* Overlap 11ah ch38 */
-			CHANS1GHZ(4, 924, 500, IEEE80211_CHAN_2MHZ, 54),
-			CHANS1GHZ(8, 926, 500, IEEE80211_CHAN_2MHZ, 62),
+			CHANS1GHZ(2, 923, 500, IEEE80211_CHAN_2MHZ, 1600, 38),
+			CHANS1GHZ(6, 925, 500, IEEE80211_CHAN_2MHZ, 1600, 46), /* Overlap ch38 */
+			CHANS1GHZ(4, 924, 500, IEEE80211_CHAN_2MHZ, 1600, 54),
+			CHANS1GHZ(8, 926, 500, IEEE80211_CHAN_2MHZ, 1600, 62),
 			/* 4MHz */
-			CHANS1GHZ(36, 924, 500, IEEE80211_CHAN_4MHZ, 42), /* Overlap 11ah ch4 */
-//			CHANS1GHZ(38, 925, 500, IEEE80211_CHAN_4MHZ, 58), /* Overlap 11ah ch4 */
+			CHANS1GHZ(36, 924, 500, IEEE80211_CHAN_4MHZ, 1600, 42), /* Overlap ch4 */
+			CHANS1GHZ(38, 925, 500, IEEE80211_CHAN_4MHZ, 1600, 58), /* Overlap ch4 */
 		},
 }; /* End JP Map */
 
@@ -458,18 +459,18 @@ static const struct morse_dot11ah_ch_map mors_kr_map = {
 		.num_mapped_channels = 10,
 		.s1g_channels = {
 			/* 1MHz */
-			CHANS1GHZ(1, 918, 0, IEEE80211_CHAN_1MHZ, 132),
-			CHANS1GHZ(3, 919, 0, IEEE80211_CHAN_1MHZ, 136),
-			CHANS1GHZ(5, 920, 0, IEEE80211_CHAN_1MHZ, 36),
-			CHANS1GHZ(7, 921, 0, IEEE80211_CHAN_1MHZ, 40),
-			CHANS1GHZ(9, 922, 0, IEEE80211_CHAN_1MHZ, 44),
-			CHANS1GHZ(11, 923, 0, IEEE80211_CHAN_1MHZ, 48),
+			CHANS1GHZ(1, 918, 0, IEEE80211_CHAN_1MHZ, 477, 132),
+			CHANS1GHZ(3, 919, 0, IEEE80211_CHAN_1MHZ, 477, 136),
+			CHANS1GHZ(5, 920, 0, IEEE80211_CHAN_1MHZ, 477, 36),
+			CHANS1GHZ(7, 921, 0, IEEE80211_CHAN_1MHZ, 477, 40),
+			CHANS1GHZ(9, 922, 0, IEEE80211_CHAN_1MHZ, 1000, 44),
+			CHANS1GHZ(11, 923, 0, IEEE80211_CHAN_1MHZ, 1000, 48),
 			/* 2MHz */
-			CHANS1GHZ(2, 918, 500, IEEE80211_CHAN_2MHZ, 134),
-			CHANS1GHZ(6, 920, 500, IEEE80211_CHAN_2MHZ, 38),
-			CHANS1GHZ(10, 922, 500, IEEE80211_CHAN_2MHZ, 46),
+			CHANS1GHZ(2, 918, 500, IEEE80211_CHAN_2MHZ, 477, 134),
+			CHANS1GHZ(6, 920, 500, IEEE80211_CHAN_2MHZ, 477, 38),
+			CHANS1GHZ(10, 922, 500, IEEE80211_CHAN_2MHZ, 1000, 46),
 			/* 4MHz */
-			CHANS1GHZ(8, 921, 500, IEEE80211_CHAN_4MHZ, 42),
+			CHANS1GHZ(8, 921, 500, IEEE80211_CHAN_4MHZ, 477, 42),
 		},
 }; /* End KR Map */
 
@@ -481,21 +482,21 @@ static const struct morse_dot11ah_ch_map mors_sg_map = {
 		.get_pri_1mhz_chan = &get_pri_1mhz_chan_default,
 		.num_mapped_channels = 12,
 		.s1g_channels = {
-		       /* 1MHz */
-		       CHANS1GHZ(7, 866, 500, IEEE80211_CHAN_1MHZ, 40),
-		       CHANS1GHZ(9, 867, 500, IEEE80211_CHAN_1MHZ, 44),
-		       CHANS1GHZ(11, 868, 500, IEEE80211_CHAN_1MHZ, 48),
-		       CHANS1GHZ(37, 920, 500, IEEE80211_CHAN_1MHZ, 149),
-		       CHANS1GHZ(39, 921, 500, IEEE80211_CHAN_1MHZ, 153),
-		       CHANS1GHZ(41, 922, 500, IEEE80211_CHAN_1MHZ, 157),
-		       CHANS1GHZ(43, 923, 500, IEEE80211_CHAN_1MHZ, 161),
-		       CHANS1GHZ(45, 924, 500, IEEE80211_CHAN_1MHZ, 165),
-		       /* 2MHz */
-		       CHANS1GHZ(10, 868, 0, IEEE80211_CHAN_2MHZ, 46),
-		       CHANS1GHZ(38, 921, 0, IEEE80211_CHAN_2MHZ, 151),
-		       CHANS1GHZ(42, 923, 0, IEEE80211_CHAN_2MHZ, 159),
-			   /* 4MHz */
-			   CHANS1GHZ(40, 922, 0, IEEE80211_CHAN_4MHZ, 155),
+			/* 1MHz */
+			CHANS1GHZ(7, 866, 500, IEEE80211_CHAN_1MHZ, 3000, 40),
+			CHANS1GHZ(9, 867, 500, IEEE80211_CHAN_1MHZ, 3000, 44),
+			CHANS1GHZ(11, 868, 500, IEEE80211_CHAN_1MHZ, 3000, 48),
+			CHANS1GHZ(37, 920, 500, IEEE80211_CHAN_1MHZ, 3000, 149),
+			CHANS1GHZ(39, 921, 500, IEEE80211_CHAN_1MHZ, 3000, 153),
+			CHANS1GHZ(41, 922, 500, IEEE80211_CHAN_1MHZ, 3000, 157),
+			CHANS1GHZ(43, 923, 500, IEEE80211_CHAN_1MHZ, 3000, 161),
+			CHANS1GHZ(45, 924, 500, IEEE80211_CHAN_1MHZ, 3000, 165),
+			/* 2MHz */
+			CHANS1GHZ(10, 868, 0, IEEE80211_CHAN_2MHZ, 3000, 46),
+			CHANS1GHZ(38, 921, 0, IEEE80211_CHAN_2MHZ, 3000, 151),
+			CHANS1GHZ(42, 923, 0, IEEE80211_CHAN_2MHZ, 3000, 159),
+			/* 4MHz */
+			CHANS1GHZ(40, 922, 0, IEEE80211_CHAN_4MHZ, 3000, 155),
 		},
 }; /* End SG Map */
 
@@ -516,7 +517,7 @@ int morse_dot11ah_channel_set_map(const char *alpha)
 {
 	int i;
 
-	if (WARN_ON(alpha == NULL))
+	if (WARN_ON(!alpha))
 		return -ENOENT;
 
 	for (i = 0; i < ARRAY_SIZE(mapped_channels); i++)
@@ -526,16 +527,16 @@ int morse_dot11ah_channel_set_map(const char *alpha)
 	if (!__mors_s1g_map)
 		return -ENOENT;
 
-	if (WARN_ON(__mors_s1g_map->prim_1mhz_channel_loc_to_idx == NULL))
+	if (WARN_ON(!__mors_s1g_map->prim_1mhz_channel_loc_to_idx))
 		return -ENOENT;
 
-	if (WARN_ON(__mors_s1g_map->calculate_primary_s1g == NULL))
+	if (WARN_ON(!__mors_s1g_map->calculate_primary_s1g))
 		return -ENOENT;
 
-	if (WARN_ON(__mors_s1g_map->prim_1mhz_channel_loc_to_idx == NULL))
+	if (WARN_ON(!__mors_s1g_map->prim_1mhz_channel_loc_to_idx))
 		return -ENOENT;
 
-	if (WARN_ON(__mors_s1g_map->get_pri_1mhz_chan == NULL))
+	if (WARN_ON(!__mors_s1g_map->get_pri_1mhz_chan))
 		return -ENOENT;
 
 	return 0;
@@ -571,9 +572,12 @@ u32 morse_dot11ah_s1g_chan_to_s1g_freq(int chan_s1g)
 {
 	int ch;
 
-	for (ch = 0; ch < __mors_s1g_map->num_mapped_channels; ch++)
-		if (chan_s1g ==  __mors_s1g_map->s1g_channels[ch].ch.hw_value)
-			return KHZ_TO_HZ(ieee80211_channel_to_khz(&__mors_s1g_map->s1g_channels[ch].ch));
+	for (ch = 0; ch < __mors_s1g_map->num_mapped_channels; ch++) {
+		const struct ieee80211_channel_s1g *chan = &__mors_s1g_map->s1g_channels[ch].ch;
+
+		if (chan_s1g == chan->hw_value)
+			return KHZ_TO_HZ(ieee80211_channel_to_khz(chan));
+	}
 
 	return false;
 }
@@ -605,8 +609,26 @@ const char *morse_dot11ah_get_region_str(void)
 }
 EXPORT_SYMBOL(morse_dot11ah_get_region_str);
 
+const struct morse_dot11ah_channel *morse_dot11ah_s1g_freq_to_s1g(int freq, int bw)
+{
+	int ch;
+	int _freq;
+	int _bw;
+
+	for (ch = 0; ch < __mors_s1g_map->num_mapped_channels; ch++) {
+		_freq = MHZ_TO_HZ(__mors_s1g_map->s1g_channels[ch].ch.center_freq) +
+				KHZ_TO_HZ(__mors_s1g_map->s1g_channels[ch].ch.freq_offset);
+		_bw = ch_flag_to_chan_bw(__mors_s1g_map->s1g_channels[ch].ch.flags);
+		if (freq == _freq && bw == _bw)
+			return &__mors_s1g_map->s1g_channels[ch];
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(morse_dot11ah_s1g_freq_to_s1g);
+
 const struct morse_dot11ah_channel
-*morse_dot11ah_channel_get_s1g(struct ieee80211_channel *chan_5g)
+*morse_dot11ah_5g_chan_to_s1g(struct ieee80211_channel *chan_5g)
 {
 	int ch;
 
@@ -616,7 +638,7 @@ const struct morse_dot11ah_channel
 
 	return NULL;
 }
-EXPORT_SYMBOL(morse_dot11ah_channel_get_s1g);
+EXPORT_SYMBOL(morse_dot11ah_5g_chan_to_s1g);
 
 const struct morse_dot11ah_channel
 *morse_dot11ah_channel_chandef_to_s1g(struct cfg80211_chan_def *chan_5g)
@@ -624,8 +646,8 @@ const struct morse_dot11ah_channel
 	int ch;
 	int hwval;
 
-	if ((chan_5g->center_freq1) &&
-			(chan_5g->center_freq1 != chan_5g->chan->center_freq))
+	if (chan_5g->center_freq1 &&
+			chan_5g->center_freq1 != chan_5g->chan->center_freq)
 		hwval = ieee80211_frequency_to_channel(chan_5g->center_freq1);
 	else
 		hwval = ieee80211_frequency_to_channel(chan_5g->chan->center_freq);
@@ -777,8 +799,8 @@ int morse_dot11ah_freq_khz_bw_mhz_to_chan(u32 freq, u8 bw)
 }
 EXPORT_SYMBOL(morse_dot11ah_freq_khz_bw_mhz_to_chan);
 
-int morse_dot11ah_prim_1mhz_channel_loc_to_idx(
-	int op_bw_mhz, int pr_bw_mhz, int pr_chan_num, int chan_centre_freq_num, int chan_loc)
+int morse_dot11ah_prim_1mhz_chan_loc_to_idx(int op_bw_mhz, int pr_bw_mhz, int pr_chan_num,
+					    int chan_centre_freq_num, int chan_loc)
 {
 	return __mors_s1g_map->prim_1mhz_channel_loc_to_idx(op_bw_mhz,
 							    pr_bw_mhz,
@@ -787,14 +809,15 @@ int morse_dot11ah_prim_1mhz_channel_loc_to_idx(
 							    chan_loc);
 }
 
-int morse_dot11ah_calculate_primary_s1g_channel(
-	int op_bw_mhz, int pr_bw_mhz, int chan_centre_freq_num, int pr_1mhz_chan_idx)
+int morse_dot11ah_calc_prim_s1g_chan(int op_bw_mhz, int pr_bw_mhz,
+						int chan_centre_freq_num, int pr_1mhz_chan_idx)
 {
 	return __mors_s1g_map->calculate_primary_s1g(op_bw_mhz,
 						     pr_bw_mhz,
 						     chan_centre_freq_num,
 						     pr_1mhz_chan_idx);
 }
+EXPORT_SYMBOL(morse_dot11ah_calc_prim_s1g_chan);
 
 int morse_dot11ah_get_pri_1mhz_chan(int primary_channel,
 	int primary_channel_width_mhz, bool pri_1_mhz_loc_upper)

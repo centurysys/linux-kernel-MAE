@@ -28,6 +28,7 @@ void __dot11ah_ ##fn(u32 level, const char *func, int line, const char *fmt, ...
 __dot11ah_fn(debug)
 __dot11ah_fn(info)
 __dot11ah_fn(warn)
+__dot11ah_fn(warn_ratelimited)
 __dot11ah_fn(err)
 
 void morse_dot11ah_debug_set_mask(u32 mask)

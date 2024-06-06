@@ -1,11 +1,10 @@
 /*
- * Copyright 2017-2022 Morse Micro
+ * Copyright 2017-2023 Morse Micro
  */
 #include <linux/sort.h>
 #include "debug.h"
 #include "raw.h"
 #include "command.h"
-
 
 #define INVALID_AID_VALUE				(-1)
 #define INVALID_AID_IDX_VALUE				(-1)
@@ -21,18 +20,18 @@
  * @IEEE80211_S1G_RPS_RAW_CONTROL_GENERIC_RAFRAME: RA frame flag
  */
 enum ieee80211_s1g_rps_raw_control_generic_flags {
-	IEEE80211_S1G_RPS_RAW_CONTROL_GENERIC_PSTA	= BIT(0),
-	IEEE80211_S1G_RPS_RAW_CONTROL_GENERIC_RAFRAME	= BIT(1),
+	IEEE80211_S1G_RPS_RAW_CONTROL_GENERIC_PSTA = BIT(0),
+	IEEE80211_S1G_RPS_RAW_CONTROL_GENERIC_RAFRAME = BIT(1),
 };
 
 #define IEEE80211_S1G_RPS_RAW_CONTROL_TYPE_OPTION_SHIFT	(2)
 #define IEEE80211_S1G_RPS_RAW_CONTROL_TYPE_OPTION	GENMASK(3, 2)
 
 enum ieee80211_s1g_rps_raw_control_ind_flags {
-	IEEE80211_S1G_RPS_RAW_CONTROL_START_IND		= BIT(4),
-	IEEE80211_S1G_RPS_RAW_CONTROL_GROUP_IND		= BIT(5),
-	IEEE80211_S1G_RPS_RAW_CONTROL_CHAN_IND		= BIT(6),
-	IEEE80211_S1G_RPS_RAW_CONTROL_PERIODIC_IND	= BIT(7),
+	IEEE80211_S1G_RPS_RAW_CONTROL_START_IND = BIT(4),
+	IEEE80211_S1G_RPS_RAW_CONTROL_GROUP_IND = BIT(5),
+	IEEE80211_S1G_RPS_RAW_CONTROL_CHAN_IND = BIT(6),
+	IEEE80211_S1G_RPS_RAW_CONTROL_PERIODIC_IND = BIT(7),
 };
 
 /**
@@ -42,8 +41,8 @@ enum ieee80211_s1g_rps_raw_control_ind_flags {
  * @IEEE80211_S1G_RPS_RAW_SLOT_CROSS_BOUNDARY: cross slot boundary bleed over
  */
 enum ieee80211_s1g_rps_raw_slot_flags {
-	IEEE80211_S1G_RPS_RAW_SLOT_DEF_FORMAT		= BIT(0),
-	IEEE80211_S1G_RPS_RAW_SLOT_CROSS_BOUNDARY	= BIT(1),
+	IEEE80211_S1G_RPS_RAW_SLOT_DEF_FORMAT = BIT(0),
+	IEEE80211_S1G_RPS_RAW_SLOT_CROSS_BOUNDARY = BIT(1),
 };
 
 #define IEEE80211_S1G_RPS_RAW_SLOT_NUM_3BITS		(3)
@@ -86,8 +85,8 @@ enum ieee80211_s1g_rps_raw_slot_flags {
  * @IEEE80211_S1G_RPS_RAW_CHAN_DL_ACTIVITY: DL Activity subfield flag
  */
 enum ieee80211_s1g_rps_raw_chan_activity_flags {
-	IEEE80211_S1G_RPS_RAW_CHAN_UL_ACTIVITY		= BIT(3),
-	IEEE80211_S1G_RPS_RAW_CHAN_DL_ACTIVITY		= BIT(4),
+	IEEE80211_S1G_RPS_RAW_CHAN_UL_ACTIVITY = BIT(3),
+	IEEE80211_S1G_RPS_RAW_CHAN_DL_ACTIVITY = BIT(4),
 };
 
 /** Minimum slot duration in us. (Corresponds to a cslot value of 0) */
@@ -128,9 +127,14 @@ enum ieee80211_s1g_rps_raw_chan_activity_flags {
  */
 #define TWO_TU_TO_US(x)	((x) * (1024 * 2))
 
+#define MORSE_RAW_DBG(_m, _f, _a...)		morse_dbg(FEATURE_ID_RAW, _m, _f, ##_a)
+#define MORSE_RAW_INFO(_m, _f, _a...)		morse_info(FEATURE_ID_RAW, _m, _f, ##_a)
+#define MORSE_RAW_WARN(_m, _f, _a...)		morse_warn(FEATURE_ID_RAW, _m, _f, ##_a)
+#define MORSE_RAW_ERR(_m, _f, _a...)		morse_err(FEATURE_ID_RAW, _m, _f, ##_a)
+
 enum morse_cmd_raw_enable_type {
-	RAW_CMD_ENABLE_TYPE_GLOBAL	= 0,
-	RAW_CMD_ENABLE_TYPE_SINGLE	= 1,
+	RAW_CMD_ENABLE_TYPE_GLOBAL = 0,
+	RAW_CMD_ENABLE_TYPE_SINGLE = 1,
 };
 
 /**
@@ -169,7 +173,7 @@ struct morse_raw_start_time_t {
 /**
  * struct morse_raw_group_t - RAW Group definition
  * @raw_group12:	First two octets of the group definition, includes Page
- *			Index, RAW Start AID, and 2 bits of RAW End AID
+ *			Index, RAW Start AID, and 3 bits of RAW End AID
  * @raw_group3:		Contains the third octet of the group definition, includes
  *			8 bits of the RAW End AID
  *
@@ -202,13 +206,13 @@ struct morse_raw_channel_t {
 
 /**
  * morse_raw_periodic_t - Periodic RAW definition
- * @periodicity:	period of the current PRAW occurance
+ * @periodicity:	period of the current PRAW occurrance
  * @validity:		number of periods the PRAW repeats
  * @start_offset:	number of beacons until PRAW starts
  *
  * 9.4.2.191 RPS element(11ah)
  *
- * The PRAW Periodicity subfield indicates the period of current PRAW occurrence in the unit of
+ * The PRAW Periodicity subfield indicates the period of current PRAW occurrance in the unit of
  * beacon interval if dot11ShortBeaconInterval is false and in the unit of short beacon interval if
  * dot11ShortBeaconInterval is true (see 11.1.3.10.2 (Generation of S1G Beacon frames)).
  */
@@ -254,7 +258,7 @@ static void morse_raw_stations_aid_iter(void *data, struct ieee80211_sta *sta)
  * @mors:		Morse chip struct
  * @data:		The data structure to put the AIDs in
  *
- * Note that the data struct is expected to be intialised to zero and not contain pointers to
+ * Note that the data struct is expected to be initialised to zero and not contain pointers to
  * allocated memory.
  */
 static void morse_raw_get_station_aid(struct morse *mors, struct morse_raw_station_data *data)
@@ -265,7 +269,7 @@ static void morse_raw_get_station_aid(struct morse *mors, struct morse_raw_stati
 	/* Find out how many stations there are and allocate memory for the AID list. */
 	ieee80211_iterate_stations_atomic(mors->hw, morse_raw_stations_count_iter, data);
 	if (data->num_stations > 0) {
-		data->aids = kmalloc_array(data->num_stations, sizeof(*(data->aids)), GFP_ATOMIC);
+		data->aids = kmalloc_array(data->num_stations, sizeof(*data->aids), GFP_ATOMIC);
 		/* Now we can get the list of AIDs. */
 		ieee80211_iterate_stations_atomic(mors->hw, morse_raw_stations_aid_iter, data);
 	}
@@ -295,7 +299,7 @@ static int morse_raw_aid_compare(const void *a, const void *b)
 }
 
 /**
- * morse_raw_get_slot_config() - Create the slot coniguration for the packed struct.
+ * morse_raw_get_slot_config() - Create the slot configuration for the packed struct.
  * @mors:		Morse chip struct
  * @type:		RAW type (e.g. Generic, Sounding etc.)
  * @num_slots:		Number of slots for the RAW
@@ -311,19 +315,19 @@ static int morse_raw_aid_compare(const void *a, const void *b)
 static void morse_raw_get_slot_config(struct morse *mors, enum ieee80211_s1g_rps_raw_type type,
 				      u8 num_slots, u32 slot_duration_us, __le16 *slot_definition)
 {
-	u8 max_slots;
-	u16 cslot_max;
+	u8 max_slots = 0;
+	u16 cslot_max = 0;
 	u32 cslot;
 
 	if (slot_duration_us < MORSE_RAW_MIN_SLOT_DURATION_US) {
 		cslot = US_TO_CSLOT(MORSE_RAW_MIN_SLOT_DURATION_US);
-		morse_warn(mors, "RAW Slot duration too short, setting to %u\n",
-			   MORSE_RAW_MIN_SLOT_DURATION_US);
-	} else
+		MORSE_RAW_WARN(mors, "RAW Slot duration too short, setting to %u\n",
+			       MORSE_RAW_MIN_SLOT_DURATION_US);
+	} else {
 		cslot = US_TO_CSLOT(slot_duration_us);
+	}
 
-	morse_dbg(mors, "Slot duration us, cslot: %u, %u\n", slot_duration_us, cslot);
-
+	MORSE_RAW_DBG(mors, "Slot duration us, cslot: %u, %u\n", slot_duration_us, cslot);
 
 	/* Clear all information except the cross slot boundary setting. */
 	*slot_definition &= cpu_to_le16(IEEE80211_S1G_RPS_RAW_SLOT_CROSS_BOUNDARY);
@@ -349,32 +353,30 @@ static void morse_raw_get_slot_config(struct morse *mors, enum ieee80211_s1g_rps
 	}
 
 	if (num_slots > max_slots) {
-		morse_warn(mors, "Too many slots: %u, capping to %u\n", num_slots, max_slots);
+		MORSE_RAW_WARN(mors, "Too many slots: %u, capping to %u\n", num_slots, max_slots);
 		num_slots = max_slots;
 	}
 
 	if (cslot > cslot_max) {
-		morse_warn(mors, "Slot duration too long: %u (%uus), capping to %u (%uus)\n",
-			   cslot, CSLOT_TO_US(cslot), cslot_max, CSLOT_TO_US(cslot_max));
+		MORSE_RAW_WARN(mors, "Slot duration too long: %u (%uus), capping to %u (%uus)\n",
+			       cslot, CSLOT_TO_US(cslot), cslot_max, CSLOT_TO_US(cslot_max));
 		cslot = cslot_max;
 	}
 
 	if (le16_to_cpu(*slot_definition) & IEEE80211_S1G_RPS_RAW_SLOT_DEF_FORMAT) {
-		*slot_definition |= cpu_to_le16(
-			(cslot << IEEE80211_S1G_RPS_RAW_SLOT_DCOUNT_SHIFT) &
-			IEEE80211_S1G_RPS_RAW_SLOT_DCOUNT_11);
+		*slot_definition |= cpu_to_le16((cslot << IEEE80211_S1G_RPS_RAW_SLOT_DCOUNT_SHIFT) &
+						IEEE80211_S1G_RPS_RAW_SLOT_DCOUNT_11);
 
-		*slot_definition |= cpu_to_le16(
-			(num_slots << IEEE80211_S1G_RPS_RAW_SLOT_NUM_3_SHIFT) &
-			IEEE80211_S1G_RPS_RAW_SLOT_NUM_3);
+		*slot_definition |= cpu_to_le16((num_slots <<
+						 IEEE80211_S1G_RPS_RAW_SLOT_NUM_3_SHIFT) &
+						IEEE80211_S1G_RPS_RAW_SLOT_NUM_3);
 	} else {
-		*slot_definition |= cpu_to_le16(
-			(cslot << IEEE80211_S1G_RPS_RAW_SLOT_DCOUNT_SHIFT) &
-			IEEE80211_S1G_RPS_RAW_SLOT_DCOUNT_8);
+		*slot_definition |= cpu_to_le16((cslot << IEEE80211_S1G_RPS_RAW_SLOT_DCOUNT_SHIFT) &
+						IEEE80211_S1G_RPS_RAW_SLOT_DCOUNT_8);
 
-		*slot_definition |= cpu_to_le16(
-			(num_slots << IEEE80211_S1G_RPS_RAW_SLOT_NUM_6_SHIFT) &
-			IEEE80211_S1G_RPS_RAW_SLOT_NUM_6);
+		*slot_definition |= cpu_to_le16((num_slots <<
+						 IEEE80211_S1G_RPS_RAW_SLOT_NUM_6_SHIFT) &
+						IEEE80211_S1G_RPS_RAW_SLOT_NUM_6);
 	}
 }
 
@@ -396,22 +398,23 @@ u8 morse_raw_get_rps_ie_size(struct morse *mors)
  *
  * Return size (>0) on success otherwise -EINVAL if a RAW configuration is invalid.
  */
-static int morse_raw_calc_rps_ie_size(
-	struct morse *mors, const struct morse_raw_config * const *config_list, u8 num_configs)
+static int morse_raw_calc_rps_ie_size(struct morse *mors,
+				      const struct morse_raw_config *const *config_list,
+				      u8 num_configs)
 {
-	u8 ii;
+	u8 i;
 	u16 size = 0;
 
 	if (!num_configs) {
-		MORSE_WARN_ON(true);
+		MORSE_WARN_ON(FEATURE_ID_RAW, true);
 		return 0;
 	}
 
 	BUG_ON(!config_list);
 
-	for (ii = 0; ii < num_configs; ii++) {
+	for (i = 0; i < num_configs; i++) {
 		/* Check for unsupported types. */
-		switch (config_list[ii]->type) {
+		switch (config_list[i]->type) {
 		case IEEE80211_S1G_RPS_RAW_TYPE_SOUNDING:
 		case IEEE80211_S1G_RPS_RAW_TYPE_SIMPLEX:
 		case IEEE80211_S1G_RPS_RAW_TYPE_TRIGGERING:
@@ -419,7 +422,7 @@ static int morse_raw_calc_rps_ie_size(
 			break;
 		case IEEE80211_S1G_RPS_RAW_TYPE_GENERIC:
 			/* If the start time is 0 we can omit the start time field. */
-			if (config_list[ii]->start_time_us != 0)
+			if (config_list[i]->start_time_us != 0)
 				size += sizeof(struct morse_raw_start_time_t);
 
 			/*
@@ -429,9 +432,9 @@ static int morse_raw_calc_rps_ie_size(
 			size += sizeof(struct morse_raw_group_t);
 
 			/* Channel indication not supported yet. */
-			BUG_ON(config_list[ii]->has_channel_indication);
+			BUG_ON(config_list[i]->has_channel_indication);
 			/* PRAW not supported yet. */
-			BUG_ON(config_list[ii]->is_periodic);
+			BUG_ON(config_list[i]->is_periodic);
 		}
 
 		size += sizeof(struct ieee80211_s1g_rps);
@@ -454,8 +457,8 @@ u8 *morse_raw_get_rps_ie(struct morse *mors)
  *
  * Return offset of rps assignment in the rps_ie.
  */
-static int morse_raw_set_config(
-	struct morse *mors, struct morse_raw_config *config, u8 *rps_ie_start)
+static int morse_raw_set_config(struct morse *mors, struct morse_raw_config *config,
+				u8 *rps_ie_start)
 {
 	/* Pages aren't used yet so always use zero. */
 	static const u8 page;
@@ -474,7 +477,7 @@ static int morse_raw_set_config(
 	int current_beacon_end_aid_idx = INVALID_AID_IDX_VALUE;
 	u16 current_beacon_start_aid;
 	u16 current_beacon_end_aid;
-	u32 ii;
+	u32 i;
 
 	u16 sta_per_beacon;
 	u16 sta_per_beacon_mod;
@@ -504,23 +507,21 @@ static int morse_raw_set_config(
 			sta_per_beacon_mod = num_stas % beacon_count;
 		}
 
-		morse_dbg(mors, "sta_per_beacon, mod: %u, %u\n",
-			  sta_per_beacon, sta_per_beacon_mod);
+		MORSE_RAW_DBG(mors, "sta_per_beacon, mod: %u, %u\n",
+			      sta_per_beacon, sta_per_beacon_mod);
 
 		/* Find where we should start the AID range for this beacon from. */
-		morse_dbg(mors, "Last spread AID: %u\n", config->last_spread_aid);
-		for (ii = config->start_aid_idx;
-		     (ii <= config->end_aid_idx) &&
-		     (ii < sta_data->num_stations);
-		     ii++) {
-			if (sta_data->aids[ii] > config->last_spread_aid) {
-				current_beacon_start_aid_idx = ii;
+		MORSE_RAW_DBG(mors, "Last spread AID: %u\n", config->last_spread_aid);
+		for (i = config->start_aid_idx;
+		     (i <= config->end_aid_idx) && (i < sta_data->num_stations); i++) {
+			if (sta_data->aids[i] > config->last_spread_aid) {
+				current_beacon_start_aid_idx = i;
 				break;
 			}
 		}
 
-		/* If the last end AID was the last of the connected STAs then start the cycle from the
-		 * beginning.
+		/* If the last end AID was the last of the connected STAs then start the cycle from
+		 * the beginning.
 		 */
 		if (current_beacon_start_aid_idx == INVALID_AID_IDX_VALUE)
 			current_beacon_start_aid_idx = config->start_aid_idx;
@@ -533,12 +534,11 @@ static int morse_raw_set_config(
 			sta_per_beacon++;
 
 		/* Find the end AID for this beacon. */
-		for (ii = current_beacon_start_aid_idx;
-		     (ii <= config->end_aid_idx) &&
-		     (ii < (current_beacon_start_aid_idx + sta_per_beacon)) &&
-		     (ii < sta_data->num_stations);
-		     ii++) {
-			current_beacon_end_aid_idx = ii;
+		for (i = current_beacon_start_aid_idx;
+		     (i <= config->end_aid_idx) &&
+		     (i < (current_beacon_start_aid_idx + sta_per_beacon)) &&
+		     (i < sta_data->num_stations); i++) {
+			current_beacon_end_aid_idx = i;
 		}
 
 		BUG_ON(current_beacon_end_aid_idx < current_beacon_start_aid_idx);
@@ -546,12 +546,12 @@ static int morse_raw_set_config(
 		current_beacon_start_aid = sta_data->aids[current_beacon_start_aid_idx];
 		current_beacon_end_aid = sta_data->aids[current_beacon_end_aid_idx];
 		config->last_spread_aid = sta_data->aids[current_beacon_end_aid_idx];
-		morse_dbg(mors, "Start, End AID idx: %u, %u\n",
-			  current_beacon_start_aid_idx, current_beacon_end_aid_idx);
-		morse_dbg(mors, "Start, End AID: %u, %u\n",
-			  current_beacon_start_aid, current_beacon_end_aid);
+		MORSE_RAW_DBG(mors, "Start, End AID idx: %u, %u\n",
+			      current_beacon_start_aid_idx, current_beacon_end_aid_idx);
+		MORSE_RAW_DBG(mors, "Start, End AID: %u, %u\n",
+			      current_beacon_start_aid, current_beacon_end_aid);
 
-	/* If not using beacon spreading or no connected STAs use the full AID range. */
+		/* If not using beacon spreading or no connected STAs use the full AID range. */
 	} else {
 		current_beacon_start_aid = config->start_aid;
 		current_beacon_end_aid = config->end_aid;
@@ -560,20 +560,19 @@ static int morse_raw_set_config(
 
 	/* Create a basic configuration (Generic RAW) with all devices in a single RAW */
 	rps_ptr->raw_control =
-		((config->type << IEEE80211_S1G_RPS_RAW_CONTROL_TYPE_SHIFT) &
-		IEEE80211_S1G_RPS_RAW_CONTROL_TYPE);
+	    ((config->type << IEEE80211_S1G_RPS_RAW_CONTROL_TYPE_SHIFT) &
+	     IEEE80211_S1G_RPS_RAW_CONTROL_TYPE);
 
 	if (config->generic.cross_slot_boundary) {
-		morse_dbg(mors, "Cross slot bleed allowed\n");
-		rps_ptr->slot_definition |=
-			cpu_to_le16(IEEE80211_S1G_RPS_RAW_SLOT_CROSS_BOUNDARY);
+		MORSE_RAW_DBG(mors, "Cross slot bleed allowed\n");
+		rps_ptr->slot_definition |= cpu_to_le16(IEEE80211_S1G_RPS_RAW_SLOT_CROSS_BOUNDARY);
 	}
 
-	morse_dbg(mors, "Slot duration us, number of slots: %u, %u\n",
-		config->generic.slot_duration_us, config->generic.num_slots);
-	morse_raw_get_slot_config(mors, IEEE80211_S1G_RPS_RAW_TYPE_GENERIC,
-		config->generic.num_slots, config->generic.slot_duration_us,
-		&rps_ptr->slot_definition);
+	MORSE_RAW_DBG(mors, "Slot duration us, number of slots: %u, %u\n",
+		      config->generic.slot_duration_us, config->generic.num_slots);
+	morse_raw_get_slot_config(mors, config->type,
+				  config->generic.num_slots, config->generic.slot_duration_us,
+				  &rps_ptr->slot_definition);
 
 	start_time_ptr = (struct morse_raw_start_time_t *)(rps_ptr + 1);
 
@@ -589,15 +588,14 @@ static int morse_raw_set_config(
 	raw_group_ptr->raw_group12 = 0;
 	raw_group_ptr->raw_group3 = 0;
 
-	raw_group_ptr->raw_group12 |=
-		cpu_to_le16(page & IEEE80211_S1G_RPS_RAW_GROUP_PAGE_IDX);
-	raw_group_ptr->raw_group12 |= cpu_to_le16(
-		(current_beacon_start_aid << IEEE80211_S1G_RPS_RAW_GROUP_START_AID_SHIFT) &
-			IEEE80211_S1G_RPS_RAW_GROUP_START_AID);
+	raw_group_ptr->raw_group12 |= cpu_to_le16(page & IEEE80211_S1G_RPS_RAW_GROUP_PAGE_IDX);
+	raw_group_ptr->raw_group12 |= cpu_to_le16((current_beacon_start_aid <<
+						   IEEE80211_S1G_RPS_RAW_GROUP_START_AID_SHIFT) &
+						  IEEE80211_S1G_RPS_RAW_GROUP_START_AID);
 
-	raw_group_ptr->raw_group12 |= cpu_to_le16(
-		(current_beacon_end_aid << IEEE80211_S1G_RPS_RAW_GROUP_END_AID_SHIFT) &
-			IEEE80211_S1G_RPS_RAW_GROUP_END_AID);
+	raw_group_ptr->raw_group12 |= cpu_to_le16((current_beacon_end_aid <<
+						   IEEE80211_S1G_RPS_RAW_GROUP_END_AID_SHIFT) &
+						  IEEE80211_S1G_RPS_RAW_GROUP_END_AID);
 
 	raw_group_ptr->raw_group3 = current_beacon_end_aid >> (AID_END_BITS_SHIFT);
 	raw_channel_ptr = (struct morse_raw_channel_t *)(raw_group_ptr + 1);
@@ -625,55 +623,67 @@ static int morse_raw_set_config(
 	return (end_ptr - rps_ie_start);
 }
 
-int morse_raw_set_configs(
-	struct morse *mors, struct morse_raw_config * const *config_list, u8 num_configs)
+/**
+ * morse_raw_set_configs() - Sets the RAW configurations which can contain a mixture of types.
+ *
+ * @mors:		Morse chip struct
+ * @config_list		List of RAW configurations
+ * @num_configs		Number of RAW configurations in the list.
+ *
+ * Return 0 on success otherwise -EINVAL if a RAW configuration is invalid.
+ */
+static int morse_raw_set_configs(struct morse *mors, struct morse_raw_config *const *config_list,
+				 u8 num_configs)
 {
-	u8 ii;
+	u8 i;
 	u8 offset = 0;
+	u8 old_rps_ie_len;
 	struct morse_raw *raw = &mors->custom_configs.raw;
 
 	/* Calculate the size so we can allocate memory */
-	int size = morse_raw_calc_rps_ie_size(
-		mors, (const struct morse_raw_config * const *)config_list, num_configs);
+	int size =
+	    morse_raw_calc_rps_ie_size(mors, (const struct morse_raw_config * const *)config_list,
+				       num_configs);
 
-	morse_dbg(mors, "Number of RAWs: %u\n", num_configs);
-	morse_dbg(mors, "RPS IE size: %d\n", size);
+	MORSE_RAW_DBG(mors, "Number of RAWs: %u\n", num_configs);
+	MORSE_RAW_DBG(mors, "RPS IE size: %d\n", size);
 
 	BUG_ON((size <= 0) || (size > __UINT8_MAX__));
 
 	mutex_lock(&raw->lock);
 
 	/* Invalidate current raw until we are finished by setting to 0. */
+	old_rps_ie_len = raw->rps_ie_len;
 	raw->rps_ie_len = 0;
 
-	if (raw->rps_ie != NULL) {
+	if (raw->rps_ie) {
 		/* Adjust size of allocated memory if necessary. */
-		if (raw->rps_ie_len != size) {
+		if (old_rps_ie_len != size) {
 			kfree(raw->rps_ie);
 			raw->rps_ie = kmalloc(size, GFP_KERNEL);
 		}
 	} else {
 		/* Allocate memory for the RPS IE. */
-		morse_dbg(mors, "Allocate RAW RPS IE\n");
+		MORSE_RAW_DBG(mors, "Allocate RAW RPS IE\n");
 		raw->rps_ie = kmalloc(size, GFP_KERNEL);
 	}
 	/* Check we got our allocated memory. */
 	if (!raw->rps_ie) {
 		mutex_unlock(&raw->lock);
-		morse_dbg(mors, "Failed to allocate RAW RPS IE\n");
+		MORSE_RAW_DBG(mors, "Failed to allocate RAW RPS IE\n");
 		return -ENOMEM;
 	}
 
 	/* Keep everything neat and zero the memory. */
-	memset(raw->rps_ie, 0, raw->rps_ie_len);
+	memset(raw->rps_ie, 0, size);
 
 	/* Populate RPS IE using config settings. */
-	for (ii = 0; ii < num_configs; ii++) {
-		offset += morse_raw_set_config(mors, config_list[ii], &raw->rps_ie[offset]);
+	for (i = 0; i < num_configs; i++) {
+		offset += morse_raw_set_config(mors, config_list[i], &raw->rps_ie[offset]);
 		BUG_ON(offset > size);
 	}
 
-	/* Validate RPS IE by giving it it's size. */
+	/* Validate RPS IE by giving its size. */
 	BUG_ON(offset != size);
 	raw->rps_ie_len = size;
 	mutex_unlock(&raw->lock);
@@ -692,23 +702,21 @@ static void morse_raw_debug_print_aid_idx(struct morse *mors,
 {
 	struct morse_raw *raw = &mors->custom_configs.raw;
 	struct morse_raw_config *config_ptr;
-	int ii;
+	int i;
 
-	for (ii = MAX_NUM_RAWS - 1; ii >= 0; ii--) {
-		config_ptr = (struct morse_raw_config *)raw->configs[ii];
+	for (i = MAX_NUM_RAWS - 1; i >= 0; i--) {
+		config_ptr = (struct morse_raw_config *)raw->configs[i];
 		if (config_ptr && config_ptr->enabled) {
-			morse_dbg(mors,
-				  "Final Start/End AID indices (%d): %d, %d\n",
-				  ii,
-				  config_ptr->start_aid_idx,
-				  config_ptr->end_aid_idx);
+			MORSE_RAW_DBG(mors,
+				      "Final Start/End AID indices (%d): %d, %d\n",
+				      i, config_ptr->start_aid_idx, config_ptr->end_aid_idx);
 
 			if (config_ptr->start_aid_idx >= 0 && config_ptr->end_aid_idx >= 0) {
-				morse_dbg(mors,
-					  "Final Start/End AID values (%d): %d, %d\n",
-					  ii,
-					  sta_data->aids[config_ptr->start_aid_idx],
-					  sta_data->aids[config_ptr->end_aid_idx]);
+				MORSE_RAW_DBG(mors,
+					      "Final Start/End AID values (%d): %d, %d\n",
+					      i,
+					      sta_data->aids[config_ptr->start_aid_idx],
+					      sta_data->aids[config_ptr->end_aid_idx]);
 			}
 		}
 	}
@@ -721,7 +729,7 @@ static void morse_raw_debug_print_aid_idx(struct morse *mors,
  */
 static void morse_raw_set_prio_raws(struct morse *mors)
 {
-	int ii;
+	int i;
 	struct morse_raw_config *configs_list[MAX_NUM_RAWS];
 	struct morse_raw_config *config_ptr;
 	u8 count = 0;
@@ -730,7 +738,7 @@ static void morse_raw_set_prio_raws(struct morse *mors)
 
 	/* RPS IE should only be regenerated if RAW is enabled. */
 	if (!mors->custom_configs.raw.enabled) {
-		MORSE_WARN_ON(!mors->custom_configs.raw.enabled);
+		MORSE_WARN_ON(FEATURE_ID_RAW, !mors->custom_configs.raw.enabled);
 		goto cleanup;
 	}
 
@@ -742,8 +750,8 @@ static void morse_raw_set_prio_raws(struct morse *mors)
 	 * Extract configs for enabled RAWs into a list. Start with highest
 	 * priority.
 	 */
-	for (ii = MAX_NUM_RAWS - 1; ii >= 0; ii--) {
-		config_ptr = (struct morse_raw_config *)raw->configs[ii];
+	for (i = MAX_NUM_RAWS - 1; i >= 0; i--) {
+		config_ptr = (struct morse_raw_config *)raw->configs[i];
 		if (config_ptr && config_ptr->enabled) {
 			configs_list[count++] = config_ptr;
 
@@ -754,22 +762,22 @@ static void morse_raw_set_prio_raws(struct morse *mors)
 	}
 
 	morse_raw_get_station_aid(mors, sta_data);
-	morse_dbg(mors, "Number of stations: %u (%u)\n", sta_data->station_idx,
-		sta_data->num_stations);
+	MORSE_RAW_DBG(mors, "Number of stations: %u (%u)\n", sta_data->station_idx,
+		      sta_data->num_stations);
 
 	BUG_ON(sta_data->station_idx > 0 && !sta_data->aids);
-	for (ii = 0; ii < sta_data->station_idx; ii++)
-		morse_dbg(mors, "Station AID: %u\n", sta_data->aids[ii]);
+	for (i = 0; i < sta_data->station_idx; i++)
+		MORSE_RAW_DBG(mors, "Station AID: %u\n", sta_data->aids[i]);
 
 	/* Sort AIDs, required for RAW group assignments. TODO optimise to avoid a large amount of
 	 * computation every beacon (especially with large numbers of stations).
 	 */
-	sort(sta_data->aids, sta_data->station_idx, sizeof(*(sta_data->aids)),
-		&morse_raw_aid_compare, NULL);
+	sort(sta_data->aids, sta_data->station_idx, sizeof(*sta_data->aids),
+	     &morse_raw_aid_compare, NULL);
 
 	/* Find the start and end AIDs for each priority. */
-	for (ii = 0; ii < sta_data->num_stations; ii++) {
-		u8 prio = MORSE_RAW_GET_PRIO(sta_data->aids[ii]);
+	for (i = 0; i < sta_data->num_stations; i++) {
+		u8 prio = MORSE_RAW_GET_PRIO(sta_data->aids[i]);
 
 		/* Skip aids if there isn't a RAW config for this priority. */
 		if (!raw->configs[prio])
@@ -777,14 +785,14 @@ static void morse_raw_set_prio_raws(struct morse *mors)
 
 		/* Only set start AID index if it is the first for this priority. */
 		if (raw->configs[prio]->start_aid_idx < 0)
-			raw->configs[prio]->start_aid_idx = ii;
+			raw->configs[prio]->start_aid_idx = i;
 
 		/* Always update the end AID to the last value we've seen. */
-		raw->configs[prio]->end_aid_idx = ii;
+		raw->configs[prio]->end_aid_idx = i;
 	}
 
 	/* Print the AID indices and values if debug logging is enabled. */
-	if (debug_mask | MORSE_MSG_DEBUG)
+	if (debug_mask & MORSE_MSG_DEBUG)
 		morse_raw_debug_print_aid_idx(mors, sta_data);
 
 	if (count == 0)
@@ -795,17 +803,16 @@ static void morse_raw_set_prio_raws(struct morse *mors)
 	return;
 
 cleanup:
+	raw->rps_ie_len = 0;
 	kfree(raw->rps_ie);
 	raw->rps_ie = NULL;
-	raw->rps_ie_len = 0;
 }
 
 void morse_raw_refresh_aids_work(struct work_struct *work)
 {
-	struct morse *mors =
-		container_of(work, struct morse, custom_configs.raw.refresh_aids_work);
+	struct morse *mors = container_of(work, struct morse, custom_configs.raw.refresh_aids_work);
 
-	morse_dbg(mors, "Refresh RAW AIDs\n");
+	MORSE_RAW_DBG(mors, "Refresh RAW AIDs\n");
 	morse_raw_set_prio_raws(mors);
 }
 
@@ -825,14 +832,14 @@ static void morse_raw_cmd_to_config(struct morse_cmd_raw *cmd, struct morse_raw_
 	/* Fill config data. */
 	cfg->type = IEEE80211_S1G_RPS_RAW_TYPE_GENERIC;
 	cfg->start_time_us = le32_to_cpu(cmd->start_time_us);
-	if (cmd->idx == 0) {
+	if (cmd->prio == 0) {
 		cfg->start_aid = MORSE_RAW_DEFAULT_START_AID;
 		cfg->end_aid = (__UINT16_MAX__ & MORSE_RAW_AID_DEVICE_MASK);
-	} else if ((cmd->idx > 0) && (cmd->idx < (MAX_NUM_RAWS - 1))) {
-		cfg->start_aid = (cmd->idx << MORSE_RAW_AID_PRIO_SHIFT);
+	} else if ((cmd->prio > 0) && (cmd->prio < (MAX_NUM_RAWS_USER_PRIO - 1))) {
+		cfg->start_aid = (cmd->prio << MORSE_RAW_AID_PRIO_SHIFT);
 		cfg->end_aid = cfg->start_aid + (__UINT16_MAX__ & MORSE_RAW_AID_DEVICE_MASK);
-	} else if (cmd->idx == (MAX_NUM_RAWS - 1)) {
-		cfg->start_aid = (cmd->idx << MORSE_RAW_AID_PRIO_SHIFT);
+	} else if (cmd->prio == (MAX_NUM_RAWS_USER_PRIO - 1)) {
+		cfg->start_aid = (cmd->prio << MORSE_RAW_AID_PRIO_SHIFT);
 		/* This is an existing limitation which can be removed with native s1g support. */
 		cfg->end_aid = AID_LIMIT;
 	} else {
@@ -852,10 +859,11 @@ void morse_raw_process_cmd(struct morse *mors, struct morse_cmd_raw *cmd)
 {
 	struct morse_raw *raw = &mors->custom_configs.raw;
 	struct morse_raw_config *config;
+	u8 idx;
 
 	if (cmd->enable_type == RAW_CMD_ENABLE_TYPE_GLOBAL) {
-		morse_dbg(mors, "Morsectrl no update to RAW config: %s\n",
-			(cmd->enable) ? "enable" : "disable");
+		MORSE_RAW_DBG(mors, "Morsectrl no update to RAW config: %s\n",
+			      (cmd->enable) ? "enable" : "disable");
 
 		if (cmd->enable)
 			morse_raw_enable(mors);
@@ -865,32 +873,32 @@ void morse_raw_process_cmd(struct morse *mors, struct morse_cmd_raw *cmd)
 		return;
 	}
 
-	if (cmd->idx >= MAX_NUM_RAWS) {
-		morse_warn(mors, "RAW priority %u invalid (should be between 0 - %u)\n",
-			   cmd->idx,
-			   (MAX_NUM_RAWS - 1));
+	if (cmd->prio >= MAX_NUM_RAWS_USER_PRIO) {
+		MORSE_RAW_WARN(mors, "RAW priority %u invalid (should be between 0 - %u)\n",
+			       cmd->prio, (MAX_NUM_RAWS_USER_PRIO - 1));
 		return;
 	}
 
-	config = (struct morse_raw_config *)raw->configs[cmd->idx];
+	/* Map user prio to idx (internal RAWs are assigned lower prio than user-specified ones */
+	idx = cmd->prio + MAX_NUM_RAWS_INTERNAL;
+
+	config = (struct morse_raw_config *)raw->configs[idx];
 
 	if (cmd->config_type) {
-		morse_dbg(mors, "Morsectrl update RAW config: %s %u %u %u %u %u %u %u\n",
-			(cmd->enable) ? "enable" : "disable",
-			cmd->idx,
-			le32_to_cpu(cmd->start_time_us),
-			le32_to_cpu(cmd->raw_duration_us),
-			cmd->num_slots,
-			cmd->cross_slot_boundary,
-			le16_to_cpu(cmd->max_beacon_spread),
-			le16_to_cpu(cmd->nominal_sta_per_beacon));
+		MORSE_RAW_DBG(mors, "Morsectrl update RAW config: %s %u %u %u %u %u %u %u\n",
+			      (cmd->enable) ? "enable" : "disable",
+			      cmd->prio,
+			      le32_to_cpu(cmd->start_time_us),
+			      le32_to_cpu(cmd->raw_duration_us),
+			      cmd->num_slots,
+			      cmd->cross_slot_boundary,
+			      le16_to_cpu(cmd->max_beacon_spread),
+			      le16_to_cpu(cmd->nominal_sta_per_beacon));
 
 		mutex_lock(&raw->lock);
 		if (!config) {
-			raw->configs[cmd->idx] =
-				kmalloc(sizeof(*config), GFP_KERNEL);
-			config =
-				(struct morse_raw_config *)raw->configs[cmd->idx];
+			raw->configs[idx] = kmalloc(sizeof(*config), GFP_KERNEL);
+			config = (struct morse_raw_config *)raw->configs[idx];
 		}
 
 		morse_raw_cmd_to_config(cmd, config);
@@ -898,12 +906,13 @@ void morse_raw_process_cmd(struct morse *mors, struct morse_cmd_raw *cmd)
 	} else {
 		if (!config) {
 			if (cmd->enable)
-				morse_warn(mors, "Trying to enable a RAW without configuration\n");
+				MORSE_RAW_WARN(mors,
+					       "Trying to enable a RAW without configuration\n");
 			return;
 		}
 
-		morse_dbg(mors, "Morsectrl enable/disable single RAW: %s %u\n",
-			  (cmd->enable) ? "enable" : "disable", cmd->idx);
+		MORSE_RAW_DBG(mors, "Morsectrl enable/disable single RAW: %s %u\n",
+			      (cmd->enable) ? "enable" : "disable", cmd->prio);
 
 		mutex_lock(&raw->lock);
 		config->enabled = cmd->enable;
@@ -917,7 +926,7 @@ void morse_raw_process_cmd(struct morse *mors, struct morse_cmd_raw *cmd)
 
 int morse_raw_enable(struct morse *mors)
 {
-	morse_info(mors, "Enabling RAW\n");
+	MORSE_RAW_INFO(mors, "Enabling RAW\n");
 	schedule_work(&mors->custom_configs.raw.refresh_aids_work);
 	mors->custom_configs.raw.enabled = true;
 	return 0;
@@ -925,7 +934,7 @@ int morse_raw_enable(struct morse *mors)
 
 int morse_raw_disable(struct morse *mors)
 {
-	morse_info(mors, "Disabling RAW\n");
+	MORSE_RAW_INFO(mors, "Disabling RAW\n");
 	mors->custom_configs.raw.enabled = false;
 	return 0;
 }
@@ -947,19 +956,19 @@ int morse_raw_init(struct morse *mors, bool enable)
 
 void morse_raw_finish(struct morse *mors)
 {
-	int ii;
+	int i;
 	struct morse_raw *raw = &mors->custom_configs.raw;
 
 	morse_raw_disable(mors);
 	cancel_work_sync(&raw->refresh_aids_work);
 
-	/* Free RAW and cleanup. */
+	/* Free RAW and clean up */
+	raw->rps_ie_len = 0;
 	kfree(raw->rps_ie);
 	raw->rps_ie = NULL;
-	raw->rps_ie_len = 0;
 
-	for (ii = 0; ii < MAX_NUM_RAWS; ii++) {
-		kfree(raw->configs[ii]);
-		raw->configs[ii] = NULL;
+	for (i = 0; i < MAX_NUM_RAWS; i++) {
+		kfree(raw->configs[i]);
+		raw->configs[i] = NULL;
 	}
 }

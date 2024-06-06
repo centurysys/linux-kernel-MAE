@@ -18,6 +18,9 @@
  * This should include all modified/missing bits from ieee80211
  */
 
+/** As per IEEE-802.11-2020 Table 9-155, default TXOP for S1G is 15.008 msecs */
+#define S1G_WMM_DEFAULT_TXOP_USECS	(15008)
+
 /* EDCA IE and access category parameters */
 struct __ieee80211_edca_ac_rec {
 	u8 aifsn;
@@ -44,22 +47,26 @@ struct __ieee80211_vendor_ie_elem {
 	u8 attr[];
 } __packed;
 
-#define IS_WMM_IE(ven_ie) (ven_ie->oui[0] == 0x00 && \
-							ven_ie->oui[1] == 0x50 && \
-							ven_ie->oui[2] == 0xf2 && \
-							ven_ie->oui_type == 2 && \
-							ven_ie->oui_sub_type == 1)
+#define IS_WMM_IE(_ven_ie) \
+	((_ven_ie)->oui[0] == 0x00 && \
+	 (_ven_ie)->oui[1] == 0x50 && \
+	 (_ven_ie)->oui[2] == 0xf2 && \
+	 (_ven_ie)->oui_type == 2 && \
+	 (_ven_ie)->oui_sub_type == 1)
 
-/* Following values are as per S1G Operation IE channel width subfields (Table 10-32 in 802.11-2020) */
+/* S1G Operation IE channel width subfields (Table 10-32, 802.11-2020) */
 #define S1G_CHAN_1MHZ 0
 #define S1G_CHAN_2MHZ 1
 #define S1G_CHAN_4MHZ 3
 #define S1G_CHAN_8MHZ 7
 #define S1G_CHAN_16MHZ 15
 
-/*
- * These structures are already in K5.10, lets use them
+/* PV1 standard suggests the bit to be From DS unlike the
+ * kernel definition of IEEE80211_PV1_FCTL_TODS
  */
+#define IEEE80211_PV1_FCTL_FROMDS          0x0100
+
+/* These structures are already in K5.10, lets use them */
 #if KERNEL_VERSION(5, 10, 11) > MAC80211_VERSION_CODE
 
 #define IEEE80211_STYPE_S1G_BEACON	0x0010
@@ -82,8 +89,8 @@ struct ieee80211_channel_s1g {
 	u16 hw_value;
 	u32 flags;
 	int max_antenna_gain;
-	int max_power;
-	int max_reg_power;
+	int max_power; /* Units: mBm */
+	int max_reg_power; /* Units: mBm */
 	bool beacon_found;
 	u32 orig_flags;
 	int orig_mag, orig_mpwr;
@@ -100,35 +107,17 @@ struct ieee80211_ext {
 			u8 sa[ETH_ALEN];
 			__le32 timestamp;
 			u8 change_seq;
-			u8 variable[0];
+			u8 variable[];
 		} __packed s1g_beacon;
 		struct {
 			u8 sa[ETH_ALEN];
 			__le32 timestamp;
 			u8 change_seq;
 			u8 next_tbtt[3];
-			u8 variable[0];
+			u8 variable[];
 		} __packed s1g_short_beacon;
 	} u;
 } __packed __aligned(2);
-
-/**
- * enum nl80211_band - Frequency band
- * @__NL80211_BAND_XXX: Place holder for other bands (already defined in nl80211.h)
- * @NL80211_BAND_S1GHZ: around 900MHz, supported by S1G PHYs
- * @NUM_NL80211_BANDS: number of bands, avoid using this in userspace
- *	since newer kernel versions may support more bands
- */
-enum nl80211_band_s1g {
-	__NL80211_BAND_2GHZ,
-	__NL80211_BAND_5GHZ,
-	__NL80211_BAND_60GHZ,
-	__NL80211_BAND_6GHZ,
-	NL80211_BAND_S1GHZ,
-
-	__NUM_NL80211_BANDS,
-};
-
 
 /**
  * enum morse_dot11ah_channel_flags - channel flags
@@ -148,11 +137,11 @@ enum nl80211_band_s1g {
  *
  */
 enum morse_dot11ah_channel_flags {
-	IEEE80211_CHAN_1MHZ		= 1<<14,
-	IEEE80211_CHAN_2MHZ		= 1<<15,
-	IEEE80211_CHAN_4MHZ		= 1<<16,
-	IEEE80211_CHAN_8MHZ		= 1<<17,
-	IEEE80211_CHAN_16MHZ		= 1<<18,
+	IEEE80211_CHAN_1MHZ		= BIT(14),
+	IEEE80211_CHAN_2MHZ		= BIT(15),
+	IEEE80211_CHAN_4MHZ		= BIT(16),
+	IEEE80211_CHAN_8MHZ		= BIT(17),
+	IEEE80211_CHAN_16MHZ		= BIT(18),
 };
 
 /**
@@ -209,14 +198,6 @@ static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
 	return ieee80211_is_s1g_beacon(fc) && ieee80211_next_tbtt_present(fc);
 }
 
-/**
- * ieee80211_channel_to_freq_khz - convert channel number to frequency
- * @chan: channel number
- * @band: band, necessary due to channel number overlap
- * Return: The corresponding frequency (in KHz), or 0 if the conversion failed.
- */
-u32 ieee80211_channel_to_freq_khz(int chan, enum nl80211_band_s1g band);
-
 #else
 
 #define ieee80211_channel_s1g ieee80211_channel
@@ -237,6 +218,28 @@ struct ieee80211_bss_max_idle_period_ie {
 } __packed;
 #endif
 
+#if KERNEL_VERSION(5, 10, 0) > MAC80211_VERSION_CODE
+struct ieee80211_mgmt_s1g {
+	__le16 frame_control;
+	__le16 duration;
+	u8 da[ETH_ALEN];
+	u8 sa[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
+	__le16 seq_ctrl;
+	union {
+		struct {
+			__le16 capab_info;
+			__le16 status_code;
+			u8 variable[];
+		} __packed s1g_assoc_resp, s1g_reassoc_resp;
+	} u;
+} __packed __aligned(2);
+#else
+
+#define ieee80211_mgmt_s1g ieee80211_mgmt
+
+#endif
+
 /*
  * This function need to be patched for Linux 5.10, so bring it here for now.
  */
@@ -248,11 +251,22 @@ struct ieee80211_bss_max_idle_period_ie {
  */
 int __ieee80211_freq_khz_to_channel(u32 freq);
 
+/**
+ * morse_unii4_band_chan_to_op_class : Returns operating class for U-NII 4 band channel.
+ *
+ * @chandef: The channel definition.
+ * @op_class: Operating class for given channel definition.
+ *
+ * @note: This function is implemented temporarily until support for U-NII 4 band is added in
+ * cfg80211.
+ */
+void morse_unii4_band_chan_to_op_class(struct cfg80211_chan_def *chandef, u8 *op_class);
+
 /*
  * Below function is an extension. This needs to be patched on 5.10 kernel.
  * Kernel func in include/linux/ieee80211.h is checking only for the presence
  * of next TBTT bit in frame control, whereas compressed SSID is more acccurate
- * flag to check if it's short beacon. For now we will use below function.
+ * flag to check if it's a short beacon. For now we will use below function.
  */
 #define IEEE80211_FCTL_COMPR_SSID	0x0200
 /**

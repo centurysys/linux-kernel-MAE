@@ -59,8 +59,15 @@ extern const struct chip_if_ops morse_pageset_hw_ops;
 extern const struct chip_if_ops morse_pageset_sw_ops;
 
 struct morse_page {
-	u32 addr;			/* Address of page in chip memory */
-	u32 size_bytes;			/* Number of bytes in the page */
+	u32 addr;		/* Address of page in chip memory */
+	u32 size_bytes;		/* Number of bytes in the page */
+};
+
+struct morse_pager_pkt_memory {
+	u32 base_addr;
+	u16 page_len;
+	u8 page_len_reserved;
+	u8 num;
 };
 
 struct morse_pageset {
@@ -77,8 +84,8 @@ struct morse_pageset {
 	struct morse_pager *populated_pager;
 	struct morse_pager *return_pager;
 
-	DECLARE_KFIFO(reserved_pages, struct morse_page, CMD_RSVED_KFIFO_LEN);
-	DECLARE_KFIFO(cached_pages, struct morse_page, CACHED_PAGES_KFIFO_LEN);
+	 DECLARE_KFIFO(reserved_pages, struct morse_page, CMD_RSVED_KFIFO_LEN);
+	 DECLARE_KFIFO(cached_pages, struct morse_page, CACHED_PAGES_KFIFO_LEN);
 };
 
 /**
@@ -98,8 +105,7 @@ struct morse_pageset {
  */
 int morse_pageset_init(struct morse *mors, struct morse_pageset *pageset,
 		       u8 flags,
-		       struct morse_pager *populated_pager,
-		       struct morse_pager *return_pager);
+		       struct morse_pager *populated_pager, struct morse_pager *return_pager);
 
 /**
  * Prints info about the pageset instance to a file.
@@ -108,8 +114,7 @@ int morse_pageset_init(struct morse *mors, struct morse_pageset *pageset,
  * @pageset: Pointer to pageset struct to print
  * @file: Pointer to file to print to
  */
-void morse_pageset_show(struct morse *mors, struct morse_pageset *pageset,
-			struct seq_file *file);
+void morse_pageset_show(struct morse *mors, struct morse_pageset *pageset, struct seq_file *file);
 
 /**
  * Cleans up memory used by pageset instance.
@@ -152,4 +157,4 @@ int morse_pagesets_get_tx_buffered_count(struct morse *mors);
  */
 void morse_pagesets_work(struct work_struct *work);
 
-#endif  /* !_MORSE_PAGESET_H_ */
+#endif /* !_MORSE_PAGESET_H_ */
