@@ -12,6 +12,7 @@
 / {
 	memory@80000000 {
 		device_type = "memory";
+		bootph-all;
 		/* 4G RAM */
 		reg = <0x00000000 0x80000000 0x00000000 0x80000000>,
 		      <0x00000008 0x80000000 0x00000000 0x80000000>;
@@ -21,6 +22,14 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		 /* global cma region */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x00 0x20000000>;
+			linux,cma-default;
+		};
 
 		secure_ddr: optee@9e800000 {
 			reg = <0x00 0x9e800000 0x00 0x01800000>;

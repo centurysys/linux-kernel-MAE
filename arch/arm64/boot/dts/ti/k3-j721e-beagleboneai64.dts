@@ -698,7 +698,7 @@
 		resets = <&serdes_wiz4 1>;
 		cdns,phy-type = <PHY_TYPE_DP>;
 		cdns,num-lanes = <4>;
-		cdns,max-bit-rate = <5400>;
+		cdns,max-bit-rate = <2700>;
 		#phy-cells = <0>;
 	};
 };
@@ -804,7 +804,12 @@
 };
 
 &dss_ports {
-	port {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port@0 {
+		reg = <0>;
+
 		dpi0_out: endpoint {
 			remote-endpoint = <&dp0_in>;
 		};
