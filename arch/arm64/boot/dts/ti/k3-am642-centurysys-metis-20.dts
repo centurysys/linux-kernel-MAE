@@ -373,14 +373,6 @@
 	status = "okay";
 };
 
-&main_uart4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&main_uart4_pins_default>;
-	linux,rs485-enabled-at-boot-time;
-	rs485-rts-active-low;
-	status = "okay";
-};
-
 &main_i2c0 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -457,21 +449,6 @@
 	temp_senser: tmp75b@4a {
 		compatible = "ti,tmp75b";
 		reg = <0x4a>;
-	};
-
-	io_exp: io_exp@4d {
-		compatible = "nxp,pca9698";
-		reg = <0x4d>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		#gpio-cells = <2>;
-
-		gpio-line-names = "Mobile_Power_MSP", "EXT_Mobile_Power_MSP", "",
-				  "", "", "", "", "SIM_Select",
-				  "", "", "", "", "", "", "", "", /* Reserved */
-				  "", "", "", "", "", "", "", "", /* Reserved */
-				  "", "", "", "", "", "", "", "", /* Reserved */
-				  "", "", "", "", "", "", "", ""; /* Reserved */
 	};
 
 	i2c1_eeprom: eeprom@50 {
