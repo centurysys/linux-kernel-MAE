@@ -41,6 +41,66 @@
 		};
 	};
 
+	main_ehrpwm0: pwm@3000000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x00 0x3000000 0x00 0x100>;
+		clocks = <&ehrpwm_tbclk 0>, <&k3_clks 219 0>;
+		clock-names = "tbclk", "fck";
+		power-domains = <&k3_pds 219 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
+	main_ehrpwm1: pwm@3010000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x00 0x3010000 0x00 0x100>;
+		clocks = <&ehrpwm_tbclk 1>, <&k3_clks 220 0>;
+		clock-names = "tbclk", "fck";
+		power-domains = <&k3_pds 220 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
+	main_ehrpwm2: pwm@3020000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x00 0x3020000 0x00 0x100>;
+		clocks = <&ehrpwm_tbclk 2>, <&k3_clks 221 0>;
+		clock-names = "tbclk", "fck";
+		power-domains = <&k3_pds 221 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
+	main_ehrpwm3: pwm@3030000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x00 0x3030000 0x00 0x100>;
+		clocks = <&ehrpwm_tbclk 3>, <&k3_clks 222 0>;
+		clock-names = "tbclk", "fck";
+		power-domains = <&k3_pds 222 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
+	main_ehrpwm4: pwm@3040000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x00 0x3040000 0x00 0x100>;
+		clocks = <&ehrpwm_tbclk 4>, <&k3_clks 223 0>;
+		clock-names = "tbclk", "fck";
+		power-domains = <&k3_pds 223 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
+	main_ehrpwm5: pwm@3050000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x00 0x3050000 0x00 0x100>;
+		clocks = <&ehrpwm_tbclk 5>, <&k3_clks 224 0>;
+		clock-names = "tbclk", "fck";
+		power-domains = <&k3_pds 224 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
 	scm_conf: bus@100000 {
 		compatible = "simple-bus";
 		reg = <0x00 0x00100000 0x00 0x1c000>;
@@ -114,6 +174,12 @@
 			reg = <0x4000 0x4>;
 			#mux-control-cells = <1>;
 			mux-reg-masks = <0x0 0x8000000>; /* USB0 to SERDES0 lane 3 mux */
+		};
+
+		ehrpwm_tbclk: clock-controller@4140 {
+			compatible = "ti,am654-ehrpwm-tbclk";
+			reg = <0x4140 0x18>;
+			#clock-cells = <1>;
 		};
 	};
 
@@ -210,6 +276,7 @@
 		assigned-clock-parents = <&k3_clks 97 3>;
 		power-domains = <&k3_pds 97 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer1: timer@2410000 {
@@ -222,6 +289,7 @@
 		assigned-clock-parents = <&k3_clks 98 3>;
 		power-domains = <&k3_pds 98 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer2: timer@2420000 {
@@ -234,6 +302,7 @@
 		assigned-clock-parents = <&k3_clks 99 3>;
 		power-domains = <&k3_pds 99 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer3: timer@2430000 {
@@ -246,6 +315,7 @@
 		assigned-clock-parents = <&k3_clks 100 3>;
 		power-domains = <&k3_pds 100 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer4: timer@2440000 {
@@ -258,6 +328,7 @@
 		assigned-clock-parents = <&k3_clks 101 3>;
 		power-domains = <&k3_pds 101 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer5: timer@2450000 {
@@ -270,6 +341,7 @@
 		assigned-clock-parents = <&k3_clks 102 3>;
 		power-domains = <&k3_pds 102 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer6: timer@2460000 {
@@ -282,6 +354,7 @@
 		assigned-clock-parents = <&k3_clks 103 3>;
 		power-domains = <&k3_pds 103 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer7: timer@2470000 {
@@ -294,6 +367,7 @@
 		assigned-clock-parents = <&k3_clks 104 3>;
 		power-domains = <&k3_pds 104 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer8: timer@2480000 {
@@ -306,6 +380,7 @@
 		assigned-clock-parents = <&k3_clks 105 3>;
 		power-domains = <&k3_pds 105 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer9: timer@2490000 {
@@ -318,6 +393,7 @@
 		assigned-clock-parents = <&k3_clks 106 3>;
 		power-domains = <&k3_pds 106 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
+		status = "reserved";
 	};
 
 	main_timer10: timer@24a0000 {
@@ -935,6 +1011,8 @@
 		interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&k3_clks 241 2>;
 		power-domains = <&k3_pds 241 TI_SCI_PD_EXCLUSIVE>;
+		sram = <&main_navss_sram>;
+		sram-size = <0x10000>;
 	};
 
 	vpu1: video-codec@4220000 {
@@ -943,6 +1021,8 @@
 		interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&k3_clks 242 2>;
 		power-domains = <&k3_pds 242 TI_SCI_PD_EXCLUSIVE>;
+		sram = <&main_navss_sram>;
+		sram-size = <0x10000>;
 	};
 
 	main_sdhci0: mmc@4f80000 {
@@ -1281,6 +1361,14 @@
 		ti,sci-dev-id = <280>;
 		dma-coherent;
 		dma-ranges;
+
+		main_navss_sram: navss-sram@30000000{
+			compatible = "mmio-sram";
+			reg = <0x00 0x30000000 0x00 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x00 0x30000000 0x10000>;
+		};
 
 		main_navss_intr: interrupt-controller@310e0000 {
 			compatible = "ti,sci-intr";
@@ -2196,7 +2284,7 @@
 
 	main_r5fss0: r5fss@5c00000 {
 		compatible = "ti,j721s2-r5fss";
-		ti,cluster-mode = <1>;
+		ti,cluster-mode = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x5c00000 0x00 0x5c00000 0x20000>,
@@ -2236,7 +2324,7 @@
 
 	main_r5fss1: r5fss@5e00000 {
 		compatible = "ti,j721s2-r5fss";
-		ti,cluster-mode = <1>;
+		ti,cluster-mode = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x5e00000 0x00 0x5e00000 0x20000>,
@@ -2276,7 +2364,7 @@
 
 	main_r5fss2: r5fss@5900000 {
 		compatible = "ti,j721s2-r5fss";
-		ti,cluster-mode = <1>;
+		ti,cluster-mode = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x5900000 0x00 0x5900000 0x20000>,
@@ -2607,6 +2695,17 @@
 				reg = <1>;
 			};
 		};
+	};
+
+	timesync_router: pinctrl@a40000 {
+		compatible = "pinctrl-single";
+		reg = <0x0 0xa40000 0x0 0x800>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#pinctrl-cells = <1>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0x000107ff>;
+		status = "disabled";
 	};
 
 	mhdp: bridge@a000000 {
