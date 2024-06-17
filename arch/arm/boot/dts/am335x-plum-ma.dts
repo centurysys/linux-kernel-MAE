@@ -1549,7 +1549,7 @@
 	xio_33: xio@0x33 {
 		#size-cells = <0>;
 		devices = <&xio_supply_ctrl &xio_di_supply &xio_adc_supply
-			   &spi1
+			   &spi1 &ltc1859_1
 			   &uartx2_0x20
 			   &gpiox_0x00 &gpiox_0x08
 			   &gpiox_0x10 &gpiox_0x12 &gpiox_0x14
@@ -3929,7 +3929,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins>;
 
-	ltc1859@0 {
+	ltc1859_0: ltc1859@0 {
 		compatible = "ltc185x";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
@@ -3937,12 +3937,13 @@
 		vcc-supply = <&xio_adc_supply>;
 	};
 
-	ltc1859@1 {
+	ltc1859_1: ltc1859@1 {
 		compatible = "ltc185x";
 		reg = <1>;
 		spi-max-frequency = <1000000>;
 
 		vcc-supply = <&xio_adc_supply>;
+		status = "disabled";
 	};
 };
 
