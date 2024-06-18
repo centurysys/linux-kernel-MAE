@@ -149,7 +149,12 @@
 			label = "MSP430_TEST";
 			gpios = <&main_gpio1 23 GPIO_ACTIVE_HIGH>;
 		};
-	};
+
+		ses050_enable {
+			label = "SES050_Enable";
+			gpios = <&main_gpio1 28 GPIO_ACTIVE_HIGH>;
+		};
+};
 
 	leds_msp430: leds-msp430 {
 		compatible = "gpio-leds";
@@ -178,15 +183,6 @@
 };
 
 &main_pmx0 {
-	main_gpio1_pins_default: main-gpio1-default-pins {
-		pinctrl-single,pins = <
-			AM64X_IOPAD(0x0250, PIN_INPUT_PULLUP, 7) /* (A17) MCAN0_TX.GPIO1_60 */
-			AM64X_IOPAD(0x0254, PIN_INPUT_PULLUP, 7) /* (B17) MCAN0_RX.GPIO1_61 */
-			AM64X_IOPAD(0x0258, PIN_INPUT_PULLUP, 7) /* (C17) MCAN1_TX.GPIO1_62 */
-			AM64X_IOPAD(0x025c, PIN_INPUT_PULLUP, 7) /* (D17) MCAN1_RX.GPIO1_63 */
-		>;
-	};
-
 	main_uart0_pins_default: main-uart0-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0238, PIN_INPUT, 0)		/* (B16) UART0_CTSn */
@@ -345,7 +341,7 @@
 			AM64X_IOPAD(0x01b4, PIN_OUTPUT, 7) /* (V3) PRG0_PRU1_GPO1.GPIO1_21 */
 			AM64X_IOPAD(0x01b8, PIN_OUTPUT, 7) /* (V3) PRG0_PRU1_GPO2.GPIO1_22 */
 			AM64X_IOPAD(0x01bc, PIN_OUTPUT, 7) /* (T4) PRG0_PRU1_GPO3.GPIO1_23 */
-			AM64X_IOPAD(0x01c0, PIN_OUTPUT, 7) /* (W3) PRG0_PRU1_GPO4.GPIO1_24 */
+			AM64X_IOPAD(0x01d0, PIN_OUTPUT, 7) /* (R1) PRG0_PRU1_GPO8.GPIO1_28 */
 		>;
 	};
 
@@ -651,14 +647,13 @@
 
 &main_gpio1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&main_gpio1_pins_default>;
 
 	gpio-line-names = "", "", "", "", "", "", "", "", /* GPIO1_0 .. 7 */
 			  "", "", "", "", "", "", "PowerLED:G", "LED_Drv_Enable",
 			  "ConsoleEnable", "eMMC_RST_N", "", "DIPSW4",
 			  "DDR_VTT_EN", "MSP430_SHDN_N", "MSP430_RST", "MSP430_TEST",
 			  "", "INIT_SW_N", "XIO_IRQ0_N", /* ..GPIO1_26 */
-			  "USB0_OVC_N", "", "", "", "",
+			  "USB0_OVC_N", "SES050_ENA", "", "", "",
 			  "", "", "", "", "", "CPSW_MDIO_SEL", /* ..GPIO1_37 */
 			  "", "", "", "", "", "", "", "", "", "XIO_IRQ1_N", /* ..GPIO1_47 */
 			  "XIO_IRQ2_N", "", "", "", "", "", "", "", "", "", /* ..GPIO1_57 */
