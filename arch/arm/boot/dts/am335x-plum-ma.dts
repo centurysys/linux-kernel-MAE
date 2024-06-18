@@ -3958,3 +3958,10 @@
 &gpu_target {
 	status = "disabled";
 };
+
+&tscadc {
+	status = "okay";
+	adc {
+		ti,adc-channels = <0 1>;
+	};
+};
