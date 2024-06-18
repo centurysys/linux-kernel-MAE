@@ -150,8 +150,8 @@
 			gpios = <&main_gpio1 23 GPIO_ACTIVE_HIGH>;
 		};
 
-		ses050_enable {
-			label = "SES050_Enable";
+		se050_enable {
+			label = "SE050_Enable";
 			gpios = <&main_gpio1 28 GPIO_ACTIVE_HIGH>;
 		};
 };
@@ -653,7 +653,7 @@
 			  "ConsoleEnable", "eMMC_RST_N", "", "DIPSW4",
 			  "DDR_VTT_EN", "MSP430_SHDN_N", "MSP430_RST", "MSP430_TEST",
 			  "", "INIT_SW_N", "XIO_IRQ0_N", /* ..GPIO1_26 */
-			  "USB0_OVC_N", "SES050_ENA", "", "", "",
+			  "USB0_OVC_N", "SE050_ENA", "", "", "",
 			  "", "", "", "", "", "CPSW_MDIO_SEL", /* ..GPIO1_37 */
 			  "", "", "", "", "", "", "", "", "", "XIO_IRQ1_N", /* ..GPIO1_47 */
 			  "XIO_IRQ2_N", "", "", "", "", "", "", "", "", "", /* ..GPIO1_57 */
