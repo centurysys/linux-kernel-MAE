@@ -115,7 +115,7 @@
 				  "ETH2_RESET_N",
 				  "",
 				  "",
-				  "USB_HUB_RESET";
+				  "ExtUSB_HUB_RESET";
 	};
 
 	pca9505_3e: pca9505@3e {
@@ -169,43 +169,43 @@
 
 		ftdi1_reset {
 			label = "FTDI1_RESET";
-			gpios = <&tca9539 10 GPIO_ACTIVE_LOW>;
+			gpios = <&tca9539 8 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
 			led-pattern = <200 100>;
 		};
 
 		ftdi2_reset {
 			label = "FTDI2_RESET";
-			gpios = <&tca9539 11 GPIO_ACTIVE_LOW>;
+			gpios = <&tca9539 9 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
 			led-pattern = <200 100>;
 		};
 
 		ftdi3_reset {
 			label = "FTDI3_RESET";
-			gpios = <&tca9539 12 GPIO_ACTIVE_LOW>;
+			gpios = <&tca9539 10 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
 			led-pattern = <200 100>;
 		};
 
 		canfd_power {
 			label = "CANFD_Power";
-			gpios = <&tca9539 13 GPIO_ACTIVE_HIGH>;
+			gpios = <&tca9539 11 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
 		eth2_reset {
 			label = "USB_ETH2_RESET";
-			gpios = <&tca9539 14 GPIO_ACTIVE_LOW>;
+			gpios = <&tca9539 12 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
 			led-pattern = <200 100>;
 		};
 
 		usb_hub_reset {
-			label = "USB_HUB_RESET";
-			gpios = <&tca9539 17 GPIO_ACTIVE_LOW>;
+			label = "ExtUSBHub_Reset";
+			gpios = <&tca9539 15 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "oneshot";
-			led-pattern = <200 100>;
+			led-pattern = <50 100>;
 		};
 	};
 
