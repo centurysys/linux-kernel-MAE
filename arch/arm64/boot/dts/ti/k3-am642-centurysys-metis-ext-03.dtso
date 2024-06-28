@@ -11,6 +11,15 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include "k3-pinctrl.h"
 
+&{/} {
+	/* Fixed clock dedicated to SPI CANFD on expansion board */
+	clk_xtal20: clk-xtal20 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <20000000>;
+	};
+};
+
 &main_pmx0 {
 	main_spi0_pins_default: main-spi0-pins-default {
 		pinctrl-single,pins = <
@@ -62,7 +71,7 @@
 		compatible = "microchip,mcp251863";
 		clocks = <&clk_xtal20>;
 		pinctrl-0 = <&main_spi0_mcp251863_pins_default>;
-		interrupt-parent = <&gpio1>;
+		interrupt-parent = <&main_gpio1>;
 		interrupts = <48 IRQ_TYPE_EDGE_FALLING>;
 		reg = <0>;
 		spi-max-frequency = <4000000>;
