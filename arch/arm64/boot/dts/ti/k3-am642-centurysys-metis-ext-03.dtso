@@ -1,0 +1,301 @@
+// SPDX-License-Identifier: GPL-2.0
+/**
+ * DT overlay for RS1244 expansion board on Century Systems MA-X3xx
+ *
+ * Copyright (C) 2022,2024 Century Systems
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/net/microchip-lan78xx.h>
+#include "k3-pinctrl.h"
+
+&{/} {
+	/* Fixed clock dedicated to SPI CANFD on expansion board */
+	clk_xtal20: clk-xtal20 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <20000000>;
+	};
+
+	aliases {
+		ethernet2 = "/bus@f4000/cdns-usb@f900000/usb@f400000/hub@1/hub@1_3/lan7850@1_3_4";
+	};
+};
+
+&main_pmx0 {
+	main_spi0_pins_default: main-spi0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0210, PIN_INPUT, 0) /* (D13) SPI0_CLK */
+			AM64X_IOPAD(0x0208, PIN_OUTPUT, 0) /* (D12) SPI0_CS0 */
+			AM64X_IOPAD(0x020c, PIN_OUTPUT, 0) /* (C13) SPI0_CS1 */
+			AM64X_IOPAD(0x0214, PIN_OUTPUT, 0) /* (A13) SPI0_D0 */
+			AM64X_IOPAD(0x0218, PIN_INPUT, 0) /* (A14) SPI0_D1 */
+		>;
+	};
+
+	main_uart2_rs485_pins_default: main-uart2-rs485-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x003c, PIN_INPUT, 2) 		/* (T20) UART2_RXD */
+			AM64X_IOPAD(0x0040, PIN_OUTPUT, 2)		/* (U21) UART2_TXD */
+			AM64X_IOPAD(0x0044, PIN_OUTPUT, 2)		/* (T18) UART2_RTSn */
+		>;
+	};
+
+	main_i2c2_tca9539_pins_default: main-i2c2-tca9539-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x01c8, PIN_INPUT, 7) /* (R5) PRG0_PRU1_GPO6.GPIO1_26 */
+		>;
+	};
+
+	main_i2c2_pca9505_3e_pins_default: main-i2c2-pca9505-3e-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x021c, PIN_INPUT, 7) /* (B14) SPI1_CS0.GPIO1_47 */
+		>;
+	};
+
+	main_spi0_mcp251863_pins_default: main-spi0-mcp251863-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0220, PIN_INPUT, 7) /* (D14) SPI1_CS1.GPIO1_48 */
+		>;
+	};
+};
+
+&main_spi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_spi0_pins_default>;
+	ti,pindir-d0-out-d1-in = <1>;
+	status = "okay";
+
+	/* CANFD controller on the expantion board */
+	canfd: can@0 {
+		compatible = "microchip,mcp251863";
+		clocks = <&clk_xtal20>;
+		pinctrl-0 = <&main_spi0_mcp251863_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <48 IRQ_TYPE_EDGE_FALLING>;
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+	};
+};
+
+&main_i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c2_pins_default>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	tca9539: tca9539@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_tca9539_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "MSP430_EXT1_RST",
+				  "MSP430_EXT1_TEST",
+				  "",
+				  "",
+				  "",
+				  "",
+				  "",
+				  "",
+				  "FTDI1_RESET_N",
+				  "FTDI2_RESET_N",
+				  "FTDI3_RESET_N",
+				  "CAN_LDO5V_EN",
+				  "ETH2_RESET_N",
+				  "",
+				  "",
+				  "ExtUSB_HUB_RESET";
+	};
+
+	pca9505_3e: pca9505@3e {
+		compatible = "nxp,pca9505";
+		reg = <0x3e>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_pca9505_3e_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <47 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "EXT_DI0", "EXT_DI1", "EXT_DI2", "EXT_DI3",
+				  "EXT_DI4", "EXT_DI5", "EXT_DI6", "EXT_DI7",
+				  "EXT_DI8", "EXT_DI9", "EXT_DI10", "EXT_DI11",
+				  "", "", "EXT_CounterINT1", "EXT_24V_Fail",
+				  "Filtered_DI0", "Filtered_DI1", "Filtered_DI2", "Filtered_DI3",
+				  "Filtered_DI4", "Filtered_DI5", "Filtered_DI6", "Filtered_DI7",
+				  "Filtered_DI8", "Filtered_DI9", "Filtered_DI10", "Filtered_DI11",
+				  "", "", "", "",
+				  "EXT_DO0", "EXT_DO1", "EXT_DO2", "EXT_DO3",
+				  "", "", "", "EXT_24V_ON";
+	};
+};
+
+&main_uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart2_rs485_pins_default>;
+	linux,rs485-enabled-at-boot-time;
+	rs485-rts-active-low;
+	status = "okay";
+};
+
+&usb0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub1: hub@1 {
+		compatible = "usb451,8142";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <1>;
+
+		hub2: hub@1_3 {
+			compatible = "usb451,8142";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			lan7850: lan7850@1_3_4 {
+				compatible = "usb424,7850";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <4>;
+				mac-address = [00 00 00 00 00 00];
+
+				mdio {
+					#address-cells = <0x1>;
+					#size-cells = <0x0>;
+					eth_phy: ethernet-phy@1 {
+						reg = <1>;
+						microchip,led-modes = <
+							LAN78XX_LINK_1000_ACTIVITY
+							LAN78XX_LINK_100_ACTIVITY
+							LAN78XX_LINK_ACTIVITY
+						>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&{/} {
+	leds_ext: leds_ext {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		msp430_ext1_rst {
+			label = "MSP430_EXT1_RST";
+			gpios = <&tca9539 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		msp430_ext1_test {
+			label = "MSP430_EXT1_TEST";
+			gpios = <&tca9539 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		ftdi1_reset {
+			label = "FTDI1_RESET";
+			gpios = <&tca9539 8 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <200 100>;
+		};
+
+		ftdi2_reset {
+			label = "FTDI2_RESET";
+			gpios = <&tca9539 9 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <200 100>;
+		};
+
+		ftdi3_reset {
+			label = "FTDI3_RESET";
+			gpios = <&tca9539 10 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <200 100>;
+		};
+
+		canfd_power {
+			label = "CANFD_Power";
+			gpios = <&tca9539 11 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		eth2_reset {
+			label = "USB_ETH2_RESET";
+			gpios = <&tca9539 12 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <200 100>;
+		};
+
+		usb_hub_reset {
+			label = "ExtUSBHub_Reset";
+			gpios = <&tca9539 15 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <50 100>;
+		};
+	};
+
+	leds_ext_3e: leds_ext_3e {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		ext_do0 {
+			label = "EXT_DO0";
+			gpios = <&pca9505_3e 32 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do1 {
+			label = "EXT_DO1";
+			gpios = <&pca9505_3e 33 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do2 {
+			label = "EXT_DO2";
+			gpios = <&pca9505_3e 34 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do3 {
+			label = "EXT_DO3";
+			gpios = <&pca9505_3e 35 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_24v_on {
+			label = "EXT_24V_ON";
+			gpios = <&pca9505_3e 39 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+	};
+};
