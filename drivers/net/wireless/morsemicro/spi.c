@@ -573,9 +573,10 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	}
 	data_size = min(data_size, (u32)(MM610X_BUF_SIZE - (cp - mspi->data)));
 	cp += data_size;
-	end = cp;
 
-	morse_spi_xfer(mspi, end - mspi->data);
+	end = cp;
+	len = cp - mspi->data;
+	morse_spi_xfer(mspi, len);
 
 	/*
 	 * Response will already be stored in the data buffer.  It's
@@ -584,6 +585,8 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	 */
 
 	/* Time to verify */
+	cp = resp;
+	end = cp + len;
 	if (morse_spi_find_response(mspi, resp, end, &cp))
 		goto exit;
 
