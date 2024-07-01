@@ -35,8 +35,22 @@ int tidss_runtime_get(struct tidss_device *tidss)
 	dev_dbg(tidss->dev, "%s\n", __func__);
 
 	r = pm_runtime_resume_and_get(tidss->dev);
-	WARN_ON(r < 0);
-	return r;
+	if (WARN_ON(r < 0))
+		return r;
+
+	if (tidss->boot_enabled_vp_mask) {
+		/*
+		 * If 'boot_enabled_vp_mask' is set, it means that the DSS is
+		 * enabled and bootloader splash-screen is still on the screen,
+		 * using bootloader's DSS HW config.
+		 *
+		 * This is the first time the driver is about to use the HW, and
+		 * we need to do some cleanup and initial setup.
+		 */
+		dispc_splash_fini(tidss->dispc);
+	}
+
+	return 0;
 }
 
 void tidss_runtime_put(struct tidss_device *tidss)
@@ -184,6 +198,29 @@ fail:
 	return ret;
 }
 
+static void check_for_simplefb_device(struct tidss_device *tidss)
+{
+	if (IS_ENABLED(CONFIG_FB_SIMPLE)) {
+		struct device *simplefb_dev;
+		struct device_node *simplefb_node;
+
+		simplefb_node = of_find_compatible_node(NULL, NULL, "simple-framebuffer");
+		if (!simplefb_node)
+			return;
+
+		simplefb_dev = bus_find_device_by_of_node(&platform_bus_type, simplefb_node);
+		if (!simplefb_dev) {
+			of_node_put(simplefb_node);
+			return;
+		}
+
+		tidss->simplefb_enabled = true;
+		dev_dbg(tidss->dev, "simple-framebuffer detected\n");
+		put_device(simplefb_dev);
+		of_node_put(simplefb_node);
+	}
+}
+
 static int tidss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -208,9 +245,7 @@ static int tidss_probe(struct platform_device *pdev)
 
 	spin_lock_init(&tidss->wait_lock);
 
-	ret = tidss_oldi_init(tidss);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to init OLDI\n");
+	check_for_simplefb_device(tidss);
 
 	/* powering up associated OLDI domains */
 	ret = tidss_attach_pm_domains(tidss);
@@ -224,6 +259,10 @@ static int tidss_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to initialize dispc: %d\n", ret);
 		goto err_oldi_deinit;
 	}
+
+	ret = tidss_oldi_init(tidss);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to init OLDI\n");
 
 	pm_runtime_enable(dev);
 
