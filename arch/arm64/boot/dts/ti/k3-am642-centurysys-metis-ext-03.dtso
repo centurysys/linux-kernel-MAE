@@ -75,11 +75,12 @@
 	canfd: can@0 {
 		compatible = "microchip,mcp251863";
 		clocks = <&clk_xtal20>;
+		pinctrl-names = "default";
 		pinctrl-0 = <&main_spi0_mcp251863_pins_default>;
 		interrupt-parent = <&main_gpio1>;
 		interrupts = <48 IRQ_TYPE_EDGE_FALLING>;
 		reg = <0>;
-		spi-max-frequency = <4000000>;
+		spi-max-frequency = <20000000>;
 	};
 };
 
