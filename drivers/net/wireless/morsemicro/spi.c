@@ -245,7 +245,7 @@ static int morse_spi_xfer(struct morse_spi *mspi, unsigned int len)
  * when chipselect is released while the card returns BUSY status, the clock must issue several
  * cycles with chipselect high before the card will stop driving its output.
  */
-static void __maybe_unused morse_spi_initsequence(struct morse_spi *mspi)
+static void morse_spi_initsequence(struct morse_spi *mspi)
 {
 	struct spi_device *spi = mspi->spi;
 
@@ -269,6 +269,7 @@ static void __maybe_unused morse_spi_initsequence(struct morse_spi *mspi)
 #else
 	spi->mode |= SPI_NO_CS;
 	memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
+	memset(mspi->data_rx, 0xFF, MM610X_BUF_SIZE);
 	morse_spi_xfer(mspi, 18);
 	spi->mode &= ~SPI_NO_CS;
 #endif
@@ -335,7 +336,7 @@ static int morse_spi_find_response(struct morse_spi *mspi, u8 *data, u8 *end, u8
 
 static int morse_spi_cmd(struct morse_spi *mspi, u8 cmd, u32 arg)
 {
-	int ret = 0;
+	int ret, copylen;
 	u8 *cp = mspi->data;
 
 	/*
@@ -354,9 +355,7 @@ static int morse_spi_cmd(struct morse_spi *mspi, u8 cmd, u32 arg)
 	 */
 
 	memset(cp, 0xff, SPI_COMMAND_BUF_SIZE);
-	/* clear response buffer */
 	memset(mspi->data_rx, 0xff, SPI_COMMAND_BUF_SIZE);
-
 	cp[1] = 0x40 | cmd;
 
 	put_unaligned_be32(arg, cp + 2);
@@ -368,6 +367,10 @@ static int morse_spi_cmd(struct morse_spi *mspi, u8 cmd, u32 arg)
 	if (ret)
 		return ret;
 
+	copylen = SPI_COMMAND_BUF_SIZE - SPI_RESP_OFFSET;
+	memcpy(mspi->data + SPI_RESP_OFFSET, mspi->data_rx + SPI_RESP_OFFSET,
+	       copylen);
+
 	/*
 	 * Except for data block reads, the whole response will already
 	 * be stored in the scratch buffer.  It's somewhere after the
@@ -375,8 +378,8 @@ static int morse_spi_cmd(struct morse_spi *mspi, u8 cmd, u32 arg)
 	 * first byte.  After STOP_TRANSMISSION command it may include
 	 * two data bits, but otherwise it's all ones.
 	 */
-	return morse_spi_find_response(mspi, mspi->data_rx + SPI_RESP_OFFSET,
-				       mspi->data_rx + SPI_COMMAND_BUF_SIZE, NULL);
+	return morse_spi_find_response(mspi, mspi->data + SPI_RESP_OFFSET,
+				       mspi->data + SPI_COMMAND_BUF_SIZE, NULL);
 }
 
 static int morse_spi_cmd52(struct morse_spi *mspi, u8 fn, u8 data, u32 address)
@@ -521,16 +524,16 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	u8 *resp;
 	u8 *end;
 	u32 data_size;
-	int i, len;
+	int i, resp_offset, copylen;
 
 	memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
 	memset(mspi->data_rx, 0xFF, MM610X_BUF_SIZE);
 
 	/* Insert command and argument */
-	len = morse_spi_put_cmd53(fn, address, cp, count, 0, block);
-	cp += len;
+	resp_offset = morse_spi_put_cmd53(fn, address, cp, count, 0, block);
+	cp += resp_offset;
 
-	resp = mspi->data_rx + len;
+	resp = cp;
 
 	/*
 	 * Calculate number of clock cycles needed to get data.
@@ -573,10 +576,12 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	}
 	data_size = min(data_size, (u32)(MM610X_BUF_SIZE - (cp - mspi->data)));
 	cp += data_size;
-
 	end = cp;
-	len = cp - mspi->data;
-	morse_spi_xfer(mspi, len);
+
+	morse_spi_xfer(mspi, end - mspi->data);
+
+	copylen = end - resp;
+	memcpy(resp, mspi->data_rx + resp_offset, copylen);
 
 	/*
 	 * Response will already be stored in the data buffer.  It's
@@ -585,8 +590,6 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	 */
 
 	/* Time to verify */
-	cp = resp;
-	end = cp + len;
 	if (morse_spi_find_response(mspi, resp, end, &cp))
 		goto exit;
 
@@ -618,16 +621,16 @@ static int morse_spi_cmd53_write(struct morse_spi *mspi, u8 fn, u32 address, u8 
 	u8 *end;
 	u8 *ack = cp;
 	u32 data_size;
-	int i, len, ack_offset;
+	int i, resp_offset, copylen;
 
 	memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
 	memset(mspi->data_rx, 0xFF, MM610X_BUF_SIZE);
 	/* Insert command and argument */
-	len = morse_spi_put_cmd53(fn, address, cp, count, 1, block);
-	cp += len;
+	resp_offset = morse_spi_put_cmd53(fn, address, cp, count, 1, block);
+	cp += resp_offset;
 
 	/* Mark response point */
-	resp = mspi->data_rx + len;
+	resp = cp;
 
 	/* Calculate number of clock cycles needed to get data.
 	 * Transactions are either one block of few bytes (i.e less than
@@ -682,13 +685,13 @@ static int morse_spi_cmd53_write(struct morse_spi *mspi, u8 fn, u32 address, u8 
 
 	/* Do the actual transfer */
 	end = cp;
-	len = end - mspi->data;
 
-	morse_spi_xfer(mspi, len);
+	morse_spi_xfer(mspi, end - mspi->data);
+
+	copylen = end - resp;
+	memcpy(resp, mspi->data_rx + resp_offset, copylen);
 
 	/* Time to verify */
-	cp = resp;
-	end = mspi->data_rx + len;
 	if (morse_spi_find_response(mspi, resp, end, &cp))
 		goto exit;
 
@@ -696,9 +699,6 @@ static int morse_spi_cmd53_write(struct morse_spi *mspi, u8 fn, u32 address, u8 
 	 * This will improve the throughput. For 14 * 512 Bytes of data transfer, the time
 	 * it takes to find the response is reduced from 33 uS to 1 uS
 	 */
-	ack_offset = ack - mspi->data;
-	ack = mspi->data_rx + ack_offset;
-
 	ack += block ? (1 /* TOKEN */  + MMC_SPI_BLOCKSIZE /* data size */  + 2 /* crc */) : 0;
 	data_size =
 	    1 /* TOKEN */  + MMC_SPI_BLOCKSIZE + 2 /* crc */  + mspi->inter_block_delay_bytes;
@@ -1176,8 +1176,8 @@ static int morse_spi_remove(struct spi_device *spi)
 		}
 
 		morse_spi_remove_irq(mspi);
-		kfree(mspi->data_rx);
 		kfree(mspi->data);
+		kfree(mspi->data_rx);
 #ifdef CONFIG_MORSE_USER_ACCESS
 		uaccess_device_unregister(mors);
 		uaccess_cleanup(morse_spi_uaccess);

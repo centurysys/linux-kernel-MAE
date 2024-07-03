@@ -603,8 +603,10 @@ static void morse_dot11ah_probe_req_to_s1g(struct ieee80211_vif *vif,
 		eth_broadcast_addr(probe_req->bssid);
 
 	if (!ieee80211_vif_is_mesh(vif) && ies_mask->ies[WLAN_EID_SSID].ptr &&
-			ies_mask->ies[WLAN_EID_SSID].len > 0)
+	    ies_mask->ies[WLAN_EID_SSID].len > 0) {
+		printk(KERN_ERR " %s: line %d\n", __FUNCTION__, __LINE__);
 		morse_dot11ah_store_cssid(ies_mask, 0, NULL, 0, NULL);
+	}
 
 	ht_cap = (const struct ieee80211_ht_cap *)ies_mask->ies[WLAN_EID_HT_CAPABILITY].ptr;
 	morse_dot11ah_mask_ies(ies_mask, false, false);
@@ -849,6 +851,7 @@ static void morse_dot11ah_beacon_to_s1g(struct ieee80211_vif *vif,
 				/* Insert CSSID (as first entry in s1g_beacon->variable for short
 				 * beacon)
 				 */
+				printk(KERN_ERR " %s: line %d\n", __FUNCTION__, __LINE__);
 				*((u32 *)s1g_beacon_opt_fields) =
 					morse_dot11ah_store_cssid(ies_mask,
 								  beacon->u.beacon.capab_info,
@@ -1035,6 +1038,7 @@ void morse_dot11ah_11n_to_s1g_tx_packet(struct ieee80211_vif *vif,
 {
 	struct ieee80211_hdr *hdr;
 
+	printk(KERN_ERR " start\n");
 	if (!ies_mask)
 		return;
 

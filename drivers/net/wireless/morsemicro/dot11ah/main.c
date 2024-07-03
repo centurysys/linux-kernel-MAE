@@ -113,15 +113,26 @@ u32 morse_dot11ah_store_cssid(struct dot11ah_ies_mask *ies_mask, u16 capab_info,
 	bool mesh_beacon = false;
 
 	if (morse_is_mesh_network(ies_mask)) {
+		printk(KERN_ERR " bssid: 0x%08x\n", (u32) bssid);
+
+
 		/* Use source addr for mesh networks as different mesh STAs beacon with same
 		 * MESH ID
 		 */
-		cssid = ~crc32(~0, bssid, ETH_ALEN);
+		if (!bssid) {
+			dump_stack();
+			cssid = 0;
+		} else {
+			cssid = ~crc32(~0, bssid, ETH_ALEN);
+		}
 		/* Store mesh id in ssid field of cssid entry for mesh beacons */
 		ssid = ies_mask->ies[WLAN_EID_MESH_ID].ptr;
 		length = ies_mask->ies[WLAN_EID_MESH_ID].len;
 		mesh_beacon = true;
 	} else {
+		printk(KERN_ERR " ies_mask: 0x%08x\n", (u32) ies_mask);
+		printk(KERN_ERR " ptr: 0x%08x\n", (u32) ies_mask->ies[WLAN_EID_SSID].ptr);
+
 		/* In Linux we have to pass ~0 as the seed value, and then invert the outcome */
 		cssid = ~crc32(~0, ies_mask->ies[WLAN_EID_SSID].ptr,
 			       ies_mask->ies[WLAN_EID_SSID].len);
