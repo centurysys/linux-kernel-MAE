@@ -1381,7 +1381,7 @@ static struct omap8250_dma_params am33xx_dma = {
 static struct omap8250_platdata am654_platdata = {
 	.dma_params	= &am654_dma,
 	.habit		= UART_HAS_EFR2 | UART_HAS_RHR_IT_DIS |
-			  UART_RX_TIMEOUT_QUIRK | UART_HAS_NATIVE_RS485,
+			  UART_RX_TIMEOUT_QUIRK,
 };
 
 static struct omap8250_platdata am33xx_platdata = {
@@ -1474,7 +1474,8 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.shutdown = omap_8250_shutdown;
 	up.port.throttle = omap_8250_throttle;
 	up.port.unthrottle = omap_8250_unthrottle;
-	up.port.rs485_config = omap8250_rs485_config;
+	//up.port.rs485_config = omap8250_rs485_config;
+	up.port.rs485_config = serial8250_em485_config;
 	/* same rs485_supported for software emulation and native RS485 */
 	up.port.rs485_supported = serial8250_em485_supported;
 	up.rs485_start_tx = serial8250_em485_start_tx;
