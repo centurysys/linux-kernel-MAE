@@ -262,7 +262,7 @@
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0054, PIN_INPUT, 2) 		/* (V20) UART4_RXD */
 			AM64X_IOPAD(0x0058, PIN_OUTPUT, 2)		/* (V21) UART4_TXD */
-			AM64X_IOPAD(0x007c, PIN_OUTPUT, 2)		/* (R17) GPMC0_CLK.RTS */
+			AM64X_IOPAD(0x007c, PIN_OUTPUT, 7)		/* (R17) GPMC0_CLK.GPIO0_31 */
 		>;
 	};
 
@@ -419,7 +419,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart4_pins_default>;
 	linux,rs485-enabled-at-boot-time;
-	rs485-rts-active-low;
+	rts-gpios = <&main_gpio0 31 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
