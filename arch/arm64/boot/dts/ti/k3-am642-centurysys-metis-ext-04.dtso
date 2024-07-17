@@ -1,0 +1,171 @@
+// SPDX-License-Identifier: GPL-2.0
+/**
+ * DT overlay for EG95-LTE expansion board on Century Systems MA-X3xx
+ *
+ * Copyright (C) 2024 Century Systems
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/net/microchip-lan78xx.h>
+#include "k3-pinctrl.h"
+
+&main_pmx0 {
+	main_uart2_rs232_pins_default: main-uart2-rs232-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x003c, PIN_INPUT, 2) 		/* (T20) UART2_RXD */
+			AM64X_IOPAD(0x0040, PIN_OUTPUT, 2)		/* (U21) UART2_TXD */
+			AM64X_IOPAD(0x0044, PIN_OUTPUT, 2)		/* (T18) UART2_RTS */
+			AM64X_IOPAD(0x005c, PIN_INPUT, 2)		/* (V19) UART2_CTS */
+			AM64X_IOPAD(0x0068, PIN_INPUT, 7)		/* (W20) GPIO0_26 (EG95 DCD) */
+		>;
+	};
+
+	eg95_ctrl_status_pins_default: eg95-ctrl-status-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x008c, PIN_OUTPUT, 7)		/* (T21) GPIO0_34 (EG95 DTR) */
+		>;
+	};
+
+	main_i2c2_tca9539_pins_default: main-i2c2-tca9539-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x01c8, PIN_INPUT, 7) /* (R5) PRG0_PRU1_GPO6.GPIO1_26 */
+		>;
+	};
+};
+
+&main_i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c2_pins_default>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	tca9539: tca9539@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_tca9539_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "MobileLED:G0",
+				  "MobileLED:G1",
+				  "MobileLED:G2",
+				  "MobileLED:R0",
+				  "MobileLED:R1",
+				  "MobileLED:R2",
+				  "",
+				  "",
+				  "SIM1_LED:G",
+				  "SIM2_LED:G",
+				  "SIM1_LED:R",
+				  "SIM2_LED:R",
+				  "UARTBUF_Enable",
+				  "Mobile_Status_N",
+				  "Mobile_Reset",
+				  "Mobile_PWRKEY";
+	};
+};
+
+&main_uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart2_rs232_pins_default>;
+	dcd-gpios = <&main_gpio0 26 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&{/} {
+	leds_ext: leds_ext {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		led_g1 {
+			label = "MobileLED_G1";
+			gpios = <&tca9539 0 GPIO_ACTIVE_LOW>;
+		};
+
+		led_g2 {
+			label = "MobileLED_G2";
+			gpios = <&tca9539 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led_g3 {
+			label = "MobileLED_G3";
+			gpios = <&tca9539 2 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r1 {
+			label = "MobileLED_R1";
+			gpios = <&tca9539 3 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r2 {
+			label = "MobileLED_R2";
+			gpios = <&tca9539 4 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r3 {
+			label = "MobileLED_R3";
+			gpios = <&tca9539 5 GPIO_ACTIVE_LOW>;
+		};
+
+		led_sim1_g {
+			label = "SIM1_G";
+			gpios = <&tca9539 8 GPIO_ACTIVE_LOW>;
+		};
+
+		led_sim2_g {
+			label = "SIM2_G";
+			gpios = <&tca9539 9 GPIO_ACTIVE_LOW>;
+		};
+
+		led_sim1_r {
+			label = "SIM1_R";
+			gpios = <&tca9539 10 GPIO_ACTIVE_LOW>;
+		};
+
+		led_sim2_r {
+			label = "SIM2_R";
+			gpios = <&tca9539 11 GPIO_ACTIVE_LOW>;
+		};
+
+		led_UARTBUF {
+			label = "UARTBUF_Enable";
+			gpios = <&tca9539 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		mobile_reset {
+			label = "Mobile_RESETN";
+			gpios = <&tca9539 14 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <500 100>;
+		};
+
+		mobile_pwrkey {
+			label = "Mobile_PWRKEY";
+			gpios = <&tca9539 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_eg95: eg95-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&eg95_ctrl_status_pins_default>;
+		status = "okay";
+
+		led_eg95_DTR {
+			label = "EG95_Wakeup";
+			gpios = <&main_gpio0 34 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
