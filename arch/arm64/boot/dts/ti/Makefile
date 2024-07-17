@@ -381,6 +381,7 @@ DTC_FLAGS_k3-am642-centurysys-metis-00 += -@
 DTC_FLAGS_k3-am642-centurysys-metis-01 += -@
 DTC_FLAGS_k3-am642-centurysys-metis-02 += -@
 DTC_FLAGS_k3-am642-centurysys-metis-03 += -@
+DTC_FLAGS_k3-am642-centurysys-metis-20 += -@
 DTC_FLAGS_k3-am6548-iot2050-advanced-m2 += -@
 DTC_FLAGS_k3-am62p5-sk += -@
 DTC_FLAGS_k3-am68-sk-base-board += -@
