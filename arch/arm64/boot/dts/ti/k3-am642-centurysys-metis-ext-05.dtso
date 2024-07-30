@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * DT overlay for AD2488 expansion board on Century Systems MA-X3xx
+ * DT overlay for expansion board on Century Systems MA-X300/S2C
+ * - SPI
+ *   - ADS8688
+ * - I2C
+ *   - TCA9539
+ *   - STM32 I2C-slave (not yet)
+ * - UART
+ *   - STM32 USART
  *
  * Copyright (C) 2022 Century Systems
  */
@@ -12,22 +19,37 @@
 #include "k3-pinctrl.h"
 
 &main_pmx0 {
+	main_spi0_pins_default: main-spi0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0210, PIN_INPUT, 0) /* (D13) SPI0_CLK */
+			AM64X_IOPAD(0x0208, PIN_OUTPUT, 0) /* (D12) SPI0_CS0 */
+			AM64X_IOPAD(0x020c, PIN_OUTPUT, 0) /* (C13) SPI0_CS1 */
+			AM64X_IOPAD(0x0214, PIN_OUTPUT, 0) /* (A13) SPI0_D0 */
+			AM64X_IOPAD(0x0218, PIN_INPUT, 0) /* (A14) SPI0_D1 */
+		>;
+	};
+
 	main_i2c2_tca9539_pins_default: main-i2c2-tca9539-pins-default {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x01c8, PIN_INPUT, 7) /* (R5) PRG0_PRU1_GPO6.GPIO1_26 */
 		>;
 	};
+};
 
-	main_i2c2_pca9505_3e_pins_default: main-i2c2-pca9505-3e-pins-default {
-		pinctrl-single,pins = <
-			AM64X_IOPAD(0x021c, PIN_INPUT, 7) /* (B14) SPI1_CS0.GPIO1_47 */
-		>;
-	};
+&main_spi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_spi0_pins_default>;
+	ti,pindir-d0-out-d1-in = <1>;
+	status = "okay";
 
-	main_i2c2_pca9505_3f_pins_default: main-i2c2-pca9505-3f-pins-default {
-		pinctrl-single,pins = <
-			AM64X_IOPAD(0x0220, PIN_INPUT, 7) /* (D14) SPI1_CS1.GPIO1_48 */
-		>;
+	ads8688@0 {
+		compatible = "ti,ads8688";
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+		spi-cs-low;
+		data-size = <16>;
 	};
 };
 
@@ -38,10 +60,76 @@
 	pinctrl-0 = <&main_i2c2_pins_default>;
 	clock-frequency = <400000>;
 	status = "okay";
+
+	tca9539: tca9539@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_tca9539_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "",
+				  "",
+				  "",
+				  "",
+				  "",
+				  "ADC_RESETn",
+				  "ADC_PowerFault",
+				  "ADC_PowerCtrl",
+				  "",
+				  "",
+				  "",
+				  "",
+				  "LED_RTK",
+				  "F9P_RTK_STATUS",
+				  "STM32_RESET_N",
+				  "STM32_BOOT0";
+	};
+
 };
 
 &main_uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart2_pins_default>;
 	status = "okay";
+};
+
+&{/} {
+	leds_ext: leds_ext {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		adc_reset_n {
+			label = "ADC_RESET";
+			gpios = <&tca9539 5 GPIO_ACTIVE_LOW>;
+			default-trigger = "oneshot";
+		};
+
+		adc_power {
+			label = "ADC_Power";
+			gpios = <&tca9539 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		rtk {
+			label = "RTK";
+			gpios = <&tca9539 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		stm32_reset_n {
+			label = "STM32_RESET";
+			gpios = <&tca9539 14 GPIO_ACTIVE_LOW>;
+		};
+
+		stm32_boot0 {
+			label = "STM32_BOOT0";
+			gpios = <&tca9539 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
 };
