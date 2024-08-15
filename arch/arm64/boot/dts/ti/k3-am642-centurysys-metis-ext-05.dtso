@@ -76,8 +76,8 @@
 		#interrupt-cells = <2>;
 
 		gpio-line-names = "",
-				  "",
-				  "",
+				  "F9P_RESET_N",
+				  "F9P_PowerCtrl",
 				  "",
 				  "",
 				  "ADC_RESETn",
@@ -122,14 +122,29 @@
 			gpios = <&tca9539 12 GPIO_ACTIVE_HIGH>;
 		};
 
+		f9p_reset_n {
+			label = "F9P_RESET";
+			gpios = <&tca9539 0 GPIO_ACTIVE_LOW>;
+			default-trigger = "oneshot";
+		};
+
+		f9p_power {
+			label = "F9P_Power";
+			gpios = <&tca9539 1 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
 		stm32_reset_n {
 			label = "STM32_RESET";
 			gpios = <&tca9539 14 GPIO_ACTIVE_LOW>;
+			default-trigger = "oneshot";
 		};
 
 		stm32_boot0 {
 			label = "STM32_BOOT0";
 			gpios = <&tca9539 15 GPIO_ACTIVE_HIGH>;
 		};
+
+
 	};
 };
