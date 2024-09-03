@@ -142,6 +142,7 @@
 			led-pattern = <10 10>;
 		};
 
+/*
 		led_g1 {
 			label = "MobileLED_G1";
 			gpios = <&main_gpio1 8 GPIO_ACTIVE_LOW>;
@@ -171,7 +172,7 @@
 			label = "MobileLED_R3";
 			gpios = <&main_gpio1 13 GPIO_ACTIVE_LOW>;
 		};
-
+*/
 		shutdown_req {
 			label = "SHUTDOWN_REQ";
 			gpios = <&main_gpio1 21 GPIO_ACTIVE_LOW>;
