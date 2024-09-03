@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "bt_ifusb device drivers"
+
+config BT_IFUSB
+	tristate "BLUETOOTH USB driver"
+	default m
+	help
+	  bt_ifusb driver.
+	  This driver is required if you want to use Bluetooth devices with
+	  USB interface.
+
+	  Say Y here to compile support for Bluetooth USB devices into the
+	  kernel or say M to compile it as module (bt_ifusb).
+
+endmenu
