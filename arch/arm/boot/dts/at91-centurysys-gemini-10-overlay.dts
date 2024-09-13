@@ -30,15 +30,15 @@
 				#size-cells = <0>;
 				#gpio-cells = <2>;
 
-				gpio-line-names = "BT_LED0_G",
-						  "BT_LED0_Y",
-						  "BT_LED0_R",
+				gpio-line-names = "BT_LED2_G",
+						  "BT_LED2_Y",
+						  "BT_LED2_R",
 						  "BT_LED1_G",
 						  "BT_LED1_Y",
 						  "BT_LED1_R",
-						  "BT_LED2_G",
-						  "BT_LED2_Y",
-						  "BT_LED2_R",
+						  "BT_LED0_G",
+						  "BT_LED0_Y",
+						  "BT_LED0_R",
 						  "BT_LED3_G",
 						  "BT_LED3_Y",
 						  "BT_LED3_R",
@@ -53,18 +53,18 @@
 	fragment@2 {
 		target = <&leds>;
 		__overlay__ {
-			bt_led0_g {
-				label = "BT_LED0_G";
+			bt_led2_g {
+				label = "BT_LED2_G";
 				gpios = <&pca9539 0 GPIO_ACTIVE_LOW>;
 			};
 
-			bt_led0_y {
-				label = "BT_LED0_Y";
+			bt_led2_y {
+				label = "BT_LED2_Y";
 				gpios = <&pca9539 1 GPIO_ACTIVE_LOW>;
 			};
 
-			bt_led0_r {
-				label = "BT_LED0_R";
+			bt_led2_r {
+				label = "BT_LED2_R";
 				gpios = <&pca9539 2 GPIO_ACTIVE_LOW>;
 			};
 
@@ -83,18 +83,18 @@
 				gpios = <&pca9539 5 GPIO_ACTIVE_LOW>;
 			};
 
-			bt_led2_g {
-				label = "BT_LED2_G";
+			bt_led0_g {
+				label = "BT_LED0_G";
 				gpios = <&pca9539 6 GPIO_ACTIVE_LOW>;
 			};
 
-			bt_led2_y {
-				label = "BT_LED2_Y";
+			bt_led0_y {
+				label = "BT_LED0_Y";
 				gpios = <&pca9539 7 GPIO_ACTIVE_LOW>;
 			};
 
-			bt_led2_r {
-				label = "BT_LED2_R";
+			bt_led0_r {
+				label = "BT_LED0_R";
 				gpios = <&pca9539 8 GPIO_ACTIVE_LOW>;
 			};
 
