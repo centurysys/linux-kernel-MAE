@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-10-overlay.dts - Device Tree Overlay file (xio_id: 0x10)
+ *                                           for Century Systems Gemini board
+ *
+ *  Copyright (C) 2024 Century Systems
+ *                     Takeyoshi Kikuchi <kikuchi@centurysys.co.jp>
+ */
+
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/regulator/active-semi,8945a-regulator.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+
+	fragment@0 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pca9539: pca9539@74 {
+				compatible = "nxp,pca9539";
+				reg = <0x74>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#gpio-cells = <2>;
+
+				gpio-line-names = "BT_LED0_G",
+						  "BT_LED0_Y",
+						  "BT_LED0_R",
+						  "BT_LED1_G",
+						  "BT_LED1_Y",
+						  "BT_LED1_R",
+						  "BT_LED2_G",
+						  "BT_LED2_Y",
+						  "BT_LED2_R",
+						  "BT_LED3_G",
+						  "BT_LED3_Y",
+						  "BT_LED3_R",
+						  "BT_RESET_n",
+						  "ExtUSB_Power_Enable",
+						  "ExtUSB_Hub_Reset",
+						  "PAIRING_SW_N";
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&leds>;
+		__overlay__ {
+			bt_led0_g {
+				label = "BT_LED0_G";
+				gpios = <&pca9539 0 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led0_y {
+				label = "BT_LED0_Y";
+				gpios = <&pca9539 1 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led0_r {
+				label = "BT_LED0_R";
+				gpios = <&pca9539 2 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led1_g {
+				label = "BT_LED1_G";
+				gpios = <&pca9539 3 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led1_y {
+				label = "BT_LED1_Y";
+				gpios = <&pca9539 4 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led1_r {
+				label = "BT_LED1_R";
+				gpios = <&pca9539 5 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led2_g {
+				label = "BT_LED2_G";
+				gpios = <&pca9539 6 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led2_y {
+				label = "BT_LED2_Y";
+				gpios = <&pca9539 7 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led2_r {
+				label = "BT_LED2_R";
+				gpios = <&pca9539 8 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led3_g {
+				label = "BT_LED3_G";
+				gpios = <&pca9539 9 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led3_y {
+				label = "BT_LED3_Y";
+				gpios = <&pca9539 10 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_led3_r {
+				label = "BT_LED3_R";
+				gpios = <&pca9539 11 GPIO_ACTIVE_LOW>;
+			};
+
+			bt_reset_n {
+				label = "BT_Reset";
+				gpios = <&pca9539 12 GPIO_ACTIVE_LOW>;
+				default-state = "off";
+				linux,default-trigger = "oneshot";
+				led-pattern = <500 100>;
+			};
+
+			usb_power {
+				label = "ExtUSB_Power";
+				gpios = <&pca9539 13 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
+			};
+
+			usbhub_reset_n {
+				label = "ExtUSB_Hub_Reset";
+				gpios = <&pca9539 14 GPIO_ACTIVE_LOW>;
+				default-state = "off";
+				linux,default-trigger = "oneshot";
+				led-pattern = <500 100>;
+			};
+		};
+	};
+};
