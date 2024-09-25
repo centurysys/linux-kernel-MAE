@@ -154,7 +154,7 @@
 			label = "SE050_Enable";
 			gpios = <&main_gpio1 28 GPIO_ACTIVE_HIGH>;
 		};
-};
+	};
 
 	leds_msp430: leds-msp430 {
 		compatible = "gpio-leds";
