@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+/**
+ * DT overlay for PoE extension on Century Systems MA-X3xx
+ *
+ * Copyright (C) 2024 Century Systems
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "k3-pinctrl.h"
+
+&leds {
+	do_t0 {
+		status = "disabled";
+	};
+
+	poe_ctrl {
+		label = "PoE_CTRL";
+		gpios = <&main_gpio1 1 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&main_gpio1 {
+	gpio-line-names = "DOUT_S0", "PoE_CTRL", "Mobile_Wakeup_N", "Mobile_RI",
+			  "Mobile_W_Disable", "Mobile_Reset", "Mobile_SIM_Sel", "", /* GPIO1_0 .. 7 */
+			  "MobileLED:G0", "MobileLED:G1", "MobileLED:G2", "MobileLED:R0",
+			  "MobileLED:R1", "MobileLED:R2", "PowerLED:G", "LED_Drv_Enable",
+			  "ConsoleEnable", "eMMC_RST_N", "Mobile_Power_EN", "DIPSW4",
+			  "DDR_VTT_EN", "MSP430_SHDN_N", "MSP430_RST", "MSP430_TEST",
+			  "USBHub_Reset", "INIT_SW_N", "XIO_IRQ0_N", /* ..GPIO1_26 */
+			  "", "", "", "", "", "", "", "", "", "", "", /* ..GPIO1_37 */
+			  "", "", "", "", "", "", "", "", "", "XIO_IRQ1_N", /* ..GPIO1_47 */
+			  "XIO_IRQ2_N", "", "", "", "", "", "", "", "", "", /* ..GPIO1_57 */
+			  "", "", "DIN_S0", "DIN_S1", "PoE_Connect", "DIN_T1";
+};
