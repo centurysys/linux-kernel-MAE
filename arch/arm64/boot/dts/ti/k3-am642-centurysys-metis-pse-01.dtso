@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
+/**
+ * DT overlay for PoE extension on Century Systems MA-X3xx
+ *
+ * Copyright (C) 2024 Century Systems
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "k3-pinctrl.h"
+
+&leds {
+	do_t0 {
+		status = "disabled";
+	};
+
+	poe_ctrl {
+		label = "PoE_CTRL";
+		gpios = <&main_gpio1 1 GPIO_ACTIVE_LOW>;
+	};
+};
