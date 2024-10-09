@@ -60,7 +60,12 @@ DEVICE(flashloader, FLASHLOADER_IDS);
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x18d1,			\
 					USB_CLASS_VENDOR_SPEC,	\
 					0x50,			\
-					0x01) }
+					0x01) },\
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x18d1,		\
+					0x2d01,		\
+					USB_CLASS_VENDOR_SPEC,	\
+					0xff,			\
+					0x00) }
 DEVICE(google, GOOGLE_IDS);
 
 /* Libtransistor USB console */
