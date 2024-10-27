@@ -342,15 +342,6 @@ static int k3_r5_split_reset(struct k3_r5_core *core)
 		return ret;
 	}
 
-	ret = core->ti_sci->ops.dev_ops.put_device(core->ti_sci,
-						   core->ti_sci_id);
-	if (ret) {
-		dev_err(core->dev, "module-reset assert failed, ret = %d\n",
-			ret);
-		if (reset_control_deassert(core->reset))
-			dev_warn(core->dev, "local-reset deassert back failed\n");
-	}
-
 	return ret;
 }
 
@@ -679,8 +670,6 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 			ret);
 		return ret;
 	}
-	core->released_from_reset = true;
-	wake_up_interruptible(&cluster->core_transition);
 
 	/*
 	 * Newer IP revisions like on J7200 SoCs support h/w auto-initialization
@@ -775,7 +764,7 @@ static int k3_r5_rproc_start(struct rproc *rproc)
 	core = kproc->core;
 	ret = ti_sci_proc_set_config(core->tsp, boot_addr, 0, 0);
 	if (ret)
-		goto put_mbox;
+		return ret;
 
 	/* unhalt/run all applicable cores */
 	if (cluster->mode == CLUSTER_MODE_LOCKSTEP) {
@@ -791,13 +780,12 @@ static int k3_r5_rproc_start(struct rproc *rproc)
 		if (core != core0 && core0->rproc->state == RPROC_OFFLINE) {
 			dev_err(dev, "%s: can not start core 1 before core 0\n",
 				__func__);
-			ret = -EPERM;
-			goto put_mbox;
+			return -EPERM;
 		}
 
 		ret = k3_r5_core_run(core);
 		if (ret)
-			goto put_mbox;
+			return ret;
 	}
 
 	kproc->rproc->state = RPROC_RUNNING;
@@ -812,9 +800,6 @@ unroll_core_run:
 release_wait:
 	core->released_from_reset = true;
 	wake_up_interruptible(&cluster->core_transition);
-
-put_mbox:
-	mbox_free_channel(kproc->mbox);
 
 	return ret;
 }
@@ -870,15 +855,6 @@ static int k3_r5_rproc_stop(struct rproc *rproc)
 			return 0;
 		}
 
-		/* do not allow core 0 to stop before core 1 */
-		core1 = list_last_entry(&cluster->cores, struct k3_r5_core,
-					elem);
-		if (core != core1 && core1->rproc->state != RPROC_OFFLINE) {
-			dev_err(dev, "%s: can not stop core 0 before core 1\n",
-				__func__);
-			ret = -EPERM;
-			goto out;
-		}
 		reinit_completion(&kproc->shut_comp);
 		ret = mbox_send_message(kproc->mbox, (void *)msg);
 		if (ret < 0) {
