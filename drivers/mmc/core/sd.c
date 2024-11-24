@@ -25,7 +25,6 @@
 #include "card.h"
 #include "host.h"
 #include "bus.h"
-#include "quirks.h"
 #include "mmc_ops.h"
 #include "quirks.h"
 #include "sd.h"
