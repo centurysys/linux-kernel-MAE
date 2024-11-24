@@ -63,6 +63,7 @@ struct davinci_gpio_controller {
 	int			irqs[MAX_INT_PER_BANK];
 	struct davinci_gpio_regs context[MAX_REGS_BANKS];
 	u32			binten_context;
+	bool		needs_context_restore;
 };
 
 static inline u32 __gpio_mask(unsigned gpio)
@@ -259,6 +260,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.request = gpiochip_generic_request;
 	chips->chip.free = gpiochip_generic_free;
 #endif
+	chips->needs_context_restore = false;
 	spin_lock_init(&chips->lock);
 
 	nbank = DIV_ROUND_UP(ngpio, 32);
@@ -289,7 +291,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
  * serve as EDMA event triggers.
  */
 
-static void gpio_irq_disable(struct irq_data *d)
+static void gpio_irq_mask(struct irq_data *d)
 {
 	struct davinci_gpio_regs __iomem *g = irq2regs(d);
 	uintptr_t mask = (uintptr_t)irq_data_get_irq_handler_data(d);
@@ -298,7 +300,7 @@ static void gpio_irq_disable(struct irq_data *d)
 	writel_relaxed(mask, &g->clr_rising);
 }
 
-static void gpio_irq_enable(struct irq_data *d)
+static void gpio_irq_unmask(struct irq_data *d)
 {
 	struct davinci_gpio_regs __iomem *g = irq2regs(d);
 	uintptr_t mask = (uintptr_t)irq_data_get_irq_handler_data(d);
@@ -324,8 +326,8 @@ static int gpio_irq_type(struct irq_data *d, unsigned trigger)
 
 static struct irq_chip gpio_irqchip = {
 	.name		= "GPIO",
-	.irq_enable	= gpio_irq_enable,
-	.irq_disable	= gpio_irq_disable,
+	.irq_unmask	= gpio_irq_unmask,
+	.irq_mask	= gpio_irq_mask,
 	.irq_set_type	= gpio_irq_type,
 	.flags		= IRQCHIP_SET_TYPE_MASKED | IRQCHIP_SKIP_SET_WAKE,
 };
@@ -682,6 +684,7 @@ static int davinci_gpio_suspend(struct device *dev)
 	u32 nbank = DIV_ROUND_UP(pdata->ngpio, 32);
 
 	davinci_gpio_save_context(chips, nbank);
+	chips->needs_context_restore = true;
 
 	return 0;
 }
@@ -692,7 +695,10 @@ static int davinci_gpio_resume(struct device *dev)
 	struct davinci_gpio_platform_data *pdata = dev_get_platdata(dev);
 	u32 nbank = DIV_ROUND_UP(pdata->ngpio, 32);
 
-	davinci_gpio_restore_context(chips, nbank);
+	if (chips->needs_context_restore) {
+		davinci_gpio_restore_context(chips, nbank);
+		chips->needs_context_restore = false;
+	}
 
 	return 0;
 }
@@ -716,6 +722,18 @@ static struct platform_driver davinci_gpio_driver = {
 		.of_match_table	= of_match_ptr(davinci_gpio_ids),
 	},
 };
+
+static int davinci_gpio_resume_wrapper(struct device *dev, void *unused)
+{
+	return davinci_gpio_resume(dev);
+}
+
+int davinci_gpio_resume_all_devices(void)
+{
+	return driver_for_each_device(&davinci_gpio_driver.driver, NULL,
+					NULL, davinci_gpio_resume_wrapper);
+}
+EXPORT_SYMBOL(davinci_gpio_resume_all_devices);
 
 /*
  * GPIO driver registration needs to be done before machine_init functions
