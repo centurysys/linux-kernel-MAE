@@ -836,10 +836,12 @@ static int sdhci_am654_get_of_property(struct platform_device *pdev,
 	if (device_property_read_bool(dev, "ti,fails-without-test-cd"))
 		sdhci_am654->quirks |= SDHCI_AM654_QUIRK_FORCE_CDTEST;
 
+#if 0
 	/* Suppress v1p8 ena for eMMC and SD with vqmmc supply */
 	if (!!of_parse_phandle(dev->of_node, "vmmc-supply", 0) ==
 	    !!of_parse_phandle(dev->of_node, "vqmmc-supply", 0))
 		sdhci_am654->quirks |= SDHCI_AM654_QUIRK_SUPPRESS_V1P8_ENA;
+#endif
 
 	sdhci_get_of_property(pdev);
 
