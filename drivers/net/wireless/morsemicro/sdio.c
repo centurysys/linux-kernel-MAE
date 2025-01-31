@@ -572,7 +572,7 @@ static int morse_sdio_reset(int reset_pin, struct sdio_func *func)
 
 	sdio_claim_host(func);
 	sdio_disable_func(func);
-#if KERNEL_VERSION(5, 18, 0) > LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 18, 0) > MAC80211_VERSION_CODE
 	mmc_hw_reset(func->card->host);
 #else
 	mmc_hw_reset(func->card);
