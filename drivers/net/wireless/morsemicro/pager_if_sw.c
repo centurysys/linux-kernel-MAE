@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Morse Micro
+ * Copyright 2021-2023 Morse Micro
  *
  */
 
@@ -7,6 +7,7 @@
 #include "pager_if_sw.h"
 #include "bus.h"
 #include "debug.h"
+#include "hw.h"
 #include "skb_header.h"
 #include "chip_if.h"
 
@@ -31,22 +32,22 @@
 	(MORSE_MAX_MPDU_LENGTH + sizeof(struct morse_buff_skb_header))
 
 #define MORSE_RB_HEAD_ADDR(pager)	\
-	((((struct morse_pager_sw_aux_data *)pager->aux_data)->entry_addr) + \
+	((((struct morse_pager_sw_aux_data *)(pager)->aux_data)->entry_addr) + \
 				  offsetof(struct morse_pager_sw_entry, head))
 #define MORSE_RB_TAIL_ADDR(pager)	\
-	((((struct morse_pager_sw_aux_data *)pager->aux_data)->entry_addr) + \
+	((((struct morse_pager_sw_aux_data *)(pager)->aux_data)->entry_addr) + \
 				  offsetof(struct morse_pager_sw_entry, tail))
 #define MORSE_AUX_DATA_CACHE(pager) \
-	(((struct morse_pager_sw_aux_data *) pager->aux_data)->cache)
+	(((struct morse_pager_sw_aux_data *)(pager)->aux_data)->cache)
 
 struct morse_pager_sw_aux_data {
 	u32 entry_addr;
 	u16 size;
 
 	/* Local copies of base, head, tail */
-	u32 base;    /* Ring buffer base address */
-	u32 head;    /* Ring buffer head address */
-	u32 tail;    /* Ring buffer tail address */
+	u32 base;		/* Ring buffer base address */
+	u32 head;		/* Ring buffer head address */
+	u32 tail;		/* Ring buffer tail address */
 
 	/**
 	 * Used to identify when the above pointers get modified
@@ -56,7 +57,7 @@ struct morse_pager_sw_aux_data {
 	bool tail_is_dirty;
 
 	/** We use a cache to do bulk writes/reads of the pages. */
-	DECLARE_KFIFO(cache, u32, MAX_PAGER_PAGE_LEN);
+	 DECLARE_KFIFO(cache, u32, MAX_PAGER_PAGE_LEN);
 	/**
 	 *  Set to TRUE when there are pages in the cache that need to be
 	 * written back.
@@ -64,22 +65,21 @@ struct morse_pager_sw_aux_data {
 	bool pages_need_put;
 };
 
-int morse_pager_sw_read_table(struct morse *mors,
-			      struct morse_pager_sw_table *tbl_ptr)
+int morse_pager_sw_read_table(struct morse *mors, struct morse_pager_sw_table *tbl_ptr)
 {
 	int ret;
 
 	const u32 pager_count_addr = mors->cfg->host_table_ptr +
-		offsetof(struct host_table, chip_if) +
-		offsetof(struct morse_chip_if_host_table, pager_count);
+	    offsetof(struct host_table, chip_if) +
+	    offsetof(struct morse_chip_if_host_table, pager_count);
 
 	tbl_ptr->addr = mors->cfg->host_table_ptr +
-		offsetof(struct host_table, chip_if) +
-		offsetof(struct morse_chip_if_host_table, pager_table);
+	    offsetof(struct host_table, chip_if) +
+	    offsetof(struct morse_chip_if_host_table, pager_table);
 
 	ret = morse_reg32_read(mors, pager_count_addr, &tbl_ptr->count);
 
-	if (ret != 0 && ((tbl_ptr->count == 0) || (tbl_ptr->addr == 0)))
+	if (ret != 0 && (tbl_ptr->count == 0 || tbl_ptr->addr == 0))
 		ret = -EIO;
 	return ret;
 }
@@ -88,11 +88,10 @@ static inline int morse_pager_sw_rb_write_tail(const struct morse_pager *pager)
 {
 	struct morse *mors = pager->mors;
 	struct morse_pager_sw_aux_data *aux_data =
-			(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	morse_reg32_write(mors, MORSE_RB_TAIL_ADDR(pager), aux_data->tail);
-	morse_reg32_write(mors, MORSE_PAGER_TRGR_SET(mors),
-					MORSE_PAGER_IRQ_MASK(pager->id));
+	morse_reg32_write(mors, MORSE_PAGER_TRGR_SET(mors), MORSE_PAGER_IRQ_MASK(pager->id));
 
 	aux_data->tail_is_dirty = false;
 	return 0;
@@ -102,11 +101,10 @@ static inline int morse_pager_sw_rb_write_head(const struct morse_pager *pager)
 {
 	struct morse *mors = pager->mors;
 	struct morse_pager_sw_aux_data *aux_data =
-			(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	morse_reg32_write(mors, MORSE_RB_HEAD_ADDR(pager), aux_data->head);
-	morse_reg32_write(mors, MORSE_PAGER_TRGR_SET(mors),
-					MORSE_PAGER_IRQ_MASK(pager->id));
+	morse_reg32_write(mors, MORSE_PAGER_TRGR_SET(mors), MORSE_PAGER_IRQ_MASK(pager->id));
 
 	aux_data->head_is_dirty = false;
 	return 0;
@@ -116,7 +114,7 @@ static inline int morse_pager_sw_rb_read_head(struct morse_pager *pager)
 {
 	struct morse *mors = pager->mors;
 	struct morse_pager_sw_aux_data *aux_data =
-			(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	morse_reg32_read(mors, MORSE_RB_HEAD_ADDR(pager), &aux_data->head);
 	return 0;
@@ -126,7 +124,7 @@ static inline int morse_pager_sw_rb_read_tail(struct morse_pager *pager)
 {
 	struct morse *mors = pager->mors;
 	struct morse_pager_sw_aux_data *aux_data =
-			(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	morse_reg32_read(mors, MORSE_RB_TAIL_ADDR(pager), &aux_data->tail);
 	return 0;
@@ -135,13 +133,13 @@ static inline int morse_pager_sw_rb_read_tail(struct morse_pager *pager)
 static u32 __morse_pager_sw_count(const struct morse_pager *pager)
 {
 	struct morse_pager_sw_aux_data *aux_data =
-			(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	/* Current used in chip */
 	u32 head = aux_data->head - aux_data->base;
 	u32 tail = aux_data->tail - aux_data->base;
 	u32 size = aux_data->size;
-	u32 count = (((head) - (tail)) & ((size)-1));
+	u32 count = (((head) - (tail)) & ((size) - 1));
 
 	return count;
 }
@@ -149,7 +147,7 @@ static u32 __morse_pager_sw_count(const struct morse_pager *pager)
 static u32 __morse_pager_sw_space(const struct morse_pager *pager)
 {
 	struct morse_pager_sw_aux_data *aux_data =
-			(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	return (aux_data->size - 1) - __morse_pager_sw_count(pager);
 }
@@ -157,38 +155,34 @@ static u32 __morse_pager_sw_space(const struct morse_pager *pager)
 static u32 morse_pager_sw_space_to_end(const struct morse_pager *pager)
 {
 	struct morse_pager_sw_aux_data *aux_data =
-		(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	u32 head = aux_data->head;
 	u32 tail = aux_data->tail;
 	u32 end = aux_data->base + aux_data->size - 1;
 
-	return (head >= tail) ?
-			(end - head + 1) : (tail - head);
+	return (head >= tail) ? (end - head + 1) : (tail - head);
 }
 
 static u32 morse_pager_sw_count_to_end(const struct morse_pager *pager)
 {
 	struct morse_pager_sw_aux_data *aux_data =
-		(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	u32 head = aux_data->head;
 	u32 tail = aux_data->tail;
 	u32 end = aux_data->base + aux_data->size - 1;
 
-	return (head >= tail) ?
-			(head - tail) : (end - tail + 1);
+	return (head >= tail) ? (head - tail) : (end - tail + 1);
 }
 
-static int morse_pager_sw_data_write(struct morse_pager *pager,
-				     uint8_t *data,
-				     u32 len)
+static int morse_pager_sw_data_write(struct morse_pager *pager, u8 *data, u32 len)
 {
 	int ret = 0;
 	u32 spc2end;
 	struct morse *mors = pager->mors;
 	struct morse_pager_sw_aux_data *aux_data =
-			(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	morse_pager_sw_rb_read_tail(pager);
 
@@ -216,15 +210,13 @@ exit:
 	return ret;
 }
 
-static int morse_pager_sw_data_read(struct morse_pager *pager,
-				    uint8_t *data,
-				    u32 len)
+static int morse_pager_sw_data_read(struct morse_pager *pager, u8 *data, u32 len)
 {
 	int ret = 0;
 	int cnt2end;
 	struct morse *mors = pager->mors;
 	struct morse_pager_sw_aux_data *aux_data =
-			(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	cnt2end = morse_pager_sw_count_to_end(pager);
 
@@ -256,12 +248,11 @@ static int morse_pager_sw_notify_pager(const struct morse_pager *pager)
 {
 	int ret = -1;
 	struct morse_pager_sw_aux_data *aux_data =
-		(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	if (aux_data->pages_need_put) {
 		u32 page_addr;
-		size_t to_write =
-			kfifo_len(&MORSE_AUX_DATA_CACHE(pager)) * sizeof(u32);
+		size_t to_write = kfifo_len(&MORSE_AUX_DATA_CACHE(pager)) * sizeof(u32);
 
 		if (to_write > 0) {
 			int i = 0;
@@ -273,8 +264,8 @@ static int morse_pager_sw_notify_pager(const struct morse_pager *pager)
 				i++;
 			}
 
-			ret = morse_pager_sw_data_write(
-				(struct morse_pager *) pager, (u8 *) buffer, to_write);
+			ret = morse_pager_sw_data_write((struct morse_pager *)pager, (u8 *)buffer,
+							to_write);
 			WARN_ON(ret);
 			kfree(buffer);
 			aux_data->pages_need_put = false;
@@ -282,11 +273,9 @@ static int morse_pager_sw_notify_pager(const struct morse_pager *pager)
 	}
 
 	/**
-	 * Depending on the type of pager, and it's direction (To/From chip)
-	 * we only update either the cached head/tail through notifying the
-	 * chip.
+	 * Depending on the type of pager and its direction (to/from chip),
+	 * we only update either the cached head/tail through notifying the chip.
 	 */
-
 	if (pager->flags & MORSE_PAGER_FLAGS_DIR_TO_CHIP) {
 		if (pager->flags & MORSE_PAGER_FLAGS_POPULATED && aux_data->head_is_dirty)
 			ret = morse_pager_sw_rb_write_head(pager);
@@ -299,14 +288,13 @@ static int morse_pager_sw_notify_pager(const struct morse_pager *pager)
 			ret = morse_pager_sw_rb_write_head(pager);
 	}
 
-	MORSE_WARN_ON(aux_data->head_is_dirty);
-	MORSE_WARN_ON(aux_data->tail_is_dirty);
+	MORSE_WARN_ON(FEATURE_ID_DEFAULT, aux_data->head_is_dirty);
+	MORSE_WARN_ON(FEATURE_ID_DEFAULT, aux_data->tail_is_dirty);
 
 	return 0;
 }
 
-static int morse_pager_sw_pop(struct morse_pager *pager,
-			      struct morse_page *page)
+static int morse_pager_sw_pop(struct morse_pager *pager, struct morse_page *page)
 {
 	int ret = 0;
 	u32 page_addr = 0;
@@ -329,7 +317,7 @@ static int morse_pager_sw_pop(struct morse_pager *pager,
 		if (!buffer)
 			return -ENOMEM;
 
-		ret = morse_pager_sw_data_read(pager, (u8 *) buffer, to_read);
+		ret = morse_pager_sw_data_read(pager, (u8 *)buffer, to_read);
 		if (ret) {
 			kfree(buffer);
 			return ret;
@@ -354,13 +342,12 @@ static int morse_pager_sw_pop(struct morse_pager *pager,
 	return ret;
 }
 
-static int morse_pager_sw_put(struct morse_pager *pager,
-			      struct morse_page *page)
+static int morse_pager_sw_put(struct morse_pager *pager, struct morse_page *page)
 {
 	int ret = 0;
 	u32 page_addr = cpu_to_le32(page->addr);
 	struct morse_pager_sw_aux_data *aux_data =
-		(struct morse_pager_sw_aux_data *) pager->aux_data;
+	    (struct morse_pager_sw_aux_data *)pager->aux_data;
 
 	ret = kfifo_put(&MORSE_AUX_DATA_CACHE(pager), page_addr);
 	WARN_ON(ret == 0);
@@ -391,14 +378,12 @@ static int morse_pager_sw_page_write(struct morse_pager *pager,
 	if (page->addr == 0)
 		return -EFAULT;
 
-	ret = morse_dm_write(pager->mors, page->addr + offset,
-					     buff, num_bytes);
+	ret = morse_dm_write(pager->mors, page->addr + offset, buff, num_bytes);
 	return ret;
 }
 
 static int morse_pager_sw_page_read(struct morse_pager *pager,
-				   struct morse_page *page,
-				   int offset, char *buff, int num_bytes)
+				    struct morse_page *page, int offset, char *buff, int num_bytes)
 {
 	int ret;
 
@@ -411,8 +396,7 @@ static int morse_pager_sw_page_read(struct morse_pager *pager,
 	if (page->addr == 0)
 		return -EFAULT;
 
-	ret = morse_dm_read(pager->mors, page->addr + offset,
-					    buff, num_bytes);
+	ret = morse_dm_read(pager->mors, page->addr + offset, buff, num_bytes);
 	return ret;
 }
 
@@ -430,12 +414,11 @@ int morse_pager_sw_init(struct morse *mors, struct morse_pager *pager,
 	struct morse_pager_sw_aux_data *aux_data;
 
 	pager->ops = &morse_pager_sw_ops;
-	pager->aux_data = kzalloc(sizeof(struct morse_pager_sw_aux_data),
-				  GFP_KERNEL);
+	pager->aux_data = kzalloc(sizeof(*aux_data), GFP_KERNEL);
 	if (!pager->aux_data)
 		return -ENOMEM;
 
-	aux_data = (struct morse_pager_sw_aux_data *) pager->aux_data;
+	aux_data = (struct morse_pager_sw_aux_data *)pager->aux_data;
 	aux_data->size = size;
 	aux_data->base = base;
 	aux_data->head = head;
@@ -471,37 +454,34 @@ int morse_pager_sw_pagesets_init(struct morse *mors)
 	morse_claim_bus(mors);
 	ret = morse_pager_sw_read_table(mors, &tbl_ptr);
 	if (ret) {
-		morse_err(mors, "morse_pager_sw_read_table failed %d\n", ret);
+		MORSE_ERR(mors, "morse_pager_sw_read_table failed %d\n", ret);
 		goto exit;
 	}
 
-	mors->chip_if = kzalloc(sizeof(struct morse_chip_if_state), GFP_KERNEL);
+	mors->chip_if = kzalloc(sizeof(*mors->chip_if), GFP_KERNEL);
 	if (!mors->chip_if) {
 		ret = -ENOMEM;
 		goto exit;
 	}
 
-	mors->chip_if->pagers = kcalloc(tbl_ptr.count, sizeof(struct morse_pager),
-								GFP_KERNEL);
+	mors->chip_if->pagers = kcalloc(tbl_ptr.count, sizeof(struct morse_pager), GFP_KERNEL);
 	if (!mors->chip_if->pagers) {
 		ret = -ENOMEM;
 		goto err_exit;
 	}
 
 	mors->chip_if->pager_count = tbl_ptr.count;
-	morse_info(mors, "morse pagers detected %d\n", tbl_ptr.count);
+	MORSE_INFO(mors, "morse pagers detected %d\n", tbl_ptr.count);
 
 	/* First initialise implementation specific data */
 	for (pager = mors->chip_if->pagers, i = 0; i < tbl_ptr.count; pager++, i++) {
 		/* Read entry from chip */
-		const u32 addr = tbl_ptr.addr + i *
-					sizeof(struct morse_pager_sw_entry);
+		const u32 addr = tbl_ptr.addr + i * sizeof(struct morse_pager_sw_entry);
 
-		ret = morse_dm_read(mors, addr, (u8 *) &pager_entry,
-					sizeof(struct morse_pager_sw_entry));
+		ret = morse_dm_read(mors, addr, (u8 *)&pager_entry,
+				    sizeof(struct morse_pager_sw_entry));
 		if (ret) {
-			morse_err(mors, "%s failed to read table %d\n",
-								__func__, ret);
+			MORSE_ERR(mors, "%s failed to read table %d\n", __func__, ret);
 			goto err_exit;
 		}
 
@@ -511,17 +491,16 @@ int morse_pager_sw_pagesets_init(struct morse *mors)
 					  __le32_to_cpu(pager_entry.head),
 					  __le32_to_cpu(pager_entry.tail));
 		if (ret) {
-			morse_err(mors, "morse_pager_sw_init failed %d\n", ret);
+			MORSE_ERR(mors, "morse_pager_sw_init failed %d\n", ret);
 			goto err_exit;
 		}
 
-		ret = morse_pager_init(mors, pager, MM_PAGER_PKT_SIZE,
-				       pager_entry.flags, i);
+		ret = morse_pager_init(mors, pager, MM_PAGER_PKT_SIZE, pager_entry.flags, i);
 		if (ret) {
-			morse_err(mors, "morse_pager_init failed %d\n", ret);
+			MORSE_ERR(mors, "morse_pager_init failed %d\n", ret);
 			/* Cleanup for this instance */
 			morse_pager_sw_finish(mors, pager);
-			/* Set i to cleanup other instances */
+			/* Set i to clean up other instances */
 			i--;
 			goto err_exit;
 		}
@@ -530,27 +509,25 @@ int morse_pager_sw_pagesets_init(struct morse *mors)
 	/* Tie pagers to pageset */
 	for (pager = mors->chip_if->pagers, i = 0; i < tbl_ptr.count; pager++, i++) {
 		if ((pager->flags & MORSE_PAGER_FLAGS_DIR_TO_HOST) &&
-		   (pager->flags & MORSE_PAGER_FLAGS_POPULATED)) {
+		    (pager->flags & MORSE_PAGER_FLAGS_POPULATED)) {
 			rx_data = pager;
 		} else if ((pager->flags & MORSE_PAGER_FLAGS_DIR_TO_HOST) &&
-			(pager->flags & MORSE_PAGER_FLAGS_FREE)) {
+			   (pager->flags & MORSE_PAGER_FLAGS_FREE)) {
 			rx_return = pager;
 			/* Preload pages */
 			set_bit(MORSE_PAGE_RETURN_PEND, &mors->chip_if->event_flags);
 		} else if ((pager->flags & MORSE_PAGER_FLAGS_DIR_TO_CHIP) &&
-			(pager->flags & MORSE_PAGER_FLAGS_POPULATED)) {
+			   (pager->flags & MORSE_PAGER_FLAGS_POPULATED)) {
 			tx_data = pager;
 		} else if ((pager->flags & MORSE_PAGER_FLAGS_DIR_TO_CHIP) &&
-			(pager->flags & MORSE_PAGER_FLAGS_FREE)) {
+			   (pager->flags & MORSE_PAGER_FLAGS_FREE)) {
 			tx_return = pager;
 		} else {
-			morse_err(mors, "%s Invalid pager flags [0x%x]\n",
-							__func__, pager->flags);
+			MORSE_ERR(mors, "%s Invalid pager flags [0x%x]\n", __func__, pager->flags);
 		}
 	}
-	if ((rx_data == NULL) || (rx_return == NULL) ||
-	    (tx_data == NULL) || (tx_return == NULL)) {
-		morse_err(mors, "%s Not all required pagers found\n", __func__);
+	if (!rx_data || !rx_return || !tx_data || !tx_return) {
+		MORSE_ERR(mors, "%s Not all required pagers found\n", __func__);
 		ret = -EFAULT;
 		goto err_exit;
 	}
@@ -559,18 +536,16 @@ int morse_pager_sw_pagesets_init(struct morse *mors)
 	mors->chip_if->pagesets = kcalloc(2, sizeof(struct morse_pageset), GFP_KERNEL);
 	mors->chip_if->pageset_count = 2;
 
-	morse_pageset_init(mors, &mors->chip_if->pagesets[0],
-		(MORSE_CHIP_IF_FLAGS_DIR_TO_CHIP | MORSE_CHIP_IF_FLAGS_COMMAND |
-		MORSE_CHIP_IF_FLAGS_DATA),
-		tx_data, tx_return);
+	ret = morse_pageset_init(mors, &mors->chip_if->pagesets[0],
+			   (MORSE_CHIP_IF_FLAGS_DIR_TO_CHIP | MORSE_CHIP_IF_FLAGS_COMMAND |
+			    MORSE_CHIP_IF_FLAGS_DATA), tx_data, tx_return);
 
 	if (ret)
 		goto err_exit;
 
-	morse_pageset_init(mors, &mors->chip_if->pagesets[1],
-		(MORSE_CHIP_IF_FLAGS_DIR_TO_HOST | MORSE_CHIP_IF_FLAGS_COMMAND |
-		MORSE_CHIP_IF_FLAGS_DATA),
-		rx_data, rx_return);
+	ret = morse_pageset_init(mors, &mors->chip_if->pagesets[1],
+			   (MORSE_CHIP_IF_FLAGS_DIR_TO_HOST | MORSE_CHIP_IF_FLAGS_COMMAND |
+			    MORSE_CHIP_IF_FLAGS_DATA), rx_data, rx_return);
 
 	if (ret) {
 		morse_pageset_finish(&mors->chip_if->pagesets[0]);
@@ -582,10 +557,12 @@ int morse_pager_sw_pagesets_init(struct morse *mors)
 	mors->chip_if->from_chip_pageset = &mors->chip_if->pagesets[1];
 	INIT_WORK(&mors->chip_if_work, morse_pagesets_work);
 	INIT_WORK(&mors->tx_stale_work, morse_pagesets_stale_tx_work);
+	INIT_KFIFO(mors->chip_if->tx_status_addrs);
 
 	/* Enable interrupts */
 	morse_pager_irq_enable(tx_return, true);
 	morse_pager_irq_enable(rx_data, true);
+	morse_pager_tx_status_irq_enable(mors, true);
 
 	morse_release_bus(mors);
 	return ret;
@@ -611,11 +588,9 @@ void morse_pager_sw_pagesets_flush_tx_data(struct morse *mors)
 	struct morse_pageset *pageset;
 
 	for (pageset = mors->chip_if->pagesets, count = 0;
-		 count < mors->chip_if->pageset_count; pageset++, count++) {
-
-		if ((pageset->flags & MORSE_CHIP_IF_FLAGS_DIR_TO_CHIP) &&
-			(pageset->flags &
-				(MORSE_CHIP_IF_FLAGS_DATA | MORSE_CHIP_IF_FLAGS_BEACON)))
+	     count < mors->chip_if->pageset_count; pageset++, count++) {
+		if (pageset->flags & MORSE_CHIP_IF_FLAGS_DIR_TO_CHIP &&
+		    (pageset->flags & (MORSE_CHIP_IF_FLAGS_DATA | MORSE_CHIP_IF_FLAGS_BEACON)))
 			morse_pageset_flush_tx_data(pageset);
 	}
 }
@@ -628,11 +603,12 @@ void morse_pager_sw_pagesets_finish(struct morse *mors)
 
 	cancel_work_sync(&mors->chip_if_work);
 	for (pageset = mors->chip_if->pagesets, count = 0;
-		 count < mors->chip_if->pageset_count; pageset++, count++) {
+	     count < mors->chip_if->pageset_count; pageset++, count++) {
 		morse_pageset_finish(pageset);
 	}
 	cancel_work_sync(&mors->tx_stale_work);
 
+	morse_pager_tx_status_irq_enable(mors, false);
 	for (pager = mors->chip_if->pagers, count = 0;
 	     count < mors->chip_if->pager_count; pager++, count++) {
 		morse_pager_irq_enable(pager, false);

@@ -16,4 +16,4 @@ void morse_mon_rx(struct morse *mors, struct sk_buff *rx_skb,
 
 void morse_mon_sig_field_error(const struct morse_evt_sig_field_error_evt *sig_field_error_evt);
 
-#endif  /* !_MORSE_MONITOR_H_ */
+#endif /* !_MORSE_MONITOR_H_ */

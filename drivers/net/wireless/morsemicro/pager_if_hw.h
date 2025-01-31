@@ -16,26 +16,22 @@
  */
 
 struct morse_pager_hw_table {
-	u32 addr;	/* location of the pager table */
-	u32 count;	/* Number of entries in the table */
+	u32 addr;		/* location of the pager table */
+	u32 count;		/* Number of entries in the table */
 };
 
-
 struct morse_pager_hw_entry {
-	u8  flags;		/* Indicate direction of pager*/
-	u8  padding;
+	u8 flags;		/* Indicate direction of pager */
+	u8 padding;
 	u16 page_size;		/* Page size in bytes */
 	u32 pop_addr;		/* Pager hardware instance pop address */
 	u32 push_addr;		/* Pager hardware instance push address */
 } __packed;
 
-
-int morse_pager_hw_read_table(struct morse *mors,
-			      struct morse_pager_hw_table *tbl_ptr);
+int morse_pager_hw_read_table(struct morse *mors, struct morse_pager_hw_table *tbl_ptr);
 
 /* HW interface specific fields */
-int morse_pager_hw_init(struct morse *mors, struct morse_pager *pager,
-			u32 put_addr, u32 pop_addr);
+int morse_pager_hw_init(struct morse *mors, struct morse_pager *pager, u32 put_addr, u32 pop_addr);
 void morse_pager_hw_finish(struct morse *mors, struct morse_pager *pager);
 
 /* Implementing interface from hw.h */
@@ -43,4 +39,4 @@ int morse_pager_hw_pagesets_init(struct morse *mors);
 void morse_pager_hw_pagesets_flush_tx_data(struct morse *mors);
 void morse_pager_hw_pagesets_finish(struct morse *mors);
 
-#endif  /* !_MORSE_PAGER_IF_HW_H_ */
+#endif /* !_MORSE_PAGER_IF_HW_H_ */

@@ -16,10 +16,10 @@
  * the chip and host.
  */
 
-#define MORSE_PAGER_FLAGS_DIR_TO_HOST	(1 << 0)
-#define MORSE_PAGER_FLAGS_DIR_TO_CHIP	(1 << 1)
-#define MORSE_PAGER_FLAGS_FREE		(1 << 2)
-#define MORSE_PAGER_FLAGS_POPULATED	(1 << 3)
+#define MORSE_PAGER_FLAGS_DIR_TO_HOST	BIT(0)
+#define MORSE_PAGER_FLAGS_DIR_TO_CHIP	BIT(1)
+#define MORSE_PAGER_FLAGS_FREE		BIT(2)
+#define MORSE_PAGER_FLAGS_POPULATED	BIT(3)
 
 #define MORSE_PAGER_INT_STS(mors)	MORSE_REG_INT1_STS(mors)
 #define MORSE_PAGER_INT_EN(mors)	MORSE_REG_INT1_EN(mors)
@@ -33,6 +33,9 @@
 
 #define MORSE_PAGER_IRQ_MASK(ID)	(1 << (ID))
 
+#define MORSE_PAGER_BYPASS_TX_STATUS_IRQ_NUM		(15)
+#define MORSE_PAGER_IRQ_BYPASS_TX_STATUS_AVAILABLE	BIT(MORSE_PAGER_BYPASS_TX_STATUS_IRQ_NUM)
+#define MORSE_PAGER_BYPASS_TX_STATUS_FIFO_DEPTH		(4)
 
 struct morse;
 struct morse_pageset;
@@ -46,9 +49,9 @@ struct morse_pager {
 	/* Parent pageset, filled in morse_pageset_init */
 	struct morse_pageset *parent;
 
-	u8  id;		/* ID of pager */
-	u8  flags;	/* Indicate direction of pager */
-	int num_pages;	/* Maximum number of pages in this pager */
+	u8 id;			/* ID of pager */
+	u8 flags;		/* Indicate direction of pager */
+	int num_pages;		/* Maximum number of pages in this pager */
 	int page_size_bytes;
 
 	/* Pager implementation specific data and function pointers */
@@ -131,13 +134,12 @@ struct morse_pager_ops {
  * @mors: Morse chip instance
  * @pager: Pointer to pager struct to initialise
  * @page_size: Page size in bytes
- * @flags: Pager flags (see top of pager_if.h)
+ * @flags: Pager flags (MORSE_PAGER_FLAGS_xxx)
  * @id: Unique identifier for the pager
  *
  * @return: Error code
  */
-int morse_pager_init(struct morse *mors, struct morse_pager *pager,
-		     int page_size, u8 flags, u8 id);
+int morse_pager_init(struct morse *mors, struct morse_pager *pager, int page_size, u8 flags, u8 id);
 
 /**
  * Prints info about the pager instance to a file.
@@ -146,8 +148,7 @@ int morse_pager_init(struct morse *mors, struct morse_pager *pager,
  * @pager: Pointer to pager struct to print
  * @file: Pointer to file to print to
  */
-void morse_pager_show(struct morse *mors, struct morse_pager *pager,
-		      struct seq_file *file);
+void morse_pager_show(struct morse *mors, struct morse_pager *pager, struct seq_file *file);
 
 /**
  * Cleans up memory used by pager instance.
@@ -167,6 +168,17 @@ void morse_pager_finish(struct morse_pager *pager);
 int morse_pager_irq_enable(const struct morse_pager *pager, bool enable);
 
 /**
+ * morse_pager_tx_status_irq_enable() - Enables/disables interrupt for tx
+ * statuses to bypass the pager
+ *
+ * @mors Mors object.
+ * @enable Set to true for enable.
+ *
+ * Returns: 0 on success, else error code
+ */
+int morse_pager_tx_status_irq_enable(struct morse *mors, bool enable);
+
+/**
  * Default IRQ handler for the pager
  *
  * @mors: Morse chip instance
@@ -174,6 +186,6 @@ int morse_pager_irq_enable(const struct morse_pager *pager, bool enable);
  *
  * @return: Error code
  */
-int morse_pager_irq_handler(struct morse *mors, uint32_t status);
+int morse_pager_irq_handler(struct morse *mors, u32 status);
 
-#endif  /* !_MORSE_PAGER_IF_H_ */
+#endif /* !_MORSE_PAGER_IF_H_ */

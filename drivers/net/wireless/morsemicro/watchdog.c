@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 Morse Micro
+ * Copyright 2017-2023 Morse Micro
  *
  */
 
@@ -25,7 +25,7 @@ static enum hrtimer_restart morse_watchdog_fire(struct hrtimer *timer)
 		if (mors->watchdog.reset)
 			mors->watchdog.reset(mors);
 		else
-			morse_err(mors, "%s: The reset callback is not defined.\n", __func__);
+			MORSE_ERR(mors, "%s: The reset callback is not defined.\n", __func__);
 	}
 
 	/* Get the updated watchdog interval secs */
@@ -55,7 +55,7 @@ int morse_watchdog_start(struct morse *mors)
 	mutex_lock(&mors->watchdog.lock);
 
 	if (!hrtimer_active(&mors->watchdog.timer) && !mors->watchdog.paused) {
-		morse_info(mors, "Starting ...\n");
+		MORSE_INFO(mors, "Starting ...\n");
 		watchdog_timer_start(mors);
 	}
 
@@ -63,8 +63,8 @@ int morse_watchdog_start(struct morse *mors)
 
 	mutex_unlock(&mors->watchdog.lock);
 
-	morse_info(mors, "Started (interval=%ds, consumers=%d) ...\n",
-			mors->watchdog.interval_secs, mors->watchdog.consumers);
+	MORSE_INFO(mors, "Started (interval=%ds, consumers=%d) ...\n",
+		   mors->watchdog.interval_secs, mors->watchdog.consumers);
 
 	return ret;
 }
@@ -100,14 +100,15 @@ int morse_watchdog_stop(struct morse *mors)
 
 	if (hrtimer_active(&mors->watchdog.timer)) {
 		if (--mors->watchdog.consumers > 0) {
-			morse_info(mors, "Ignored because %d consumers are using watchdog\n",
-					mors->watchdog.consumers);
+			MORSE_INFO(mors, "Ignored because %d consumers are using watchdog\n",
+				   mors->watchdog.consumers);
 			ret = 0;
 		}
 
 		hrtimer_cancel(&mors->watchdog.timer);
-	} else
-		morse_info(mors, "Watchdog has been stopped\n");
+	} else {
+		MORSE_INFO(mors, "Watchdog has been stopped\n");
+	}
 
 exit:
 	mutex_unlock(&mors->watchdog.lock);
@@ -133,7 +134,7 @@ int morse_watchdog_pause(struct morse *mors)
 		ret = 0;
 	}
 	mors->watchdog.paused++;
-	morse_info(mors, "Watchdog has been paused\n");
+	MORSE_INFO(mors, "Watchdog has been paused\n");
 
 exit:
 	mutex_unlock(&mors->watchdog.lock);
@@ -152,17 +153,17 @@ int morse_watchdog_resume(struct morse *mors)
 	if (mors->watchdog.paused > 0)
 		mors->watchdog.paused--;
 	else
-		goto exit; /* Nothing to do */
+		goto exit;	/* Nothing to do */
 
 	if (mors->watchdog.paused)
-		goto exit; /* Still some callers that want to keep it paused */
+		goto exit;	/* Still some callers that want to keep it paused */
 
 	if (!hrtimer_active(&mors->watchdog.timer)) {
 		watchdog_timer_start(mors);
 		ret = 0;
 	}
 
-	morse_info(mors, "Watchdog has been resumed\n");
+	MORSE_INFO(mors, "Watchdog has been resumed\n");
 
 exit:
 	mutex_unlock(&mors->watchdog.lock);
@@ -175,8 +176,7 @@ int morse_watchdog_get_interval(struct morse *mors)
 }
 
 int morse_watchdog_init(struct morse *mors, int interval_secs,
-						watchdog_callback_t ping,
-						watchdog_callback_t reset)
+			watchdog_callback_t ping, watchdog_callback_t reset)
 {
 	int ret = 0;
 

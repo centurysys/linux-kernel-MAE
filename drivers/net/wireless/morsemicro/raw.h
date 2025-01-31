@@ -8,22 +8,24 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-/** Maximum number of RAWs (limited by QoS User Priority) */
-#define MAX_NUM_RAWS	(8)
-
-#define MORSE_RAW_DEFAULT_START_AID			(1)
+#define MAX_NUM_RAWS_USER_PRIO			(8)	/* Limited by QoS User Priority */
+#define MAX_NUM_RAWS_INTERNAL			(1)	/* Internal (e.g. used by OCS) */
+#define MAX_NUM_RAWS				(MAX_NUM_RAWS_USER_PRIO + MAX_NUM_RAWS_INTERNAL)
+#define RAW_INTERNAL_ID_OFFSET			(0x8000)
+#define MORSE_RAW_DEFAULT_START_AID		(1)
 
 /* AID mask used for creating the RAW priority groups */
-#define MORSE_RAW_AID_PRIO_MASK				GENMASK(10, 8)
-#define MORSE_RAW_AID_PRIO_SHIFT			(8)
+#define MORSE_RAW_AID_PRIO_MASK			GENMASK(10, 8)
+#define MORSE_RAW_AID_PRIO_SHIFT		(8)
 #define MORSE_RAW_GET_PRIO(x) \
 	(((x) & MORSE_RAW_AID_PRIO_MASK) >> MORSE_RAW_AID_PRIO_SHIFT)
 #define MORSE_RAW_GET_SUB_AID(x) \
 	((x) & ~MORSE_RAW_AID_PRIO_MASK)
-#define MORSE_RAW_AID_DEVICE_MASK			GENMASK(7, 0)
+#define MORSE_RAW_AID_DEVICE_MASK		GENMASK(7, 0)
 
 struct morse;
-struct morse_cmd_raw;
+struct morse_vif;
+struct morse_cmd_raw_cfg;
 
 /**
  * enum ieee80211_s1g_rps_raw_type - types of RAW possible in the RPS IE
@@ -34,23 +36,23 @@ struct morse_cmd_raw;
  * @IEEE80211_S1G_RPS_RAW_TYPE_TRIGGERING: triggering RAW type
  */
 enum ieee80211_s1g_rps_raw_type {
-	IEEE80211_S1G_RPS_RAW_TYPE_GENERIC		= 0,
-	IEEE80211_S1G_RPS_RAW_TYPE_SOUNDING		= 1,
-	IEEE80211_S1G_RPS_RAW_TYPE_SIMPLEX		= 2,
-	IEEE80211_S1G_RPS_RAW_TYPE_TRIGGERING		= 3,
+	IEEE80211_S1G_RPS_RAW_TYPE_GENERIC = 0,
+	IEEE80211_S1G_RPS_RAW_TYPE_SOUNDING = 1,
+	IEEE80211_S1G_RPS_RAW_TYPE_SIMPLEX = 2,
+	IEEE80211_S1G_RPS_RAW_TYPE_TRIGGERING = 3,
 };
 
 enum ieee80211_s1g_rps_raw_sounding_type {
-	IEEE80211_S1G_RPS_RAW_TYPE_SST_SOUNDING		= 0,
-	IEEE80211_S1G_RPS_RAW_TYPE_SST_REPORT		= 1,
-	IEEE80211_S1G_RPS_RAW_TYPE_SECTOR_SOUNDING	= 2,
-	IEEE80211_S1G_RPS_RAW_TYPE_SECTOR_REPORT	= 3,
+	IEEE80211_S1G_RPS_RAW_TYPE_SST_SOUNDING = 0,
+	IEEE80211_S1G_RPS_RAW_TYPE_SST_REPORT = 1,
+	IEEE80211_S1G_RPS_RAW_TYPE_SECTOR_SOUNDING = 2,
+	IEEE80211_S1G_RPS_RAW_TYPE_SECTOR_REPORT = 3,
 };
 
 enum ieee80211_s1g_rps_raw_simplex_type {
-	IEEE80211_S1G_RPS_RAW_TYPE_AP_PM		= 0,
-	IEEE80211_S1G_RPS_RAW_TYPE_NON_TIM		= 1,
-	IEEE80211_S1G_RPS_RAW_TYPE_OMNI			= 2,
+	IEEE80211_S1G_RPS_RAW_TYPE_AP_PM = 0,
+	IEEE80211_S1G_RPS_RAW_TYPE_NON_TIM = 1,
+	IEEE80211_S1G_RPS_RAW_TYPE_OMNI = 2,
 };
 
 /** Structure with configuration parameters specific to the Generic RAW */
@@ -63,15 +65,6 @@ struct morse_raw_config_generic_t {
 
 	/** Whether or not to use the last group definition or use a new one. */
 	bool group_same_as_prev;
-
-	/** Whether or not to allow cross slot boundary bleed over. */
-	bool cross_slot_boundary;
-
-	/** Number of slots in the RAW. */
-	uint16_t num_slots;
-
-	/** Duration of the slot in the RAW in microseconds, maximum duration is 246260us. */
-	u32 slot_duration_us;
 };
 
 /** Structure with configuration parameters specific to the Sounding RAW */
@@ -88,7 +81,7 @@ struct morse_raw_config_simplex_t {
 	/** Type of Simplex RAW. */
 	enum ieee80211_s1g_rps_raw_simplex_type simplex_type;
 
-	/** Whether to exlude non-AP STAs, if not exluded then define group. */
+	/** Whether to exclude non-AP STAs. If not excluded then define group. */
 	bool exclude_non_ap_sta;
 };
 
@@ -99,32 +92,35 @@ struct morse_raw_config_triggering_t {
 };
 
 /**
- * struct morse_raw - contains RAW state and configuration information
- *
- * @num_stations	Number of stations in the station list
- * @station_idx		Index that also counts the number of stations matching our criteria
- * @aids		Array of AIDs taken from the station list
+ * Contains AID information used to generate RPS IEs
  */
-struct morse_raw_station_data {
-	u16 num_stations;
-	u16 station_idx;
-	u16 *aids;
+struct morse_aid_list {
+	/** Number of AIDs */
+	u16 num_aids;
+	/** Array of AIDs of stations */
+	u16 aids[];
 };
 
-/** Structure containing configuration information creating for RAWs in an RPS IE. */
+/** Structure containing configuration information creating for RAW assignments in an RPS IE. */
 struct morse_raw_config {
+	/** List head for RAW config list */
+	struct list_head list;
+
+	/** List head for RAWs currently active */
+	struct list_head active_list;
+
+	/** RAW type */
 	enum ieee80211_s1g_rps_raw_type type;
 
-	/* Common parameters */
-	/** Whether or not this RAW configuration is enabled or not. */
-	bool enabled;
+	/** ID of this RAW config */
+	u16 id;
 
 	/** Start time offset from the last RAW or beacon in microseconds. */
 	u32 start_time_us;
 
 	/*
-	 * If the generic/sounding/triggering RAW isn't using the previous group definition then use
-	 * these AID values.
+	 * If the generic/sounding/triggering RAW isn't using the previous group definition then
+	 * use these AID values.
 	 */
 	/** Starting AID for the RAW. */
 	u16 start_aid;
@@ -141,32 +137,61 @@ struct morse_raw_config {
 	 * config.
 	 */
 	s32 end_aid_idx;
-	/**
-	 * When spreading STAs over multiple beacons this is the maximum number of beacons to cycle
-	 * over. If 0 then there is no maximum beacon spread.
-	 */
-	u16 max_beacon_spread;
-	/**
-	 * When spreading STAs over multiple beacons this is the number to place in a beacon before
-	 * increasing the number of beacons to cycle over. If 0 then spreading over multiple beacons
-	 * is disabled.
-	 */
-	u16 nominal_sta_per_beacon;
-	/** Last AID that was used in a beacon with spreading. */
-	u16 last_spread_aid;
 
-	/** Whether or not the RAW uses channel indication */
-	bool has_channel_indication;
+	/**
+	 * Slot definition for this RAW assignment.
+	 */
+	struct {
+		/** Allow transmitting STAs to bleed into the next slot */
+		bool cross_slot_boundary;
+		/** Number of slots in the RAW. */
+		u16 num_slots;
+		/**
+		 * Duration of the slot in the RAW in microseconds.
+		 * Maximum duration is 246260us.
+		 */
+		u32 slot_duration_us;
+	} slot_definition;
 
-	/* Optional periodic configuration information.*/
-	/** Whether or not the RAW is periodic. */
-	bool is_periodic;
-	/** Period of the RAW in number of beacons. */
-	u8 periodicity;
-	/** Validity of the RAW in number of beacons. */
-	u8 validity;
-	/** Start offset from the number of beacons. */
-	u8 period_start_offset;
+	/* Optional periodic configuration information. */
+	struct {
+		/**
+		 * If true, refresh the PRAW when the validity expires. Otherwise, disable the
+		 * RAW cfg.
+		 */
+		bool refresh_praw;
+		/** Validity of the RAW in number of beacons. If non-0, config is a PRAW */
+		u8 validity;
+		/** Period of the RAW in number of beacons. */
+		u8 periodicity;
+		/** Start offset from the number of beacons. */
+		u8 start_offset;
+		/** The current validity of the PRAW */
+		u8 cur_validity;
+		/** The current period start offset of the PRAW */
+		u8 cur_start_offset;
+	} periodic;
+
+	/**
+	 * Struct for MM RAW beacon spreading information.
+	 * Beacon spreading allows a RAW group to spread its stations over multiple assignments &
+	 * beacons.
+	 */
+	struct {
+		/**
+		 * When spreading STAs over multiple beacons this is the maximum number of beacons
+		 * to cycle over. If 0 then there is no maximum beacon spread.
+		 */
+		u16 max_spread;
+		/**
+		 * When spreading STAs over multiple beacons this is the number to place in a beacon
+		 * before increasing the number of beacons to cycle over. If 0 then spreading over
+		 * multiple beacons is disabled.
+		 */
+		u16 nominal_sta_per_beacon;
+		/** Last AID that was used in a beacon with spreading. */
+		u16 last_aid;
+	} beacon_spreading;
 
 	/** RAW type specific configuration information. */
 	union {
@@ -181,81 +206,169 @@ struct morse_raw_config {
 	};
 };
 
-/**
- * morse_raw_get_rps_ie_size() - Gets the size of the RPS IE for current RAW settings.
- * @mors: Morse chip struct
- *
- * Return: Size of the RPS IE or 0 on error.
- */
-u8 morse_raw_get_rps_ie_size(struct morse *mors);
+enum raw_state_flags {
+	/** RAW is globally enabled */
+	RAW_STATE_ENABLED,
+	/** RPS IE must be regenerated every beacon */
+	RAW_STATE_UPDATE_EACH_BEACON,
+	/** An AID refresh is required (a STA may have joined the BSS) */
+	RAW_STATE_REFRESH_AIDS,
+	/** A beacon has been sent since the last update */
+	RAW_STATE_BEACON_SENT,
+};
 
 /**
- * morse_raw_get_rps_ie() - Gets the size of the RPS IE for current RAW settings.
- * @mors:	Morse chip struct
+ * struct morse_raw - contains RAW state and configuration information
+ */
+struct morse_raw {
+	/** Bitmask of \ref enum raw_state_flags, mainly to signal conditions to the update work */
+	unsigned long flags;
+	/** Number of beacons left to send PRAWs */
+	u8 praw_tx_count;
+	/** The currently generated RPS IE */
+	u8 *rps_ie;
+	/** The size of the currently generated RPS IE */
+	u8 rps_ie_len;
+	/** An ordered list of AIDs, for use in generating the RPS IE */
+	struct morse_aid_list *aid_list;
+	/** All RAW configs */
+	struct list_head raw_config_list;
+	/** List for active PRAWs */
+	struct list_head active_praws;
+	/** List for active non-PRAWs */
+	struct list_head active_raws;
+	/** Work struct for updating RAW state / RPS IE / refreshing AIDs */
+	struct work_struct update_work;
+	/* Serialise RAW command and timer functions */
+	struct mutex lock;
+};
+
+/**
+ * morse_raw_cfg_is_periodic() - Returns true if the RAW config is a PRAW
  *
- * Use morse_raw_get_rps_ie_size() to calculate the size to allocate &rps_ie.
+ * @cfg: config to test
+ * Returns true if periodic RAW, else false
+ */
+static inline bool morse_raw_cfg_is_periodic(const struct morse_raw_config * const cfg)
+{
+	return cfg->periodic.validity != 0;
+}
+
+/**
+ * morse_raw_get_rps_ie_size() - Gets the size of the RPS IE for current RAW settings.
+ * @mors_vif: Morse VIF structure
+ *
+ * Return: Size of the RPS IE or 0 on error / RAW disabled.
+ */
+u8 morse_raw_get_rps_ie_size(struct morse_vif *mors_vif);
+
+/**
+ * morse_raw_get_rps_ie() - Gets the current RPS IE for current RAW settings.
+ * @mors_vif: Morse VIF structure
+ *
+ * Use morse_raw_get_rps_ie_size() to calculate the size to allocate for &rps_ie.
  *
  * Return: a pointer to the RPS IE or NULL on error.
  */
-u8 *morse_raw_get_rps_ie(struct morse *mors);
-
-/**
- * morse_raw_set_configs() - Sets the RAW configurations which can contain a mixture of types.
- *
- * @mors:		Morse chip struct
- * @config_list		List of RAW configurations
- * @num_configs		Number of RAW configurations in the list.
- *
- * Return 0 on success otherwise -EINVAL if a RAW configuration is invalid.
- */
-int morse_raw_set_configs(
-	struct morse *mors, struct morse_raw_config * const *config_list, u8 num_configs);
-
-/**
- * morse_raw_refresh_aids() - update the AID assignments in the current RAW configuration
- *
- * @work: Workqueue structure
- *
- * When STAs are added and removed the configuration will need to be updated
- */
-void morse_raw_refresh_aids(struct work_struct *work);
+u8 *morse_raw_get_rps_ie(struct morse_vif *mors_vif);
 
 /**
  * morse_raw_process_cmd() - Execute command to enable/disable/configure RAW
  *
- * @mors	Morse chip struct
- * @cmd		Command from morsectrl
+ * @mors_vif:	Morse VIF structure
+ * @cmd:	Command from morsectrl
+ * Return: 0 if command was processed successfully, otherwise error code
  */
-void morse_raw_process_cmd(struct morse *mors, struct morse_cmd_raw *cmd);
+int morse_raw_process_cmd(struct morse_vif *mors_vif, struct morse_cmd_raw_cfg *cmd);
 
 /**
- * morse_raw_enable() - Enable RAW functionality.
- * @mors: Morse chip struct
+ * morse_raw_create_or_find_by_id() - Create a RAW config with the specified ID if it does not
+ * already exist. If it does exist, returns the existing config.
+ * Callers should hold the RAW lock
  *
- * Return: 0 - OK
+ * @raw: RAW context
+ * @id: ID of RAW config to find or create
+ * Return: RAW config
  */
-int morse_raw_enable(struct morse *mors);
+struct morse_raw_config *morse_raw_create_or_find_by_id(struct morse_raw *raw, u16 id);
 
 /**
- * morse_raw_disable() - Disable RAW functionality.
- * @mors: Morse chip struct
+ * morse_raw_find_config_by_id() - Find a RAW config with the specified ID
  *
- * Return: 0 - OK
+ * @raw: RAW context
+ * @id: ID to find
+ * Return: RAW config, or NULL if not found
  */
-int morse_raw_disable(struct morse *mors);
+struct morse_raw_config *morse_raw_find_config_by_id(struct morse_raw *raw, u16 id);
+
+/**
+ * morse_raw_is_enabled() - Is raw enabled on a particular virtual interface
+ *
+ * @mors_vif: Morse VIF structure
+ *
+ * Return: true if enabled, otherwise false
+ */
+bool morse_raw_is_enabled(struct morse_vif *mors_vif);
+
+/**
+ * morse_raw_enable() - Enable RAW globally
+ *
+ * @raw: RAW context
+ */
+void morse_raw_enable(struct morse_raw *raw);
+
+/**
+ * morse_raw_trigger_update() - Trigger an update of RAW information. Call this function when BSS
+ * or RAW parameters change to regenerate the RPS IE.
+ *
+ * @mors_vif: Morse VIF structure
+ * @refresh_aids: An AID refresh is required (a STA may have joined the network)
+ */
+void morse_raw_trigger_update(struct morse_vif *mors_vif, bool refresh_aids);
+
+/**
+ * morse_raw_beacon_sent() - Call this function after a beacon has been transmitted to update
+ * RPS IE, if required.
+ *
+ * @mors_vif: Morse VIF structure
+ */
+void morse_raw_beacon_sent(struct morse_vif *mors_vif);
 
 /**
  * morse_raw_init() - Initialise RAW.
- * @mors: Morse chip struct
+ * @mors_vif: Morse VIF structure
  *
  * Return: 0 - OK
  */
-int morse_raw_init(struct morse *mors, bool enable);
+int morse_raw_init(struct morse_vif *mors_vif, bool enable);
 
 /**
  * morse_raw_finish() - Clean up RAW on finish.
- * @mors: Morse chip struct
+ * @mors_vif: Morse VIF structure
  */
-void morse_raw_finish(struct morse *mors);
+void morse_raw_finish(struct morse_vif *mors_vif);
+
+/**
+ * morse_raw_activate_config() - Activate and schedule a RAW config
+ *
+ * @raw: RAW context
+ * @cfg: The config to activate
+ */
+void morse_raw_activate_config(struct morse_raw *raw, struct morse_raw_config *cfg);
+
+/**
+ * morse_raw_deactivate_config() - Deactivate and unschedule a RAW config
+ *
+ * @cfg: The config to deactivate
+ */
+void morse_raw_deactivate_config(struct morse_raw_config *cfg);
+
+/**
+ * morse_raw_is_config_active() - Test if a config is active
+ *
+ * @cfg: The config to test
+ * Return: true if the config is active, otherwise false
+ */
+bool morse_raw_is_config_active(struct morse_raw_config *cfg);
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Morse Micro
+ * Copyright 2022-2023 Morse Micro
  */
 
 #include <linux/inetdevice.h>
@@ -22,10 +22,10 @@ static int append_ip_addr_to_string(char *str, int n, u32 ip)
 int morse_offload_dhcpc_set_address(struct morse *mors, struct morse_evt_dhcp_lease_update *evt)
 {
 	int ret = 0;
-	static const char *const envp[] = {"HOME=/", NULL};
+	static const char *const envp[] = { "HOME=/", NULL };
 	char cmd[DHCP_OFFLOAD_MAX_CMD_SIZE];
 	struct net_device *ndev;
-	char *const argv[] = {"/bin/sh", "-c", cmd, NULL};
+	char *const argv[] = { "/bin/sh", "-c", cmd, NULL };
 	int idx = 0;
 
 	struct wireless_dev *wdev = ieee80211_vif_to_wdev(morse_get_sta_vif(mors));
@@ -36,12 +36,12 @@ int morse_offload_dhcpc_set_address(struct morse *mors, struct morse_evt_dhcp_le
 	ndev = wdev->netdev;
 
 	ret = snprintf(cmd, sizeof(cmd), "%s %s ",
-			mors->custom_configs.dhcpc_lease_update_script, ndev->name);
+		       mors->custom_configs.dhcpc_lease_update_script, ndev->name);
 	if (ret < 0 || ret >= (sizeof(cmd) - idx))
 		goto exit;
 	idx = ret;
 
-	/* The lease update script assumes the ordering of these fields are consistant. Any updates
+	/* The lease update script assumes the ordering of these fields are consistent. Any updates
 	 * to the format here MUST be reflected in the dhcpc update script.
 	 */
 
@@ -71,12 +71,13 @@ int morse_offload_dhcpc_set_address(struct morse *mors, struct morse_evt_dhcp_le
 exit:
 	if (ret) {
 		if (ret >= (sizeof(cmd) - idx))
-			morse_info(mors, "%s: Command truncated - %s", __func__, cmd);
+			MORSE_INFO(mors, "%s: Command truncated - %s", __func__, cmd);
 		else
-			morse_info(mors, "%s: Calling DHCP update script failed (errno=%d) (script_path=%s)\n",
-					__func__, ret, mors->custom_configs.dhcpc_lease_update_script);
+			MORSE_INFO(mors,
+				   "%s: Calling DHCP update script failed (errno=%d) (script_path=%s)\n",
+				   __func__, ret, mors->custom_configs.dhcpc_lease_update_script);
 	} else {
-		morse_dbg(mors, "%s: DHCP script called\n", __func__);
+		MORSE_DBG(mors, "%s: DHCP script called\n", __func__);
 	}
 	return ret;
 }

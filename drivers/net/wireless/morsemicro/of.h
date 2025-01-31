@@ -8,7 +8,6 @@
 
 #include "hw.h"
 
-
 /**
  * morse_of_probe - reads of pins in compatible device tree.
  * @dev: device struct containing the of_node
@@ -18,4 +17,4 @@
 void morse_of_probe(struct device *dev, struct morse_hw_cfg *cfg,
 		    const struct of_device_id *match_table);
 
-#endif  /* !_MORSE_OF_H_ */
+#endif /* !_MORSE_OF_H_ */

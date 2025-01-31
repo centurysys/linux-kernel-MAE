@@ -1,17 +1,16 @@
 /*
- * Copyright 2017-2022 Morse Micro
+ * Copyright 2017-2023 Morse Micro
  *
  */
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include "hw_trace.h"
 
-
 struct hw_trace morse_traces[] = {
-	{2, 0},     /* GPIO 2 */
-	{16, 0},    /* GPIO 16 */
-	{21, 0},    /* GPIO 21 */
-	{6, 0},     /* GPIO 6 */
+	{ 2, 0 },		/* GPIO 2 */
+	{ 16, 0 },		/* GPIO 16 */
+	{ 21, 0 },		/* GPIO 21 */
+	{ 6, 0 },		/* GPIO 6 */
 };
 
 struct hw_trace *hwt_tx_in;
@@ -47,7 +46,7 @@ struct hw_trace *morse_hw_trace_register(void)
 
 			ret = gpio_request(hwt->pin, NULL);
 			if (ret) {
-				morse_pr_err("Failed to acquire trace gpio.\n");
+				MORSE_PR_ERR(FEATURE_ID_DEFAULT, "Failed to acquire trace gpio.\n");
 				continue;
 			}
 			gpio_direction_output(hwt->pin, 0);

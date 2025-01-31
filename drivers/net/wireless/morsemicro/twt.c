@@ -1,8 +1,7 @@
 /*
- * Copyright 2022 Morse Micro
+ * Copyright 2022-2023 Morse Micro
  *
  */
-
 
 #include <linux/math64.h>
 
@@ -10,7 +9,7 @@
 #include "twt.h"
 #include "utils.h"
 #include "mac.h"
-
+#include "debug.h"
 
 #define TWT_IE_MIN_LENGTH	(10)
 #define TWT_IE_MAX_LENGTH	(20)
@@ -18,6 +17,15 @@
 #define TWT_SETUP_CMD_UNKNOWN	(8)
 #define TWT_WAKE_DUR_UNIT_256	(256)
 
+#define MORSE_TWT_DBG(_m, _f, _a...)		morse_dbg(FEATURE_ID_TWT, _m, _f, ##_a)
+#define MORSE_TWT_INFO(_m, _f, _a...)		morse_info(FEATURE_ID_TWT, _m, _f, ##_a)
+#define MORSE_TWT_WARN(_m, _f, _a...)		morse_warn(FEATURE_ID_TWT, _m, _f, ##_a)
+#define MORSE_TWT_ERR(_m, _f, _a...)		morse_err(FEATURE_ID_TWT, _m, _f, ##_a)
+
+#define MORSE_TWT_WARN_RATELIMITED(_m, _f, _a...)		\
+	morse_warn_ratelimited(FEATURE_ID_TWT, _m, _f, ##_a)
+#define MORSE_TWT_ERR_RATELIMITED(_m, _f, _a...)		\
+	morse_err_ratelimited(FEATURE_ID_TWT, _m, _f, ##_a)
 
 static const char *twt_cmd_strs[TWT_SETUP_CMD_MAX + 1] = {
 	"Request",
@@ -34,8 +42,7 @@ static const char *twt_cmd_strs[TWT_SETUP_CMD_MAX + 1] = {
 static int morse_twt_enter_state(struct morse *mors,
 				 struct morse_twt *twt,
 				 struct morse_twt_sta *sta,
-				 struct morse_twt_event *event,
-				 enum morse_twt_state state);
+				 struct morse_twt_event *event, enum morse_twt_state state);
 
 /* Shorten the verbosity for referencing the twt control flags */
 #define MORSE_TWT_CTRL_SUP(CONTROL, FLAG) \
@@ -60,7 +67,7 @@ static bool morse_twt_req_flag_is_set(__le16 le_flags, u16 flag)
 static u64 morse_twt_calculate_wake_interval_us(struct ieee80211_twt_params *params)
 {
 	u16 exp = (le16_to_cpu(params->req_type) & IEEE80211_TWT_REQTYPE_WAKE_INT_EXP) >>
-		IEEE80211_TWT_REQTYPE_WAKE_INT_EXP_OFFSET;
+	    IEEE80211_TWT_REQTYPE_WAKE_INT_EXP_OFFSET;
 
 	return (u64)le16_to_cpu(params->mantissa) * (1 << exp);
 }
@@ -97,12 +104,10 @@ static void morse_twt_set_command(__le16 *req_type_le, enum ieee80211_twt_setup_
  */
 static void morse_twt_update_params(struct ieee80211_twt_params *params,
 				    u8 control,
-				    u64 wake_time_us,
-				    u64 wake_interval_us,
-				    u32 wake_duration_us)
+				    u64 wake_time_us, u64 wake_interval_us, u32 wake_duration_us)
 {
 	u16 exp = (le16_to_cpu(params->req_type) & IEEE80211_TWT_REQTYPE_WAKE_INT_EXP) >>
-		IEEE80211_TWT_REQTYPE_WAKE_INT_EXP_OFFSET;
+	    IEEE80211_TWT_REQTYPE_WAKE_INT_EXP_OFFSET;
 	u16 mantissa;
 
 	params->twt = cpu_to_le64(wake_time_us);
@@ -119,8 +124,8 @@ static void morse_twt_purge_event(struct morse *mors, struct morse_twt_event *ev
 	if (!event)
 		return;
 
-	morse_dbg(mors, "Purging event %u from %pM (Flow ID %u)\n",
-		  event->type, event->addr, event->flow_id);
+	MORSE_TWT_DBG(mors, "Purging event %u from %pM (Flow ID %u)\n",
+		      event->type, event->addr, event->flow_id);
 
 	list_del(&event->list);
 	if (event->type == MORSE_TWT_EVENT_SETUP)
@@ -130,9 +135,7 @@ static void morse_twt_purge_event(struct morse *mors, struct morse_twt_event *ev
 }
 
 static void morse_twt_queue_purge(struct morse *mors,
-				  struct list_head *qhead,
-				  u8 *addr,
-				  u8 *flow_id)
+				  struct list_head *qhead, u8 *addr, u8 *flow_id)
 {
 	struct morse_twt_event *temp;
 	struct morse_twt_event *event;
@@ -149,19 +152,21 @@ static void morse_twt_queue_purge(struct morse *mors,
 
 void morse_twt_event_queue_purge(struct morse *mors, struct morse_vif *mors_vif, u8 *addr)
 {
-	morse_dbg(mors, "Purging event queue\n");
+	spin_lock_bh(&mors_vif->twt.lock);
+	MORSE_TWT_DBG(mors, "Purging event queue\n");
 	morse_twt_queue_purge(mors, &mors_vif->twt.events, addr, NULL);
+	spin_unlock_bh(&mors_vif->twt.lock);
 }
 
 static void morse_twt_tx_queue_purge(struct morse *mors, struct morse_twt *twt, u8 *addr)
 {
-	morse_dbg(mors, "Purging TX queue\n");
+	MORSE_TWT_DBG(mors, "Purging TX queue\n");
 	morse_twt_queue_purge(mors, &twt->tx, addr, NULL);
 }
 
 static void morse_twt_to_install_queue_purge(struct morse *mors, struct morse_twt *twt, u8 *addr)
 {
-	morse_dbg(mors, "Purging install queue\n");
+	MORSE_TWT_DBG(mors, "Purging install queue\n");
 	morse_twt_queue_purge(mors, &twt->to_install, addr, NULL);
 }
 
@@ -174,8 +179,9 @@ void morse_twt_dump_wake_interval_tree(struct seq_file *file, struct morse_vif *
 	if (!file || !mors_vif)
 		return;
 
+	seq_printf(file, "%s:\n", morse_vif_name(morse_vif_to_ieee80211_vif(mors_vif)));
 	twt = &mors_vif->twt;
-	mutex_lock(&twt->lock);
+	spin_lock_bh(&twt->lock);
 	list_for_each_entry(wi, &twt->wake_intervals, list) {
 		agr = list_first_entry_or_null(&wi->agreements, struct morse_twt_agreement, list);
 		if (!agr) {
@@ -191,7 +197,7 @@ void morse_twt_dump_wake_interval_tree(struct seq_file *file, struct morse_vif *
 				   agr->data.wake_time_us, agr->data.wake_duration_us, agr->state);
 		}
 	}
-	mutex_unlock(&twt->lock);
+	spin_unlock_bh(&twt->lock);
 }
 
 void morse_twt_dump_sta_agreements(struct seq_file *file, struct morse_vif *mors_vif)
@@ -202,7 +208,7 @@ void morse_twt_dump_sta_agreements(struct seq_file *file, struct morse_vif *mors
 	struct morse_twt_agreement_data *agr_data;
 	struct ieee80211_vif *vif;
 	struct morse_twt_event *event;
-	int ii;
+	int i;
 
 	if (!file || !mors_vif)
 		return;
@@ -210,21 +216,19 @@ void morse_twt_dump_sta_agreements(struct seq_file *file, struct morse_vif *mors
 	twt = &mors_vif->twt;
 	vif = morse_vif_to_ieee80211_vif(mors_vif);
 
-	mutex_lock(&twt->lock);
+	seq_printf(file, "%s:\n", morse_vif_name(vif));
+	spin_lock_bh(&twt->lock);
 	/* Print out all TWT Responder agreements. */
 	list_for_each_entry(sta, &twt->stas, list) {
 		seq_printf(file, "TWT Agreements for Requester: %pM, Responder: %pM\n",
 			   sta->addr, vif->addr);
-		for (ii = 0; ii < MORSE_TWT_AGREEMENTS_MAX_PER_STA; ii++) {
-			agr = &sta->agreements[ii];
-			seq_printf(
-				file,
-				"\tFlow ID: %u, Wake Interval: %llu us, Wake Time: %llu us, Wake Duration: %u us, State %u\n",
-				ii,
-				agr->data.wake_interval_us,
-				agr->data.wake_time_us,
-				agr->data.wake_duration_us,
-				agr->state);
+		for (i = 0; i < MORSE_TWT_AGREEMENTS_MAX_PER_STA; i++) {
+			agr = &sta->agreements[i];
+			seq_printf(file,
+				   "\tFlow ID: %u, Wake Interval: %llu us, Wake Time: %llu us, Wake Duration: %u us, State %u\n",
+				   i,
+				   agr->data.wake_interval_us,
+				   agr->data.wake_time_us, agr->data.wake_duration_us, agr->state);
 		}
 	}
 
@@ -236,15 +240,13 @@ void morse_twt_dump_sta_agreements(struct seq_file *file, struct morse_vif *mors
 			   vif->addr, vif->bss_conf.bssid);
 
 		agr_data = event->setup.agr_data;
-		seq_printf(
-			file,
-			"\tFlow ID: %u, Wake Interval: %llu us, Wake Time: %llu us, Wake Duration: %u us\n",
-			0,
-			agr_data->wake_interval_us,
-			agr_data->wake_time_us,
-			agr_data->wake_duration_us);
+		seq_printf(file,
+			   "\tFlow ID: %u, Wake Interval: %llu us, Wake Time: %llu us, Wake Duration: %u us\n",
+			   0,
+			   agr_data->wake_interval_us,
+			   agr_data->wake_time_us, agr_data->wake_duration_us);
 	}
-	mutex_unlock(&twt->lock);
+	spin_unlock_bh(&twt->lock);
 }
 
 void morse_twt_dump_event(struct morse *mors, struct morse_twt_event *event)
@@ -261,45 +263,45 @@ void morse_twt_dump_event(struct morse *mors, struct morse_twt_event *event)
 	else
 		cmd = twt_cmd_strs[TWT_SETUP_CMD_UNKNOWN];
 
-	morse_dbg(mors, "TWT Command: %s\n", cmd);
-	morse_dbg(mors, "TWT from: %pM\n", event->addr);
-	morse_dbg(mors, "TWT Flow ID: %u\n", event->flow_id);
+	MORSE_TWT_DBG(mors, "TWT Command: %s\n", cmd);
+	MORSE_TWT_DBG(mors, "TWT from: %pM\n", event->addr);
+	MORSE_TWT_DBG(mors, "TWT Flow ID: %u\n", event->flow_id);
 	if (event->setup.agr_data) {
 		agr_data = event->setup.agr_data;
 		req_type = le16_to_cpu(agr_data->params.req_type);
-		morse_dbg(mors, "TWT %s\n",
-			  MORSE_TWT_REQTYPE(req_type, REQUEST) ?
-				"Requester" : "Responder");
+		MORSE_TWT_DBG(mors, "TWT %s\n",
+			      MORSE_TWT_REQTYPE(req_type, REQUEST) ? "Requester" : "Responder");
 
 		if (MORSE_TWT_CTRL_SUP(agr_data->control, NDP))
-			morse_dbg(mors, "TWT NDP paging indication");
-		morse_dbg(mors, "TWT PM: %s\n",
-			MORSE_TWT_CTRL_SUP(agr_data->control, RESP_MODE) ? "Awake" : "Doze");
+			MORSE_TWT_DBG(mors, "TWT NDP paging indication");
+		MORSE_TWT_DBG(mors, "TWT PM: %s\n",
+			  MORSE_TWT_CTRL_SUP(agr_data->control, RESP_MODE) ? "Awake" : "Doze");
 		if (MORSE_TWT_CTRL_SUP(agr_data->control, NEG_TYPE_BROADCAST))
-			morse_dbg(mors, "TWT Broadcast negotiation\n");
+			MORSE_TWT_DBG(mors, "TWT Broadcast negotiation\n");
 		if (MORSE_TWT_CTRL_SUP(agr_data->control, RX_DISABLED))
-			morse_dbg(mors, "TWT Info frame disabled\n");
-		morse_dbg(mors, "TWT Wake duration unit: %s\n",
-			MORSE_TWT_CTRL_SUP(agr_data->control, WAKE_DUR_UNIT) ? "TU" : "256us");
+			MORSE_TWT_DBG(mors, "TWT Info frame disabled\n");
+		MORSE_TWT_DBG(mors, "TWT Wake duration unit: %s\n",
+			      MORSE_TWT_CTRL_SUP(agr_data->control, WAKE_DUR_UNIT) ?
+				"TU" : "256us");
 
 		if (MORSE_TWT_REQTYPE(req_type, TRIGGER))
-			morse_dbg(mors, "TWT IE includes triggering frames\n");
-		morse_dbg(mors, "TWT request type: %s\n",
-			MORSE_TWT_REQTYPE(req_type, IMPLICIT) ? "implicit" : "explicit");
-		morse_dbg(mors, "TWT flow type: %s\n",
-			MORSE_TWT_REQTYPE(req_type, FLOWTYPE) ? "unannounced" : "announced");
+			MORSE_TWT_DBG(mors, "TWT IE includes triggering frames\n");
+		MORSE_TWT_DBG(mors, "TWT request type: %s\n",
+			      MORSE_TWT_REQTYPE(req_type, IMPLICIT) ? "implicit" : "explicit");
+		MORSE_TWT_DBG(mors, "TWT flow type: %s\n",
+			      MORSE_TWT_REQTYPE(req_type, FLOWTYPE) ? "unannounced" : "announced");
 		if (MORSE_TWT_REQTYPE(req_type, PROTECTION))
-			morse_dbg(mors, "TWT requires protection (RAW)\n");
+			MORSE_TWT_DBG(mors, "TWT requires protection (RAW)\n");
 
-		morse_dbg(mors, "TWT Wake Time (us): %llu\n", agr_data->wake_time_us);
-		morse_dbg(mors, "TWT Wake Interval (us): %llu\n", agr_data->wake_interval_us);
-		morse_dbg(mors, "TWT Wake Nominal Min Duration (us): %u\n", agr_data->wake_duration_us);
+		MORSE_TWT_DBG(mors, "TWT Wake Time (us): %llu\n", agr_data->wake_time_us);
+		MORSE_TWT_DBG(mors, "TWT Wake Interval (us): %llu\n", agr_data->wake_interval_us);
+		MORSE_TWT_DBG(mors, "TWT Wake Nominal Min Duration (us): %u\n",
+			      agr_data->wake_duration_us);
 	}
 }
 
 static struct morse_twt_sta *morse_twt_get_sta(struct morse *mors,
-					       struct morse_vif *mors_vif,
-					       u8 *addr)
+					       struct morse_vif *mors_vif, u8 *addr)
 {
 	struct ieee80211_vif *vif;
 	struct morse_twt_sta *sta;
@@ -311,7 +313,7 @@ static struct morse_twt_sta *morse_twt_get_sta(struct morse *mors,
 	vif = morse_vif_to_ieee80211_vif(mors_vif);
 
 	list_for_each_entry_safe(sta, temp, &mors_vif->twt.stas, list) {
-		morse_dbg(mors, "%s: STA addr %pM (want %pM)\n", __func__, sta->addr, addr);
+		MORSE_TWT_DBG(mors, "%s: STA addr %pM (want %pM)\n", __func__, sta->addr, addr);
 		if (ether_addr_equal(sta->addr, addr))
 			return sta;
 	}
@@ -320,14 +322,13 @@ static struct morse_twt_sta *morse_twt_get_sta(struct morse *mors,
 }
 
 static int morse_twt_dequeue_tx_response(struct morse *mors,
-					 struct morse_vif *mors_vif,
-					 struct morse_twt_event *tx)
+					 struct morse_vif *mors_vif, struct morse_twt_event *tx)
 {
 	struct morse_twt_sta *sta = morse_twt_get_sta(mors, mors_vif, tx->addr);
 	int ret = 0;
 
 	if (!sta) {
-		morse_warn_ratelimited(mors, "%s: Couldn't get STA\n", __func__);
+		MORSE_TWT_WARN_RATELIMITED(mors, "%s: Couldn't get STA\n", __func__);
 		return -ENODEV;
 	}
 
@@ -343,14 +344,14 @@ static int morse_twt_dequeue_tx_response(struct morse *mors,
 			ret = morse_twt_enter_state(mors, &mors_vif->twt, sta, tx,
 						    MORSE_TWT_STATE_NO_AGREEMENT);
 		else
-			morse_warn_ratelimited(mors, "%s: Dequeuing unsupported response %u",
-					       __func__, tx->setup.cmd);
+			MORSE_TWT_WARN_RATELIMITED(mors, "%s: Dequeuing unsupported response %u",
+						   __func__, tx->setup.cmd);
 		break;
 
 	case MORSE_TWT_STATE_NO_AGREEMENT:
 	case MORSE_TWT_STATE_AGREEMENT:
-		morse_warn_ratelimited(mors, "%s: Tried to dequeue TX from invalid state %u\n",
-				       __func__, sta->agreements[tx->flow_id].state);
+		MORSE_TWT_WARN_RATELIMITED(mors, "%s: Tried to dequeue TX from invalid state %u\n",
+					   __func__, sta->agreements[tx->flow_id].state);
 		ret = -EINVAL;
 		break;
 	}
@@ -358,9 +359,7 @@ static int morse_twt_dequeue_tx_response(struct morse *mors,
 	return ret;
 }
 
-int morse_twt_dequeue_tx(struct morse *mors,
-			 struct morse_vif *mors_vif,
-			 struct morse_twt_event *tx)
+int morse_twt_dequeue_tx(struct morse *mors, struct morse_vif *mors_vif, struct morse_twt_event *tx)
 {
 	struct ieee80211_vif *vif;
 	struct morse_twt *twt;
@@ -369,11 +368,11 @@ int morse_twt_dequeue_tx(struct morse *mors,
 	if (!mors || !mors_vif || !tx)
 		return -EINVAL;
 
-	morse_dbg(mors, "Dequeuing TX %u to %pM (Flow ID %u)\n",
-		  tx->type, tx->addr, tx->flow_id);
-
 	twt = &mors_vif->twt;
 	vif = morse_vif_to_ieee80211_vif(mors_vif);
+	spin_lock_bh(&twt->lock);
+	MORSE_TWT_DBG(mors, "Dequeuing TX %u to %pM (Flow ID %u)\n",
+		      tx->type, tx->addr, tx->flow_id);
 
 	/* Handle responder state transitions. Requester responses skip this. */
 	if (tx->type == MORSE_TWT_EVENT_SETUP) {
@@ -382,7 +381,7 @@ int morse_twt_dequeue_tx(struct morse *mors,
 		case TWT_SETUP_CMD_SUGGEST:
 		case TWT_SETUP_CMD_DEMAND:
 		case TWT_SETUP_CMD_GROUPING:
-			morse_dbg(mors, "%s: Dequeue request\n", __func__);
+			MORSE_TWT_DBG(mors, "%s: Dequeue request\n", __func__);
 			break;
 
 		case TWT_SETUP_CMD_ACCEPT:
@@ -394,9 +393,8 @@ int morse_twt_dequeue_tx(struct morse *mors,
 		}
 	}
 
-	mutex_lock(&twt->lock);
 	morse_twt_purge_event(mors, tx);
-	mutex_unlock(&twt->lock);
+	spin_unlock_bh(&twt->lock);
 
 	return ret;
 }
@@ -413,68 +411,82 @@ int morse_twt_get_ie_size(struct morse *mors, struct morse_twt_event *event)
 	return sizeof(agr_data->control) + sizeof(agr_data->params);
 }
 
-struct sk_buff *morse_twt_insert_ie(struct morse *mors,
-				    struct morse_twt_event *event,
-				    struct sk_buff *skb,
-				    u8 size)
+void morse_twt_insert_ie(struct morse *mors,
+			 struct morse_twt_event *event, struct dot11ah_ies_mask *ies_mask, u8 size)
 {
-	u8 *src;
-	u8 *dst;
-
-	if (!event || !event->setup.agr_data || !skb) {
-		morse_warn_ratelimited(mors, "%s: Invalid data to insert TWT IE\n", __func__);
-		return skb;
+	if (!event || !event->setup.agr_data || !ies_mask) {
+		MORSE_TWT_WARN_RATELIMITED(mors, "%s: Invalid data to insert TWT IE\n", __func__);
+		return;
 	}
 
 	if (size <= 0) {
-		morse_warn_ratelimited(mors, "%s: Invalid TWT IE size for insertion %u\n",
-				       __func__, size);
-		return skb;
+		MORSE_TWT_WARN_RATELIMITED(mors, "%s: Invalid TWT IE size for insertion %u\n",
+					   __func__, size);
+		return;
 	}
 
-	src = &event->setup.agr_data->control;
-	dst = skb_put(skb, size + 2);
-	if (!dst) {
-		morse_warn_ratelimited(mors, "%s: SKB put failed\n", __func__);
-		return skb;
-	}
-
-	*dst++ = WLAN_EID_S1G_TWT;
-	*dst++ = size;
-	memcpy(dst, src, size);
-	return skb;
+	morse_dot11ah_insert_element(ies_mask, WLAN_EID_S1G_TWT,
+				     (u8 *)&event->setup.agr_data->control, size);
 }
 
-struct morse_twt_event *morse_twt_peek_tx(struct morse *mors, struct morse_vif *mors_vif, u8 *addr)
+static struct morse_twt_event *morse_twt_peek_queue(struct morse *mors,
+						    struct list_head *head,
+						    struct morse_vif *mors_vif,
+						    const u8 *addr, const u8 *flow_id)
 {
-	struct list_head *head;
 	struct morse_twt_event *event;
-	int ii = 0;
+	int i = 0;
 
-	if (!mors || !mors_vif || !addr)
+	if (!mors || !mors_vif)
 		return NULL;
 
-	mutex_lock(&mors_vif->twt.lock);
-	head = &mors_vif->twt.tx;
 	if (list_empty(head))
-		morse_dbg(mors, "%s: Tx queue is empty", __func__);
+		MORSE_TWT_DBG(mors, "%s: Queue is empty", __func__);
+
+	if (!addr) {
+		MORSE_TWT_DBG(mors, "%s: Peek all addresses", __func__);
+		return list_first_entry_or_null(head, struct morse_twt_event, list);
+	}
 
 	list_for_each_entry(event, head, list) {
-		morse_dbg(mors, "%s: Peek %d - addr %pM (want %pM)\n",
-			  __func__, ii++, event->addr, addr);
+		if (!flow_id)
+			MORSE_TWT_DBG(mors, "%s: Peek %d - addr %pM (want %pM)\n",
+				  __func__, i++, event->addr, addr);
+		else
+			MORSE_TWT_DBG(mors, "%s: Peek %d - addr %pM flow id %u (want %pM %u)\n",
+				  __func__, i++, event->addr, event->flow_id, addr, *flow_id);
 
 		/* TODO remove use of zero MAC address for STAs. In the future if we want the AP to
 		 * be a requester we will need to populate the address before this point.
 		 */
-		if (ether_addr_equal(event->addr, addr) ||
-		    is_zero_ether_addr(event->addr)) {
-			mutex_unlock(&mors_vif->twt.lock);
+		if ((ether_addr_equal(event->addr, addr) ||
+		     is_zero_ether_addr(event->addr)) && (!flow_id || *flow_id == event->flow_id))
 			return event;
-		}
 	}
 
-	mutex_unlock(&mors_vif->twt.lock);
 	return NULL;
+}
+
+struct morse_twt_event *morse_twt_peek_tx(struct morse *mors,
+					  struct morse_vif *mors_vif,
+					  const u8 *addr, const u8 *flow_id)
+{
+	if (!addr)
+		return NULL;
+
+	MORSE_TWT_DBG(mors, "%s: Peek want addr %pM\n", __func__, addr);
+	return morse_twt_peek_queue(mors, &mors_vif->twt.tx, mors_vif, addr, flow_id);
+}
+
+static struct morse_twt_event *morse_twt_peek_event(struct morse *mors,
+						    struct morse_vif *mors_vif,
+						    const u8 *addr, const u8 *flow_id)
+{
+	if (addr)
+		MORSE_TWT_DBG(mors, "%s: Peek want addr %pM\n", __func__, addr);
+	else
+		MORSE_TWT_DBG(mors, "%s: Peek want any addr\n", __func__);
+	return morse_twt_peek_queue(mors, &mors_vif->twt.events, mors_vif, addr, flow_id);
 }
 
 static enum ieee80211_twt_setup_cmd morse_twt_get_command(__le16 req_type)
@@ -486,8 +498,8 @@ static enum ieee80211_twt_setup_cmd morse_twt_get_command(__le16 req_type)
 
 static struct morse_twt_sta *morse_twt_add_sta(struct morse *mors, struct morse_twt *twt, u8 *addr)
 {
-	struct morse_twt_sta *sta = kzalloc(sizeof(*sta), GFP_KERNEL);
-	int ii;
+	struct morse_twt_sta *sta = kzalloc(sizeof(*sta), GFP_ATOMIC);
+	int i;
 
 	if (!sta)
 		return NULL;
@@ -497,8 +509,8 @@ static struct morse_twt_sta *morse_twt_add_sta(struct morse *mors, struct morse_
 	/* By initalising these agreements as list heads we can use list_empty() to see if they are
 	 * in a wake interval list or not.
 	 */
-	for (ii = 0; ii < MORSE_TWT_AGREEMENTS_MAX_PER_STA; ii++)
-		INIT_LIST_HEAD(&sta->agreements[ii].list);
+	for (i = 0; i < MORSE_TWT_AGREEMENTS_MAX_PER_STA; i++)
+		INIT_LIST_HEAD(&sta->agreements[i].list);
 
 	list_add_tail(&sta->list, &twt->stas);
 
@@ -524,7 +536,7 @@ static int morse_twt_agreement_remove(struct morse *mors, struct morse_twt_agree
 		return -EINVAL;
 
 	if (list_empty(&agr->list)) {
-		morse_dbg(mors, "Agreement not in wake interval list - skipping\n");
+		MORSE_TWT_DBG(mors, "Agreement not in wake interval list - skipping\n");
 		return 0;
 	}
 
@@ -556,10 +568,9 @@ static int morse_twt_agreement_remove(struct morse *mors, struct morse_twt_agree
  * Return:	0 on success or relevant error.
  */
 static int morse_twt_sta_remove(struct morse *mors,
-				struct morse_twt *twt,
-				struct morse_twt_sta *sta)
+				struct morse_twt *twt, struct morse_twt_sta *sta)
 {
-	int ii;
+	int i;
 
 	if (!mors || !twt)
 		return -EINVAL;
@@ -567,12 +578,12 @@ static int morse_twt_sta_remove(struct morse *mors,
 	if (!sta)
 		return -ENODEV;
 
-	morse_dbg(mors, "Removing TWT STA %pM\n", sta->addr);
+	MORSE_TWT_DBG(mors, "Removing TWT STA %pM\n", sta->addr);
 
 	/* Remove each agreement from the wake interval linked list. */
-	for (ii = 0; ii < MORSE_TWT_AGREEMENTS_MAX_PER_STA; ii++) {
-		morse_dbg(mors, "Remove TWT agreement %u\n", ii);
-		morse_twt_agreement_remove(mors, &sta->agreements[ii]);
+	for (i = 0; i < MORSE_TWT_AGREEMENTS_MAX_PER_STA; i++) {
+		MORSE_TWT_DBG(mors, "Remove TWT agreement %u\n", i);
+		morse_twt_agreement_remove(mors, &sta->agreements[i]);
 	}
 
 	/* Remove the agreements from the sta list and purge queues. */
@@ -584,9 +595,15 @@ static int morse_twt_sta_remove(struct morse *mors,
 
 int morse_twt_sta_remove_addr(struct morse *mors, struct morse_vif *mors_vif, u8 *addr)
 {
-	struct morse_twt_sta *sta = morse_twt_get_sta(mors, mors_vif, addr);
+	int ret;
+	struct morse_twt_sta *sta;
 
-	return morse_twt_sta_remove(mors, &mors_vif->twt, sta);
+	spin_lock_bh(&mors_vif->twt.lock);
+	sta = morse_twt_get_sta(mors, mors_vif, addr);
+	ret = morse_twt_sta_remove(mors, &mors_vif->twt, sta);
+	spin_unlock_bh(&mors_vif->twt.lock);
+
+	return ret;
 }
 
 /**
@@ -607,7 +624,7 @@ static int morse_twt_sta_remove_all(struct morse *mors, struct morse_twt *twt)
 		ret = morse_twt_sta_remove(mors, twt, sta);
 
 		if (ret)
-			morse_warn(mors, "Failed to remove STA: %d\n", ret);
+			MORSE_TWT_WARN(mors, "Failed to remove STA: %d\n", ret);
 	}
 
 	return 0;
@@ -628,14 +645,13 @@ static int morse_twt_sta_remove_all(struct morse *mors, struct morse_twt *twt)
  */
 static int morse_twt_sta_agreement_remove(struct morse *mors,
 					  struct morse_twt *twt,
-					  struct morse_twt_sta *sta,
-					  u8 flow_id)
+					  struct morse_twt_sta *sta, u8 flow_id)
 {
 	struct morse_twt_agreement *agr;
 	struct morse_twt_agreement *test;
-	int ii;
+	int i;
 
-	if (!sta || (flow_id >= MORSE_TWT_AGREEMENTS_MAX_PER_STA))
+	if (!sta || flow_id >= MORSE_TWT_AGREEMENTS_MAX_PER_STA)
 		return -EINVAL;
 
 	agr = &sta->agreements[flow_id];
@@ -643,8 +659,8 @@ static int morse_twt_sta_agreement_remove(struct morse *mors,
 	morse_twt_agreement_remove(mors, agr);
 
 	/* Check if there are any agreements and remove STA if there aren't any. */
-	for (ii = 0; ii < MORSE_TWT_AGREEMENTS_MAX_PER_STA; ii++) {
-		test = &sta->agreements[ii];
+	for (i = 0; i < MORSE_TWT_AGREEMENTS_MAX_PER_STA; i++) {
+		test = &sta->agreements[i];
 		if (test->state != MORSE_TWT_STATE_NO_AGREEMENT)
 			return 0;
 	}
@@ -655,18 +671,15 @@ static int morse_twt_sta_agreement_remove(struct morse *mors,
 static int morse_twt_sta_agreement_add(struct morse *mors,
 				       struct morse_twt *twt,
 				       struct morse_twt_sta *sta,
-				       u8 flow_id,
-				       struct morse_twt_agreement_data *agr_data)
+				       u8 flow_id, struct morse_twt_agreement_data *agr_data)
 {
 	struct morse_twt_agreement *agr;
 
-	if (!sta || !agr_data || (flow_id >= MORSE_TWT_AGREEMENTS_MAX_PER_STA))
+	if (!sta || !agr_data || flow_id >= MORSE_TWT_AGREEMENTS_MAX_PER_STA)
 		return -EINVAL;
 
-	mutex_lock(&twt->lock);
 	agr = &sta->agreements[flow_id];
 	memcpy(&agr->data, agr_data, sizeof(*agr_data));
-	mutex_unlock(&twt->lock);
 
 	return 0;
 }
@@ -681,8 +694,9 @@ static int morse_twt_sta_agreement_add(struct morse *mors,
  *
  * Return:		A wake interval head struct on success otherwise NULL.
  */
-static struct morse_twt_wake_interval *morse_twt_agreement_wake_interval_get(
-	struct morse *mors, struct morse_twt *twt, u64 wake_interval_us)
+static struct morse_twt_wake_interval *morse_twt_agreement_wake_interval_get(struct morse *mors,
+									     struct morse_twt *twt,
+									     u64 wake_interval_us)
 {
 	struct list_head *head;
 	struct morse_twt_wake_interval *wi;
@@ -695,7 +709,9 @@ static struct morse_twt_wake_interval *morse_twt_agreement_wake_interval_get(
 	head = &twt->wake_intervals;
 
 	if (list_empty(&twt->wake_intervals)) {
-		wi = kmalloc(sizeof(*wi), GFP_KERNEL);
+		wi = kmalloc(sizeof(*wi), GFP_ATOMIC);
+		if (!wi)
+			return NULL;
 		INIT_LIST_HEAD(&wi->agreements);
 		list_add(&wi->list, head);
 		return wi;
@@ -714,9 +730,11 @@ static struct morse_twt_wake_interval *morse_twt_agreement_wake_interval_get(
 		/* We found the exact value. */
 		if (wi_us == wake_interval_us) {
 			return wi;
-		/* The exact value doesn't exist but a larger one is in the list. */
+			/* The exact value doesn't exist but a larger one is in the list. */
 		} else if (wi_us > wake_interval_us) {
-			temp = kmalloc(sizeof(*temp), GFP_KERNEL);
+			temp = kmalloc(sizeof(*temp), GFP_ATOMIC);
+			if (!temp)
+				return NULL;
 			INIT_LIST_HEAD(&temp->agreements);
 			if (wi->list.prev == head)
 				list_add(&temp->list, head);
@@ -724,9 +742,11 @@ static struct morse_twt_wake_interval *morse_twt_agreement_wake_interval_get(
 				list_add(&temp->list, &list_prev_entry(wi, list)->list);
 
 			return temp;
-		/* The exact value is not in the list and there are no larger ones. */
+			/* The exact value is not in the list and there are no larger ones. */
 		} else if (wi->list.next == head) {
-			temp = kmalloc(sizeof(*temp), GFP_KERNEL);
+			temp = kmalloc(sizeof(*temp), GFP_ATOMIC);
+			if (!temp)
+				return NULL;
 			INIT_LIST_HEAD(&temp->agreements);
 			list_add_tail(&temp->list, head);
 			return temp;
@@ -755,11 +775,10 @@ static int morse_twt_agreement_wake_interval_add(struct morse *mors,
 
 	/* Agreement is not accepted until the accept message is sent. */
 	if (!agr ||
-	    (agr->state == MORSE_TWT_STATE_NO_AGREEMENT) ||
-	    (agr->state == MORSE_TWT_STATE_AGREEMENT))
+	    agr->state == MORSE_TWT_STATE_NO_AGREEMENT || agr->state == MORSE_TWT_STATE_AGREEMENT)
 		return -EINVAL;
 
-	morse_dbg(mors, "Get TWT wake interval head for %lluus\n", agr->data.wake_interval_us);
+	MORSE_TWT_DBG(mors, "Get TWT wake interval head for %lluus\n", agr->data.wake_interval_us);
 
 	/* Obtain the wake interval list for the specified wake interval. */
 	wi = morse_twt_agreement_wake_interval_get(mors, twt, agr->data.wake_interval_us);
@@ -769,7 +788,7 @@ static int morse_twt_agreement_wake_interval_add(struct morse *mors,
 	if (list_empty(&wi->agreements)) {
 		agr->data.wake_time_us = 0;
 		list_add(&agr->list, &wi->agreements);
-		morse_dbg(mors, "First TWT entry for wake interval %lluus\n",
+		MORSE_TWT_DBG(mors, "First TWT entry for wake interval %lluus\n",
 			  agr->data.wake_interval_us);
 		return 0;
 	}
@@ -777,14 +796,14 @@ static int morse_twt_agreement_wake_interval_add(struct morse *mors,
 	/* For now just add accepted 'Demand' agreements to the end. */
 	if (morse_twt_get_command(agr->data.params.req_type) == TWT_SETUP_CMD_DEMAND) {
 		list_add_tail(&agr->list, &wi->agreements);
-		morse_dbg(mors, "Demand TWT entry for wake time %lluus added to tail\n",
+		MORSE_TWT_DBG(mors, "Demand TWT entry for wake time %lluus added to tail\n",
 			  agr->data.wake_time_us);
 		return 0;
 	}
 
 	/* Iterate through the list of agreements with the same wake interval. Either insert into a
 	 * gap which is large enough or add to the end. The wake time of the first agreement is used
-	 * as the reference. The firmware is left to calulate the next service period based on the
+	 * as the reference. The firmware is left to calculate the next service period based on the
 	 * wake time and wake interval.
 	 */
 	list_for_each_entry(ptr, &wi->agreements, list) {
@@ -794,7 +813,7 @@ static int morse_twt_agreement_wake_interval_add(struct morse *mors,
 
 		if (list_is_last(&ptr->list, &wi->agreements)) {
 			agr->data.wake_time_us =
-				ptr->data.wake_time_us + ptr->data.wake_duration_us;
+			    ptr->data.wake_time_us + ptr->data.wake_duration_us;
 
 			list_add(&agr->list, &ptr->list);
 			return 0;
@@ -803,11 +822,9 @@ static int morse_twt_agreement_wake_interval_add(struct morse *mors,
 		/* Time may have elapsed from the initial wake time so wrap values. */
 		ptr_next = list_next_entry(ptr, list);
 		div64_u64_rem(ptr->data.wake_time_us,
-			      ptr->data.wake_interval_us,
-			      &cur_next_wake_offset_us);
+			      ptr->data.wake_interval_us, &cur_next_wake_offset_us);
 		div64_u64_rem(ptr_next->data.wake_time_us,
-			      ptr_next->data.wake_interval_us,
-			      &next_next_wake_offset_us);
+			      ptr_next->data.wake_interval_us, &next_next_wake_offset_us);
 
 		/* If the next agreement offset is before the previous unwrap once to preserve
 		 * order.
@@ -817,16 +834,16 @@ static int morse_twt_agreement_wake_interval_add(struct morse *mors,
 
 		/* Calculate gap between consecutive TWT service periods. */
 		unalloc_dur_us = next_next_wake_offset_us -
-			(cur_next_wake_offset_us + ptr->data.wake_duration_us);
+		    (cur_next_wake_offset_us + ptr->data.wake_duration_us);
 
 		/* Service period fits between the current and next service periods. */
 		if (unalloc_dur_us >= agr->data.wake_duration_us) {
 			/* Adjust wake time to align with the end of the previous service period. */
 			agr->data.wake_time_us =
-				ptr->data.wake_time_us + ptr->data.wake_duration_us;
+			    ptr->data.wake_time_us + ptr->data.wake_duration_us;
 
 			list_add(&agr->list, &ptr->list);
-			morse_dbg(mors, "Added TWT entry for wake time %llu\n",
+			MORSE_TWT_DBG(mors, "Added TWT entry for wake time %llu\n",
 				  agr->data.wake_time_us);
 			return 0;
 		}
@@ -852,8 +869,7 @@ static int morse_twt_agreement_wake_interval_add(struct morse *mors,
  */
 static int morse_twt_send_accept(struct morse *mors,
 				 struct morse_twt *twt,
-				 struct morse_twt_sta *sta,
-				 struct morse_twt_event *event)
+				 struct morse_twt_sta *sta, struct morse_twt_event *event)
 {
 	struct morse_twt_agreement_data *event_agr_data;
 	struct morse_twt_agreement *sta_agr;
@@ -867,9 +883,7 @@ static int morse_twt_send_accept(struct morse *mors,
 	sta_agr = &sta->agreements[event->flow_id];
 	sta_agr_data = &sta_agr->data;
 	memcpy(sta_agr_data, event_agr_data, sizeof(*sta_agr_data));
-	mutex_lock(&twt->lock);
 	morse_twt_agreement_wake_interval_add(mors, twt, sta_agr);
-	mutex_unlock(&twt->lock);
 
 	/* When accepting, the TWT parameters need updating and the setup command. */
 	event->setup.cmd = TWT_SETUP_CMD_ACCEPT;
@@ -877,23 +891,18 @@ static int morse_twt_send_accept(struct morse *mors,
 	morse_twt_update_params(&sta_agr_data->params,
 				sta_agr_data->control,
 				sta_agr_data->wake_time_us,
-				sta_agr_data->wake_interval_us,
-				sta_agr_data->wake_duration_us);
+				sta_agr_data->wake_interval_us, sta_agr_data->wake_duration_us);
 	/* Copy changes back to the accept message. */
 	memcpy(event_agr_data, sta_agr_data, sizeof(*event_agr_data));
-	mutex_lock(&twt->lock);
-	list_del(&event->list);
 	list_add_tail(&event->list, &twt->tx);
-	mutex_unlock(&twt->lock);
-	morse_dbg(mors, "TWT Accept added to queue for %pM (Flow ID %u)\n",
+	MORSE_TWT_DBG(mors, "TWT Accept added to queue for %pM (Flow ID %u)\n",
 		  event->addr, event->flow_id);
 	return 0;
 }
 
 /* Takes ownership of the event (this allows recycling of the event struct). */
 static int morse_twt_send_reject(struct morse *mors,
-				 struct morse_twt *twt,
-				 struct morse_twt_event *event)
+				 struct morse_twt *twt, struct morse_twt_event *event)
 {
 	if (!mors || !event)
 		return -EINVAL;
@@ -901,12 +910,9 @@ static int morse_twt_send_reject(struct morse *mors,
 	/* When rejecting, the TWT parameters remain the same, except for the setup command. */
 	event->setup.cmd = TWT_SETUP_CMD_REJECT;
 	morse_twt_set_command(&event->setup.agr_data->params.req_type, event->setup.cmd);
-	mutex_lock(&twt->lock);
-	list_del(&event->list);
 	list_add_tail(&event->list, &twt->tx);
-	mutex_unlock(&twt->lock);
-	morse_warn_ratelimited(mors, "TWT Reject added to queue for %pM (Flow ID %u)\n",
-			       event->addr, event->flow_id);
+	MORSE_TWT_WARN_RATELIMITED(mors, "TWT Reject added to queue for %pM (Flow ID %u)\n",
+				   event->addr, event->flow_id);
 	return 0;
 }
 
@@ -956,8 +962,7 @@ static int morse_twt_enter_state_consider_grouping(struct morse *mors,
 
 static int morse_twt_enter_state_agreement(struct morse *mors,
 					   struct morse_twt *twt,
-					   struct morse_twt_sta *sta,
-					   struct morse_twt_event *event)
+					   struct morse_twt_sta *sta, struct morse_twt_event *event)
 {
 	return morse_twt_sta_agreement_add(mors, twt, sta, event->flow_id, event->setup.agr_data);
 }
@@ -965,8 +970,7 @@ static int morse_twt_enter_state_agreement(struct morse *mors,
 static int morse_twt_enter_state(struct morse *mors,
 				 struct morse_twt *twt,
 				 struct morse_twt_sta *sta,
-				 struct morse_twt_event *event,
-				 enum morse_twt_state state)
+				 struct morse_twt_event *event, enum morse_twt_state state)
 {
 	int ret;
 	struct morse_twt_agreement *agr;
@@ -974,11 +978,8 @@ static int morse_twt_enter_state(struct morse *mors,
 	if (!mors || !twt || !sta)
 		return -EINVAL;
 
-	morse_dbg(mors, "TWT STA %pM (Flow ID %u) state %u -> %u\n",
-		  sta->addr,
-		  event->flow_id,
-		  sta->agreements[event->flow_id].state,
-		  state);
+	MORSE_TWT_DBG(mors, "TWT STA %pM (Flow ID %u) state %u -> %u\n",
+		      sta->addr, event->flow_id, sta->agreements[event->flow_id].state, state);
 
 	agr = &sta->agreements[event->flow_id];
 	agr->state = state;
@@ -1058,7 +1059,8 @@ static int morse_twt_handle_event_in_consider(struct morse *mors,
 	case TWT_SETUP_CMD_SUGGEST:
 	case TWT_SETUP_CMD_DEMAND:
 	case TWT_SETUP_CMD_GROUPING:
-		morse_twt_send_reject(mors, twt, event);
+		/* We've gotten an additional request in quick succession, drop request. */
+		morse_twt_purge_event(mors, event);
 		break;
 	case TWT_SETUP_CMD_ACCEPT:
 	case TWT_SETUP_CMD_ALTERNATE:
@@ -1071,6 +1073,7 @@ static int morse_twt_handle_event_in_consider(struct morse *mors,
 }
 
 static int morse_twt_handle_event_in_agreement(struct morse *mors,
+					       struct morse_vif *mors_vif,
 					       struct morse_twt *twt,
 					       struct morse_twt_sta *sta,
 					       struct morse_twt_event *event)
@@ -1083,8 +1086,20 @@ static int morse_twt_handle_event_in_agreement(struct morse *mors,
 	case TWT_SETUP_CMD_SUGGEST:
 	case TWT_SETUP_CMD_DEMAND:
 	case TWT_SETUP_CMD_GROUPING:
-		morse_twt_send_reject(mors, twt, event);
-		break;
+		{
+			struct morse_twt_event *existing_tx_event;
+			/* We've already got an agreement, so reject. Teardown of agreement should
+			 * be done first. If there's already a response to a previous event ready to
+			 * be sent, drop the event instead.
+			 */
+			existing_tx_event =
+			    morse_twt_peek_tx(mors, mors_vif, sta->addr, &event->flow_id);
+			if (existing_tx_event)
+				morse_twt_purge_event(mors, event);
+			else
+				morse_twt_send_reject(mors, twt, event);
+			break;
+		}
 	case TWT_SETUP_CMD_ACCEPT:
 	case TWT_SETUP_CMD_ALTERNATE:
 	case TWT_SETUP_CMD_DICTATE:
@@ -1100,30 +1115,102 @@ void morse_twt_install_pending_agreements(struct morse *mors, struct morse_vif *
 	struct morse_twt_event *event;
 	struct morse_twt_event *temp;
 
+	spin_lock_bh(&mors_vif->twt.lock);
 	list_for_each_entry_safe(event, temp, &mors_vif->twt.to_install, list) {
+		/* Must unlock as we are sending a command which blocks */
+		spin_unlock_bh(&mors_vif->twt.lock);
+
 		if (!morse_cmd_twt_agreement_install_req(mors, event->setup.agr_data, mors_vif->id))
-			morse_info(mors,
-				   "Installed TWT agreement (AP: %pM, VIF: %u, Flow ID: %u)\n",
-				   event->addr,
-				   mors_vif->id,
-				   event->flow_id);
+			MORSE_TWT_INFO(mors,
+				       "Installed TWT agreement (AP: %pM, VIF: %u, Flow ID: %u)\n",
+				       event->addr, mors_vif->id, event->flow_id);
 		else
-			morse_warn(mors, "Failed to install TWT agreement\n");
+			MORSE_TWT_WARN(mors, "Failed to install TWT agreement\n");
+
+		spin_lock_bh(&mors_vif->twt.lock);
 
 		/* Cleanup event. */
 		morse_twt_purge_event(mors, event);
 	}
+	spin_unlock_bh(&mors_vif->twt.lock);
 }
 
-void morse_twt_queue_event(struct morse *mors, struct morse_vif *mors_vif, struct morse_twt_event *event)
+void morse_twt_queue_event(struct morse *mors,
+			   struct morse_vif *mors_vif, struct morse_twt_event *event)
 {
 	struct morse_twt *twt = &mors_vif->twt;
 
-	mutex_lock(&twt->lock);
+	spin_lock_bh(&twt->lock);
+	MORSE_TWT_DBG(mors, "%s: Queue event %pM", __func__, event->addr);
 	/* Remove stale events (with the same addr/flow id). */
 	morse_twt_queue_purge(mors, &twt->events, event->addr, &event->flow_id);
 	list_add_tail(&event->list, &twt->events);
-	mutex_unlock(&twt->lock);
+	spin_unlock_bh(&twt->lock);
+}
+
+/**
+ * morse_twt_preprocess_event() - Assess whether events are valid, move to relevant queues if
+				  required, purge if invalid. If further processing is not required
+				  this function will consume the event.
+ *
+ * @mors	The morse chip struct.
+ * @twt		The morse twt struct.
+ * @event	The event to preprocess.
+ *
+ * Return true if further processing is required otherwise false if the event has been consumed.
+ */
+static bool morse_twt_preprocess_event(struct morse *mors,
+				       struct morse_twt *twt, struct morse_twt_event *event)
+{
+	if (!event)
+		return false;
+
+	morse_twt_dump_event(mors, event);
+
+	if (event->type != MORSE_TWT_EVENT_SETUP) {
+		morse_twt_purge_event(mors, event);
+		return false;
+	}
+
+	switch (event->setup.cmd) {
+	case TWT_SETUP_CMD_REQUEST:
+	case TWT_SETUP_CMD_SUGGEST:
+	case TWT_SETUP_CMD_DEMAND:
+	case TWT_SETUP_CMD_GROUPING:
+		if (twt->responder) {
+			MORSE_TWT_DBG(mors, "%s: Received a TWT request: %u\n",
+				      __func__, event->setup.cmd);
+			return true;
+		}
+
+		MORSE_TWT_WARN_RATELIMITED(mors, "Not a TWT responder but received a request: %u\n",
+					   event->setup.cmd);
+		break;
+
+	case TWT_SETUP_CMD_ACCEPT:
+		if (twt->requester) {
+			MORSE_TWT_DBG(mors, "%s: Received a TWT response: %u\n",
+				      __func__, event->setup.cmd);
+			/* Queue installing TWT agreement to chip. Requires STA state change to
+			 * associated first.
+			 */
+			list_add_tail(&event->list, &twt->to_install);
+			return false;
+		}
+
+		MORSE_TWT_ERR_RATELIMITED(mors, "Not a TWT requester but received a response: %u\n",
+					  event->setup.cmd);
+		break;
+
+	case TWT_SETUP_CMD_ALTERNATE:
+	case TWT_SETUP_CMD_DICTATE:
+	case TWT_SETUP_CMD_REJECT:
+		MORSE_TWT_ERR_RATELIMITED(mors, "%s: Unsupported TWT requester response: %u\n",
+					  __func__, event->setup.cmd);
+	}
+
+	morse_twt_purge_event(mors, event);
+	return false;
 }
 
 void morse_twt_handle_event(struct morse_vif *mors_vif, u8 *addr)
@@ -1134,108 +1221,60 @@ void morse_twt_handle_event(struct morse_vif *mors_vif, u8 *addr)
 	struct morse_twt_event *event;
 
 	if (addr)
-		morse_dbg(mors, "%s %pM\n", __func__, addr);
+		MORSE_TWT_DBG(mors, "%s %pM\n", __func__, addr);
 	else
-		morse_dbg(mors, "%s no addr filter\n", __func__);
+		MORSE_TWT_DBG(mors, "%s no addr filter\n", __func__);
+
+	spin_lock_bh(&twt->lock);
 
 	if (list_empty(&twt->events))
-		morse_dbg(mors, "%s: No events to handle\n", __func__);
+		MORSE_TWT_DBG(mors, "%s: No events to handle\n", __func__);
 
-	while (!list_empty(&twt->events)) {
-		event = list_first_entry(&twt->events, struct morse_twt_event, list);
-		morse_twt_dump_event(mors, event);
+	event = morse_twt_peek_event(mors, mors_vif, addr, NULL);
+	while (event) {
+		/* Dequeue event while we process it */
+		list_del_init(&event->list);
 
-		/* Address doesn't match so continue through the list. */
-		if (addr && !ether_addr_equal(addr, event->addr)) {
-			morse_dbg(mors, "%s: Filter address doesn't match %pM != %pM\n",
-				   __func__, addr, event->addr);
-			continue;
-		}
+		if (morse_twt_preprocess_event(mors, twt, event)) {
+			/* Deal with received requests. */
+			sta = morse_twt_get_sta(mors, mors_vif, event->addr);
 
-		switch (event->setup.cmd) {
-		case TWT_SETUP_CMD_REQUEST:
-		case TWT_SETUP_CMD_SUGGEST:
-		case TWT_SETUP_CMD_DEMAND:
-		case TWT_SETUP_CMD_GROUPING:
-			if (twt->responder) {
-				morse_dbg(mors, "%s: Received a TWT request: %u\n",
-					  __func__, event->setup.cmd);
+			if (!sta)
+				sta = morse_twt_add_sta(mors, twt, event->addr);
+
+			if (!sta) {
+				MORSE_TWT_ERR(mors, "Unable to allocate TWT STA (%pM) for event\n",
+					      event->addr);
+
+				/* Perhaps we can try again later. */
+				schedule_work(&twt->work);
+				spin_unlock_bh(&twt->lock);
+				return;
+			}
+
+			switch (sta->agreements[event->flow_id].state) {
+			case MORSE_TWT_STATE_NO_AGREEMENT:
+				morse_twt_handle_event_in_no_agreement(mors, twt, sta, event);
 				break;
+			case MORSE_TWT_STATE_CONSIDER_REQUEST:
+			case MORSE_TWT_STATE_CONSIDER_SUGGEST:
+			case MORSE_TWT_STATE_CONSIDER_DEMAND:
+			case MORSE_TWT_STATE_CONSIDER_GROUPING:
+				morse_twt_handle_event_in_consider(mors, twt, sta, event);
+				break;
+			case MORSE_TWT_STATE_AGREEMENT:
+				morse_twt_handle_event_in_agreement(mors, mors_vif,
+								    twt, sta, event);
+				break;
+			default:
+				morse_twt_purge_event(mors, event);
 			}
-
-			morse_warn_ratelimited(mors,
-					       "Not a TWT responder but received a request: %u\n",
-					       event->setup.cmd);
-			mutex_lock(&twt->lock);
-			morse_twt_purge_event(mors, event);
-			mutex_unlock(&twt->lock);
-			continue;
-
-		case TWT_SETUP_CMD_ACCEPT:
-			if (twt->requester) {
-				morse_dbg(mors, "%s: Received a TWT response: %u\n",
-					  __func__, event->setup.cmd);
-				morse_twt_dump_event(mors, event);
-				/* Queue installing TWT agreement to chip. Requires STA state change
-				 * to associated first.
-				 */
-				mutex_lock(&twt->lock);
-				list_del(&event->list);
-				list_add_tail(&event->list, &twt->to_install);
-				mutex_unlock(&twt->lock);
-				continue;
-			}
-
-			morse_err_ratelimited(mors, "Not a TWT requester but received a response: %u\n",
-				  event->setup.cmd);
-			mutex_lock(&twt->lock);
-			morse_twt_purge_event(mors, event);
-			mutex_unlock(&twt->lock);
-			continue;
-
-		case TWT_SETUP_CMD_ALTERNATE:
-		case TWT_SETUP_CMD_DICTATE:
-		case TWT_SETUP_CMD_REJECT:
-			morse_err_ratelimited(mors, "%s: Unsupported TWT requester response: %u\n",
-					      __func__, event->setup.cmd);
-			mutex_lock(&twt->lock);
-			morse_twt_purge_event(mors, event);
-			mutex_unlock(&twt->lock);
-			continue;
 		}
 
-		/* Deal with received requests. */
-		mutex_lock(&twt->lock);
-		sta = morse_twt_get_sta(mors, mors_vif, event->addr);
-
-		if (!sta)
-			sta = morse_twt_add_sta(mors, twt, event->addr);
-		mutex_unlock(&twt->lock);
-
-		if (!sta) {
-			morse_err(mors, "Unable to allocate TWT STA (%pM) for event\n",
-				  event->addr);
-
-			/* Perhaps we can try again later. */
-			schedule_work(&twt->work);
-			return;
-		}
-
-		switch (sta->agreements[event->flow_id].state) {
-		case MORSE_TWT_STATE_NO_AGREEMENT:
-			morse_twt_handle_event_in_no_agreement(mors, twt, sta, event);
-			break;
-		case MORSE_TWT_STATE_CONSIDER_REQUEST:
-		case MORSE_TWT_STATE_CONSIDER_SUGGEST:
-		case MORSE_TWT_STATE_CONSIDER_DEMAND:
-		case MORSE_TWT_STATE_CONSIDER_GROUPING:
-			morse_twt_handle_event_in_consider(mors, twt, sta, event);
-			break;
-		case MORSE_TWT_STATE_AGREEMENT:
-			morse_twt_handle_event_in_agreement(mors, twt, sta, event);
-			break;
-		}
+		event = morse_twt_peek_event(mors, mors_vif, addr, NULL);
 	}
+
+	spin_unlock_bh(&twt->lock);
 }
 
 void morse_twt_handle_event_work(struct work_struct *work)
@@ -1269,17 +1308,14 @@ static int morse_twt_requester_send(struct morse *mors, struct morse_vif *mors_v
 
 	/* Check to see if TWT capable and enabled. */
 	if (!twt->requester) {
-		morse_err(mors, "TWT non-requester trying to send request: %u\n", cmd);
+		MORSE_TWT_ERR(mors, "TWT non-requester trying to send request: %u\n", cmd);
 		return -EPERM;
 	}
 
-	mutex_lock(&twt->lock);
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 
-	if (!req) {
-		mutex_unlock(&twt->lock);
+	if (!req)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&req->list);
 
@@ -1295,9 +1331,8 @@ static int morse_twt_requester_send(struct morse *mors, struct morse_vif *mors_v
 	case TWT_SETUP_CMD_ALTERNATE:
 	case TWT_SETUP_CMD_DICTATE:
 	case TWT_SETUP_CMD_REJECT:
-		morse_err(mors, "TWT requester trying to send response: %u\n", cmd);
+		MORSE_TWT_ERR(mors, "TWT requester trying to send response: %u\n", cmd);
 		kfree(req);
-		mutex_unlock(&twt->lock);
 		return -EINVAL;
 	}
 
@@ -1306,11 +1341,10 @@ static int morse_twt_requester_send(struct morse *mors, struct morse_vif *mors_v
 	req->setup.agr_data = data;
 	req->setup.cmd = cmd;
 
-	if (twt->req_event_tx != NULL)
-		kfree(twt->req_event_tx);
+	kfree(twt->req_event_tx);
 
 	twt->req_event_tx = (u8 *)req;
-	mutex_unlock(&twt->lock);
+
 	return 0;
 }
 
@@ -1324,7 +1358,7 @@ static int morse_twt_validate_params(struct morse *mors, struct ieee80211_vif *v
 	case TWT_SETUP_CMD_ACCEPT:
 	case TWT_SETUP_CMD_REJECT:
 		if (vif->type != NL80211_IFTYPE_STATION) {
-			morse_warn(mors, "Only STA as requester is supported\n");
+			MORSE_TWT_WARN(mors, "Only STA as requester is supported\n");
 			return -EINVAL;
 		}
 		break;
@@ -1333,7 +1367,7 @@ static int morse_twt_validate_params(struct morse *mors, struct ieee80211_vif *v
 	case TWT_SETUP_CMD_DEMAND:
 	case TWT_SETUP_CMD_SUGGEST:
 		if (vif->type != NL80211_IFTYPE_AP) {
-			morse_warn(mors, "Only AP as responser is supported\n");
+			MORSE_TWT_WARN(mors, "Only AP as responser is supported\n");
 			return -EINVAL;
 		}
 		break;
@@ -1343,29 +1377,29 @@ static int morse_twt_validate_params(struct morse *mors, struct ieee80211_vif *v
 		break;
 
 	case TWT_SETUP_CMD_GROUPING:
-		morse_warn(mors, "TWT Grouping unsupported\n");
+		MORSE_TWT_WARN(mors, "TWT Grouping unsupported\n");
 		return -EINVAL;
 	}
 
 	/* Leave TSF validation to chip when installing an agreement. */
 
 	if (MORSE_TWT_REQTYPE(req_type, FLOWTYPE)) {
-		morse_warn(mors, "Unannounced TWT unsupported\n");
+		MORSE_TWT_WARN(mors, "Unannounced TWT unsupported\n");
 		return -EINVAL;
 	}
 
 	if (!MORSE_TWT_REQTYPE(req_type, IMPLICIT)) {
-		morse_warn(mors, "Explicit TWT unsupported\n");
+		MORSE_TWT_WARN(mors, "Explicit TWT unsupported\n");
 		return -EINVAL;
 	}
 
 	if (MORSE_TWT_REQTYPE(req_type, PROTECTION)) {
-		morse_warn(mors, "TWT protection (RAW) currently unsupported\n");
+		MORSE_TWT_WARN(mors, "TWT protection (RAW) currently unsupported\n");
 		return -EINVAL;
 	}
 
 	if (params->channel > 0) {
-		morse_warn(mors, "TWT channel unsupported\n");
+		MORSE_TWT_WARN(mors, "TWT channel unsupported\n");
 		return -EINVAL;
 	}
 
@@ -1393,7 +1427,7 @@ int morse_twt_parse_ie(struct morse_vif *mors_vif, struct ie_element *ie,
 	mors = morse_vif_to_morse(mors_vif);
 
 	if (ie->len < TWT_IE_MIN_LENGTH || ie->len > TWT_IE_MAX_LENGTH) {
-		morse_warn(mors, "%s: Invalid TWT IE length: %u\n", __func__, ie->len);
+		MORSE_TWT_WARN(mors, "%s: Invalid TWT IE length: %u\n", __func__, ie->len);
 		return -EINVAL;
 	}
 
@@ -1403,31 +1437,31 @@ int morse_twt_parse_ie(struct morse_vif *mors_vif, struct ie_element *ie,
 
 	/* Return error for unsupported options. */
 	if (MORSE_TWT_CTRL_SUP(control, NEG_TYPE_BROADCAST)) {
-		morse_warn(mors, "%s: TWT Broadcast not currently supported\n", __func__);
+		MORSE_TWT_WARN(mors, "%s: TWT Broadcast not currently supported\n", __func__);
 		return -EINVAL;
 	} else if (MORSE_TWT_CTRL_SUP(control, NEG_TYPE)) {
-		morse_warn(mors, "%s: TWT TBTT interval negotiation not supported\n", __func__);
+		MORSE_TWT_WARN(mors, "%s: TWT TBTT interval negotiation not supported\n", __func__);
 		return -EINVAL;
 	}
 
 	if (MORSE_TWT_CTRL_SUP(control, NDP)) {
-		morse_warn(mors, "%s: TWT NDP paging not currently supported\n", __func__);
+		MORSE_TWT_WARN(mors, "%s: TWT NDP paging not currently supported\n", __func__);
 		return -EINVAL;
 	}
 
-	twt_params = (struct ieee80211_twt_params *) ++ptr;
+	twt_params = (struct ieee80211_twt_params *)(++ptr);
 	vif = morse_vif_to_ieee80211_vif(mors_vif);
 	ret = morse_twt_validate_params(mors, vif, twt_params);
 	if (ret) {
-		morse_warn(mors, "%s: Invalid TWT Params\n", __func__);
+		MORSE_TWT_WARN(mors, "%s: Invalid TWT Params\n", __func__);
 		return ret;
 	}
 
 	flow_id = (twt_params->req_type & IEEE80211_TWT_REQTYPE_FLOWID) >>
-		IEEE80211_TWT_REQTYPE_FLOWID_OFFSET;
+	    IEEE80211_TWT_REQTYPE_FLOWID_OFFSET;
 
-	/* Copy message into it's own memory and fill friendly values. */
-	event->setup.agr_data = kmalloc(sizeof(*(event->setup.agr_data)), GFP_KERNEL);
+	/* Copy message into its own memory and fill friendly values. */
+	event->setup.agr_data = kmalloc(sizeof(*event->setup.agr_data), GFP_ATOMIC);
 	if (!event->setup.agr_data)
 		return -ENOMEM;
 
@@ -1459,7 +1493,7 @@ int morse_twt_init_vif(struct morse *mors, struct morse_vif *mors_vif)
 	if (!mors || !mors_vif)
 		return -EINVAL;
 
-	mutex_init(&mors_vif->twt.lock);
+	spin_lock_init(&mors_vif->twt.lock);
 	INIT_LIST_HEAD(&mors_vif->twt.stas);
 	INIT_LIST_HEAD(&mors_vif->twt.wake_intervals);
 	INIT_LIST_HEAD(&mors_vif->twt.events);
@@ -1481,12 +1515,12 @@ int morse_twt_finish_vif(struct morse *mors, struct morse_vif *mors_vif)
 	twt = &mors_vif->twt;
 
 	cancel_work_sync(&twt->work);
-	mutex_lock(&twt->lock);
+	spin_lock_bh(&twt->lock);
 	morse_twt_sta_remove_all(mors, twt);
-	morse_twt_event_queue_purge(mors, mors_vif, NULL);
 	morse_twt_tx_queue_purge(mors, twt, NULL);
 	morse_twt_to_install_queue_purge(mors, twt, NULL);
-	mutex_unlock(&twt->lock);
+	spin_unlock_bh(&twt->lock);
+	morse_twt_event_queue_purge(mors, mors_vif, NULL);
 	return 0;
 }
 
@@ -1502,11 +1536,10 @@ static int twt_calculate_wake_duration(int wake_duration)
 
 static u64 twt_calculate_wake_interval(u16 mantissa, int exponent)
 {
-	return ((u64)mantissa * (1UL << exponent));
+	return (u64)mantissa * (1UL << exponent);
 }
 
-static u64 twt_calculate_wake_interval_fields(u64 wake_interval,
-	u16 *mantissa, int *exponent)
+static u64 twt_calculate_wake_interval_fields(u64 wake_interval, u16 *mantissa, int *exponent)
 {
 	/* Calculate wake interval fields; wake interval = mantissa * 2^exponent */
 	if (wake_interval > __UINT16_MAX__) {
@@ -1528,7 +1561,8 @@ static u64 twt_calculate_wake_interval_fields(u64 wake_interval,
 			u64 interval = twt_calculate_wake_interval(m, e);
 
 			if (abs(wake_interval - interval) > difference) {
-				m -= 1; /* let's take the mantissa that gave us the closest approximation */
+				/* let's take the mantissa that gave us the closest approximation */
+				m -= 1;
 				break;
 			}
 
@@ -1541,7 +1575,7 @@ static u64 twt_calculate_wake_interval_fields(u64 wake_interval,
 		wake_interval = twt_calculate_wake_interval(m, e);
 	} else {
 		*exponent = 0;
-		*mantissa = (int) wake_interval;
+		*mantissa = (int)wake_interval;
 	}
 
 	return wake_interval;
@@ -1554,6 +1588,7 @@ static int morse_twt_process_set_cmd(struct morse *mors,
 	int ret = 0;
 	int exponent = 0;
 	struct morse_twt_agreement_data *agreement = NULL;
+	u64 *wake_interval_us = &cmd_set_twt->set_twt_conf.wake_interval_us;
 
 	agreement = kzalloc(sizeof(*agreement), GFP_KERNEL);
 
@@ -1562,32 +1597,34 @@ static int morse_twt_process_set_cmd(struct morse *mors,
 
 	if (cmd_set_twt->cmd == TWT_CONF_SUBCMD_CONFIGURE_EXPLICIT) {
 		agreement->params.mantissa =
-			cmd_set_twt->set_twt_conf.explicit.wake_interval_mantissa;
+		    cmd_set_twt->set_twt_conf.explicit.wake_interval_mantissa;
 		exponent = cmd_set_twt->set_twt_conf.explicit.wake_interval_exponent;
 		agreement->wake_interval_us =
-			twt_calculate_wake_interval(agreement->params.mantissa, exponent);
+		    twt_calculate_wake_interval(agreement->params.mantissa, exponent);
 	} else {
-		agreement->wake_interval_us = twt_calculate_wake_interval_fields(
-			le64_to_cpu(cmd_set_twt->set_twt_conf.wake_interval_us),
-			&agreement->params.mantissa, &exponent);
+		agreement->wake_interval_us =
+		    twt_calculate_wake_interval_fields(le64_to_cpu(*wake_interval_us),
+						       &agreement->params.mantissa, &exponent);
 	}
 
 	agreement->wake_duration_us = cmd_set_twt->set_twt_conf.wake_duration;
 	agreement->params.min_twt_dur = twt_calculate_wake_duration(agreement->wake_duration_us);
-	agreement->params.req_type |= (cmd_set_twt->flow_id << IEEE80211_TWT_REQTYPE_FLOWID_OFFSET) &
-		IEEE80211_TWT_REQTYPE_FLOWID;
-	agreement->params.req_type |= (exponent  << IEEE80211_TWT_REQTYPE_WAKE_INT_EXP_OFFSET) &
-		IEEE80211_TWT_REQTYPE_WAKE_INT_EXP;
+	agreement->params.req_type |=
+	    cmd_set_twt->flow_id <<
+	    (IEEE80211_TWT_REQTYPE_FLOWID_OFFSET) & IEEE80211_TWT_REQTYPE_FLOWID;
+	agreement->params.req_type |= (exponent << IEEE80211_TWT_REQTYPE_WAKE_INT_EXP_OFFSET) &
+	    IEEE80211_TWT_REQTYPE_WAKE_INT_EXP;
 
-	morse_dbg(mors, "TWT config dur:%d mant:%d exp:%d wake_int:%lld req:0x%x\n",
-				agreement->params.min_twt_dur, agreement->params.mantissa,
-				exponent, agreement->wake_interval_us, agreement->params.req_type);
+	MORSE_TWT_DBG(mors, "TWT config dur:%d mant:%d exp:%d wake_int:%lld req:0x%x\n",
+		      agreement->params.min_twt_dur, agreement->params.mantissa,
+		      exponent, agreement->wake_interval_us, agreement->params.req_type);
 
 	if (cmd_set_twt->cmd == TWT_CONF_SUBCMD_FORCE_INSTALL_AGREEMENT) {
-		/* Send cmd to fw*/
+		/* Send cmd to fw */
 		agreement->params.twt = cmd_set_twt->set_twt_conf.target_wake_time;
-		ret = morse_cmd_twt_agreement_install_req(
-			mors, agreement, le16_to_cpu(cmd_set_twt->interface_id));
+		ret = morse_cmd_twt_agreement_install_req(mors,
+							  agreement,
+							  le16_to_cpu(cmd_set_twt->hdr.vif_id));
 
 		/* If we force installation of an agreement then we must be a requester. YMMV if
 		 * something else is in conflict.
@@ -1599,15 +1636,16 @@ static int morse_twt_process_set_cmd(struct morse *mors,
 	}
 
 	/* Verify the values we are sending are compatible with the running firmware. */
-	ret = morse_cmd_twt_agreement_validate_req(
-		mors, agreement, le16_to_cpu(cmd_set_twt->interface_id));
+	ret = morse_cmd_twt_agreement_validate_req(mors,
+						   agreement, le16_to_cpu(cmd_set_twt->hdr.vif_id));
 
 	agreement->params.req_type |= IEEE80211_TWT_REQTYPE_REQUEST;
 	agreement->params.req_type |= (cmd_set_twt->set_twt_conf.twt_setup_command <<
-		IEEE80211_TWT_REQTYPE_SETUP_CMD_OFFSET) & IEEE80211_TWT_REQTYPE_SETUP_CMD;
+				       IEEE80211_TWT_REQTYPE_SETUP_CMD_OFFSET) &
+	    IEEE80211_TWT_REQTYPE_SETUP_CMD;
 
 	if (ret) {
-		morse_warn(mors, "TWT request invalid\n");
+		MORSE_TWT_WARN(mors, "TWT request invalid\n");
 		goto exit;
 	}
 
@@ -1624,10 +1662,9 @@ static int morse_twt_process_remove_cmd(struct morse *mors,
 {
 	struct morse_cmd_remove_twt_agreement remove_twt;
 
-	remove_twt.interface_id = cmd_remove_twt->interface_id;
 	remove_twt.flow_id = cmd_remove_twt->flow_id;
 	/* Handle the remove command in the driver for removal of any twt config data */
-	return morse_cmd_twt_remove_req(mors, &remove_twt);
+	return morse_cmd_twt_remove_req(mors, &remove_twt, le16_to_cpu(cmd_remove_twt->hdr.vif_id));
 }
 
 int morse_twt_initialise_agreement(struct morse_twt_agreement_data *twt_data, u8 *agreement)
@@ -1637,22 +1674,22 @@ int morse_twt_initialise_agreement(struct morse_twt_agreement_data *twt_data, u8
 	memset(agreement, 0, TWT_MAX_AGREEMENT_LEN);
 
 	memcpy((agreement + TWT_AGREEMENT_WAKE_DURATION_OFFSET),
-		&twt_data->params.min_twt_dur, sizeof(twt_data->params.min_twt_dur));
+	       &twt_data->params.min_twt_dur, sizeof(twt_data->params.min_twt_dur));
 	agreement_len += sizeof(twt_data->params.min_twt_dur);
 
 	memcpy((agreement + TWT_AGREEMENT_WAKE_INTERVAL_MANTISSA_OFFSET),
-		&twt_data->params.mantissa, sizeof(twt_data->params.mantissa));
+	       &twt_data->params.mantissa, sizeof(twt_data->params.mantissa));
 	agreement_len += sizeof(twt_data->params.mantissa);
 
 	/* Fill remainder of fields for the request and copy to agreement */
 	twt_data->params.req_type |= IEEE80211_TWT_REQTYPE_IMPLICIT;
 	memcpy((agreement + TWT_AGREEMENT_REQUEST_TYPE_OFFSET),
-		&twt_data->params.req_type, sizeof(twt_data->params.req_type));
+	       &twt_data->params.req_type, sizeof(twt_data->params.req_type));
 	agreement_len += sizeof(twt_data->params.req_type);
 
 	/* Copy the target wake time. Currently twt value is always present */
 	memcpy((agreement + TWT_AGREEMENT_TARGET_WAKE_TIME_OFFSET),
-		&twt_data->params.twt, sizeof(twt_data->params.twt));
+	       &twt_data->params.twt, sizeof(twt_data->params.twt));
 	agreement_len += sizeof(twt_data->params.twt);
 
 	return agreement_len + sizeof(twt_data->control) + sizeof(twt_data->params.channel);
@@ -1662,15 +1699,15 @@ int morse_process_twt_cmd(struct morse *mors, struct morse_vif *mors_vif, struct
 {
 	struct command_twt_req *cmd_twt = (struct command_twt_req *)cmd;
 
-	if (mors_vif == NULL)
+	if (!mors_vif)
 		return -EFAULT;
 
-	if (mors_vif->id != cmd_twt->interface_id)
+	if (mors_vif->id != cmd_twt->hdr.vif_id)
 		return -EINVAL;
 
 	if (cmd_twt->cmd == TWT_CONF_SUBCMD_CONFIGURE ||
-		cmd_twt->cmd == TWT_CONF_SUBCMD_CONFIGURE_EXPLICIT ||
-		cmd_twt->cmd == TWT_CONF_SUBCMD_FORCE_INSTALL_AGREEMENT)
+	    cmd_twt->cmd == TWT_CONF_SUBCMD_CONFIGURE_EXPLICIT ||
+	    cmd_twt->cmd == TWT_CONF_SUBCMD_FORCE_INSTALL_AGREEMENT)
 		return morse_twt_process_set_cmd(mors, mors_vif, cmd_twt);
 	else if (cmd_twt->cmd == TWT_CONF_SUBCMD_REMOVE_AGREEMENT)
 		return morse_twt_process_remove_cmd(mors, mors_vif, cmd_twt);

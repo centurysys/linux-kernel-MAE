@@ -6,13 +6,12 @@
 #ifndef _MORSE_S1G_RADIOTAP_H_
 #define _MORSE_S1G_RADIOTAP_H_
 
-/* These are likely to be later defined in Linux. if some remove them */
-#define	IEEE80211_CHAN_700MHZ	0x0002	/* 700 MHz spectrum channel. */
-#define	IEEE80211_CHAN_800MHZ	0x0004	/* 800 MHz spectrum channel. */
-#define	IEEE80211_CHAN_900MHZ	0x0008	/* 900 MHz spectrum channel. */
+#define	IEEE80211_CHAN_700MHZ	0x0002	/* 700 MHz spectrum channel */
+#define	IEEE80211_CHAN_800MHZ	0x0004	/* 800 MHz spectrum channel */
+#define	IEEE80211_CHAN_900MHZ	0x0008	/* 900 MHz spectrum channel */
 
-#define IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_CMAC       0x0002
-#define IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_CONTROL    0x0004
+#define IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_CMAC	0x0002
+#define IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_CONTROL	0x0004
 #define IEEE80211_RADIOTAP_HALOW_FLAGS_S1G_NDP_MANAGEMENT 0x00f0
 #define IEEE80211_RADIOTAP_HALOW_FLAGS_S1G		0x0001
 #define IEEE80211_RADIOTAP_HALOW_FLAGS_NDP		0x0010
@@ -32,14 +31,13 @@
 #define DOT11_RT_S1G_KNOWN_COLOR		0x0040
 #define DOT11_RT_S1G_KNOWN_UPL_IND		0x0080
 
-
 /* DATA1 field */
-#define DOT11_RT_S1G_DAT1_PPDU_FMT_SET(x)	((x << 0) & 0x0003)
-#define DOT11_RT_S1G_DAT1_RES_IND_SET(x)	((x << 2) & 0x000C)
-#define DOT11_RT_S1G_DAT1_GI_SET(x)		((x << 5) & 0x0020)
-#define DOT11_RT_S1G_DAT1_NSS_SET(x)		((x << 6) & 0x00C0)
-#define DOT11_RT_S1G_DAT1_BW_SET(x)		((x << 8) & 0x0F00)
-#define DOT11_RT_S1G_DAT1_MCS_SET(x)		((x << 12) & 0xF000)
+#define DOT11_RT_S1G_DAT1_PPDU_FMT_SET(x)	(((x) << 0) & 0x0003)
+#define DOT11_RT_S1G_DAT1_RES_IND_SET(x)	(((x) << 2) & 0x000C)
+#define DOT11_RT_S1G_DAT1_GI_SET(x)		(((x) << 5) & 0x0020)
+#define DOT11_RT_S1G_DAT1_NSS_SET(x)		(((x) << 6) & 0x00C0)
+#define DOT11_RT_S1G_DAT1_BW_SET(x)		(((x) << 8) & 0x0F00)
+#define DOT11_RT_S1G_DAT1_MCS_SET(x)		(((x) << 12) & 0xF000)
 
 enum dot11_rt_s1g_ppdu_format {
 	DOT11_RT_S1G_PPDU_S1G_1M = 0,
@@ -69,18 +67,17 @@ enum dot11_rt_s1g_bandwidth {
 };
 
 /* DATA2 field */
-#define DOT11_RT_S1G_DAT2_COLOR_SET(x)		((x << 0) & 0x0007)
-#define DOT11_RT_S1G_DAT2_UPL_IND_SET(x)	((x << 3) & 0x0008)
-#define DOT11_RT_S1G_DAT2_RSSI_SET(x)		((x << 8) & 0xFF00)
+#define DOT11_RT_S1G_DAT2_COLOR_SET(x)		(((x) << 0) & 0x0007)
+#define DOT11_RT_S1G_DAT2_UPL_IND_SET(x)	(((x) << 3) & 0x0008)
+#define DOT11_RT_S1G_DAT2_RSSI_SET(x)		(((x) << 8) & 0xFF00)
 
+#define IEEE80211_RADIOTAP_HALOW_MASK_NDP_1MHZ	GENMASK_ULL(26, 0)	/* 25 bits */
+#define IEEE80211_RADIOTAP_HALOW_MASK_NDP_2MHZ	GENMASK_ULL(36, 0)	/* 37 bits */
 
-#define IEEE80211_RADIOTAP_HALOW_MASK_NDP_1MHZ   GENMASK_ULL(26, 0) /* 25 bits*/
-#define IEEE80211_RADIOTAP_HALOW_MASK_NDP_2MHZ   GENMASK_ULL(36, 0) /* 37 bits*/
-
-#define IEEE80211_RADIOTAP_HALOW_MASK_NDP_BW_2MHZ BIT_ULL(39)      /* bit 39 */
+#define IEEE80211_RADIOTAP_HALOW_MASK_NDP_BW_2MHZ BIT_ULL(39)	/* bit 39 */
 
 #ifndef IEEE80211_RADIOTAP_ZERO_LEN_PSDU
-#define IEEE80211_RADIOTAP_ZERO_LEN_PSDU (26) /*older kernels dont have this*/
+#define IEEE80211_RADIOTAP_ZERO_LEN_PSDU (26)	/* Older kernels don't have this */
 #endif
 
 struct radiotap_s1g_tlv {

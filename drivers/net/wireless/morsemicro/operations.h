@@ -7,6 +7,7 @@
  */
 #include <linux/bitmap.h>
 #include "morse.h"
+#include "utils.h"
 
 /**
  * enum morse_ops_flags - Features in operation on the morse device.
@@ -18,8 +19,7 @@ enum morse_ops_flags {
 	MORSE_OPS_LAST = MORSE_OPS_LEGACY_AMSDU,
 };
 
-/* CAPABILITIES_FLAGS_WIDTH = ceil(MORSE_OPS_LAST / 32) */
-#define OPERATIONS_FLAGS_WIDTH   (1)
+#define OPERATIONS_FLAGS_WIDTH   (MORSE_INT_CEIL(MORSE_OPS_LAST, 32))
 
 struct morse_ops {
 	unsigned long flags[OPERATIONS_FLAGS_WIDTH];
@@ -44,8 +44,7 @@ struct morse_ops {
  * @param flag The operation flag to check.
  * @return true if the operation is in use, false if otherwise.
  */
-static inline bool morse_ops_in_use(struct morse_ops *ops,
-	enum morse_ops_flags flag)
+static inline bool morse_ops_in_use(struct morse_ops *ops, enum morse_ops_flags flag)
 {
 	const unsigned long *flags_ptr = ops->flags;
 
@@ -58,8 +57,7 @@ static inline bool morse_ops_in_use(struct morse_ops *ops,
  * @param ops The ops struct to set.
  * @param flag The flag to set.
  */
-static inline void morse_ops_set(struct morse_ops *ops,
-	enum morse_ops_flags flag)
+static inline void morse_ops_set(struct morse_ops *ops, enum morse_ops_flags flag)
 {
 	unsigned long *flags_ptr = ops->flags;
 
@@ -72,12 +70,11 @@ static inline void morse_ops_set(struct morse_ops *ops,
  * @param ops The ops struct to clear.
  * @param flag The flag to clear.
  */
-static inline void morse_ops_clear(struct morse_ops *ops,
-	enum morse_ops_flags flag)
+static inline void morse_ops_clear(struct morse_ops *ops, enum morse_ops_flags flag)
 {
 	unsigned long *flags_ptr = ops->flags;
 
 	clear_bit(flag, flags_ptr);
 }
 
-#endif  /* !_MORSE_OPERATIONS_H_ */
+#endif /* !_MORSE_OPERATIONS_H_ */

@@ -29,4 +29,4 @@ void morse_hw_trace_clear(struct hw_trace *hwt);
 int morse_hw_trace_init(void);
 void morse_hw_trace_deinit(void);
 
-#endif  /* !_MORSE_HW_TRACE_H_ */
+#endif /* !_MORSE_HW_TRACE_H_ */

@@ -15,16 +15,43 @@ config MORSE_SDIO
 	help
 	  This driver supports wireless cards connected over SDIO.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called mmsdio.  If unsure, say N.
+	  The kernel device tree must be configured appropriately
+	  for the host/device interface.
+	  Both SDIO and SPI drivers may be enabled simultaneously.
+
+config MORSE_SDIO_ALIGNMENT
+	int "Alignment requirements for bulk SDIO reads/writes"
+	default 2
+	range 2 8
+	help
+	  Number of bytes to align data buffers for bulk SDIO transactions. Some hosts have
+	  specific alignment requirements for DMA, use this setting to
+	  adjust the alignment required.
+
+	  Must be a power of 2.
 
 config MORSE_SPI
 	bool "SPI support"
 	help
-	  This driver supports wireless cards connected over SDIO.
+	  This driver supports wireless cards connected over SPI.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called mmsdio.  If unsure, say N.
+	  The kernel device tree must be configured appropriately
+	  for the host/device interface.
+	  Both SDIO and SPI drivers may be enabled simultaneously.
+
+config MORSE_SPI_RK3288
+	bool "SPI support for Rockchip 3288"
+	default n
+	depends on MORSE_SPI
+	help
+	  This driver supports the Rockchip 3288 SPI interface.
+
+	  Special handling is required for this board because initialisation
+	  of the Morse chip in SPI mode requires a handshake with the SPI CS
+	  line held high, which is not supported in the Rockchip driver.
+
+	  When enabled, the Morse SPI driver must be brought up before the
+	  Rockchip SPI driver.
 
 config MORSE_USER_ACCESS
 	bool "User space access support"

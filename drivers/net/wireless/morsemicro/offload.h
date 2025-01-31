@@ -32,4 +32,4 @@
  */
 int morse_offload_dhcpc_set_address(struct morse *mors, struct morse_evt_dhcp_lease_update *evt);
 
-#endif  /* !_MORSE_OFFLOAD_H_ */
+#endif /* !_MORSE_OFFLOAD_H_ */

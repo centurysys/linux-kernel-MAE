@@ -18,21 +18,21 @@
 #define IPMON_PAYLOAD_OFFSET (32)
 
 struct ipmon_hdr {
-	uint32_t check;
-	uint32_t pktnum;
+	u32 check;
+	u32 pktnum;
 	/* Times in milliseconds since first record received by this module */
-	uint64_t time_client;
+	u64 time_client;
 	/*
 	 * The following names are intentionally vague so the call points can be moved around
 	 * without requiring changes to all of the ipmon components.
 	 */
-	uint64_t time_client_drv1;	/* Early in the driver Tx path, but may be moved */
-	uint64_t time_client_drv2;	/* Late in the driver Tx path, but may be moved */
-	uint64_t time_client_fw;
-	uint64_t time_server_fw;
-	uint64_t time_server_drv;
-	uint64_t time_server;
-	uint32_t queue_stop;
+	u64 time_client_drv1;	/* Early in the driver Tx path, but may be moved */
+	u64 time_client_drv2;	/* Late in the driver Tx path, but may be moved */
+	u64 time_client_fw;
+	u64 time_server_fw;
+	u64 time_server_drv;
+	u64 time_server;
+	u32 queue_stop;
 };
 
 /* Location of caller to IPMON */
@@ -47,7 +47,7 @@ enum ipmon_loc {
 #define IP_HDR_SIZE	20	/* sizeof(struct iphdr) */
 #define IPMON_HDRS_LEN (QOS_HDR_SIZE + LLC_HDR_SIZE + IP_HDR_SIZE)
 
-void morse_ipmon(uint64_t *time_start, struct sk_buff *skb, char *data, int len,
-	enum ipmon_loc loc, int queue_stop);
+void morse_ipmon(u64 *time_start, struct sk_buff *skb, char *data, int len,
+		 enum ipmon_loc loc, int queue_stop);
 
 #endif /* ! _MORSE_IPMON_H_ */
