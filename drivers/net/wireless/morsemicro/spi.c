@@ -1042,18 +1042,15 @@ static irqreturn_t morse_spi_irq_handler(int irq, struct morse_spi *mspi)
 	struct morse *mors = spi_get_drvdata(mspi->spi);
 
 	MORSE_WARN_ON(FEATURE_ID_SPI, !mors);
-	if (irq == gpio_to_irq(mors->cfg->mm_spi_irq_gpio)) {
-		/*
-		 * If we are using edge interrupts, we need to continuously service the IRQ until
-		 * either the chip has cleared all its IRQ bits, or the pin goes high again.
-		 */
-		do {
-			ret = morse_hw_irq_handle(mors);
-		} while (spi_use_edge_irq && ret && !gpio_get_value(mors->cfg->mm_spi_irq_gpio));
+	/*
+	 * If we are using edge interrupts, we need to continuously service the IRQ until
+	 * either the chip has cleared all its IRQ bits, or the pin goes high again.
+	 */
+	do {
+		ret = morse_hw_irq_handle(mors);
+	} while (spi_use_edge_irq && ret && !gpio_get_value(mors->cfg->mm_spi_irq_gpio));
 
-		return IRQ_HANDLED;
-	}
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 static void morse_spi_enable_irq(struct morse_spi *mspi)

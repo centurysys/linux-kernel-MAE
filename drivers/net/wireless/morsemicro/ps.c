@@ -87,15 +87,11 @@ static irqreturn_t morse_ps_irq_handle(int irq, void *arg)
 	struct morse_ps *mps = (struct morse_ps *)arg;
 	struct morse *mors = container_of(mps, struct morse, ps);
 
-	if (irq == gpio_to_irq(mors->cfg->mm_ps_async_gpio)) {
-		MORSE_PS_DBG(mors, "%s: Async wakeup request IRQ - waking up\n", __func__);
-		/* There is a delay in waking up, so pass to a queue */
-		queue_work(mors->chip_wq, &mps->async_wake_work);
+	MORSE_PS_DBG(mors, "%s: Async wakeup request IRQ - waking up\n", __func__);
+	/* There is a delay in waking up, so pass to a queue */
+	queue_work(mors->chip_wq, &mps->async_wake_work);
 
-		return IRQ_HANDLED;
-	}
-
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 static void morse_ps_async_wake_work(struct work_struct *work)
