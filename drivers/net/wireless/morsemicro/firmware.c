@@ -866,6 +866,9 @@ int morse_firmware_init(struct morse *mors, enum morse_config_test_mode test_mod
 	if (mors->cfg->get_board_type && enable_otp_check)
 		board_id = mors->cfg->get_board_type(mors);
 
+	/* store the board id for sysfs reporting. Propagate the error */
+	mors->board_id = board_id;
+
 	if (strlen(board_config_file) > 0) {
 		n = snprintf(bcf_path, sizeof(bcf_path), "%s/%s", MORSE_FW_DIR, board_config_file);
 	} else if (strlen(mors->board_serial) > 0) {

@@ -928,6 +928,7 @@ struct morse {
 	struct morse_debug debug;
 
 	char *board_serial;
+	int board_id;
 
 	/* Stored Channel Information, sta_type, enc_mode, RAW */
 	struct morse_custom_configs custom_configs;

@@ -127,6 +127,7 @@ morse-y += mbssid.o
 morse-y += mesh.o
 morse-y += page_slicing.o
 morse-y += pv1.o
+morse-y += sysfs.o
 morse-$(CONFIG_MORSE_MONITOR) += monitor.o
 morse-$(CONFIG_MORSE_SDIO) += sdio.o
 morse-$(CONFIG_MORSE_SPI) += spi.o

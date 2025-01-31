@@ -14,6 +14,7 @@
 #include "mac.h"
 #include "s1g_ies.h"
 #include "bus.h"
+#include "sysfs.h"
 #include "debug.h"
 #include "command.h"
 #include "vendor.h"
@@ -6289,6 +6290,10 @@ int morse_mac_register(struct morse *mors)
 	INIT_WORK(&mors->driver_restart, morse_mac_restart_work);
 	INIT_WORK(&mors->health_check, morse_health_check_work);
 
+	ret = morse_sysfs_init(mors);
+	if (ret)
+		MORSE_ERR(mors, "Unable to initialise sysfs\n");
+
 	ret = morse_init_debug(mors);
 	if (ret)
 		MORSE_ERR(mors, "Unable to create debugfs files\n");
@@ -6443,6 +6448,7 @@ static void morse_mac_deinit(struct morse *mors)
 
 void morse_mac_unregister(struct morse *mors)
 {
+	morse_sysfs_free(mors);
 	morse_deinit_debug(mors);
 	morse_ps_disable(mors);
 
