@@ -305,7 +305,11 @@ int uaccess_init(struct uaccess *uaccess)
 	pr_info("uaccess char driver major number is %d\n", uaccess_major);
 
 	/*  prepare create /dev/... instance */
+#if KERNEL_VERSION(6, 4, 0) <= LINUX_VERSION_CODE
+	uaccess->drv_class = class_create(MORSE_DEV_NAME);
+#else
 	uaccess->drv_class = class_create(THIS_MODULE, MORSE_DEV_NAME);
+#endif
 	if (IS_ERR(uaccess->drv_class)) {
 		ret = -ENOMEM;
 		MORSE_PR_ERR(FEATURE_ID_DEFAULT, MORSE_DEV_NAME " class_create failed\n");
