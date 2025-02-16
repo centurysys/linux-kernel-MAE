@@ -52,7 +52,7 @@
 	compatible = "sl5gbox1", "fsl,ls1012a";
 
 	aliases {
-		ethernet0 = &pfe_mac1;
+		ethernet0 = &pfe_mac0;
 		ethernet1 = &eth1;
 	};
 
@@ -198,12 +198,12 @@
 
 		eth0_phy_reset {
 			label = "ETH0_PHY_RESET";
-			gpios = <&ioexp_a 10 GPIO_ACTIVE_LOW>;
+			gpios = <&ioexp_a 9 GPIO_ACTIVE_LOW>;
 		};
 
 		eth1_phy_reset {
 			label = "ETH1_PHY_RESET";
-			gpios = <&ioexp_a 11 GPIO_ACTIVE_LOW>;
+			gpios = <&ioexp_a 10 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -267,9 +267,9 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		eth1: eth1@3 {
+		eth1: eth1 {
 			compatible = "intel,igb";
-			reg = <0x00010000 0 0 0 0>;
+			reg = <0x01000000 0 0 0 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			mac-address = [ 00 80 6d 01 23 45 ];
@@ -474,48 +474,31 @@
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
-	//fsl,pfe-num-interfaces = <0x1>;
+	fsl,pfe-num-interfaces = <0x1>;
 
-	ethernet@0 {
+	pfe_mac0: pfe_mac0 {
 		compatible = "fsl,pfe-gemac-port";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x0>;	/* GEM_ID */
-		fsl,gemac-bus-id = <0x0>;	/* BUS_ID */
-		fsl,gemac-phy-id = <0x0>;	/* PHY_ID */
+		fsl,gemac-bus-id = <0x0>;
 		fsl,mdio-mux-val = <0x0>;
 		phy-mode = "sgmii";
-		fsl,pfe-phy-if-flags = <0x0>;
-
-		mdio@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x1>; /* enabled/disabled */
-
-			sgmii_phy1: ethernet-phy@1 {
-				reg = <5>;
-				ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
-				#interrupt-cells = <2>;
-				interrupt-parent = <&gpio1>;
-				interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
-				irq-gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
-			};
-		};
+		phy-handle = <&sgmii_phy1>;
+		mac-address = [ 00 80 6d 01 23 46 ];
 	};
 
-	pfe_mac1: ethernet@1 {
-		compatible = "fsl,pfe-gemac-port";
+	mdio@0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0x1>;	/* GEM_ID */
-		fsl,gemac-bus-id = <0x1>;       /* BUS_ID */
-		fsl,gemac-phy-id = <0x5>;       /* PHY_ID */
-		fsl,mdio-mux-val = <0x0>;
-		phy-mode = "sgmii";
-		fsl,pfe-phy-if-flags = <0x0>;
 
-		mdio@0 {
-			reg = <0x0>; /* enabled/disabled */
+		sgmii_phy1: ethernet-phy@1 {
+			reg = <5>;
+			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&gpio1>;
+			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+			irq-gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
