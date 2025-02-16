@@ -59,7 +59,7 @@ struct ls1012a_pfe_platform_data {
 	struct ls1012a_mdio_platform_data ls1012a_mdio_pdata[3];
 };
 
-#define NUM_GEMAC_SUPPORT	2
+#define NUM_GEMAC_SUPPORT	1
 #define DRV_NAME		"pfe-eth"
 #define DRV_VERSION		"1.0"
 
