@@ -70,16 +70,6 @@
 		regulator-always-on;
 	};
 
-	dipsw: dipsw {
-		compatible = "nxr,dipsw";
-		status = "ok";
-
-		gpios = <&gpio1 3 GPIO_ACTIVE_LOW
-			 &gpio1 4 GPIO_ACTIVE_LOW
-			 &gpio1 5 GPIO_ACTIVE_LOW
-			 &gpio1 6 GPIO_ACTIVE_LOW>;
-	};
-
 	leds_system: leds_system {
 		compatible = "gpio-leds";
 		status = "ok";
@@ -257,6 +247,16 @@
 			default-state = "on";
 		};
 	};
+
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+
+		sw_init: sw_init {
+			label = "SW_INIT";
+			linux,code = <0x100>; /* BTN_0 */
+			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
+		};
+	};
 };
 
 &pcie1 {
@@ -355,6 +355,11 @@
 	eeprom@50 {
 		compatible = "24c16";
 		reg = <0x50>;
+	};
+
+	m41t80: rtc@68 {
+		compatible = "st,m41t80";
+		reg = <0x68>;
 	};
 
 	ioexp_a: gpio@74 {
@@ -505,4 +510,9 @@
 
 &sai2 {
 	status = "okay";
+};
+
+&gpio1 {
+	gpio-line-names = "usb_drvvbus", "", "SW_INIT", "DIPSW3", "DIPSW2", "DIPSW1", "DIPSW0",
+			  "", "", "", "PowerLED_G", "", "", "", "", "";
 };
