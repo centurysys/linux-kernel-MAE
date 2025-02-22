@@ -64,6 +64,7 @@ enum dispc_dss_subrevision {
 	DISPC_AM62A7,
 	DISPC_AM62P51,
 	DISPC_AM62P52,
+	DISPC_AM62L,
 	DISPC_AM65X,
 	DISPC_J721E,
 };
@@ -82,7 +83,7 @@ struct dispc_features {
 	const char *vp_name[TIDSS_MAX_PORTS]; /* Should match dt reg names */
 	const char *ovr_name[TIDSS_MAX_PORTS]; /* Should match dt reg names */
 	const char *vpclk_name[TIDSS_MAX_PORTS]; /* Should match dt clk names */
-	const enum dispc_vp_bus_type vp_bus_type[TIDSS_MAX_PORTS];
+	enum dispc_vp_bus_type vp_bus_type[TIDSS_MAX_PORTS];
 	struct tidss_vp_feat vp_feat;
 	u32 num_planes;
 	const char *vid_name[TIDSS_MAX_PLANES]; /* Should match dt reg names */
@@ -93,6 +94,7 @@ struct dispc_features {
 extern const struct dispc_features dispc_k2g_feats;
 extern const struct dispc_features dispc_am625_feats;
 extern const struct dispc_features dispc_am62a7_feats;
+extern const struct dispc_features dispc_am62l_feats;
 extern const struct dispc_features dispc_am62p51_feats;
 extern const struct dispc_features dispc_am62p52_feats;
 extern const struct dispc_features dispc_am65x_feats;

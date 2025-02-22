@@ -62,6 +62,7 @@ static int k3_m4_rproc_probe(struct platform_device *pdev)
 	kproc = rproc->priv;
 	kproc->dev = dev;
 	kproc->data = data;
+	kproc->rproc = rproc;
 	platform_set_drvdata(pdev, rproc);
 
 	kproc->ti_sci = devm_ti_sci_get_by_phandle(dev, "ti,sci");
@@ -81,6 +82,8 @@ static int k3_m4_rproc_probe(struct platform_device *pdev)
 	if (IS_ERR(kproc->tsp))
 		return dev_err_probe(dev, PTR_ERR(kproc->tsp),
 				     "failed to construct ti-sci proc control\n");
+
+	init_completion(&kproc->shut_comp);
 
 	ret = ti_sci_proc_request(kproc->tsp);
 	if (ret < 0)

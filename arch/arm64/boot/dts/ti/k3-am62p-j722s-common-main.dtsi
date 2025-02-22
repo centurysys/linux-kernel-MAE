@@ -254,11 +254,24 @@
 	};
 
 	main_pmx0: pinctrl@f4000 {
-		compatible = "pinctrl-single";
+		compatible = "ti,am654-padconf", "pinctrl-single";
 		reg = <0x00 0xf4000 0x00 0x2ac>;
 		#pinctrl-cells = <1>;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0xffffffff>;
+		/*
+		 * pinctrl IP DOES NOT give any functional IRQs when a
+		 * system is in active state. This IRQ is only a dummy IRQ
+		 * that is being used to trick Linux into thinking that
+		 * GIC can potentially recieve an interrupt from this IP.
+		 * This helps us setup the IO daisychain wakeups for deep
+		 * sleep via chained wake IRQs.
+		 * Please feel free to assign a different number here as
+		 * long as it is unused if 98 conflicts with another use case.
+		 */
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
 		bootph-all;
 	};
 
@@ -677,6 +690,7 @@
 			cdns,fifo-depth = <256>;
 			cdns,fifo-width = <4>;
 			cdns,trigger-address = <0x0>;
+			cdns,phase-detect-selector = <0>;
 			clocks = <&k3_clks 75 7>;
 			assigned-clocks = <&k3_clks 75 7>;
 			assigned-clock-parents = <&k3_clks 75 8>;
@@ -834,33 +848,6 @@
 		power-domains = <&k3_pds 53 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 53 0>;
 		clock-names = "fck";
-		status = "disabled";
-	};
-
-	eqep0: counter@23200000 {
-		compatible = "ti,am62-eqep";
-		reg = <0x00 0x23200000 0x00 0x100>;
-		power-domains = <&k3_pds 59 TI_SCI_PD_EXCLUSIVE>;
-		clocks = <&k3_clks 59 0>;
-		interrupts = <GIC_SPI 116 IRQ_TYPE_EDGE_RISING>;
-		status = "disabled";
-	};
-
-	eqep1: counter@23210000 {
-		compatible = "ti,am62-eqep";
-		reg = <0x00 0x23210000 0x00 0x100>;
-		power-domains = <&k3_pds 60 TI_SCI_PD_EXCLUSIVE>;
-		clocks = <&k3_clks 60 0>;
-		interrupts = <GIC_SPI 117 IRQ_TYPE_EDGE_RISING>;
-		status = "disabled";
-	};
-
-	eqep2: counter@23220000 {
-		compatible = "ti,am62-eqep";
-		reg = <0x00 0x23220000 0x00 0x100>;
-		power-domains = <&k3_pds 62 TI_SCI_PD_EXCLUSIVE>;
-		clocks = <&k3_clks 62 0>;
-		interrupts = <GIC_SPI 118 IRQ_TYPE_EDGE_RISING>;
 		status = "disabled";
 	};
 
