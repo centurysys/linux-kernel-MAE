@@ -659,6 +659,7 @@
 				  "PCIe0_1L_RC_RSTz", "PCIe0_1L_PRSNT#",
 				  "ENET1_EXP_SPARE2", "ENET1_EXP_PWRDN",
 				  "PD_I2ENET1_I2CMUX_SELC_IRQ", "ENET1_EXP_RESETZ";
+		bootph-all;
 
 		p05-hog {
 			/* P05 - USB2.0_MUX_SEL */
@@ -869,6 +870,7 @@
 			};
 
 			partition@3fc0000 {
+				bootph-all;
 				label = "ospi.phypattern";
 				reg = <0x3fc0000 0x40000>;
 			};
@@ -878,8 +880,8 @@
 	ospi0_nand: nand@0 {
 		compatible = "spi-nand";
 		reg = <0x0>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
 		spi-max-frequency = <25000000>;
 		cdns,tshsl-ns = <60>;
 		cdns,tsd2d-ns = <60>;
@@ -926,6 +928,7 @@
 			};
 
 			partition@7fc0000 {
+				bootph-all;
 				label = "ospi_nand.phypattern";
 				reg = <0x7fc0000 0x40000>;
 			};
@@ -1182,4 +1185,24 @@
 			remote-endpoint = <&sii9022_in>;
 		};
 	};
+};
+
+&mcu_rti0 {
+	assigned-clock-parents = <&k3_clks 131 4>;
+};
+
+&main_rti0 {
+	assigned-clock-parents = <&k3_clks 125 4>;
+};
+
+&main_rti1 {
+	assigned-clock-parents = <&k3_clks 126 4>;
+};
+
+&main_rti2 {
+	assigned-clock-parents = <&k3_clks 127 4>;
+};
+
+&main_rti3 {
+	assigned-clock-parents = <&k3_clks 128 4>;
 };

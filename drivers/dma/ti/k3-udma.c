@@ -33,6 +33,13 @@
 #include "k3-udma.h"
 #include "k3-psil-priv.h"
 
+static const char * const mmr_names[] = {
+	[MMR_GCFG] = "gcfg",
+	[MMR_BCHANRT] = "bchanrt",
+	[MMR_RCHANRT] = "rchanrt",
+	[MMR_TCHANRT] = "tchanrt",
+};
+
 int navss_psil_pair(struct udma_dev *ud, u32 src_thread, u32 dst_thread)
 {
 	struct udma_tisci_rm *tisci_rm = &ud->tisci_rm;
@@ -2251,7 +2258,7 @@ static int udma_probe(struct platform_device *pdev)
 	if (ud->match_data->type == DMA_TYPE_UDMA) {
 		ud->ringacc = of_k3_ringacc_get_by_phandle(dev->of_node, "ti,ringacc");
 	} else {
-		struct k3_ringacc_init_data ring_init_data;
+		struct k3_ringacc_init_data ring_init_data = { 0 };
 
 		ring_init_data.tisci = ud->tisci_rm.tisci;
 		ring_init_data.tisci_dev_id = ud->tisci_rm.tisci_dev_id;
