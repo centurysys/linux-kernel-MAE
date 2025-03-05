@@ -432,6 +432,9 @@ static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 	struct gpiod_data *data = priv;
 
 	sysfs_notify_dirent(data->value_kn);
+#ifdef CONFIG_GPIO_COUNTER
+	data->desc->counter++;
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -655,6 +658,17 @@ static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 			mode = 0;
 		if (!show_direction && test_bit(FLAG_IS_OUT, &desc->flags))
 			mode = 0;
+#ifdef CONFIG_GPIO_COUNTER
+	} else if (attr == &dev_attr_counter.attr) {
+		if (gpiod_to_irq(desc) < 0)
+			mode = 0;
+#endif
+#ifdef CONFIG_GPIO_FILTER
+	} else if (attr == &dev_attr_debounce.attr) {
+		if (!desc->gdev->chip->set_debounce ||
+		    !desc->gdev->chip->get_debounce)
+			mode = 0;
+#endif
 	}
 
 	return mode;
