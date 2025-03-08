@@ -12,6 +12,7 @@
 #include "k3-am642.dtsi"
 
 #include "k3-serdes.h"
+#include "k3-timesync-router.h"
 
 / {
 	compatible = "ti,am642-sk", "ti,am642";
@@ -362,6 +363,7 @@
 			AM64X_IOPAD(0x0028, PIN_INPUT, 0) /* (M17) OSPI0_D7 */
 			AM64X_IOPAD(0x0008, PIN_INPUT, 0) /* (N19) OSPI0_DQS */
 		>;
+		bootph-all;
 	};
 
 	main_ecap0_pins_default: main-ecap0-default-pins {
@@ -550,6 +552,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii1_pins_default>, <&rgmii2_pins_default>;
 	status = "okay";
+
+	/* Map HW8_TS_PUSH to GENF1 */
+	cpts@3d000 {
+		ti,pps = <7 1>;
+	};
 };
 
 &cpsw_port1 {
@@ -586,6 +593,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&ospi0_pins_default>;
+	bootph-all;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -598,11 +606,14 @@
 		cdns,tchsh-ns = <60>;
 		cdns,tslch-ns = <60>;
 		cdns,read-delay = <4>;
+		cdns,phy-mode;
+		bootph-all;
 
 		partitions {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
+			bootph-all;
 
 			partition@0 {
 				label = "ospi.tiboot3";
@@ -637,6 +648,7 @@
 			partition@3fc0000 {
 				label = "ospi.phypattern";
 				reg = <0x3fc0000 0x40000>;
+				bootph-all;
 			};
 		};
 	};
@@ -739,4 +751,18 @@
 	/* EQEP0 A & B available on pins 18 & 22 of J4 header */
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_eqep0_pins_default>;
+};
+
+&timesync_router {
+	/*
+	 * Use Time Sync Router to map CPTS GENF1 input to CPTS HW8_TS_PUSH output as well
+	 * as the PRU ICSSG0 SYNC1 output.
+	 */
+	mux-reg-masks-state = <
+		/* pps [cpts genf1] in22 -> out37 [cpts hw8_push] */
+		K3_TS_OFFSET(37, 0x0001ffff, 22)
+		/* pps [cpts genf1] in22 -> out26 [SYNC1_OUT pin] */
+		K3_TS_OFFSET(26, 0x0001ffff, 22)
+		>;
+	status = "okay";
 };
