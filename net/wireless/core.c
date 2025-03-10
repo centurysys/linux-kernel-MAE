@@ -1463,8 +1463,8 @@ void cfg80211_init_wdev(struct wireless_dev *wdev)
 	wdev->radio_mask = BIT(wdev->wiphy->n_radio) - 1;
 
 	if ((wdev->iftype == NL80211_IFTYPE_STATION ||
-	     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT ||
-	     wdev->iftype == NL80211_IFTYPE_ADHOC) && !wdev->use_4addr)
+	     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
+        !wdev->use_4addr)
 		wdev->netdev->priv_flags |= IFF_DONT_BRIDGE;
 
 	wiphy_work_init(&wdev->disconnect_wk, cfg80211_autodisconnect_wk);
