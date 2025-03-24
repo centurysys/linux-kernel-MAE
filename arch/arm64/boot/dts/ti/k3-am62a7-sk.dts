@@ -20,6 +20,7 @@
 
 	aliases {
 		serial0 = &wkup_uart0;
+		serial1 = &mcu_uart0;
 		serial2 = &main_uart0;
 		serial3 = &main_uart1;
 		mmc0 = &sdhci0;
@@ -333,6 +334,7 @@
 	};
 
 	main_mmc0_pins_default: main-mmc0-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM62AX_IOPAD(0x220, PIN_INPUT, 0) /* (Y3) MMC0_CMD */
 			AM62AX_IOPAD(0x218, PIN_INPUT, 0) /* (AB1) MMC0_CLKLB */
@@ -660,6 +662,7 @@
 
 &sdhci0 {
 	/* eMMC */
+	bootph-all;
 	status = "okay";
 	non-removable;
 	pinctrl-names = "default";
@@ -863,7 +866,7 @@
 
 &dss_ports {
 	/* VP2: DPI Output */
-	port@1 {
+	hdmi0_dss: port@1 {
 		reg = <1>;
 
 		dpi1_out: endpoint {

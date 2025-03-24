@@ -152,6 +152,9 @@ struct k3_r5_core {
 	u32 atcm_enable;
 	u32 btcm_enable;
 	u32 loczrama;
+	u32 set_cfg;
+	u32 clr_cfg;
+	u64 boot_vec;
 	bool released_from_reset;
 };
 
@@ -322,6 +325,11 @@ static void k3_r5_rproc_kick(struct rproc *rproc, int vqid)
 static int k3_r5_split_reset(struct k3_r5_core *core)
 {
 	int ret;
+	struct k3_r5_rproc *kproc;
+	const struct k3_r5_soc_data *soc_data;
+
+	kproc = core->rproc->priv;
+	soc_data = kproc->cluster->soc_data;
 
 	ret = reset_control_assert(core->reset);
 	if (ret) {
@@ -329,6 +337,14 @@ static int k3_r5_split_reset(struct k3_r5_core *core)
 			ret);
 		return ret;
 	}
+
+	/* On AM64 devices power-down of core1 in r5f cluster, even when core0
+	 * is on randomly gets the lpsc stuck in transition state and makes the core
+	 * un-usable. So as a work around keep the power state on with reset
+	 * asserted.
+	 */
+	if (soc_data->single_cpu_mode)
+		return ret;
 
 	ret = core->ti_sci->ops.dev_ops.put_device(core->ti_sci,
 						   core->ti_sci_id);
@@ -543,6 +559,8 @@ static int k3_r5_suspend(struct rproc *rproc)
 		}
 		kproc->rproc->state = RPROC_SUSPENDED;
 	} else if (kproc->suspend_status == RP_MBOX_SUSPEND_CANCEL) {
+		return -EBUSY;
+	} else if (kproc->suspend_status == RP_MBOX_SUSPEND_AUTO) {
 		kproc->rproc->state = RPROC_SUSPENDED;
 	}
 
@@ -577,9 +595,18 @@ static int k3_r5_resume(struct rproc *rproc)
 		}
 	} else {
 		dev_info(dev, "Core is off in resume\n");
-		rproc_boot(rproc);
-	}
+		/* restore device configuration */
+		ret = ti_sci_proc_set_config(core->tsp, core->boot_vec,
+						     core->set_cfg, core->clr_cfg);
+		if (ret)
+			dev_err(dev, "set config failed: %d\n", ret);
 
+		ret = rproc_boot(rproc);
+		if (ret) {
+			dev_err(dev, "rproc_boot failed: %d\n", ret);
+			return ret;
+		}
+	}
 	kproc->rproc->state = RPROC_RUNNING;
 	return 0;
 }
@@ -765,7 +792,7 @@ static int k3_r5_rproc_unprepare(struct rproc *rproc)
 	core0 = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
 	core1 = list_last_entry(&cluster->cores, struct k3_r5_core, elem);
 	if (cluster->mode == CLUSTER_MODE_SPLIT && core == core0 &&
-	    core1->released_from_reset) {
+	    core1->released_from_reset && !cluster->soc_data->single_cpu_mode) {
 		ret = wait_event_interruptible_timeout(cluster->core_transition,
 						       !core1->released_from_reset,
 						       msecs_to_jiffies(2000));
@@ -786,7 +813,9 @@ static int k3_r5_rproc_unprepare(struct rproc *rproc)
 	 * Notify all threads in the wait queue when core1 state has changed so
 	 * that threads waiting for this condition can be executed.
 	 */
-	core->released_from_reset = false;
+	if (!cluster->soc_data->single_cpu_mode)
+		core->released_from_reset = false;
+
 	if (core == core1)
 		wake_up_interruptible(&cluster->core_transition);
 
@@ -901,6 +930,7 @@ static int k3_r5_rproc_stop(struct rproc *rproc)
 			dev_err(dev, "We can't stop in suspended state!!!!\n");
 			return 0;
 		}
+
 		reinit_completion(&kproc->shut_comp);
 		ret = mbox_send_message(kproc->mbox, (void *)msg);
 		if (ret < 0) {
@@ -1216,7 +1246,10 @@ static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
 		ret = ti_sci_proc_set_config(core->tsp, boot_vec,
 					     set_cfg, clr_cfg);
 	}
-
+	/* cache set_cfg and clr_cfg */
+	core->boot_vec = boot_vec;
+	core->set_cfg = set_cfg;
+	core->clr_cfg = clr_cfg;
 out:
 	return ret;
 }
@@ -1395,6 +1428,12 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 		return reset_ctrl_status;
 	}
 
+	/*
+	 * Skip the waiting mechanism for sequential power-on of cores if the
+	 * core has already been booted by another entity.
+	 */
+	core->released_from_reset = c_state;
+
 	ret = ti_sci_proc_get_status(core->tsp, &boot_vec, &cfg, &ctrl,
 				     &stat);
 	if (ret < 0) {
@@ -1439,7 +1478,6 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 		/* add support for suspend/resume */
 		kproc->pm_notifier.notifier_call = r5f_pm_notifier_call;
 		register_pm_notifier(&kproc->pm_notifier);
-		ret = 0;
 		ret = 0;
 	} else {
 		dev_err(cdev, "mismatched mode: local_reset = %s, module_reset = %s, core_state = %s\n",

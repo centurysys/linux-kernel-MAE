@@ -368,6 +368,12 @@ static void emac_adjust_link(struct net_device *ndev)
 		} else {
 			icssg_set_port_state(emac, ICSSG_EMAC_PORT_DISABLE);
 		}
+
+		if (emac->link) {
+			icssg_qos_link_up(ndev);
+		} else {
+			icssg_qos_link_down(ndev);
+		}
 	}
 
 	if (emac->link) {
@@ -453,6 +459,7 @@ static u64 prueth_iep_gettime(void *clockops_data, struct ptp_system_timestamp *
 
 	ts = ((u64)hi_rollover_count) << 23 | iepcount_hi;
 	ts = ts * (u64)IEP_DEFAULT_CYCLE_TIME_NS + iepcount_lo;
+	ts += readl(prueth->shram.va + TIMESYNC_CYCLE_EXTN_TIME);
 
 	return ts;
 }
@@ -490,6 +497,9 @@ static void prueth_iep_settime(void *clockops_data, u64 ns)
 
 		usleep_range(500, 1000);
 	}
+
+	/* Clear the Cycle extension adjustments */
+	writel(0, emac->dram.va + TIMESYNC_CYCLE_EXTN_TIME);
 
 	dev_err(emac->prueth->dev, "settime timeout\n");
 }
@@ -826,6 +836,8 @@ static int emac_ndo_open(struct net_device *ndev)
 		napi_enable(&emac->tx_chns[i].napi_tx);
 	napi_enable(&emac->napi_rx);
 
+	icssg_qos_init(ndev);
+
 	/* start PHY */
 	phy_start(ndev->phydev);
 
@@ -1074,6 +1086,7 @@ static int emac_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frame
 			 u32 flags)
 {
 	struct prueth_emac *emac = netdev_priv(dev);
+	struct net_device *ndev = emac->ndev;
 	struct xdp_frame *xdpf;
 	unsigned int q_idx;
 	int nxmit = 0;
@@ -1088,8 +1101,10 @@ static int emac_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frame
 	for (i = 0; i < n; i++) {
 		xdpf = frames[i];
 		err = emac_xmit_xdp_frame(emac, xdpf, NULL, q_idx);
-		if (err != ICSSG_XDP_TX)
+		if (err != ICSSG_XDP_TX) {
+			ndev->stats.tx_dropped++;
 			break;
+		}
 		nxmit++;
 	}
 
@@ -1156,6 +1171,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_vlan_rx_kill_vid = emac_ndo_vlan_rx_del_vid,
 	.ndo_bpf = emac_ndo_bpf,
 	.ndo_xdp_xmit = emac_xdp_xmit,
+	.ndo_setup_tc = icssg_qos_ndo_setup_tc,
 };
 
 static int prueth_netdev_init(struct prueth *prueth,

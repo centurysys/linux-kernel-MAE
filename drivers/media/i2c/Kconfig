@@ -276,6 +276,18 @@ config VIDEO_IMX415
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx415.
 
+config VIDEO_IMX728
+	tristate "Sony IMX728 sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX728 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx728.
+
 config VIDEO_MAX9271_LIB
 	tristate
 
@@ -396,6 +408,18 @@ config VIDEO_OV13B10
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV13B10 camera.
+
+config VIDEO_OV2312
+	tristate "OmniVision OV2312 sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV2312 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov2312.
 
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
@@ -653,6 +677,19 @@ config VIDEO_OV9734
 
 	  To compile this driver as a module, choose M here: the
 	  module's name is ov9734.
+
+config VIDEO_OX05B1S
+	tristate "OmniVision OX05B1S sensor support"
+	depends on OF_GPIO
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OX05B1S camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called OX05B1S.
 
 config VIDEO_RDACM20
 	tristate "IMI RDACM20 camera support"
