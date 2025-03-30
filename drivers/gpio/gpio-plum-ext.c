@@ -57,6 +57,7 @@ static unsigned reg2filter[] = { 0, 1, 5, 20 };
 struct plum_gpio {
 	struct device *dev;
 	struct gpio_chip gc;
+	struct irq_chip irq;
 	void __iomem *base;
 	raw_spinlock_t lock;
 	u8 irq_enable;
@@ -64,12 +65,11 @@ struct plum_gpio {
 	int num_counters;
 	u8 wakeup_mask;
 #endif
-	int irq;
+	int irq_no;
 	u32 both_edges;
-	resource_size_t size;
 };
 
-static void plum_gpio_sync_irq(struct plum_gpio *port)
+static inline void plum_gpio_sync_irq(struct plum_gpio *port)
 {
 	u8 reg;
 
@@ -78,6 +78,15 @@ static void plum_gpio_sync_irq(struct plum_gpio *port)
 	reg &= ~port->wakeup_mask;
 #endif
 	writeb(reg, port->base + GPIO_INT_ENABLE);
+}
+
+static void plum_gpio_ack_irq(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct plum_gpio *port = gpiochip_get_data(gc);
+
+	u8 status = 1 << d->hwirq;
+	writeb(status, port->base + GPIO_INT_STATUS);
 }
 
 static void plum_gpio_mask_irq(struct irq_data *d)
@@ -148,13 +157,6 @@ static int plum_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static struct irq_chip plum_gpio_irqchip = {
-	.name = "plum_gpio",
-	.irq_mask = plum_gpio_mask_irq,
-	.irq_unmask = plum_gpio_unmask_irq,
-	.irq_set_type = plum_gpio_set_irq_type,
-};
-
 static void plum_flip_edge(struct plum_gpio *port, u32 gpio)
 {
 	u8 edge_sel;
@@ -173,16 +175,14 @@ static void plum_flip_edge(struct plum_gpio *port, u32 gpio)
 	writeb(edge_sel, port->base + GPIO_EDGE_SEL);
 }
 
-static void plum_gpio_irq_handler(struct irq_desc *desc)
+static irqreturn_t plum_gpio_irq_handler(int irq, void *data)
 {
-	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct irq_chip *irqchip = irq_desc_get_chip(desc);
-	struct plum_gpio *port = container_of(gc, struct plum_gpio, gc);
-	int offset;
+	struct plum_gpio *port = (struct plum_gpio *)data;
+	struct gpio_chip *gc = &port->gc;
+	int offset, handled = 0;
 	unsigned long flags;
 	u8 stat, enable;
 
-	chained_irq_enter(irqchip, desc);
 	raw_spin_lock_irqsave(&port->lock, flags);
 
 	stat = readb(port->base + GPIO_INT_STATUS);
@@ -193,6 +193,9 @@ static void plum_gpio_irq_handler(struct irq_desc *desc)
 	stat &= enable;
 
 	raw_spin_unlock_irqrestore(&port->lock, flags);
+
+	if (stat)
+		handled = 1;
 
 	while (stat != 0) {
 		offset = fls(stat) - 1;
@@ -205,7 +208,7 @@ static void plum_gpio_irq_handler(struct irq_desc *desc)
 		stat &= ~(1 << offset);
 	}
 
-	chained_irq_exit(irqchip, desc);
+	return IRQ_RETVAL(handled);
 }
 
 #ifdef CONFIG_GPIO_FILTER
@@ -459,67 +462,66 @@ static int plum_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node, *child;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
-	struct plum_gpio *port;
+	struct plum_gpio *g;
 	struct gpio_irq_chip *girq;
 	u32 num_counters;
+	int irq;
 	int ret;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
-	if (!port)
+	g = devm_kzalloc(dev, sizeof(*g), GFP_KERNEL);
+	if (!g)
 		return -ENOMEM;
 
-	port->dev = dev;
+	g->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	port->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(port->base))
-		return PTR_ERR(port->base);
+	g->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(g->base))
+		return PTR_ERR(g->base);
 
-	port->irq = platform_get_irq(pdev, 0);
-	if (!port->irq)
-		return -EINVAL;
+	printk("* %s: base: 0x%08lx\n", __FUNCTION__, (unsigned long)g->base);
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return irq ? irq : -EINVAL;
+	printk("* %s: irq: %d\n", __FUNCTION__, irq);
+	raw_spin_lock_init(&g->lock);
 
-	port->size = res->end - res->start + 1;
-	raw_spin_lock_init(&port->lock);
-
-	ret = bgpio_init(&port->gc, dev, 1,
-			 port->base + GPIO_STATUS,
+	ret = bgpio_init(&g->gc, dev, 1,
+			 g->base + GPIO_STATUS,
 			 NULL, NULL, NULL, NULL, BGPIOF_NO_OUTPUT);
 	if (ret) {
 		dev_err(dev, "unable to init generic GPIO\n");
 		return ret;
 	}
-	port->gc.label = "plum-gpio";
-	port->gc.base = -1;
-	port->gc.parent = dev;
-	port->gc.owner = THIS_MODULE;
+	g->gc.label = "plum-gpio";
+	g->gc.base = -1;
+	g->gc.parent = dev;
+	g->gc.owner = THIS_MODULE;
 #ifdef CONFIG_GPIO_FILTER
-	port->gc.set_debounce = plum_gpio_set_debounce;
-	port->gc.get_debounce = plum_gpio_get_debounce;
+	g->gc.set_debounce = plum_gpio_set_debounce;
+	g->gc.get_debounce = plum_gpio_get_debounce;
 #endif
-	port->gc.dbg_show = plum_gpio_dbg_show;
+	g->gc.dbg_show = plum_gpio_dbg_show;
 
 #ifdef CONFIG_GPIO_HWCOUNTER
 	ret = of_property_read_u32(np, "num-counters", &num_counters);
 	if (!ret) {
 		dev_info(dev, "num-counters: %u\n", num_counters);
-		port->num_counters = num_counters;
+		g->num_counters = num_counters;
 
 		if (num_counters > 0) {
-			port->wakeup_mask = (1 << (port->num_counters)) - 1;
-			port->gc.set_hwcounter = plum_gpio_set_hwcounter;
-			port->gc.get_hwcounter = plum_gpio_get_hwcounter;
-			port->gc.set_hwcounter_enable = plum_gpio_set_hwcounter_enable;
-			port->gc.get_hwcounter_enable = plum_gpio_get_hwcounter_enable;
-			port->gc.set_wakeup_enable = plum_gpio_set_wakeup_enable;
-			port->gc.get_wakeup_enable = plum_gpio_get_wakeup_enable;
+			g->wakeup_mask = (1 << (g->num_counters)) - 1;
+			g->gc.set_hwcounter = plum_gpio_set_hwcounter;
+			g->gc.get_hwcounter = plum_gpio_get_hwcounter;
+			g->gc.set_hwcounter_enable = plum_gpio_set_hwcounter_enable;
+			g->gc.get_hwcounter_enable = plum_gpio_get_hwcounter_enable;
+			g->gc.set_wakeup_enable = plum_gpio_set_wakeup_enable;
+			g->gc.get_wakeup_enable = plum_gpio_get_wakeup_enable;
 		}
 	}
 #endif
 
 #ifdef CONFIG_GPIO_PLUM_EXPORT_BY_DT
-	port->gc.bgpio_names = devm_kzalloc(dev, sizeof(char *) * port->gc.ngpio, GFP_KERNEL);
+	g->gc.bgpio_names = devm_kzalloc(dev, sizeof(char *) * g->gc.ngpio, GFP_KERNEL);
 
 	for_each_child_of_node(np, child) {
 		const char *name;
@@ -529,42 +531,55 @@ static int plum_gpio_probe(struct platform_device *pdev)
 		name = of_get_property(child, "label", NULL);
 		ret = of_property_read_u32(child, "reg", &reg);
 
-		if (name && ret == 0 && reg >= 0 && reg < port->gc.ngpio) {
-			port->gc.bgpio_names[reg] = name;
+		if (name && ret == 0 && reg >= 0 && reg < g->gc.ngpio) {
+			g->gc.bgpio_names[reg] = name;
 		}
 	}
 #endif
 
 	/* Disable, unmask and clear all interrupts */
-	writeb(0x00, port->base + GPIO_INT_ENABLE);
-	writeb(0xff, port->base + GPIO_INT_STATUS);
-	writeb(0x00, port->base + GPIO_FILTER);
+	writeb(0x00, g->base + GPIO_INT_ENABLE);
+	writeb(0xff, g->base + GPIO_INT_STATUS);
+	writeb(0x00, g->base + GPIO_FILTER);
 
-	girq = &port->gc.irq;
-	girq->chip = &plum_gpio_irqchip;
-	girq->parent_handler = plum_gpio_irq_handler;
+	g->irq.name = "plum-gpio";
+	g->irq.irq_ack = plum_gpio_ack_irq;
+	g->irq.irq_mask = plum_gpio_mask_irq;
+	g->irq.irq_unmask = plum_gpio_unmask_irq;
+	g->irq.irq_set_type = plum_gpio_set_irq_type;
+
+	girq = &g->gc.irq;
+	girq->chip = &g->irq;
+	//girq->parent_handler = plum_gpio_irq_handler;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents)
 		return -ENOMEM;
-	girq->parents[0] = platform_get_irq(pdev, 0);
 	girq->default_type = IRQ_TYPE_NONE;
-	girq->handler = handle_simple_irq;
+	girq->handler = handle_bad_irq;
+	girq->parents[0] = irq;
+	g->irq_no = irq;
 
-	ret = devm_gpiochip_add_data(dev, &port->gc, port);
+	ret = devm_gpiochip_add_data(dev, &g->gc, g);
 	if (ret)
 		return ret;
+
+	gpiochip_set_nested_irqchip(&g->gc, &g->irq, irq);
+
+	ret = devm_request_irq(g->gc.parent, irq,
+			       plum_gpio_irq_handler,
+			       IRQF_SHARED, dev_name(g->gc.parent), g);
 
 #ifdef CONFIG_GPIO_PLUM_EXPORT_BY_DT
 	{
 		int i, status, gpio;
 
-		for (i = 0; i < port->gc.ngpio; i++) {
-			if (port->gc.bgpio_names[i] != NULL) {
-				gpio = port->gc.base + i;
+		for (i = 0; i < g->gc.ngpio; i++) {
+			if (g->gc.bgpio_names[i] != NULL) {
+				gpio = g->gc.base + i;
 
-				status = gpio_request(gpio, port->gc.bgpio_names[i]);
+				status = gpio_request(gpio, g->gc.bgpio_names[i]);
 
 				if (status == 0) {
 					status = gpio_export(gpio, false);
@@ -575,7 +590,8 @@ static int plum_gpio_probe(struct platform_device *pdev)
 		}
 	}
 #endif
-	dev_info(dev, "plum-gpio @%p registered\n", port->base);
+	platform_set_drvdata(pdev, g);
+	dev_info(dev, "plum-gpio @%p registered\n", g->base);
 
 	return 0;
 }
