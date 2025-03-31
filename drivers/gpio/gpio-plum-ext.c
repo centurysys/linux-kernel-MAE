@@ -478,11 +478,9 @@ static int plum_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(g->base))
 		return PTR_ERR(g->base);
 
-	printk("* %s: base: 0x%08lx\n", __FUNCTION__, (unsigned long)g->base);
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0)
 		return irq ? irq : -EINVAL;
-	printk("* %s: irq: %d\n", __FUNCTION__, irq);
 	raw_spin_lock_init(&g->lock);
 
 	ret = bgpio_init(&g->gc, dev, 1,
@@ -550,7 +548,6 @@ static int plum_gpio_probe(struct platform_device *pdev)
 
 	girq = &g->gc.irq;
 	girq->chip = &g->irq;
-	//girq->parent_handler = plum_gpio_irq_handler;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);

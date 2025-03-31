@@ -35,9 +35,10 @@
 struct xioirq_gpio {
 	struct device *dev;
 	struct gpio_chip gc;
+	struct irq_chip irq;
 	void __iomem *base;
 	raw_spinlock_t lock;
-	int irq;
+	int irq_no;
 	resource_size_t size;
 };
 
@@ -101,16 +102,14 @@ static struct irq_chip xioirq_gpio_irqchip = {
 	.irq_set_type = xioirq_gpio_set_irq_type,
 };
 
-static void xioirq_gpio_irq_handler(struct irq_desc *desc)
+static irqreturn_t xioirq_gpio_irq_handler(int irq, void *data)
 {
-	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct irq_chip *irqchip = irq_desc_get_chip(desc);
-	struct xioirq_gpio *port = container_of(gc, struct xioirq_gpio, gc);
-	int offset;
+	struct xioirq_gpio *port = (struct xioirq_gpio *)data;
+	struct gpio_chip *gc = &port->gc;
+	int offset, handled = 0;
 	unsigned long flags;
 	u8 stat, enable;
 
-	chained_irq_enter(irqchip, desc);
 	raw_spin_lock_irqsave(&port->lock, flags);
 
 	stat = readb(port->base + XIO_STATUS);
@@ -122,6 +121,9 @@ static void xioirq_gpio_irq_handler(struct irq_desc *desc)
 
 	raw_spin_unlock_irqrestore(&port->lock, flags);
 
+	if (stat)
+		handled = 1;
+
 	while (stat != 0) {
 		offset = fls(stat) - 1;
 		generic_handle_irq(irq_find_mapping(gc->irq.domain,
@@ -129,7 +131,7 @@ static void xioirq_gpio_irq_handler(struct irq_desc *desc)
 		stat &= ~(1 << offset);
 	}
 
-	chained_irq_exit(irqchip, desc);
+	return IRQ_RETVAL(handled);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -168,7 +170,7 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct xioirq_gpio *port;
 	struct gpio_irq_chip *girq;
-	int ret;
+	int ret, irq;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
@@ -181,12 +183,12 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(port->base))
 		return PTR_ERR(port->base);
 
-	port->irq = platform_get_irq(pdev, 0);
-	if (!port->irq)
-		return -EINVAL;
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return irq ? irq : -EINVAL;
 
-	port->size = res->end - res->start + 1;
 	raw_spin_lock_init(&port->lock);
+	port->size = res->end - res->start + 1;
 
 	ret = bgpio_init(&port->gc, dev, 1,
 			 port->base + (port->size == 4 ? XIO_STATUS : XIO_VALUE),
@@ -221,9 +223,13 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	writeb(0x00, port->base + XIO_ENABLE);
 	writeb(0xff, port->base + XIO_STATUS);
 
+	port->irq.name = "xioirq_gpio";
+	port->irq.irq_mask = xioirq_gpio_mask_irq;
+	port->irq.irq_unmask = xioirq_gpio_unmask_irq;
+	port->irq.irq_set_type = xioirq_gpio_set_irq_type;
+
 	girq = &port->gc.irq;
 	girq->chip = &xioirq_gpio_irqchip;
-	girq->parent_handler = xioirq_gpio_irq_handler;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
@@ -236,6 +242,12 @@ static int xioirq_gpio_probe(struct platform_device *pdev)
 	ret = devm_gpiochip_add_data(dev, &port->gc, port);
 	if (ret)
 		return ret;
+
+	gpiochip_set_nested_irqchip(&port->gc, &port->irq, irq);
+
+	ret = devm_request_irq(port->gc.parent, irq,
+			       xioirq_gpio_irq_handler,
+			       IRQF_SHARED, dev_name(port->gc.parent), port);
 
 #ifdef CONFIG_GPIO_PLUM_EXPORT_BY_DT
 	{
