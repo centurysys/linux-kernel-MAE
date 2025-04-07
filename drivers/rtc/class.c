@@ -73,10 +73,12 @@ static void rtc_hctosys(struct rtc_device *rtc)
 	tv64.tv_sec = rtc_tm_to_time64(&tm);
 
 #if BITS_PER_LONG == 32
+#  ifndef CONFIG_RTC_DRV_DS1307
 	if (tv64.tv_sec > INT_MAX) {
 		err = -ERANGE;
 		goto err_read;
 	}
+#  endif
 #endif
 
 	err = do_settimeofday64(&tv64);
