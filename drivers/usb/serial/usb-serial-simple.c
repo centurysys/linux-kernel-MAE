@@ -62,6 +62,11 @@ DEVICE(flashloader, FLASHLOADER_IDS);
 					0x50,			\
 					0x01) },\
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x18d1,		\
+					0x2d00,		\
+					USB_CLASS_VENDOR_SPEC,	\
+					0xff,			\
+					0x00) },\
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x18d1,		\
 					0x2d01,		\
 					USB_CLASS_VENDOR_SPEC,	\
 					0xff,			\
