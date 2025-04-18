@@ -217,8 +217,11 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c0_default>;
+	pinctrl-1 = <&pinctrl_i2c0_gpio>;
+	sda-gpios = <&pioA PIN_PD21 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&pioA PIN_PD22 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	i2c-sda-hold-time-ns = <350>;
 	status = "okay";
 
@@ -644,6 +647,12 @@
 	pinctrl_i2c0_default: i2c0_default {
 		pinmux = <PIN_PD21__TWD0>,
 			 <PIN_PD22__TWCK0>;
+		bias-disable;
+	};
+
+	pinctrl_i2c0_gpio: i2c0_gpio {
+		pinmux = <PIN_PD21__GPIO>,
+			 <PIN_PD22__GPIO>;
 		bias-disable;
 	};
 
