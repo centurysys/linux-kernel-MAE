@@ -251,31 +251,11 @@ static void __maybe_unused morse_spi_initsequence(struct morse_spi *mspi)
 {
 	struct spi_device *spi = mspi->spi;
 
-#if 0
-	spi->mode |= SPI_CS_HIGH;
-	if (spi_setup(spi) != 0) {
-		/* Just warn; most cards work without it. */
-		dev_warn(&spi->dev, "can't change chip-select polarity\n");
-		spi->mode &= ~SPI_CS_HIGH;
-	} else {
-		/* We will send only 0xFF for training */
-		memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
-		memset(mspi->data_rx, 0xFF, MM610X_BUF_SIZE);
-		morse_spi_xfer(mspi, 18);
-
-		spi->mode &= ~SPI_CS_HIGH;
-		if (spi_setup(spi) != 0) {
-			/* Wot, we can't get the same setup we had before? */
-			dev_err(&spi->dev, "can't restore chip-select polarity\n");
-		}
-	}
-#else
 	spi->mode |= SPI_NO_CS;
 	memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
 	memset(mspi->data_rx, 0xFF, MM610X_BUF_SIZE);
 	morse_spi_xfer(mspi, 18);
 	spi->mode &= ~SPI_NO_CS;
-#endif
 }
 
 static void morse_spi_xfer_init(struct morse_spi *mspi)
@@ -572,9 +552,10 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	}
 	data_size = min(data_size, (u32)(MM610X_BUF_SIZE - (cp - mspi->data)));
 	cp += data_size;
-	end = cp;
 
-	morse_spi_xfer(mspi, end - mspi->data);
+	end = cp;
+	len = cp - mspi->data;
+	morse_spi_xfer(mspi, len);
 
 	/*
 	 * Response will already be stored in the data buffer.  It's
@@ -583,7 +564,10 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 	 */
 
 	/* Time to verify */
-	if (morse_spi_find_response(mspi, resp, end, &cp))
+	cp = resp;
+	end = cp + len;
+
+	if (morse_spi_find_response(mspi, cp, end, &cp))
 		goto exit;
 
 	data_size = block ? MMC_SPI_BLOCKSIZE : count;
@@ -681,7 +665,6 @@ static int morse_spi_cmd53_write(struct morse_spi *mspi, u8 fn, u32 address, u8 
 	/* Do the actual transfer */
 	end = cp;
 	len = end - mspi->data;
-
 	morse_spi_xfer(mspi, len);
 
 	/* Time to verify */
