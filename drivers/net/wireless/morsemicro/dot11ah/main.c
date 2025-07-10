@@ -117,7 +117,11 @@ u32 morse_dot11ah_store_cssid(struct dot11ah_ies_mask *ies_mask, u16 capab_info,
 		/* Use source addr for mesh networks as different mesh STAs beacon with same
 		 * MESH ID
 		 */
-		cssid = ~crc32(~0, bssid, ETH_ALEN);
+		if (!bssid) {
+			cssid = 0;
+		} else {
+			cssid = ~crc32(~0, bssid, ETH_ALEN);
+		}
 		/* Store mesh id in ssid field of cssid entry for mesh beacons */
 		ssid = ies_mask->ies[WLAN_EID_MESH_ID].ptr;
 		length = ies_mask->ies[WLAN_EID_MESH_ID].len;

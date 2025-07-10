@@ -409,6 +409,11 @@ void morse_page_slicing_init(struct ieee80211_vif *vif, u8 dtim_period, u8 enabl
 	struct morse_vif *mors_vif = ieee80211_vif_to_morse_vif(vif);
 	struct page_slicing *page_slicing_data = &mors_vif->page_slicing_info;
 
+	if (dtim_period == 0) {
+		/* workaround */
+		dtim_period = 1;
+	}
+
 	/* Enable Page slicing only when dtim period > 1 */
 	if (dtim_period == 1)
 		page_slicing_data->enabled = false;
