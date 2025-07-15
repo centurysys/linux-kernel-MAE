@@ -120,7 +120,7 @@ struct extended_host_table {
 	u8 ext_host_table_data_tlvs[];
 } __packed;
 
-int morse_firmware_init(struct morse *mors, uint test_mode);
+//int morse_firmware_init(struct morse *mors, uint test_mode);
 
 /**
  * @brief Perform non-destructive-reset of the chip,

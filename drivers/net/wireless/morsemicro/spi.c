@@ -25,6 +25,8 @@
 #include "uaccess.h"
 #endif
 
+extern int morse_firmware_init(struct morse *mors, enum morse_config_test_mode test_mode);
+
 #define MORSE_SPI_DBG(_m, _f, _a...)		morse_dbg(FEATURE_ID_SPI, _m, _f, ##_a)
 #define MORSE_SPI_INFO(_m, _f, _a...)		morse_info(FEATURE_ID_SPI, _m, _f, ##_a)
 #define MORSE_SPI_WARN(_m, _f, _a...)		morse_warn(FEATURE_ID_SPI, _m, _f, ##_a)
