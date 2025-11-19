@@ -185,6 +185,12 @@ static inline void __maybe_unused add_limit_rate_quirk(struct mmc_card *card,
 	card->quirk_max_rate = data;
 }
 
+static inline void __maybe_unused add_limit_speed_quirk(struct mmc_card *card,
+							int data)
+{
+	card->quirk_disabled_mode = data;
+}
+
 static inline void __maybe_unused wl1251_quirk(struct mmc_card *card,
 					       int data)
 {

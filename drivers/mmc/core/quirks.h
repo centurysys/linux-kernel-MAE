@@ -210,6 +210,14 @@ static const struct mmc_fixup __maybe_unused sdio_card_init_methods[] = {
 	END_FIXUP
 };
 
+static const struct mmc_fixup __maybe_unused sd_card_init_methods[] = {
+	MMC_FIXUP("L1BM1", CID_MANFID_SWISSBIT, 0x5342, add_limit_speed_quirk,
+		  SD_MODE_UHS_SDR104 | SD_MODE_UHS_DDR50),
+	MMC_FIXUP("0016G", CID_MANFID_SWISSBIT, 0x5342, add_limit_speed_quirk,
+		  SD_MODE_UHS_SDR104 | SD_MODE_UHS_DDR50),
+	END_FIXUP
+};
+
 static inline bool mmc_fixup_of_compatible_match(struct mmc_card *card,
 						 const char *compatible)
 {
