@@ -27,7 +27,6 @@
 #include "bus.h"
 #include "quirks.h"
 #include "mmc_ops.h"
-#include "quirks.h"
 #include "sd.h"
 #include "sd_ops.h"
 
