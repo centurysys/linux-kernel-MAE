@@ -60,6 +60,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am62d2-evm.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-minimal.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-lpmdemo.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-badge.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-dsi-rpi-7inch-panel.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-ecap-capture.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-epaper.dtbo
@@ -69,6 +70,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-m2-cc3351.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-mcan.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-nand.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-pwm.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-tida-010939.dtbo
 
 # Boards with AM62Px SoC
 dtb-$(CONFIG_ARCH_K3) += k3-am62p5-sk.dtb
