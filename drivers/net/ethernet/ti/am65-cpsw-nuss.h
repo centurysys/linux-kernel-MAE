@@ -15,6 +15,7 @@
 #include <linux/soc/ti/k3-ringacc.h>
 #include <net/devlink.h>
 #include <net/xdp.h>
+#include <net/xdp_sock_drv.h>
 #include "am65-cpsw-qos.h"
 
 struct am65_cpts;
@@ -23,7 +24,13 @@ struct am65_cpts;
 
 #define AM65_CPSW_MAX_QUEUES	8	/* both TX & RX */
 
+#define AM65_CPSW_MIN_PACKET_SIZE	VLAN_ETH_ZLEN
+#define AM65_CPSW_MAX_PACKET_SIZE	2024
+
 #define AM65_CPSW_PORT_VLAN_REG_OFFSET	0x014
+
+#define AM65_CPSW_RX_DMA_ATTR	(DMA_ATTR_SKIP_CPU_SYNC |\
+				 DMA_ATTR_WEAK_ORDERING)
 
 struct am65_cpsw_slave_data {
 	bool				mac_only;
@@ -65,6 +72,7 @@ enum am65_cpsw_tx_buf_type {
 	AM65_CPSW_TX_BUF_TYPE_SKB,
 	AM65_CPSW_TX_BUF_TYPE_XDP_TX,
 	AM65_CPSW_TX_BUF_TYPE_XDP_NDO,
+	AM65_CPSW_TX_BUF_TYPE_XSK_TX,
 };
 
 struct am65_cpsw_host {
@@ -90,6 +98,9 @@ struct am65_cpsw_tx_chn {
 	unsigned char dsize_log2;
 	char tx_chn_name[128];
 	u32 rate_mbps;
+	struct xsk_buff_pool *xsk_pool;
+	int xsk_port_id;
+	bool irq_disabled;
 };
 
 struct am65_cpsw_rx_flow {
@@ -101,6 +112,8 @@ struct am65_cpsw_rx_flow {
 	struct hrtimer rx_hrtimer;
 	unsigned long rx_pace_timeout;
 	struct page_pool *page_pool;
+	struct xsk_buff_pool *xsk_pool;
+	int xsk_port_id;
 	char name[32];
 };
 
@@ -109,12 +122,16 @@ struct am65_cpsw_tx_swdata {
 	union {
 		struct sk_buff *skb;
 		struct xdp_frame *xdpf;
+		struct xsk_buff_pool *xsk_pool;
 	};
 };
 
 struct am65_cpsw_swdata {
 	u32 flow_id;
-	struct page *page;
+	union {
+		struct page *page;
+		struct xdp_buff *xdp;
+	};
 };
 
 struct am65_cpsw_rx_chn {
@@ -190,6 +207,9 @@ struct am65_cpsw_common {
 	unsigned char switch_id[MAX_PHYS_ITEM_ID_LEN];
 	/* only for suspend/resume context restore */
 	u32			*ale_context;
+	/* XDP Zero Copy */
+	unsigned long		*xdp_zc_queues;
+	int			xsk_port_id[AM65_CPSW_MAX_QUEUES];
 };
 
 struct am65_cpsw_ndev_priv {
@@ -227,5 +247,18 @@ int am65_cpsw_nuss_update_tx_rx_chns(struct am65_cpsw_common *common,
 				     int num_tx, int num_rx);
 
 bool am65_cpsw_port_dev_check(const struct net_device *dev);
+int am65_cpsw_create_rxq(struct am65_cpsw_common *common, int id);
+void am65_cpsw_destroy_rxq(struct am65_cpsw_common *common, int id, bool retain_page_pool);
+int am65_cpsw_create_txq(struct am65_cpsw_common *common, int id);
+void am65_cpsw_destroy_txq(struct am65_cpsw_common *common, int id);
+int am65_cpsw_xsk_setup_pool(struct net_device *ndev,
+			     struct xsk_buff_pool *pool, u16 qid);
+int am65_cpsw_xsk_wakeup(struct net_device *ndev, u32 qid, u32 flags);
+static inline bool am65_cpsw_xdp_is_enabled(struct am65_cpsw_port *port)
+{
+	return !!READ_ONCE(port->xdp_prog);
+}
+struct xsk_buff_pool *am65_cpsw_xsk_get_pool(struct am65_cpsw_port *port,
+					     u32 qid);
 
 #endif /* AM65_CPSW_NUSS_H_ */

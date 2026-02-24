@@ -41,7 +41,7 @@
 #define OTAPDLYENA_SHIFT	20
 #define OTAPDLYENA_MASK		BIT(OTAPDLYENA_SHIFT)
 #define OTAPDLYSEL_SHIFT	12
-#define OTAPDLYSEL_MASK		GENMASK(15, 12)
+#define OTAPDLYSEL_MASK		GENMASK(16, 12)
 #define STRBSEL_SHIFT		24
 #define STRBSEL_4BIT_MASK	GENMASK(27, 24)
 #define STRBSEL_8BIT_MASK	GENMASK(31, 24)
@@ -77,6 +77,10 @@
 #define ITAPDLYENA_MASK		BIT(ITAPDLYENA_SHIFT)
 #define ITAPCHGWIN_SHIFT	9
 #define ITAPCHGWIN_MASK		BIT(ITAPCHGWIN_SHIFT)
+
+#define DEFAULT_DLL_TRIM_ICP	8
+
+#define DEFAULT_DLL_DRIVER_STRENGTH	50
 
 #define DRIVER_STRENGTH_50_OHM	0x0
 #define DRIVER_STRENGTH_33_OHM	0x1
@@ -156,6 +160,7 @@ struct sdhci_am654_data {
 #define SDHCI_AM654_QUIRK_FORCE_CDTEST BIT(0)
 #define SDHCI_AM654_QUIRK_SUPPRESS_V1P8_ENA BIT(1)
 #define SDHCI_AM654_QUIRK_DISABLE_HS400 BIT(2)
+#define SDHCI_AM654_QUIRK_DDR52_LIMIT_40MHZ BIT(3)
 };
 
 struct window {
@@ -175,13 +180,26 @@ struct sdhci_am654_driver_data {
 #define DLL_CALIB	(1 << 4)
 };
 
+struct freqsel_data {
+	unsigned int min_hz;
+	u8 freqsel;
+};
+
+static const struct freqsel_data freqsel_map[] = {
+	{ 170000000, 0x0 },  /* 200-170 MHz */
+	{ 140000000, 0x1 },  /* 169-140 MHz */
+	{ 110000000, 0x2 },  /* 139-110 MHz */
+	{  80000000, 0x3 },  /* 109-80 MHz */
+	{  50000000, 0x4 },  /* 79-50 MHz */
+};
+
 static void sdhci_am654_setup_dll(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
 	int sel50, sel100, freqsel;
 	u32 mask, val;
-	int ret;
+	int ret, i;
 
 	/* Disable delay chain mode */
 	regmap_update_bits(sdhci_am654->base, PHY_CTRL5,
@@ -208,12 +226,12 @@ static void sdhci_am654_setup_dll(struct sdhci_host *host, unsigned int clock)
 		regmap_update_bits(sdhci_am654->base, PHY_CTRL5, mask, val);
 
 	} else {
-		switch (clock) {
-		case 200000000:
-			freqsel = 0x0;
-			break;
-		default:
-			freqsel = 0x4;
+		freqsel = 0x4;
+		for (i = 0; i < ARRAY_SIZE(freqsel_map); i++) {
+			if (clock >= freqsel_map[i].min_hz) {
+				freqsel = freqsel_map[i].freqsel;
+				break;
+			}
 		}
 
 		regmap_update_bits(sdhci_am654->base, PHY_CTRL5, FREQSEL_MASK,
@@ -302,8 +320,8 @@ static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask, val);
 
-	if (timing > MMC_TIMING_UHS_SDR25 && clock >= CLOCK_TOO_SLOW_HZ) {
-		sdhci_am654_setup_dll(host, clock);
+	if (timing > MMC_TIMING_UHS_SDR25 && host->mmc->actual_clock >= CLOCK_TOO_SLOW_HZ) {
+		sdhci_am654_setup_dll(host, host->mmc->actual_clock);
 		sdhci_am654->dll_enable = true;
 
 		if (timing == MMC_TIMING_MMC_HS400) {
@@ -332,6 +350,14 @@ static void sdhci_j721e_4bit_set_clock(struct sdhci_host *host,
 	u32 itap_del_ena;
 	u32 itap_del_sel;
 	u32 mask, val;
+
+	/* Override speed for DDR52 mode */
+	if (timing == MMC_TIMING_MMC_DDR52) {
+		if ((sdhci_am654->quirks & SDHCI_AM654_QUIRK_DDR52_LIMIT_40MHZ) &&
+		    (clock > 40000000)) {
+			clock = 40000000;
+		}
+	}
 
 	/* Setup Output TAP delay */
 	otap_del_sel = sdhci_am654->otap_del_sel[timing];
@@ -643,7 +669,8 @@ static const struct sdhci_ops sdhci_j721e_8bit_ops = {
 
 static const struct sdhci_pltfm_data sdhci_j721e_8bit_pdata = {
 	.ops = &sdhci_j721e_8bit_ops,
-	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12 |
+		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 		   SDHCI_QUIRK2_DISABLE_HW_TIMEOUT,
 };
@@ -681,7 +708,8 @@ static const struct sdhci_am654_driver_data sdhci_j721e_4bit_drvdata = {
 static const struct sdhci_am654_driver_data sdhci_am62_4bit_drvdata = {
 	.pdata = &sdhci_j721e_4bit_pdata,
 	.flags = IOMUX_PRESENT,
-	.quirks = SDHCI_AM654_QUIRK_SUPPRESS_V1P8_ENA,
+	.quirks = SDHCI_AM654_QUIRK_SUPPRESS_V1P8_ENA |
+		  SDHCI_AM654_QUIRK_DDR52_LIMIT_40MHZ,
 };
 
 static const struct soc_device_attribute sdhci_am654_devices[] = {
@@ -848,13 +876,19 @@ static int sdhci_am654_get_of_property(struct platform_device *pdev,
 	if (sdhci_am654->flags & DLL_PRESENT) {
 		ret = device_property_read_u32(dev, "ti,trm-icp",
 					       &sdhci_am654->trm_icp);
-		if (ret)
-			return ret;
+		if (ret) {
+			sdhci_am654->trm_icp = DEFAULT_DLL_TRIM_ICP;
+			dev_warn(dev, "ti,trm-icp not found, using default value: 0x%x\n",
+				 sdhci_am654->trm_icp);
+		}
 
 		ret = device_property_read_u32(dev, "ti,driver-strength-ohm",
 					       &drv_strength);
-		if (ret)
-			return ret;
+		if (ret) {
+			drv_strength = DEFAULT_DLL_DRIVER_STRENGTH;
+			dev_warn(dev, "ti,driver-strength-ohm not found, using default value: %d ohm\n",
+				 drv_strength);
+		}
 
 		switch (drv_strength) {
 		case 50:

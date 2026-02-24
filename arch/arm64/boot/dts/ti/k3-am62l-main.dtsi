@@ -7,6 +7,74 @@
  */
 
 &cbass_main {
+	cpsw3g: ethernet@8000000 {
+		compatible = "ti,am642-cpsw-nuss";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		reg = <0x00 0x08000000 0x00 0x200000>;
+		reg-names = "cpsw_nuss";
+		ranges = <0x00 0x00 0x00 0x08000000 0x00 0x200000>;
+		clocks = <&scmi_clk 9>;
+		clock-names = "fck";
+		power-domains = <&scmi_pds 3>;
+		dmas = <&main_pktdma 0xc600 15>,
+			   <&main_pktdma 0xc601 15>,
+			   <&main_pktdma 0xc602 15>,
+			   <&main_pktdma 0xc603 15>,
+			   <&main_pktdma 0xc604 15>,
+			   <&main_pktdma 0xc605 15>,
+			   <&main_pktdma 0xc606 15>,
+			   <&main_pktdma 0xc607 15>,
+			   <&main_pktdma 0x4600 15>;
+		dma-names = "tx0", "tx1", "tx2", "tx3", "tx4", "tx5", "tx6",
+					"tx7", "rx";
+		status = "disabled";
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			cpsw_port1: port@1 {
+				reg = <1>;
+				ti,mac-only;
+				label = "port1";
+				phys = <&phy_gmii_sel 1>;
+				ti,syscon-efuse = <&cpsw_mac_syscon 0x0>;
+				mac-address = [00 00 00 00 00 00];
+			};
+
+			cpsw_port2: port@2 {
+				reg = <2>;
+				ti,mac-only;
+				label = "port2";
+				phys = <&phy_gmii_sel 2>;
+				mac-address = [00 00 00 00 00 00];
+			};
+		};
+
+		cpsw3g_mdio: mdio@f00 {
+			compatible = "ti,cpsw-mdio","ti,davinci_mdio";
+			reg = <0x00 0xf00 0x00 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&scmi_clk 9>;
+			clock-names = "fck";
+			bus_freq = <1000000>;
+			status = "disabled";
+		};
+
+		cpts@3d000 {
+			compatible = "ti,j721e-cpts";
+			reg = <0x00 0x3d000 0x00 0x400>;
+			clocks = <&scmi_clk 10>;
+			clock-names = "cpts";
+			interrupts-extended = <&gic500 GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "cpts";
+			ti,cpts-ext-ts-inputs = <4>;
+			ti,cpts-periodic-outputs = <2>;
+		};
+	};
+
 	gic500: interrupt-controller@1800000 {
 		compatible = "arm,gic-v3";
 		reg = <0x00 0x01800000 0x00 0x10000>,	/* GICD */
@@ -78,6 +146,124 @@
 		clock-names = "gpio";
 		ti,ngpio = <79>;
 		ti,davinci-gpio-unbanked = <0>;
+	};
+
+	main_conf: bus@9000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x00 0x09000000 0x400000>;
+
+		phy_gmii_sel: phy@1be000 {
+			compatible = "ti,am654-phy-gmii-sel";
+			reg = <0x1be000 0x8>;
+			#phy-cells = <1>;
+		};
+	};
+
+	main_bcdma: dma-controller@485c4000 {
+		compatible = "ti,am62l-dmss-bcdma";
+		reg = <0x00 0x485c4000 0x00 0x4000>,
+			<0x00 0x48880000 0x00 0x10000>,
+			<0x00 0x48800000 0x00 0x80000>,
+			<0x00 0x47000000 0x00 0x200000>;
+		reg-names = "gcfg", "bchanrt", "chanrt", "ringrt";
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		#dma-cells = <4>;
+		interrupt-map-mask = <0x7ff>;
+		interrupt-map = <0 &gic500 0 0 GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>,
+			<1 &gic500 0 0 GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>,
+			<2 &gic500 0 0 GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>,
+			<3 &gic500 0 0 GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>,
+			<4 &gic500 0 0 GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
+			<5 &gic500 0 0 GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
+			<6 &gic500 0 0 GIC_SPI 364 IRQ_TYPE_LEVEL_HIGH>,
+			<7 &gic500 0 0 GIC_SPI 365 IRQ_TYPE_LEVEL_HIGH>,
+			<8 &gic500 0 0 GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>,
+			<9 &gic500 0 0 GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>,
+			<10 &gic500 0 0 GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>,
+			<11 &gic500 0 0 GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>,
+			<12 &gic500 0 0 GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>,
+			<13 &gic500 0 0 GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>,
+			<16 &gic500 0 0 GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
+			<17 &gic500 0 0 GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>,
+			<24 &gic500 0 0 GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>,
+			<25 &gic500 0 0 GIC_SPI 325 IRQ_TYPE_LEVEL_HIGH>,
+			<32 &gic500 0 0 GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>,
+			<33 &gic500 0 0 GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>,
+			<40 &gic500 0 0 GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>,
+			<41 &gic500 0 0 GIC_SPI 333 IRQ_TYPE_LEVEL_HIGH>,
+			<48 &gic500 0 0 GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>,
+			<49 &gic500 0 0 GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>,
+			<50 &gic500 0 0 GIC_SPI 386 IRQ_TYPE_LEVEL_HIGH>,
+			<51 &gic500 0 0 GIC_SPI 387 IRQ_TYPE_LEVEL_HIGH>,
+			<52 &gic500 0 0 GIC_SPI 388 IRQ_TYPE_LEVEL_HIGH>,
+			<53 &gic500 0 0 GIC_SPI 389 IRQ_TYPE_LEVEL_HIGH>,
+			<64 &gic500 0 0 GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
+			<65 &gic500 0 0 GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
+			<66 &gic500 0 0 GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>,
+			<80 &gic500 0 0 GIC_SPI 482 IRQ_TYPE_LEVEL_HIGH>,
+			<67 &gic500 0 0 GIC_SPI 548 IRQ_TYPE_LEVEL_HIGH>,
+			<128 &gic500 0 0 GIC_SPI 516 IRQ_TYPE_LEVEL_HIGH>,
+			<129 &gic500 0 0 GIC_SPI 517 IRQ_TYPE_LEVEL_HIGH>,
+			<130 &gic500 0 0 GIC_SPI 518 IRQ_TYPE_LEVEL_HIGH>,
+			<131 &gic500 0 0 GIC_SPI 519 IRQ_TYPE_LEVEL_HIGH>,
+			<132 &gic500 0 0 GIC_SPI 520 IRQ_TYPE_LEVEL_HIGH>,
+			<133 &gic500 0 0 GIC_SPI 521 IRQ_TYPE_LEVEL_HIGH>,
+			<134 &gic500 0 0 GIC_SPI 522 IRQ_TYPE_LEVEL_HIGH>,
+			<135 &gic500 0 0 GIC_SPI 523 IRQ_TYPE_LEVEL_HIGH>,
+			<136 &gic500 0 0 GIC_SPI 524 IRQ_TYPE_LEVEL_HIGH>,
+			<137 &gic500 0 0 GIC_SPI 525 IRQ_TYPE_LEVEL_HIGH>,
+			<138 &gic500 0 0 GIC_SPI 526 IRQ_TYPE_LEVEL_HIGH>,
+			<139 &gic500 0 0 GIC_SPI 527 IRQ_TYPE_LEVEL_HIGH>,
+			<140 &gic500 0 0 GIC_SPI 528 IRQ_TYPE_LEVEL_HIGH>,
+			<141 &gic500 0 0 GIC_SPI 529 IRQ_TYPE_LEVEL_HIGH>,
+			<142 &gic500 0 0 GIC_SPI 530 IRQ_TYPE_LEVEL_HIGH>,
+			<143 &gic500 0 0 GIC_SPI 531 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	main_pktdma: dma-controller@485c0000 {
+		compatible = "ti,am62l-dmss-pktdma";
+		reg = <0x00 0x485c0000 0x00 0x4000>,
+			<0x00 0x48900000 0x00 0x80000>,
+			<0x00 0x47200000 0x00 0x100000>;
+		reg-names = "gcfg", "chanrt", "ringrt";
+		#address-cells = <0>;
+		#dma-cells = <2>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0x7ff>;
+		interrupt-map = <0 &gic500 0 0 GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>,
+			<1 &gic500 0 0 GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>,
+			<2 &gic500 0 0 GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>,
+			<3 &gic500 0 0 GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>,
+			<4 &gic500 0 0 GIC_SPI 362 IRQ_TYPE_LEVEL_HIGH>,
+			<5 &gic500 0 0 GIC_SPI 363 IRQ_TYPE_LEVEL_HIGH>,
+			<6 &gic500 0 0 GIC_SPI 366 IRQ_TYPE_LEVEL_HIGH>,
+			<7 &gic500 0 0 GIC_SPI 367 IRQ_TYPE_LEVEL_HIGH>,
+			<8 &gic500 0 0 GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
+			<9 &gic500 0 0 GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>,
+			<10 &gic500 0 0 GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>,
+			<11 &gic500 0 0 GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>,
+			<12 &gic500 0 0 GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>,
+			<13 &gic500 0 0 GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>,
+			<64 &gic500 0 0 GIC_SPI 500 IRQ_TYPE_LEVEL_HIGH>,
+			<65 &gic500 0 0 GIC_SPI 501 IRQ_TYPE_LEVEL_HIGH>,
+			<66 &gic500 0 0 GIC_SPI 502 IRQ_TYPE_LEVEL_HIGH>,
+			<67 &gic500 0 0 GIC_SPI 503 IRQ_TYPE_LEVEL_HIGH>,
+			<68 &gic500 0 0 GIC_SPI 504 IRQ_TYPE_LEVEL_HIGH>,
+			<69 &gic500 0 0 GIC_SPI 505 IRQ_TYPE_LEVEL_HIGH>,
+			<70 &gic500 0 0 GIC_SPI 506 IRQ_TYPE_LEVEL_HIGH>,
+			<71 &gic500 0 0 GIC_SPI 507 IRQ_TYPE_LEVEL_HIGH>,
+			<72 &gic500 0 0 GIC_SPI 508 IRQ_TYPE_LEVEL_HIGH>,
+			<73 &gic500 0 0 GIC_SPI 509 IRQ_TYPE_LEVEL_HIGH>,
+			<74 &gic500 0 0 GIC_SPI 510 IRQ_TYPE_LEVEL_HIGH>,
+			<75 &gic500 0 0 GIC_SPI 511 IRQ_TYPE_LEVEL_HIGH>,
+			<76 &gic500 0 0 GIC_SPI 512 IRQ_TYPE_LEVEL_HIGH>,
+			<77 &gic500 0 0 GIC_SPI 513 IRQ_TYPE_LEVEL_HIGH>,
+			<78 &gic500 0 0 GIC_SPI 514 IRQ_TYPE_LEVEL_HIGH>,
+			<79 &gic500 0 0 GIC_SPI 515 IRQ_TYPE_LEVEL_HIGH>,
+			<96 &gic500 0 0 GIC_SPI 484 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	timer0: timer@2400000 {
@@ -287,10 +473,13 @@
 		clock-names = "clk_ahb", "clk_xin";
 		assigned-clocks = <&scmi_clk 125>;
 		bus-width = <8>;
+		mmc-ddr-1_8v;
 		ti,clkbuf-sel = <0x7>;
 		ti,otap-del-sel-legacy = <0x0>;
 		ti,otap-del-sel-mmc-hs = <0x0>;
+		ti,otap-del-sel-ddr52 = <0x15>;
 		ti,otap-del-sel-hs200 = <0x6>;
+		ti,itap-del-sel-ddr52 = <0x2>;
 		status = "disabled";
 	};
 
@@ -576,5 +765,59 @@
 			reg = <0x00 0x100>;
 			bootph-all;
 		};
+	};
+
+	rng: rng@3b100000 {
+		compatible = "inside-secure,safexcel-eip76";
+		reg = <0x00 0x3b100000 0x00 0x7d>;
+		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+		status = "reserved"; /* Reserved for OP-TEE */
+	};
+
+	dss: dss@30200000 {
+		compatible = "ti,am62l-dss";
+		reg = <0x00 0x30200000 0x00 0x1000>, /* common */
+		      <0x00 0x30202000 0x00 0x1000>, /* vidl1 */
+		      <0x00 0x30207000 0x00 0x1000>, /* ovr1 */
+		      <0x00 0x3020a000 0x00 0x1000>, /* vp1 */
+		      <0x00 0x30201000 0x00 0x1000>; /* common1 */
+		reg-names = "common", "vidl1", "ovr1", "vp1", "common1";
+		power-domains = <&scmi_pds 39>;
+		clocks = <&scmi_clk 162>,
+			 <&scmi_clk 161>;
+		clock-names = "fck", "vp1";
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+
+		dss_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	dphy_tx0: phy@301c0000 {
+		compatible = "ti,j721e-dphy";
+		reg = <0x0 0x301c0000 0x0 0x1000>;
+		clocks = <&scmi_clk 348>, <&scmi_clk 343>;
+		clock-names = "psm", "pll_ref";
+		#phy-cells = <0>;
+		power-domains = <&scmi_pds 86>;
+		assigned-clocks = <&scmi_clk 343>;
+		assigned-clock-parents = <&scmi_clk 341>;
+		assigned-clock-rates = <25000000>;
+		status = "disabled";
+	};
+
+	dsi0: dsi@30500000 {
+		compatible = "ti,j721e-dsi";
+		reg = <0x0 0x30500000 0x0 0x100000>, <0x0 0x30270000 0x0 0x100>;
+		clocks = <&scmi_clk 155>, <&scmi_clk 158>;
+		clock-names = "dsi_p_clk", "dsi_sys_clk";
+		power-domains = <&scmi_pds 38>;
+		interrupt-parent = <&gic500>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		phys = <&dphy_tx0>;
+		phy-names = "dphy";
+		status = "disabled";
 	};
 };
