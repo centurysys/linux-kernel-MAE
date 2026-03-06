@@ -8,6 +8,8 @@
 
 #include <dt-bindings/phy/phy-cadence.h>
 
+#include "k3-timesync-router.h"
+
 / {
 	chosen {
 		stdout-path = "serial2:115200n8";
@@ -29,6 +31,14 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		/* global cma region */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x00 0x78000000>;
+			linux,cma-default;
+		};
 
 		secure_ddr: optee@9e800000 {
 			reg = <0x00 0x9e800000 0x00 0x01800000>;
@@ -461,6 +471,13 @@
 			J784S4_WKUP_IOPAD(0x060, PIN_INPUT, 7) /* (J35) WKUP_GPIO0_2 */
 		>;
 	};
+
+	wkup_gpio_pins_default: wkup-gpio-default-pins {
+		bootph-all;
+		pinctrl-single,pins = <
+			J784S4_WKUP_IOPAD(0x070, PIN_INPUT, 7) /* (L37) WKUP_GPIO0_6 */
+		>;
+	};
 };
 
 &wkup_pmx1 {
@@ -672,7 +689,14 @@
 	status = "okay";
 };
 
+&wkup_gpio0 {
+	bootph-all;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wkup_gpio_pins_default>;
+};
+
 &fss {
+	bootph-all;
 	status = "okay";
 };
 
@@ -681,12 +705,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_fss0_ospi0_pins_default>, <&mcu_fss0_ospi0_1_pins_default>;
 
-	flash@0 {
+	ospi0_nor: flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
 		spi-tx-bus-width = <8>;
 		spi-rx-bus-width = <8>;
-		spi-max-frequency = <25000000>;
+		spi-max-frequency = <166000000>;
 		cdns,tshsl-ns = <60>;
 		cdns,tsd2d-ns = <60>;
 		cdns,tchsh-ns = <60>;
@@ -709,6 +733,65 @@
 			};
 
 			partition@280000 {
+				label = "ospi.u-boot";
+				reg = <0x280000 0x400000>;
+			};
+
+			partition@680000 {
+				label = "ospi.env";
+				reg = <0x680000 0x40000>;
+			};
+
+			partition@6c0000 {
+				label = "ospi.env.backup";
+				reg = <0x6c0000 0x40000>;
+			};
+
+			partition@800000 {
+				label = "ospi.rootfs";
+				reg = <0x800000 0x37c0000>;
+			};
+
+			partition@3fc0000 {
+				bootph-all;
+				label = "ospi.phypattern";
+				reg = <0x3fc0000 0x40000>;
+			};
+		};
+	};
+
+	ospi0_nand: nand@0 {
+		compatible = "spi-nand";
+		reg = <0x0>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
+		spi-max-frequency = <25000000>;
+		cdns,tshsl-ns = <60>;
+		cdns,tsd2d-ns = <60>;
+		cdns,tchsh-ns = <60>;
+		cdns,tslch-ns = <60>;
+		cdns,read-delay = <2>;
+		status = "disabled";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				bootph-all;
+				label = "ospi.tiboot3";
+				reg = <0x0 0x80000>;
+			};
+
+			partition@80000 {
+				bootph-all;
+				label = "ospi.tispl";
+				reg = <0x80000 0x200000>;
+			};
+
+			partition@280000 {
+				bootph-all;
 				label = "ospi.u-boot";
 				reg = <0x280000 0x400000>;
 			};
@@ -795,7 +878,6 @@
 				reg = <0x3fc0000 0x40000>;
 			};
 		};
-
 	};
 };
 
@@ -904,6 +986,11 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_cpsw_pins_default>;
+
+	cpts@3d000 {
+		/* Map HW4_TS_PUSH to GENF1 */
+		ti,pps = <3 1>;
+	};
 };
 
 &davinci_mdio {
@@ -970,6 +1057,7 @@
 &serdes_refclk {
 	status = "okay";
 	clock-frequency = <100000000>;
+	bootph-all;
 };
 
 &dss {
@@ -984,6 +1072,14 @@
 				 <&k3_clks 218 22>;
 };
 
+&pcie1_ctrl {
+	bootph-all;
+};
+
+&serdes_ln_ctrl {
+	bootph-all;
+};
+
 &serdes0 {
 	status = "okay";
 
@@ -993,6 +1089,7 @@
 		#phy-cells = <0>;
 		cdns,phy-type = <PHY_TYPE_PCIE>;
 		resets = <&serdes_wiz0 1>, <&serdes_wiz0 2>;
+		bootph-all;
 	};
 
 	serdes0_usb_link: phy@3 {
@@ -1037,6 +1134,7 @@
 		cdns,num-lanes = <4>;
 		#phy-cells = <0>;
 		cdns,phy-type = <PHY_TYPE_DP>;
+		cdns,max-bit-rate = <2700>;
 		resets = <&serdes_wiz4 1>, <&serdes_wiz4 2>,
 			 <&serdes_wiz4 3>, <&serdes_wiz4 4>;
 	};
@@ -1276,6 +1374,16 @@
 		0 0 0 0
 		0 0 0 0
 	>;
+};
+
+&timesync_router {
+	/* Use Time Sync Router to map GENF1 input to HW4_TS_PUSH output */
+	mux-reg-mask-val = <
+		/* pps [mcu cpsw cpts genf1] in17 -> out25 [mcu cpsw cpts hw4_push] */
+		K3_TS_OFFSET(25, 0x0001ffff, 17)
+		>;
+	idle-states = <0x1>;
+	status = "okay";
 };
 
 #include "k3-j784s4-j742s2-ti-ipc-firmware-common.dtsi"

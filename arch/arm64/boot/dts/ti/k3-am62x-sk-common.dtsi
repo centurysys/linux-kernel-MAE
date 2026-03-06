@@ -9,11 +9,15 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/ti-dp83867.h>
 
+#include "k3-timesync-router.h"
+
 / {
 	aliases {
 		serial0 = &wkup_uart0;
 		serial1 = &mcu_uart0;
 		serial2 = &main_uart0;
+		serial3 = &main_uart1;
+		serial4 = &pruss_uart;
 		mmc0 = &sdhci0;
 		mmc1 = &sdhci1;
 		mmc2 = &sdhci2;
@@ -331,6 +335,13 @@
 			AM62X_IOPAD(0x01a0, PIN_OUTPUT, 6) /* (E18) MCASP0_AXR0.EHRPWM1_B */
 		>;
 	};
+
+	pruss_uart_pins: pruss-uart-pins {
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x01d8, PIN_INPUT, 6) /* (C15) MCAN0_TX.PR0_UART0_RXD */
+			AM62X_IOPAD(0x01dc, PIN_OUTPUT, 6) /* (E15) MCAN0_RX.PR0_UART0_TXD */
+		>;
+	};
 };
 
 &mcu_pmx0 {
@@ -476,6 +487,11 @@
 	bootph-all;
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_rgmii1_pins_default>;
+
+	cpts@3d000 {
+		/* MAP HW3_TS_PUSH to GENF1 */
+		ti,pps = <2 1>;
+	};
 };
 
 &cpsw_port1 {
@@ -580,6 +596,14 @@
 	status = "reserved";
 };
 
+&main_bcdma {
+	bootph-all;
+};
+
+&main_pktdma {
+	bootph-all;
+};
+
 &ospi0 {
 	bootph-all;
 	status = "okay";
@@ -605,6 +629,20 @@
 	/* P36/P33 of J3 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_epwm1_pins_default>;
+	status = "okay";
+};
+
+&pruss_uart {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pruss_uart_pins>;
+	status = "okay";
+};
+
+&timesync_router {
+	mux-reg-mask-val = <
+		K3_TS_OFFSET(12, 0xff, 17)
+		>;
+	idle-states = <0x1>;
 	status = "okay";
 };
 

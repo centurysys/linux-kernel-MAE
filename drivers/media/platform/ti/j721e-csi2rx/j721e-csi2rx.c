@@ -84,7 +84,6 @@ struct ti_csi2rx_buffer {
 enum ti_csi2rx_dma_state {
 	TI_CSI2RX_DMA_STOPPED,	/* Streaming not started yet. */
 	TI_CSI2RX_DMA_ACTIVE,	/* Streaming and pending DMA operation. */
-	TI_CSI2RX_DMA_DRAINING, /* Dumping all the data in drain buffer */
 };
 
 struct ti_csi2rx_dma {
@@ -226,9 +225,87 @@ static const struct ti_csi2rx_fmt ti_csi2rx_formats[] = {
 		.bpp			= 16,
 		.size			= SHIM_DMACNTX_SIZE_16,
 	}, {
+		.fourcc			= V4L2_PIX_FMT_SRGGI10,
+		.code			= MEDIA_BUS_FMT_SRGGI10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SGRIG10,
+		.code			= MEDIA_BUS_FMT_SGRIG10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SBGGI10,
+		.code			= MEDIA_BUS_FMT_SBGGI10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SGBIG10,
+		.code			= MEDIA_BUS_FMT_SGBIG10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SGIRG10,
+		.code			= MEDIA_BUS_FMT_SGIRG10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SIGGR10,
+		.code			= MEDIA_BUS_FMT_SIGGR10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SGIBG10,
+		.code			= MEDIA_BUS_FMT_SGIBG10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SIGGB10,
+		.code			= MEDIA_BUS_FMT_SIGGB10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SBGGR12,
+		.code			= MEDIA_BUS_FMT_SBGGR12_1X12,
+		.csi_dt			= MIPI_CSI2_DT_RAW12,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SGBRG12,
+		.code			= MEDIA_BUS_FMT_SGBRG12_1X12,
+		.csi_dt			= MIPI_CSI2_DT_RAW12,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SGRBG12,
+		.code			= MEDIA_BUS_FMT_SGRBG12_1X12,
+		.csi_dt			= MIPI_CSI2_DT_RAW12,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_SRGGB12,
+		.code			= MEDIA_BUS_FMT_SRGGB12_1X12,
+		.csi_dt			= MIPI_CSI2_DT_RAW12,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
 		.fourcc			= V4L2_PIX_FMT_RGB565X,
 		.code			= MEDIA_BUS_FMT_RGB565_1X16,
 		.csi_dt			= MIPI_CSI2_DT_RGB565,
+		.bpp			= 16,
+		.size			= SHIM_DMACNTX_SIZE_16,
+	}, {
+		.fourcc			= V4L2_PIX_FMT_Y10,
+		.code			= MEDIA_BUS_FMT_Y10_1X10,
+		.csi_dt			= MIPI_CSI2_DT_RAW10,
 		.bpp			= 16,
 		.size			= SHIM_DMACNTX_SIZE_16,
 	}, {
@@ -723,19 +800,13 @@ static void ti_csi2rx_dma_callback(void *param)
 
 	WARN_ON(!list_is_first(&buf->list, &dma->submitted));
 
-	if (dma->state == TI_CSI2RX_DMA_DRAINING) {
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-		dma->state = TI_CSI2RX_DMA_ACTIVE;
-	} else {
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
-	}
+	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
 	list_del(&buf->list);
 
 	ti_csi2rx_dma_submit_pending(ctx);
 
 	if (list_empty(&dma->submitted)) {
-		dma->state = TI_CSI2RX_DMA_DRAINING;
 		if (ti_csi2rx_drain_dma(ctx))
 			dev_warn(ctx->csi->dev,
 				 "DMA drain failed on one of the transactions\n");
@@ -1287,7 +1358,7 @@ static int ti_csi2rx_init_vb2q(struct ti_csi2rx_ctx *ctx)
 	q->ops = &csi_vb2_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->dev = ctx->csi->dev;
+	q->dev = dmaengine_get_dma_device(ctx->dma.chan);
 	q->lock = &ctx->mutex;
 	q->min_queued_buffers = 1;
 	q->allow_cache_hints = 1;
@@ -1500,6 +1571,10 @@ static int ti_csi2rx_init_ctx(struct ti_csi2rx_ctx *ctx)
 	INIT_LIST_HEAD(&ctx->dma.submitted);
 	spin_lock_init(&ctx->dma.lock);
 	ctx->dma.state = TI_CSI2RX_DMA_STOPPED;
+
+	ret = ti_csi2rx_init_dma(ctx);
+	if (ret)
+		return ret;
 
 	ret = ti_csi2rx_init_vb2q(ctx);
 	if (ret)
@@ -1714,6 +1789,7 @@ static int ti_csi2rx_probe(struct platform_device *pdev)
 			goto err_ctx;
 	}
 
+	pm_runtime_set_active(csi->dev);
 	pm_runtime_enable(csi->dev);
 
 	ret = ti_csi2rx_notifier_register(csi);

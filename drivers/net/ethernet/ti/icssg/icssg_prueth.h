@@ -44,6 +44,8 @@
 #include "icssg_config.h"
 #include "icss_iep.h"
 #include "icssg_switch_map.h"
+#include "icssg_qos.h"
+#include "icssg_stats.h"
 
 #define PRUETH_MAX_MTU          (2000 - ETH_HLEN - ETH_FCS_LEN)
 #define PRUETH_MIN_PKT_SIZE     (VLAN_ETH_ZLEN)
@@ -57,8 +59,9 @@
 
 #define ICSSG_MAX_RFLOWS	8	/* per slice */
 
-#define ICSSG_NUM_PA_STATS	32
-#define ICSSG_NUM_MIIG_STATS	60
+#define ICSSG_CUT_THRU_BIT	BIT(7)
+#define ICSSG_NUM_PA_STATS	ARRAY_SIZE(icssg_all_pa_stats)
+#define ICSSG_NUM_MIIG_STATS	ARRAY_SIZE(icssg_all_miig_stats)
 /* Number of ICSSG related stats */
 #define ICSSG_NUM_STATS (ICSSG_NUM_MIIG_STATS + ICSSG_NUM_PA_STATS)
 #define ICSSG_NUM_STANDARD_STATS 31
@@ -114,6 +117,15 @@ enum prueth_mac {
 	PRUETH_MAC1,
 	PRUETH_NUM_MACS,
 	PRUETH_MAC_INVALID,
+};
+
+enum prueth_devlink_param_id {
+	PRUETH_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	PRUETH_DL_PARAM_CUT_THRU_EN,
+};
+
+struct prueth_devlink {
+	struct prueth *prueth;
 };
 
 struct prueth_tx_chn {
@@ -240,6 +252,8 @@ struct prueth_emac {
 
 	struct pruss_mem_region dram;
 
+	struct devlink_port devlink_port;
+	u8 cut_thru_queue_map;
 	bool offload_fwd_mark;
 	int port_vlan;
 
@@ -255,6 +269,7 @@ struct prueth_emac {
 	struct bpf_prog *xdp_prog;
 	struct xdp_attachment_info xdpi;
 	int xsk_qid;
+	struct prueth_qos qos;
 };
 
 /* The buf includes headroom compatible with both skb and xdpf */
@@ -322,6 +337,7 @@ struct icssg_firmwares {
  * @icssg_switch_firmwares: Firmware names for SWITCH mode, indexed per MAC
  * @icssg_hsr_firmwares: Firmware names for HSR mode, indexed per MAC
  * @icssg_prp_firmwares: Firmware names for PRP mode, indexed per MAC
+ * @devlink: pointer to devlink
  */
 struct prueth {
 	struct device *dev;
@@ -370,6 +386,7 @@ struct prueth {
 	struct icssg_firmwares icssg_switch_firmwares[PRUETH_NUM_MACS];
 	struct icssg_firmwares icssg_hsr_firmwares[PRUETH_NUM_MACS];
 	struct icssg_firmwares icssg_prp_firmwares[PRUETH_NUM_MACS];
+	struct devlink *devlink;
 };
 
 struct emac_tx_ts_response {
@@ -424,6 +441,8 @@ void icssg_class_promiscuous_sr1(struct regmap *miig_rt, int slice);
 void icssg_class_add_mcast_sr1(struct regmap *miig_rt, int slice,
 			       struct net_device *ndev);
 void icssg_ft1_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac_addr);
+void icssg_ft3_hsr_configurations(struct regmap *miig_rt, int slice,
+				  struct prueth *prueth);
 
 /* config helpers */
 void icssg_config_ipg(struct prueth_emac *emac);

@@ -13,6 +13,8 @@
 #include "k3-j722s.dtsi"
 #include "k3-serdes.h"
 
+#include "k3-timesync-router.h"
+
 / {
 	compatible = "ti,j722s-evm", "ti,j722s";
 	model = "Texas Instruments J722S EVM";
@@ -379,6 +381,11 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii1_pins_default>;
+
+	cpts@3d000 {
+		/* MAP HW3_TS_PUSH to GENF1 */
+		ti,pps = <2 1>;
+	};
 };
 
 &cpsw3g_mdio {
@@ -583,6 +590,7 @@
 		reg = <0x23>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		bootph-all;
 		gpio-line-names = "TRC_MUX_SEL", "OSPI/ONAND_MUX_SEL",
 				  "MCASP1_FET_SEL", "CTRL_PM_I2C_OE#",
 				  "CSI_VIO_SEL", "USB2.0_MUX_SEL",
@@ -671,7 +679,7 @@
 		reg = <0x0>;
 		spi-tx-bus-width = <8>;
 		spi-rx-bus-width = <8>;
-		spi-max-frequency = <25000000>;
+		spi-max-frequency = <166000000>;
 		cdns,tshsl-ns = <60>;
 		cdns,tsd2d-ns = <60>;
 		cdns,tchsh-ns = <60>;
@@ -715,6 +723,66 @@
 			};
 
 			partition@3fc0000 {
+				label = "ospi.phypattern";
+				reg = <0x3fc0000 0x40000>;
+			};
+		};
+	};
+
+	ospi0_nand: nand@0 {
+		compatible = "spi-nand";
+		reg = <0x0>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
+		spi-max-frequency = <25000000>;
+		cdns,tshsl-ns = <60>;
+		cdns,tsd2d-ns = <60>;
+		cdns,tchsh-ns = <60>;
+		cdns,tslch-ns = <60>;
+		cdns,read-delay = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				bootph-all;
+				label = "ospi.tiboot3";
+				reg = <0x0 0x80000>;
+			};
+
+			partition@80000 {
+				bootph-all;
+				label = "ospi.tispl";
+				reg = <0x80000 0x200000>;
+			};
+
+			partition@280000 {
+				bootph-all;
+				label = "ospi.u-boot";
+				reg = <0x280000 0x400000>;
+			};
+
+			partition@680000 {
+				label = "ospi.env";
+				reg = <0x680000 0x40000>;
+			};
+
+			partition@6c0000 {
+				label = "ospi.env.backup";
+				reg = <0x6c0000 0x40000>;
+			};
+
+			partition@8000000 {
+				label = "ospi.rootfs";
+				reg = <0x800000 0x37c0000>;
+			};
+
+			partition@3fc0000 {
+				bootph-all;
 				label = "ospi.phypattern";
 				reg = <0x3fc0000 0x40000>;
 			};
@@ -854,6 +922,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_i2c0_pins_default>;
 	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&timesync_router {
+	/* Use Time Sync Router to map GENF1 input to HW3_TS_PUSH output */
+	mux-reg-mask-val = <
+		/* pps [cpsw cpts genf1] in17 -> out12 [cpsw cpts hw3_push] */
+		K3_TS_OFFSET(12, 0x0001ffff, 17)
+		>;
+	idle-states = <0x1>;
 	status = "okay";
 };
 

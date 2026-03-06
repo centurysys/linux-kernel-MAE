@@ -388,7 +388,7 @@ static void am65_cpsw_nuss_ndo_slave_set_rx_mode(struct net_device *ndev)
 	cpsw_ale_set_allmulti(common->ale,
 			      ndev->flags & IFF_ALLMULTI, port->port_id);
 
-	port_mask = ALE_PORT_HOST;
+	port_mask = BIT(port->port_id) | ALE_PORT_HOST;
 	/* Clear all mcast from ALE */
 	cpsw_ale_flush_multicast(common->ale, port_mask, -1);
 
@@ -721,6 +721,10 @@ int am65_cpsw_create_rxq(struct am65_cpsw_common *common, int id)
 	}
 
 	napi_enable(&flow->napi_rx);
+	if (flow->irq_disabled) {
+		flow->irq_disabled = false;
+		enable_irq(flow->irq);
+	}
 	return 0;
 
 err:
@@ -1115,6 +1119,7 @@ static int am65_cpsw_nuss_ndo_slave_stop(struct net_device *ndev)
 
 	phylink_disconnect_phy(port->slave.phylink);
 
+	am65_cpsw_qos_cut_thru_cleanup(port);
 	ret = am65_cpsw_nuss_common_stop(common);
 	if (ret)
 		return ret;
@@ -1213,6 +1218,7 @@ static int am65_cpsw_nuss_ndo_slave_open(struct net_device *ndev)
 	/* restore vlan configurations */
 	vlan_for_each(ndev, cpsw_restore_vlans, port);
 
+	am65_cpsw_qos_cut_thru_init(port);
 	phylink_start(port->slave.phylink);
 
 	return 0;
@@ -1833,7 +1839,6 @@ static int am65_cpsw_nuss_tx_compl_packets(struct am65_cpsw_common *common,
 	struct sk_buff *skb;
 	dma_addr_t desc_dma;
 	int res, num_tx = 0;
-	int xsk_tx = 0;
 
 	tx_chn = &common->tx_chns[chn];
 
@@ -1917,7 +1922,7 @@ static int am65_cpsw_nuss_tx_compl_packets(struct am65_cpsw_common *common,
 		ndev = common->ports[tx_chn->xsk_port_id].ndev;
 		netif_txq = netdev_get_tx_queue(ndev, chn);
 		txq_trans_cond_update(netif_txq);
-		xsk_tx = am65_cpsw_xsk_xmit_zc(ndev, tx_chn);
+		am65_cpsw_xsk_xmit_zc(ndev, tx_chn);
 	}
 
 	dev_dbg(dev, "%s:%u pkt:%d\n", __func__, chn, num_tx);
@@ -2573,7 +2578,7 @@ static void am65_cpsw_nuss_mac_link_up(struct phylink_config *config, struct phy
 	/* enable forwarding */
 	cpsw_ale_control_set(common->ale, port->port_id, ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
 
-	am65_cpsw_qos_link_up(ndev, speed);
+	am65_cpsw_qos_link_up(ndev, speed, duplex);
 	netif_tx_wake_all_queues(ndev);
 }
 
@@ -3649,8 +3654,10 @@ static int am65_cpsw_dl_switch_mode_set(struct devlink *dl, u32 id,
 
 			port = am65_ndev_to_port(sl_ndev);
 			port->slave.port_vlan = 0;
-			if (netif_running(sl_ndev))
+			if (netif_running(sl_ndev)) {
 				am65_cpsw_init_port_emac_ale(port);
+				am65_cpsw_qos_cut_thru_cleanup(port);
+			}
 		}
 	}
 	cpsw_ale_control_set(cpsw->ale, HOST_PORT_NUM, ALE_BYPASS, 0);
@@ -3799,6 +3806,10 @@ static int am65_cpsw_nuss_register_ndevs(struct am65_cpsw_common *common)
 	for (i = 0; i < common->port_num; i++) {
 		port = &common->ports[i];
 
+		ret = am65_cpsw_nuss_register_port_debugfs(port);
+		if (ret)
+			goto err_cleanup_ndev;
+
 		if (!port->ndev)
 			continue;
 
@@ -3883,7 +3894,7 @@ static const struct am65_cpsw_pdata j721e_pdata = {
 };
 
 static const struct am65_cpsw_pdata am64x_cpswxg_pdata = {
-	.quirks = AM64_CPSW_QUIRK_DMA_RX_TDOWN_IRQ,
+	.quirks = AM64_CPSW_QUIRK_DMA_RX_TDOWN_IRQ | AM64_CPSW_QUIRK_CUT_THRU,
 	.ale_dev_id = "am64-cpswxg",
 	.fdqring_mode = K3_RINGACC_RING_MODE_RING,
 };
@@ -4072,9 +4083,15 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_ndevs_clear;
 
-	ret = am65_cpsw_nuss_register_ndevs(common);
+	ret = am65_cpsw_nuss_register_debugfs(common);
 	if (ret)
 		goto err_ndevs_clear;
+
+	ret = am65_cpsw_nuss_register_ndevs(common);
+	if (ret) {
+		am65_cpsw_nuss_unregister_debugfs(common);
+		goto err_ndevs_clear;
+	}
 
 	pm_runtime_put(dev);
 	return 0;

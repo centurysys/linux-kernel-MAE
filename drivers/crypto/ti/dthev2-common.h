@@ -17,6 +17,8 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/md5.h>
+#include <crypto/sha2.h>
 
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
@@ -27,10 +29,29 @@
 
 #define DTHE_REG_SIZE		4
 #define DTHE_DMA_TIMEOUT_MS	2000
+/*
+ * Size of largest possible key (of all algorithms) to be stored in dthe_tfm_ctx
+ * This is currently the keysize of HMAC-SHA512 which is 1024 bits (128 bytes)
+ */
+#define DTHE_MAX_KEYSIZE	(SHA512_BLOCK_SIZE)
+
+enum dthe_hash_alg_sel {
+	DTHE_HASH_MD5		= 0,
+	DTHE_HASH_SHA1		= BIT(1),
+	DTHE_HASH_SHA224	= BIT(2),
+	DTHE_HASH_SHA256	= BIT(1) | BIT(2),
+	DTHE_HASH_SHA384	= BIT(0),
+	DTHE_HASH_SHA512	= BIT(0) | BIT(1),
+	DTHE_HASH_ERR		= BIT(0) | BIT(1) | BIT(2),
+};
 
 enum dthe_aes_mode {
 	DTHE_AES_ECB = 0,
 	DTHE_AES_CBC,
+	DTHE_AES_CTR,
+	DTHE_AES_XTS,
+	DTHE_AES_GCM,
+	DTHE_AES_CCM,
 };
 
 /* Driver specific struct definitions */
@@ -40,7 +61,8 @@ enum dthe_aes_mode {
  * @dev: Device pointer
  * @regs: Base address of the register space
  * @list: list node for dev
- * @engine: Crypto engine instance
+ * @aes_engine: Crypto engine instance for AES Engine
+ * @hash_engine: Crypto engine instance for Hashing Engine
  * @dma_aes_rx: AES Rx DMA Channel
  * @dma_aes_tx: AES Tx DMA Channel
  * @dma_sha_tx: SHA Tx DMA Channel
@@ -49,7 +71,8 @@ struct dthe_data {
 	struct device *dev;
 	void __iomem *regs;
 	struct list_head list;
-	struct crypto_engine *engine;
+	struct crypto_engine *aes_engine;
+	struct crypto_engine *hash_engine;
 
 	struct dma_chan *dma_aes_rx;
 	struct dma_chan *dma_aes_tx;
@@ -70,32 +93,92 @@ struct dthe_list {
 /**
  * struct dthe_tfm_ctx - Transform ctx struct containing ctx for all sub-components of DTHE V2
  * @dev_data: Device data struct pointer
- * @keylen: AES key length
- * @key: AES key
+ * @keylen: Key length for algorithms that use a key
+ * @authsize: Authentication size for modes with authentication
+ * @key: Buffer storing the key
  * @aes_mode: AES mode
+ * @hash_mode: Hashing Engine mode
+ * @phash_size: partial hash size of the hash algorithm selected
+ * @aead_fb: Fallback crypto aead handle
+ * @skcipher_fb: Fallback crypto skcipher handle for AES-XTS mode
  */
 struct dthe_tfm_ctx {
 	struct dthe_data *dev_data;
 	unsigned int keylen;
-	u32 key[AES_KEYSIZE_256 / sizeof(u32)];
-	enum dthe_aes_mode aes_mode;
+	unsigned int authsize;
+	u32 key[DTHE_MAX_KEYSIZE / sizeof(u32)];
+	union {
+		enum dthe_aes_mode aes_mode;
+		enum dthe_hash_alg_sel hash_mode;
+	};
+	unsigned int phash_size;
+	union {
+		struct crypto_sync_aead *aead_fb;
+		struct crypto_sync_skcipher *skcipher_fb;
+	};
 };
 
 /**
  * struct dthe_aes_req_ctx - AES engine req ctx struct
  * @enc: flag indicating encryption or decryption operation
+ * @padding: padding buffer for handling unaligned data
  * @aes_compl: Completion variable for use in manual completion in case of DMA callback failure
  */
 struct dthe_aes_req_ctx {
 	int enc;
+	u8 padding[2 * AES_BLOCK_SIZE];
 	struct completion aes_compl;
+};
+
+/**
+ * struct dthe_hash_req_ctx - Hashing engine ctx struct
+ * @phash: buffer to store a partial hash from a previous operation
+ * @digestcnt: stores the digest count from a previous operation; currently hardware only provides
+ *             a single 32-bit value even for SHA384/512
+ * @odigest: buffer to store the outer digest from a previous operation
+ * @phash_available: flag indicating if a partial hash from a previous operation is available
+ * @flags: flags for internal use
+ * @padding: padding buffer for handling unaligned data
+ * @hash_compl: Completion variable for use in manual completion in case of DMA callback failure
+ */
+struct dthe_hash_req_ctx {
+	u32 phash[SHA512_DIGEST_SIZE / sizeof(u32)];
+	u64 digestcnt[2];
+	u32 odigest[SHA512_DIGEST_SIZE / sizeof(u32)];
+	u8 phash_available;
+	u8 flags;
+	u8 padding[SHA512_BLOCK_SIZE];
+	struct completion hash_compl;
 };
 
 /* Struct definitions end */
 
 struct dthe_data *dthe_get_dev(struct dthe_tfm_ctx *ctx);
 
+/**
+ * dthe_copy_sg - Copy sg entries from src to dst
+ * @dst: Destination sg to be filled
+ * @src: Source sg to be copied from
+ * @buflen: Number of bytes to be copied
+ *
+ * Description:
+ *   Copy buflen bytes of data from src to dst.
+ *
+ **/
+struct scatterlist *dthe_copy_sg(struct scatterlist *dst,
+				 struct scatterlist *src,
+				 int buflen);
+
+inline struct dma_async_tx_descriptor
+*dthe_alloc_dma_descriptor(struct dma_chan *chan,
+			   struct scatterlist *sg,
+			   int nents,
+			   enum dma_transfer_direction dir);
+
 int dthe_register_aes_algs(void);
 void dthe_unregister_aes_algs(void);
+
+int dthe_register_hash_algs(void);
+void dthe_unregister_hash_algs(void);
 
 #endif

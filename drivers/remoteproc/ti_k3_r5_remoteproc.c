@@ -18,10 +18,12 @@
 #include <linux/of_platform.h>
 #include <linux/omap-mailbox.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/remoteproc.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
@@ -114,6 +116,9 @@ struct k3_r5_cluster {
  * @atcm_enable: flag to control ATCM enablement
  * @btcm_enable: flag to control BTCM enablement
  * @loczrama: flag to dictate which TCM is at device address 0x0
+ * @set_cfg: optinal processor specfic config flags to set
+ * @clr_cfg: optinal processor specfic config flags to clear
+ * @boot_vec: boot vector for the processor
  * @released_from_reset: flag to signal when core is out of reset
  */
 struct k3_r5_core {
@@ -126,12 +131,17 @@ struct k3_r5_core {
 	u32 atcm_enable;
 	u32 btcm_enable;
 	u32 loczrama;
+	u32 set_cfg;
+	u32 clr_cfg;
+	u64 boot_vec;
 	bool released_from_reset;
 };
 
 static int k3_r5_split_reset(struct k3_rproc *kproc)
 {
 	int ret;
+	struct k3_r5_core *core = kproc->priv;
+	struct k3_r5_cluster *cluster = core->cluster;
 
 	ret = reset_control_assert(kproc->reset);
 	if (ret) {
@@ -139,6 +149,14 @@ static int k3_r5_split_reset(struct k3_rproc *kproc)
 			ret);
 		return ret;
 	}
+
+	/* On AM64 devices power-down of core1 in r5f cluster, even when core0
+	 * is on randomly gets the lpsc stuck in transition state and makes the core
+	 * un-usable. So as a work around keep the power state on with reset
+	 * asserted.
+	 */
+	if (cluster->soc_data->single_cpu_mode)
+		return ret;
 
 	ret = kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
 						    kproc->ti_sci_id);
@@ -334,6 +352,14 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 		}
 	}
 
+	/* restore device configuration */
+	ret = ti_sci_proc_set_config(kproc->tsp, core->boot_vec, core->set_cfg,
+				     core->clr_cfg);
+	if (ret) {
+		dev_err(dev, "set config failed: %d\n", ret);
+		return ret;
+	}
+
 	ret = ti_sci_proc_get_status(kproc->tsp, &boot_vec, &cfg, &ctrl, &stat);
 	if (ret < 0)
 		return ret;
@@ -416,7 +442,7 @@ static int k3_r5_rproc_unprepare(struct rproc *rproc)
 	core0 = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
 	core1 = list_last_entry(&cluster->cores, struct k3_r5_core, elem);
 	if (cluster->mode == CLUSTER_MODE_SPLIT && core == core0 &&
-	    core1->released_from_reset) {
+	    core1->released_from_reset && !cluster->soc_data->single_cpu_mode) {
 		ret = wait_event_interruptible_timeout(cluster->core_transition,
 						       !core1->released_from_reset,
 						       msecs_to_jiffies(2000));
@@ -437,7 +463,9 @@ static int k3_r5_rproc_unprepare(struct rproc *rproc)
 	 * Notify all threads in the wait queue when core1 state has changed so
 	 * that threads waiting for this condition can be executed.
 	 */
-	core->released_from_reset = false;
+	if (!cluster->soc_data->single_cpu_mode)
+		core->released_from_reset = false;
+
 	if (core == core1)
 		wake_up_interruptible(&cluster->core_transition);
 
@@ -530,6 +558,7 @@ static int k3_r5_rproc_stop(struct rproc *rproc)
 {
 	struct k3_rproc *kproc = rproc->priv;
 	struct k3_r5_core *core = kproc->priv;
+	struct device *dev = kproc->dev;
 	struct k3_r5_cluster *cluster = core->cluster;
 	int ret;
 
@@ -547,6 +576,11 @@ static int k3_r5_rproc_stop(struct rproc *rproc)
 			}
 		}
 	} else {
+		if (kproc->rproc->state == RPROC_SUSPENDED) {
+			dev_err(dev, "We can't stop in suspended state!!!!\n");
+			return 0;
+		}
+
 		ret = k3_r5_core_halt(core->kproc);
 		if (ret)
 			goto out;
@@ -557,7 +591,7 @@ static int k3_r5_rproc_stop(struct rproc *rproc)
 unroll_core_halt:
 	list_for_each_entry_from_reverse(core, &cluster->cores, elem) {
 		if (k3_r5_core_run(core->kproc))
-			dev_warn(core->dev, "core run back failed\n");
+			dev_warn(dev, "core run back failed\n");
 	}
 out:
 	return ret;
@@ -761,6 +795,10 @@ static int k3_r5_rproc_configure(struct k3_rproc *kproc)
 					     set_cfg, clr_cfg);
 	}
 
+	/* cache set_cfg and clr_cfg */
+	core->boot_vec = boot_vec;
+	core->set_cfg = set_cfg;
+	core->clr_cfg = clr_cfg;
 out:
 	return ret;
 }
@@ -897,6 +935,10 @@ static int k3_r5_rproc_configure_mode(struct k3_rproc *kproc)
 						k3_get_loaded_rsc_table;
 	} else if (!c_state) {
 		dev_info(cdev, "configured R5F for remoteproc mode\n");
+		/* add support for suspend/resume */
+		kproc->pm_notifier.notifier_call = k3_rproc_pm_notifier_call;
+		register_pm_notifier(&kproc->pm_notifier);
+		kproc->late_pm = true;
 		ret = 0;
 	} else {
 		dev_err(cdev, "mismatched mode: local_reset = %s, module_reset = %s, core_state = %s\n",
@@ -1134,6 +1176,7 @@ static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 		}
 
 		init_completion(&kproc->shutdown_complete);
+		init_completion(&kproc->suspend_comp);
 init_rmem:
 		k3_r5_adjust_tcm_sizes(kproc);
 
@@ -1305,8 +1348,12 @@ static int k3_r5_cluster_of_init(struct platform_device *pdev)
 	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev_of_node(dev);
+	struct device_node *child_np;
+	struct device_node *mbox_np;
+	struct platform_device *mbox_pdev;
 	struct platform_device *cpdev;
 	struct k3_r5_core *core;
+	struct device_link *link;
 	int ret;
 
 	for_each_available_child_of_node_scoped(np, child) {
@@ -1315,6 +1362,33 @@ static int k3_r5_cluster_of_init(struct platform_device *pdev)
 			ret = -ENODEV;
 			dev_err(dev, "could not get R5 core platform device\n");
 			goto fail;
+		}
+
+		child_np = dev_of_node(&cpdev->dev);
+
+		mbox_np = of_parse_phandle(child_np, "mboxes", 0);
+		if (!mbox_np) {
+			dev_err(dev, "failed to get mboxes\n");
+			ret = -ENODEV;
+			goto fail;
+		}
+
+		mbox_pdev = of_find_device_by_node(mbox_np);
+		of_node_put(mbox_np);
+		if (!mbox_pdev) {
+			dev_err(dev, "mailbox device not yet ready\n");
+			ret = -EPROBE_DEFER;
+			goto fail;
+		}
+
+		/* Ensure mailbox is suspended after remoteproc */
+		if (dev->driver && dev->driver->pm) {
+			link = device_link_add(dev, &mbox_pdev->dev,
+						DL_FLAG_AUTOREMOVE_SUPPLIER);
+			put_device(&mbox_pdev->dev);
+			if (IS_ERR(link))
+				return dev_err_probe(dev, PTR_ERR(link),
+						     "Unable to create device link with mbox dev\n");
 		}
 
 		ret = k3_r5_core_of_init(cpdev);
@@ -1336,6 +1410,28 @@ static int k3_r5_cluster_of_init(struct platform_device *pdev)
 fail:
 	k3_r5_cluster_of_exit(pdev);
 	return ret;
+}
+
+static int k3_r5_suspend_late(struct device *dev)
+{
+	struct k3_r5_cluster *cluster = dev_get_drvdata(dev);
+	struct k3_r5_core *core;
+	int ret = 0;
+
+	list_for_each_entry_reverse(core, &cluster->cores, elem) {
+		struct k3_rproc *kproc;
+
+		kproc = core->kproc;
+
+		/* Check if late resume/pm is supported */
+		if (kproc->late_pm) {
+			ret = k3_rproc_suspend(kproc->rproc);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int k3_r5_probe(struct platform_device *pdev)
@@ -1479,10 +1575,15 @@ static const struct of_device_id k3_r5_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, k3_r5_of_match);
 
+static const struct dev_pm_ops k3_r5_pm_ops = {
+	LATE_SYSTEM_SLEEP_PM_OPS(k3_r5_suspend_late, NULL)
+};
+
 static struct platform_driver k3_r5_rproc_driver = {
 	.probe = k3_r5_probe,
 	.driver = {
 		.name = "k3_r5_rproc",
+		.pm = &k3_r5_pm_ops,
 		.of_match_table = k3_r5_of_match,
 	},
 };

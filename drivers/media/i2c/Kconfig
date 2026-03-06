@@ -256,6 +256,18 @@ config VIDEO_IMX355
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx355.
 
+config VIDEO_IMX390
+	tristate "Sony IMX390 sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX390 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx390.
+
 config VIDEO_IMX412
 	tristate "Sony IMX412 sensor support"
 	depends on OF_GPIO
@@ -428,6 +440,18 @@ config VIDEO_OV13B10
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV13B10 camera.
+
+config VIDEO_OV2312
+	tristate "OmniVision OV2312 sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV2312 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov2312.
 
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
@@ -696,6 +720,19 @@ config VIDEO_OV9734
 
 	  To compile this driver as a module, choose M here: the
 	  module's name is ov9734.
+
+config VIDEO_OX05B1S
+	tristate "OmniVision OX05B1S sensor support"
+	depends on OF_GPIO
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OX05B1S camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called OX05B1S.
 
 config VIDEO_RDACM20
 	tristate "IMI RDACM20 camera support"
@@ -1681,8 +1718,8 @@ config VIDEO_DS90UB960
 	select V4L2_FWNODE
 	select VIDEO_V4L2_SUBDEV_API
 	help
-	  Device driver for the Texas Instruments DS90UB960
-	  FPD-Link III Deserializer and DS90UB9702 FPD-Link IV Deserializer.
+	  Device driver for the Texas Instruments DS90UB954, DS90UB960
+	  FPD-Link III Deserializers and DS90UB9702 FPD-Link IV Deserializer.
 
 config VIDEO_MAX96714
 	tristate "Maxim MAX96714 GMSL2 deserializer"

@@ -783,7 +783,7 @@ static int ti_k3_rtc_analog_config(struct device *dev, struct ti_k3_rtc *priv)
 		dev_err(dev, "Fence sync Failed (%d)!\n", ret);
 		return ret;
 	}
-	dev_err(dev, "Configured RTC !\n");
+	dev_dbg(dev, "Configured RTC!\n");
 
 	return 0;
 }
@@ -844,7 +844,9 @@ static int ti_k3_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->has_analog_block = soc_data->has_analog_block;
-	devm_mutex_init(dev, &priv->mutex_lock);
+	ret = devm_mutex_init(dev, &priv->mutex_lock);
+	if (ret)
+		return ret;
 
 	rtc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc_base))
