@@ -18,6 +18,7 @@
 #include <net/xdp.h>
 #include <net/xdp_sock_drv.h>
 #include "am65-cpsw-qos.h"
+#include "cpsw_ale.h"
 
 struct am65_cpts;
 
@@ -48,6 +49,12 @@ struct am65_cpsw_slave_data {
 	struct phylink_config		phylink_config;
 };
 
+struct am65_cpsw_rxnfc_rule {
+	struct list_head list;
+	unsigned int location;
+	struct cpsw_ale_policer_cfg cfg;
+};
+
 struct am65_cpsw_port {
 	struct am65_cpsw_common		*common;
 	struct net_device		*ndev;
@@ -60,7 +67,7 @@ struct am65_cpsw_port {
 	bool				disabled;
 	struct am65_cpsw_slave_data	slave;
 	bool				tx_ts_enabled;
-	bool				rx_ts_enabled;
+	enum hwtstamp_rx_filters	rx_ts_filter;
 	struct am65_cpsw_qos		qos;
 	struct devlink_port		devlink_port;
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -70,6 +77,12 @@ struct am65_cpsw_port {
 	struct xdp_rxq_info		xdp_rxq[AM65_CPSW_MAX_QUEUES];
 	/* Only for suspend resume context */
 	u32				vid_context;
+	/* Classifier flows */
+	struct mutex rxnfc_lock;
+	struct list_head rxnfc_rules;
+	int rxnfc_count;
+	int rxnfc_max;
+	u64 policer_in_use_bitmask;
 };
 
 enum am65_cpsw_tx_buf_type {
@@ -217,6 +230,7 @@ struct am65_cpsw_common {
 #endif
 	/* only for suspend/resume context restore */
 	u32			*ale_context;
+	u32			*policer_context;
 	/* XDP Zero Copy */
 	unsigned long		*xdp_zc_queues;
 	int			xsk_port_id[AM65_CPSW_MAX_QUEUES];
@@ -289,5 +303,8 @@ static inline int am65_cpsw_nuss_register_debugfs(struct am65_cpsw_common *commo
 static inline void am65_cpsw_nuss_unregister_debugfs(struct am65_cpsw_common *common)
 { }
 #endif /* CONFIG_DEBUG_FS */
+
+void am65_cpsw_rxnfc_init(struct am65_cpsw_port *port);
+void am65_cpsw_rxnfc_cleanup(struct am65_cpsw_port *port);
 
 #endif /* AM65_CPSW_NUSS_H_ */

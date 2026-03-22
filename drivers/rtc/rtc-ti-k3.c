@@ -13,10 +13,14 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/sys_soc.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/rtc.h>
+#include <linux/gpio/driver.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 
 /* Registers */
 #define REG_K3RTC_S_CNT_LSW		0x08
@@ -40,6 +44,9 @@
 #define REG_LFXOSC_CTRL			0x80
 #define REG_LFXOSC_TRIM			0x84
 
+/* Maximum GPIOs supported by hardware */
+#define TI_K3_RTC_MAX_GPIOS       4
+
 /* Low freq oscillator trim value */
 #define LFXOSC_TRIM_VAL			0x00121203
 
@@ -55,6 +62,9 @@
 /* Min and max values supported with 'offset' interface (swapped sign) */
 #define K3RTC_MIN_OFFSET		(-277761)
 #define K3RTC_MAX_OFFSET		(277778)
+
+/* Value for SW_OFF bit */
+#define K3RTC_SW_OFF_VAL		BIT(17)
 
 static const struct regmap_config ti_k3_rtc_regmap_config = {
 	.name = "peripheral-registers",
@@ -73,6 +83,7 @@ enum ti_k3_rtc_fields {
 	K3RTC_UNLOCK,
 	K3RTC_CNT_FMODE,
 	K3RTC_PEND,
+	K3RTC_WRT_ERR,
 	K3RTC_RELOAD_FROM_BBD,
 	K3RTC_COMP,
 
@@ -89,11 +100,13 @@ enum ti_k3_rtc_fields {
 	K3RTC_IRQ_ENABLE_CLR_ALT,
 	K3RTC_IRQ_STATUS_RAW_ALL,
 	K3RTC_IRQ_STATUS_ALL,
+	K3RTC_IRQ_ENABLE_CLR_ALL,
 
 	K3RTC_AUX_32K_EN,
 	K3RTC_GEN_WKUP_POL,
 	K3RTC_GEN_PWR_OFF,
-	K3RTC_IRQ_ENABLE_WKUP,
+	K3RTC_IRQ_ENABLE_IO_WKUP,
+	K3RTC_IRQ_DISABLE_IO_WKUP,
 	K3RTC_GEN_WKUP_EN,
 	K3RTC_GEN_SW_OFF,
 
@@ -109,6 +122,7 @@ static const struct reg_field ti_rtc_reg_fields[] = {
 	[K3RTC_UNLOCK] = REG_FIELD(REG_K3RTC_GENERAL_CTL, 23, 23),
 	[K3RTC_CNT_FMODE] = REG_FIELD(REG_K3RTC_GENERAL_CTL, 24, 25),
 	[K3RTC_PEND] = REG_FIELD(REG_K3RTC_SYNCPEND, 0, 1),
+	[K3RTC_WRT_ERR] = REG_FIELD(REG_K3RTC_SYNCPEND, 3, 3),
 	[K3RTC_RELOAD_FROM_BBD] = REG_FIELD(REG_K3RTC_SYNCPEND, 31, 31),
 	[K3RTC_COMP] = REG_FIELD(REG_K3RTC_COMP, 0, 31),
 
@@ -125,13 +139,15 @@ static const struct reg_field ti_rtc_reg_fields[] = {
 	[K3RTC_IRQ_ENABLE_SET_ALT] = REG_FIELD(REG_K3RTC_IRQENABLE_SET_SYS, 1, 1),
 	[K3RTC_IRQ_ENABLE_CLR_ALT] = REG_FIELD(REG_K3RTC_IRQENABLE_CLR_SYS, 1, 1),
 
-	[K3RTC_IRQ_STATUS_RAW_ALL] = REG_FIELD(REG_K3RTC_IRQSTATUS_RAW_SYS, 0, 4),
-	[K3RTC_IRQ_STATUS_ALL] = REG_FIELD(REG_K3RTC_IRQSTATUS_SYS, 0, 4),
+	[K3RTC_IRQ_STATUS_RAW_ALL] = REG_FIELD(REG_K3RTC_IRQSTATUS_RAW_SYS, 0, 5),
+	[K3RTC_IRQ_STATUS_ALL] = REG_FIELD(REG_K3RTC_IRQSTATUS_SYS, 0, 5),
+	[K3RTC_IRQ_ENABLE_CLR_ALL] = REG_FIELD(REG_K3RTC_IRQENABLE_CLR_SYS, 0, 5),
 
 	[K3RTC_AUX_32K_EN] = REG_FIELD(REG_K3RTC_GENERAL_CTL, 22, 22),
 	[K3RTC_GEN_WKUP_POL] = REG_FIELD(REG_K3RTC_GENERAL_CTL, 4, 7),
 	[K3RTC_GEN_PWR_OFF] = REG_FIELD(REG_K3RTC_GENERAL_CTL, 16, 16),
-	[K3RTC_IRQ_ENABLE_WKUP] = REG_FIELD(REG_K3RTC_IRQENABLE_SET_SYS, 1, 5),
+	[K3RTC_IRQ_ENABLE_IO_WKUP] = REG_FIELD(REG_K3RTC_IRQENABLE_SET_SYS, 2, 5),
+	[K3RTC_IRQ_DISABLE_IO_WKUP] = REG_FIELD(REG_K3RTC_IRQENABLE_CLR_SYS, 2, 5),
 	[K3RTC_GEN_WKUP_EN] = REG_FIELD(REG_K3RTC_GENERAL_CTL, 0, 3),
 	[K3RTC_GEN_SW_OFF] = REG_FIELD(REG_K3RTC_GENERAL_CTL, 17, 17),
 };
@@ -147,6 +163,7 @@ struct k3_rtc_soc_data {
 /**
  * struct ti_k3_rtc - Private data for ti-k3-rtc
  * @irq:		IRQ
+ * @dev:		Device pointer
  * @has_analog_block:	presence of analog IP block in the subsystem
  * @mutex_lock:		mutex lock to sync access to CORE+ON MMR regs
  * @sync_timeout_us:	data sync timeout period in uSec
@@ -154,9 +171,18 @@ struct k3_rtc_soc_data {
  * @rtc_dev:		rtc device
  * @regmap:		rtc mmio regmap
  * @r_fields:		rtc register fields
+ * @gpio_chip:		GPIO chip for external wakeup pins
+ * @num_gpios:		Number of GPIOs
+ * @irq_chip:		IRQ chip for GPIO interrupts
+ * @irq_domain:		IRQ domain for mapping virtual IRQs
+ * @irq_base:		Base IRQ number
+ * @virq_gpios:		Virtual IRQ numbers for each GPIO
+ * @wakeup_enabled:	Bitmask of GPIOs enabled for wakeup
+ * @wakeup_polarity:	Bitmask of GPIO polarity from DT (1=active-high, 0=active-low)
  */
 struct ti_k3_rtc {
 	unsigned int irq;
+	struct device *dev;
 	bool has_analog_block;
 	struct mutex mutex_lock;
 	u32 sync_timeout_us;
@@ -164,6 +190,16 @@ struct ti_k3_rtc {
 	struct rtc_device *rtc_dev;
 	struct regmap *regmap;
 	struct regmap_field *r_fields[K3_RTC_MAX_FIELDS];
+
+	/* GPIO and IRQ chip for external wakeup pins */
+	struct gpio_chip gpio_chip;
+	unsigned int num_gpios;
+	struct irq_chip irq_chip;
+	struct irq_domain *irq_domain;
+	int irq_base;
+	int virq_gpios[TI_K3_RTC_MAX_GPIOS];
+	u8 wakeup_enabled;
+	u8 wakeup_polarity;
 };
 
 static int k3rtc_field_read(struct ti_k3_rtc *priv, enum ti_k3_rtc_fields f)
@@ -258,6 +294,458 @@ static int k3rtc_lock_rtc(struct device *dev, struct ti_k3_rtc *priv)
 		dev_err(dev, "Failed to lock(%d)!\n", ret);
 
 	return ret;
+}
+
+/*
+ * Check if RTC hardware is already configured and running by examining
+ * the general control register. If RTC remained powered through
+ * a reset or low power mode, power off bit will be set.
+ */
+static bool k3rtc_is_rtc_already_configured(struct ti_k3_rtc *priv)
+{
+	if (WARN_ON(!priv || !priv->regmap))
+		return false;
+
+	return (k3rtc_field_read(priv, K3RTC_GEN_PWR_OFF) != 0x0);
+}
+
+static int k3rtc_analog_suspend(struct device *dev, struct ti_k3_rtc *priv)
+{
+	int ret;
+
+	guard(mutex)(&priv->mutex_lock);
+
+	ret = k3rtc_unlock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	/* Enable PMIC signal to transition */
+	k3rtc_field_write(priv, K3RTC_GEN_PWR_OFF, 1);
+
+	ret = k3rtc_fence(priv);
+	if (ret) {
+		dev_err(dev, "fence failed\n");
+		return ret;
+	}
+
+	/* Configure wakeup polarity based on GPIO active-high/low setting. */
+	k3rtc_field_write(priv, K3RTC_GEN_WKUP_POL, priv->wakeup_polarity);
+
+	/* Enable wakeup interrupts for GPIO pins that were enabled via irq_set_wake()  */
+	k3rtc_field_write(priv, K3RTC_IRQ_ENABLE_IO_WKUP,  priv->wakeup_enabled);
+
+	ret = k3rtc_lock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	ret = k3rtc_unlock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	/* Enable wakeup functionality on GPIOs that have wakeup enabled */
+	k3rtc_field_write(priv, K3RTC_GEN_WKUP_EN, priv->wakeup_enabled);
+
+	ret = k3rtc_fence(priv);
+	if (ret) {
+		dev_err(dev, "fence failed\n");
+		return ret;
+	}
+
+	/* Enable software poweroff */
+	k3rtc_field_write(priv, K3RTC_GEN_SW_OFF, 1);
+
+	ret = k3rtc_fence(priv);
+	if (ret) {
+		dev_err(dev, "fence failed\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int k3rtc_analog_resume(struct device *dev, struct ti_k3_rtc *priv)
+{
+	int ret;
+	u32 intr_raw_stat, intr_src, gpio_wkup_en;
+
+	/* Explicitly clear SW_OFF bit - forced write required */
+	regmap_write_bits(priv->regmap, REG_K3RTC_GENERAL_CTL,
+		K3RTC_SW_OFF_VAL, 0);
+
+	ret = k3rtc_fence(priv);
+	if (ret) {
+		dev_err(dev, "fence failed\n");
+		return ret;
+	}
+
+	ret = k3rtc_lock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	ret = k3rtc_unlock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	/* Clear write error condition */
+	k3rtc_field_write(priv, K3RTC_WRT_ERR, 0x1);
+
+	/* Disable all wakeup-related interrupts */
+	k3rtc_field_write(priv, K3RTC_IRQ_ENABLE_CLR_ALL, 0x1F);
+
+	ret = k3rtc_lock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	ret = k3rtc_fence(priv);
+	if (ret) {
+		dev_err(dev, "fence failed\n");
+		return ret;
+	}
+
+	/* Read RTC's interrupt register to check the wake up source */
+	intr_raw_stat = k3rtc_field_read(priv, K3RTC_IRQ_STATUS_RAW_ALL);
+	gpio_wkup_en = k3rtc_field_read(priv, K3RTC_GEN_WKUP_EN);
+
+	ret = k3rtc_unlock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	/* Clear wakeup enable bits */
+	k3rtc_field_write(priv, K3RTC_GEN_WKUP_EN, 0);
+
+	ret = k3rtc_lock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	ret = k3rtc_unlock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	/* Read RTC's interrupt register to check the wake up source */
+	intr_src = k3rtc_field_read(priv, K3RTC_IRQ_STATUS_RAW_ALL);
+
+	/*
+	 * Write the corresponding interrupt to clear status reg.
+	 * We cannot use a field operation here due to a potential race between
+	 * 32k domain and vbus domain.
+	 */
+	k3rtc_field_write(priv, K3RTC_IRQ_STATUS_ALL, intr_src);
+
+	/* Clear the power off enable that was set during suspend */
+	k3rtc_field_write(priv, K3RTC_GEN_PWR_OFF, 0);
+
+	ret = k3rtc_lock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	ret = k3rtc_unlock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	/*
+	 * Force the 32k status to be reloaded back in to ensure status is
+	 * reflected back correctly.
+	 */
+	k3rtc_field_write(priv, K3RTC_RELOAD_FROM_BBD, 0x1);
+
+	ret = k3rtc_fence(priv);
+	if (ret) {
+		dev_err(dev, "fence failed\n");
+		return ret;
+	}
+
+	ret = k3rtc_lock_rtc(dev, priv);
+	if (ret)
+		return ret;
+
+	/*
+	 * Interrupt raw status will have status of all interrupts including
+	 * disabled ones. AND with the interrupt enable register value to filter.
+	 * Note: IRQ enable register cannot be used as it loses context during LPM.
+	 */
+	intr_src = (intr_raw_stat & (gpio_wkup_en << 2));
+	/* Demultiplex interrupts to their respective handlers */
+	/* External wakeup pins 0-3 map to IRQ bits 2-5 */
+	unsigned long gpio_irqs = (intr_src >> 2);
+	int gpio;
+
+	for_each_set_bit(gpio, &gpio_irqs, TI_K3_RTC_MAX_GPIOS)
+		generic_handle_irq(priv->virq_gpios[gpio]);
+
+	return 0;
+}
+
+/*
+ * Clean up RTC poweroff configuration when RTC is already running.
+ * This clears SW_OFF, wakeup enables, and interrupt status without
+ * reinitializing the entire RTC hardware.
+ */
+static int k3rtc_cleanup_poweroff_config(struct device *dev, struct ti_k3_rtc *priv)
+{
+	int ret = 0;
+
+	guard(mutex)(&priv->mutex_lock);
+
+	ret = k3rtc_analog_resume(dev, priv);
+	if (ret)
+		dev_err(dev, "RTC cleanup failed: %d\n", ret);
+
+	return ret;
+}
+
+static void ti_k3_rtc_irq_mask(struct irq_data *data)
+{
+	struct ti_k3_rtc *priv = irq_data_get_irq_chip_data(data);
+	int gpio = data->hwirq;
+
+	if (gpio >= TI_K3_RTC_MAX_GPIOS)
+		return;
+
+	/*  Disable the interrupt in hardware. */
+	k3rtc_field_write(priv, K3RTC_IRQ_DISABLE_IO_WKUP, BIT(gpio));
+}
+
+static void ti_k3_rtc_irq_unmask(struct irq_data *data)
+{
+	struct ti_k3_rtc *priv = irq_data_get_irq_chip_data(data);
+	int gpio = data->hwirq;
+
+	if (gpio >= TI_K3_RTC_MAX_GPIOS)
+		return;
+
+	/* Enable the interrupt in hardware. */
+	k3rtc_field_write(priv, K3RTC_IRQ_ENABLE_IO_WKUP, BIT(gpio));
+
+}
+
+static int ti_k3_rtc_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct ti_k3_rtc *priv = irq_data_get_irq_chip_data(data);
+	int gpio = data->hwirq;
+
+	if (gpio >= TI_K3_RTC_MAX_GPIOS)
+		return -EINVAL;
+
+	/* Track the wakeup state */
+	if (on)
+		priv->wakeup_enabled |= BIT(gpio);
+	else
+		priv->wakeup_enabled &= ~BIT(gpio);
+
+	return 0;
+}
+
+static struct irq_chip ti_k3_rtc_irq_chip = {
+	.name = "ti-k3-rtc-gpio",
+	.irq_mask = ti_k3_rtc_irq_mask,
+	.irq_unmask = ti_k3_rtc_irq_unmask,
+	.irq_set_wake = ti_k3_rtc_irq_set_wake,
+	.flags = IRQCHIP_ENABLE_WAKEUP_ON_SUSPEND,
+};
+
+static int ti_k3_rtc_irq_domain_map(struct irq_domain *d, unsigned int irq,
+				    irq_hw_number_t hw)
+{
+	struct ti_k3_rtc *rtc = d->host_data;
+
+	irq_set_chip_data(irq, rtc);
+
+	/*
+	 * Check against hardware maximum rather than configured num_gpios,
+	 * since this is called during IRQ setup before num_gpios is set.
+	 */
+	if (hw < TI_K3_RTC_MAX_GPIOS) {
+		/*
+		 * GPIO IRQs are nested within the main RTC threaded IRQ.
+		 * Mark them as nested and don't set a handler - the parent
+		 * IRQ handler will call handle_nested_irq() for these.
+		 */
+		irq_set_chip(irq, &rtc->irq_chip);
+		irq_set_nested_thread(irq, true);
+	} else {
+		dev_err(rtc->dev, "Invalid IRQ domain mapping for hw %lu\n", hw);
+		return -EINVAL;
+	}
+
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops ti_k3_rtc_irq_domain_ops = {
+	.map = ti_k3_rtc_irq_domain_map,
+	.xlate = irq_domain_xlate_onecell,
+};
+
+static int ti_k3_rtc_setup_irqs(struct platform_device *pdev)
+{
+	int i;
+	struct device *dev = &pdev->dev;
+	struct ti_k3_rtc *rtc = platform_get_drvdata(pdev);
+
+	rtc->irq_chip = ti_k3_rtc_irq_chip;
+
+	/* Create IRQ domain */
+	rtc->irq_domain = irq_domain_add_linear(dev->of_node,
+						TI_K3_RTC_MAX_GPIOS,
+						&ti_k3_rtc_irq_domain_ops, rtc);
+	if (!rtc->irq_domain) {
+		dev_err(rtc->dev, "Failed to create IRQ domain\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * Map all possible GPIO IRQs (hardware maximum).
+	 * The actual number of GPIOs available is configured via ngpios in DT,
+	 * but we create IRQ mappings for all hardware-supported GPIOs here
+	 * since num_gpios isn't set yet (it's set later in gpio_init).
+	 */
+	for (i = 0; i < TI_K3_RTC_MAX_GPIOS; i++) {
+		rtc->virq_gpios[i] = irq_create_mapping(rtc->irq_domain, i);
+		if (!rtc->virq_gpios[i]) {
+			dev_err(rtc->dev, "Failed to map GPIO IRQ %d\n", i);
+			return -EINVAL;
+		}
+
+		dev_dbg(rtc->dev, "Mapped GPIO %d to virtual IRQ %d\n", i, rtc->virq_gpios[i]);
+	}
+
+	return 0;
+}
+
+static int ti_k3_rtc_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	struct ti_k3_rtc *rtc = gpiochip_get_data(chip);
+
+	if (offset >= TI_K3_RTC_MAX_GPIOS)
+		return -EINVAL;
+
+	return rtc->virq_gpios[offset];
+}
+
+static int ti_k3_rtc_gpio_get_direction(struct gpio_chip *chip,
+					unsigned int offset)
+{
+	/* External wakeup pins are always input */
+	return 1; /* 1 = input, 0 = output */
+}
+
+static int ti_k3_rtc_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
+{
+	struct ti_k3_rtc *priv = gpiochip_get_data(chip);
+	struct gpio_desc *desc;
+	int gpio_num;
+	bool active_low;
+
+	if (offset >= TI_K3_RTC_MAX_GPIOS)
+		return -EINVAL;
+
+	/*
+	 * Capture GPIO polarity when gpio-keys configures the GPIO as input.
+	 * Get the global GPIO number and use it to retrieve the descriptor.
+	 */
+	gpio_num = chip->base + offset;
+	if (gpio_num >= 0) {
+		desc = gpio_to_desc(gpio_num);
+		if (desc && !IS_ERR(desc)) {
+			/* Read the active_low flag from the GPIO descriptor */
+			active_low = gpiod_is_active_low(desc);
+
+			/* Store polarity: active-high = 1, active-low = 0 */
+			if (!active_low)
+				priv->wakeup_polarity |= BIT(offset);
+			else
+				priv->wakeup_polarity &= ~BIT(offset);
+
+			dev_dbg(priv->dev, "GPIO %d: %s polarity captured\n",
+				 offset, active_low ? "active-low" : "active-high");
+		}
+	}
+
+	return 0;
+}
+
+static int ti_k3_rtc_gpio_get(struct gpio_chip *chip, unsigned int offset)
+{
+	struct ti_k3_rtc *priv = gpiochip_get_data(chip);
+	u32 raw_status;
+	int value;
+
+	if (offset >= TI_K3_RTC_MAX_GPIOS)
+		return -EINVAL;
+
+	/* Read raw interrupt status register to get pin state */
+	regmap_read(priv->regmap, REG_K3RTC_IRQSTATUS_RAW_SYS, &raw_status);
+
+	/* External pins 0-1 map to IRQ bits 2-3 */
+	value = (raw_status & BIT(offset + 2)) ? 1 : 0;
+
+	dev_dbg(priv->dev, "GPIO %d read: %d (raw_status=0x%x)\n", offset, value, raw_status);
+
+	return value;
+}
+
+static int ti_k3_rtc_gpio_init(struct ti_k3_rtc *priv, struct device *dev)
+{
+	struct gpio_chip *chip = &priv->gpio_chip;
+	u32 num_gpios;
+	int ret;
+
+	/* Read number of GPIOs from device tree, default to 0 if not specified */
+	ret = device_property_read_u32(dev, "ngpios", &num_gpios);
+	if (ret) {
+		num_gpios = 0;  /* Default to 0 GPIOs */
+		dev_dbg(dev, "ngpios not specified, defaulting to %u\n", num_gpios);
+	}
+
+	/* If ngpios is 0, skip GPIO initialization */
+	if (num_gpios == 0) {
+		priv->num_gpios = 0;
+		/* Reset wkup polarity and en as its used in suspend hooks */
+		priv->wakeup_polarity = 0;
+		priv->wakeup_enabled = 0;
+		dev_dbg(dev, "ngpios=%u, skipping GPIO chip registration\n", num_gpios);
+		return 0;
+	}
+
+	/* Validate against hardware maximum */
+	if (num_gpios > TI_K3_RTC_MAX_GPIOS) {
+		dev_warn(dev, "ngpios=%u exceeds max %d, clamping to max\n",
+			 num_gpios, TI_K3_RTC_MAX_GPIOS);
+		num_gpios = TI_K3_RTC_MAX_GPIOS;
+	}
+
+	priv->num_gpios = num_gpios;
+
+	/*
+	 * Initialize wakeup_polarity to 0 (all active-low by default).
+	 * The actual polarity will be captured from GPIO descriptors when
+	 * gpio-keys calls direction_input() for each GPIO.
+	 */
+	priv->wakeup_polarity = 0;
+
+	chip->label = dev_name(dev);
+	chip->parent = dev;
+	chip->owner = THIS_MODULE;
+	chip->base = -1;
+	chip->ngpio = priv->num_gpios;
+	chip->can_sleep = true;
+	chip->fwnode = of_fwnode_handle(dev->of_node);
+
+	chip->get_direction = ti_k3_rtc_gpio_get_direction;
+	chip->direction_input = ti_k3_rtc_gpio_direction_input;
+	chip->get = ti_k3_rtc_gpio_get;
+	chip->to_irq = ti_k3_rtc_gpio_to_irq;
+
+	ret = devm_gpiochip_add_data(dev, chip, priv);
+	if (ret) {
+		dev_err(dev, "Failed to register GPIO chip: %d\n", ret);
+		return ret;
+	}
+
+	dev_dbg(dev, "Registered %d GPIOs for external wakeup pins\n", priv->num_gpios);
+
+	return 0;
 }
 
 /*
@@ -549,8 +1037,8 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 	guard(mutex)(&priv->mutex_lock);
 	if (priv->has_analog_block) {
 		regmap_read(priv->regmap, REG_K3RTC_GENERAL_CTL, &temp);
-		/* Check whether RTC ext pin wake up is enabled or not */
-		if ((temp & 0xF) != 0x0) {
+		/* If RTC is already configured it will be a LPM resume */
+		if (k3rtc_is_rtc_already_configured(priv)) {
 			/* Explicitly clear SW_OFF on rtc_cd side */
 			temp = temp & (~(1 << 17));
 			regmap_write(priv->regmap, REG_K3RTC_GENERAL_CTL, temp);
@@ -564,10 +1052,6 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 			if (ret)
 				return IRQ_NONE;
 
-			ret = k3rtc_fence(priv);
-			if (ret)
-				return IRQ_NONE;
-
 			ret = k3rtc_unlock_rtc(dev, priv);
 			if (ret)
 				return IRQ_NONE;
@@ -576,10 +1060,6 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 			regmap_write(priv->regmap, REG_K3RTC_SYNCPEND, 0x08);
 
 			ret = k3rtc_lock_rtc(dev, priv);
-			if (ret)
-				return IRQ_NONE;
-
-			ret = k3rtc_fence(priv);
 			if (ret)
 				return IRQ_NONE;
 
@@ -596,6 +1076,17 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 				return IRQ_NONE;
 
 			ret = k3rtc_fence(priv);
+			if (ret)
+				return IRQ_NONE;
+
+			/* Clear the power off enable that was set during suspend */
+			k3rtc_field_write(priv, K3RTC_GEN_PWR_OFF, 0);
+
+			ret = k3rtc_fence(priv);
+			if (ret)
+				return IRQ_NONE;
+
+			ret = k3rtc_lock_rtc(dev, priv);
 			if (ret)
 				return IRQ_NONE;
 		}
@@ -626,23 +1117,11 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 	 */
 	regmap_write(priv->regmap, REG_K3RTC_IRQSTATUS_SYS, reg);
 
-	if (priv->has_analog_block) {
-		ret = k3rtc_lock_rtc(dev, priv);
-		if (ret)
-			return IRQ_NONE;
-	}
-
 	/* Sync the write in */
 	ret = k3rtc_fence(priv);
 	if (ret) {
 		dev_err(dev, "Failed to fence irq status clr(%d)!\n", ret);
 		return IRQ_NONE;
-	}
-
-	if (priv->has_analog_block) {
-		ret = k3rtc_unlock_rtc(dev, priv);
-		if (ret)
-			return IRQ_NONE;
 	}
 
 	/*
@@ -672,8 +1151,24 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	/* Notify RTC core on event */
-	rtc_update_irq(priv->rtc_dev, 1, RTC_IRQF | RTC_AF);
+	if (priv->has_analog_block) {
+		/* Demultiplex interrupts to their respective handlers */
+		/* External wakeup pins 0-3 map to IRQ bits 2-5 */
+		unsigned long gpio_irqs = (reg >> 2);
+		int gpio;
+
+		for_each_set_bit(gpio, &gpio_irqs, TI_K3_RTC_MAX_GPIOS)
+			handle_nested_irq(priv->virq_gpios[gpio]);
+
+		/* Timer/Alarm interrupts are in bits 0-1 */
+		if (reg & (BIT(0) | BIT(1))) {
+			/* Notify RTC core on timer/alarm event */
+			rtc_update_irq(priv->rtc_dev, 1, RTC_IRQF | RTC_AF);
+		}
+	} else {
+		/* Notify RTC core on event */
+		rtc_update_irq(priv->rtc_dev, 1, RTC_IRQF | RTC_AF);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -753,11 +1248,6 @@ static int ti_k3_rtc_analog_config(struct device *dev, struct ti_k3_rtc *priv)
 		dev_err(dev, "Lock Failed (%d)!\n", ret);
 		return ret;
 	}
-	ret = k3rtc_fence(priv);
-	if (ret) {
-		dev_err(dev, "Fence sync Failed (%d)!\n", ret);
-		return ret;
-	}
 
 	dev_dbg(dev, "Configured RTC ANALOG!\n");
 
@@ -825,12 +1315,29 @@ static int k3rtc_get_vbusclk(struct device *dev, struct ti_k3_rtc *priv)
 	return 0;
 }
 
+static int ti_k3_rtc_power_off_prepare(struct sys_off_data *data)
+{
+	struct ti_k3_rtc *priv = data->cb_data;
+	struct device *dev = &priv->rtc_dev->dev;
+	int ret;
+
+	dev_dbg(dev, "Preparing RTC for system poweroff\n");
+
+	ret = k3rtc_analog_suspend(dev, priv);
+	if (ret)
+		return NOTIFY_BAD;
+
+	dev_dbg(dev, "RTC configured for poweroff successfully\n");
+	return NOTIFY_DONE;
+}
+
 static int ti_k3_rtc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct k3_rtc_soc_data *soc_data;
 	struct ti_k3_rtc *priv;
 	void __iomem *rtc_base;
+	bool is_rtc_already_configured = false;
 	int ret;
 
 	soc_data = device_get_match_data(&pdev->dev);
@@ -843,6 +1350,7 @@ static int ti_k3_rtc_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->dev = dev;
 	priv->has_analog_block = soc_data->has_analog_block;
 	ret = devm_mutex_init(dev, &priv->mutex_lock);
 	if (ret)
@@ -864,8 +1372,23 @@ static int ti_k3_rtc_probe(struct platform_device *pdev)
 	/* Initialize sync timeout value, gets updated after configuring analog IP */
 	priv->sync_timeout_us = (u32)3 * 1000 * 1000;
 
-	if (priv->has_analog_block)
-		ti_k3_rtc_analog_config(dev, priv);
+	/*
+	 * Detect if RTC hardware is already configured and running.
+	 * If yes, skip full hardware initialization and only clean up
+	 * any poweroff-related configuration.
+	 */
+	if (priv->has_analog_block) {
+		is_rtc_already_configured = k3rtc_is_rtc_already_configured(priv);
+
+		/* Only configure analog block on normal boot, skip if RTC already configured */
+		if (is_rtc_already_configured) {
+			dev_dbg(dev, "RTC already configured, cleaning up poweroff state\n");
+			ret = k3rtc_cleanup_poweroff_config(dev, priv);
+			if (ret)
+				return ret;
+		} else
+			ti_k3_rtc_analog_config(dev, priv);
+	}
 
 	ret = k3rtc_get_32kclk(dev, priv);
 	if (ret)
@@ -887,20 +1410,30 @@ static int ti_k3_rtc_probe(struct platform_device *pdev)
 	priv->rtc_dev->range_max = (1ULL << 48) - 1;	/* 48Bit seconds */
 	ti_k3_rtc_nvmem_config.priv = priv;
 
+	platform_set_drvdata(pdev, priv);
+
+	/* Set up IRQ domain and virtual IRQs */
+	if (priv->has_analog_block) {
+		ret = ti_k3_rtc_setup_irqs(pdev);
+		if (ret)
+			return ret;
+	}
+
 	ret = devm_request_threaded_irq(dev, priv->irq, NULL,
 					ti_k3_rtc_interrupt,
-					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					IRQF_SHARED | IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 					dev_name(dev), dev);
 	if (ret) {
 		dev_err(dev, "Could not request IRQ: %d\n", ret);
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, priv);
-
-	ret = k3rtc_configure(dev);
-	if (ret)
-		return ret;
+	/* Only configure RTC registers on normal boot, skip if already configured */
+	if (!is_rtc_already_configured) {
+		ret = k3rtc_configure(dev);
+		if (ret)
+			return ret;
+	}
 
 	if (device_property_present(dev, "wakeup-source"))
 		device_init_wakeup(dev, true);
@@ -910,6 +1443,26 @@ static int ti_k3_rtc_probe(struct platform_device *pdev)
 	ret = devm_rtc_register_device(priv->rtc_dev);
 	if (ret)
 		return ret;
+
+	/* Register GPIO chip after device is fully initialized for proper device links */
+	if (priv->has_analog_block) {
+		ret = ti_k3_rtc_gpio_init(priv, dev);
+		if (ret)
+			return ret;
+	}
+
+	/* Register power-off prepare handler (only for AM62L) */
+	if (priv->has_analog_block) {
+		ret = devm_register_sys_off_handler(dev,
+						    SYS_OFF_MODE_POWER_OFF_PREPARE,
+						    SYS_OFF_PRIO_DEFAULT,
+						    ti_k3_rtc_power_off_prepare,
+						    priv);
+
+		/* Non-fatal, continue with probe */
+		if (ret)
+			dev_warn(dev, "Failed to register poweroff prepare handler: %d\n", ret);
+	}
 
 	return devm_rtc_nvmem_register(priv->rtc_dev, &ti_k3_rtc_nvmem_config);
 }
@@ -933,40 +1486,11 @@ static int __maybe_unused ti_k3_rtc_suspend(struct device *dev)
 {
 	struct ti_k3_rtc *priv = dev_get_drvdata(dev);
 	int ret;
-	u32 temp;
 
 	if (priv->has_analog_block) {
-		guard(mutex)(&priv->mutex_lock);
-
-		ret = k3rtc_unlock_rtc(dev, priv);
+		ret = k3rtc_analog_suspend(dev, priv);
 		if (ret)
 			return ret;
-
-		regmap_read(priv->regmap, REG_K3RTC_GENERAL_CTL, &temp);
-		temp |= 0x10040;
-		regmap_write(priv->regmap, REG_K3RTC_GENERAL_CTL, temp);
-
-		regmap_read(priv->regmap, REG_K3RTC_IRQENABLE_SET_SYS, &temp);
-		temp |= 0x1C;
-		regmap_write(priv->regmap, REG_K3RTC_IRQENABLE_SET_SYS, temp);
-
-		ret = k3rtc_lock_rtc(dev, priv);
-		if (ret)
-			return ret;
-
-		ret = k3rtc_unlock_rtc(dev, priv);
-		if (ret)
-			return ret;
-
-		regmap_read(priv->regmap, REG_K3RTC_GENERAL_CTL, &temp);
-		temp |= 0x20007;
-		regmap_write(priv->regmap, REG_K3RTC_GENERAL_CTL, temp);
-
-		ret = k3rtc_fence(priv);
-		if (ret) {
-			dev_err(dev, "fence failed\n");
-			return ret;
-		}
 	}
 
 	dev_dbg(dev, "suspend complete\n");
@@ -980,107 +1504,25 @@ static int __maybe_unused ti_k3_rtc_suspend(struct device *dev)
 static int __maybe_unused ti_k3_rtc_resume(struct device *dev)
 {
 	struct ti_k3_rtc *priv = dev_get_drvdata(dev);
-	u32 temp;
 	int ret;
-	u32 intr_src;
 
 	if (priv->has_analog_block) {
 		guard(mutex)(&priv->mutex_lock);
 
-		/* Explicitly clear SW_OFF on rtc_cd side */
-		regmap_read(priv->regmap, REG_K3RTC_GENERAL_CTL, &temp);
-		/* Check whether RTC ext pin wake up is enabled or not */
-		if ((temp & 0xF) != 0x0) {
-			temp = temp & (~(1 << 17));
-			regmap_write(priv->regmap, REG_K3RTC_GENERAL_CTL, temp);
-
-			ret = k3rtc_fence(priv);
-			if (ret) {
-				dev_err(dev, "fence failed\n");
-				return ret;
-			}
-
-			ret = k3rtc_lock_rtc(dev, priv);
+		/* If RTC is already configured it will be a LPM resume */
+		if (k3rtc_is_rtc_already_configured(priv)) {
+			ret = k3rtc_analog_resume(dev, priv);
 			if (ret)
 				return ret;
+		}
+	} else if (k3rtc_check_unlocked(priv)) {
 
-			ret = k3rtc_fence(priv);
-			if (ret) {
-				dev_err(dev, "fence failed\n");
-				return ret;
-			}
-			/* read the IRQ source */
-			regmap_read(priv->regmap, REG_K3RTC_IRQSTATUS_RAW_SYS, &temp);
+		guard(mutex)(&priv->mutex_lock);
 
-			/* clear write error condition */
-			ret = k3rtc_unlock_rtc(dev, priv);
-			if (ret)
-				return ret;
-
-			regmap_write(priv->regmap, REG_K3RTC_SYNCPEND, 0x08);
-			/* Disable wakeup interrupts */
-			regmap_write(priv->regmap, REG_K3RTC_IRQENABLE_CLR_SYS, 0x1f);
-
-			ret = k3rtc_lock_rtc(dev, priv);
-			if (ret)
-				return ret;
-
-			ret = k3rtc_fence(priv);
-			if (ret) {
-				dev_err(dev, "fence failed\n");
-				return ret;
-			}
-			/* Read RTC's interrupt register to check the wake up source */
-			regmap_read(priv->regmap, REG_K3RTC_IRQSTATUS_RAW_SYS, &intr_src);
-
-			/* clear wakeup enable */
-			regmap_read(priv->regmap, REG_K3RTC_GENERAL_CTL, &temp);
-			temp = temp & (~(0xF));
-			ret = k3rtc_unlock_rtc(dev, priv);
-			if (ret)
-				return ret;
-
-			regmap_write(priv->regmap, REG_K3RTC_GENERAL_CTL, temp);
-			ret = k3rtc_lock_rtc(dev, priv);
-			if (ret)
-				return ret;
-
-			ret = k3rtc_fence(priv);
-			if (ret) {
-				dev_err(dev, "fence failed\n");
-				return ret;
-			}
-			/* clear wakeup interrupt */
-			ret = k3rtc_unlock_rtc(dev, priv);
-			if (ret)
-				return ret;
-
-			regmap_write(priv->regmap, REG_K3RTC_IRQSTATUS_SYS, intr_src);
-			ret = k3rtc_lock_rtc(dev, priv);
-			if (ret)
-				return ret;
-
-			ret = k3rtc_fence(priv);
-			if (ret) {
-				dev_err(dev, "fence failed\n");
-				return ret;
-			}
-
-			ret = k3rtc_unlock_rtc(dev, priv);
-			if (ret)
-				return ret;
-
-			k3rtc_field_write(priv, K3RTC_RELOAD_FROM_BBD, 0x1);
-			ret = k3rtc_fence(priv);
-			if (ret) {
-				dev_err(dev, "fence failed\n");
-				return ret;
-			}
-
-			ret = k3rtc_lock_rtc(dev, priv);
-			if (ret)
-				return ret;
-			}
+		/* RTC locked implies low power mode exit where RTC loses context */
+		ret = k3rtc_configure(dev);
+		if (ret)
+			return ret;
 	}
 
 	dev_dbg(dev, "Resume complete\n");

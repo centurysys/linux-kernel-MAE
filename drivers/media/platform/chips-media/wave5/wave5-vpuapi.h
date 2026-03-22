@@ -11,6 +11,7 @@
 #include <linux/kfifo.h>
 #include <linux/idr.h>
 #include <linux/genalloc.h>
+#include <linux/devfreq.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-ctrls.h>
@@ -574,6 +575,8 @@ struct enc_wave_param {
 	u32 transform8x8_enable: 1; /* enable 8x8 intra prediction and 8x8 transform */
 	u32 mb_level_rc_enable: 1; /* enable MB-level rate control */
 	u32 forced_idr_header_enable: 1; /* enable header encoding before IDR frame */
+	u32 constraint_set1_flag: 1; /* enable CBP */
+	u32 bg_detection: 1; /* enable background detection */
 };
 
 struct enc_open_param {
@@ -777,6 +780,7 @@ struct vpu_device {
 	struct gen_pool *sram_pool;
 	struct vpu_buf sram_buf;
 	void __iomem *vdb_register;
+	struct devfreq *vpu_devfreq;
 	u32 product_code;
 	u32 ext_addr;
 	struct ida inst_ida;
@@ -790,6 +794,7 @@ struct vpu_device {
 	struct semaphore irq_sem; /* signal to irq_thread when interrupt happens*/
 	struct reset_control *resets;
 	spinlock_t irq_spinlock; /* protect instances list */
+	bool opp_table_detected;
 };
 
 struct vpu_instance;

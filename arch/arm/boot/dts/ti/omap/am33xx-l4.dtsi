@@ -891,6 +891,14 @@
 					};
 				};
 
+				pruss_uart: serial@28000 {
+					compatible = "ti,pruss-uart";
+					reg = <0x28000 0x38>;
+					clocks = <&dpll_per_m2_ck>;
+					interrupt-parent = <&pruss_intc>;
+					status = "disabled";
+				};
+
 				pruss_mii_rt: mii-rt@32000 {
 					compatible = "ti,pruss-mii", "syscon";
 					reg = <0x32000 0x58>;
@@ -926,6 +934,9 @@
 					      <0x22400 0x100>;
 					reg-names = "iram", "control", "debug";
 					firmware-name = "am335x-pru0-fw";
+					interrupt-parent = <&pruss_intc>;
+					interrupts = <16 2 2>;
+					interrupt-names = "vring";
 				};
 
 				pru1: pru@38000 {
@@ -935,6 +946,9 @@
 					      <0x24400 0x100>;
 					reg-names = "iram", "control", "debug";
 					firmware-name = "am335x-pru1-fw";
+					interrupt-parent = <&pruss_intc>;
+					interrupts = <18 3 3>;
+					interrupt-names = "vring";
 				};
 
 				pruss_mdio: mdio@32400 {

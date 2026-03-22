@@ -533,7 +533,7 @@ int cpsw_ale_add_ucast(struct cpsw_ale *ale, const u8 *addr, int port,
 		return -ENOMEM;
 
 	cpsw_ale_write(ale, idx, ale_entry);
-	return 0;
+	return idx;
 }
 
 int cpsw_ale_del_ucast(struct cpsw_ale *ale, const u8 *addr, int port,
@@ -679,7 +679,7 @@ int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port_mask, int untag,
 		return -ENOMEM;
 
 	cpsw_ale_write(ale, idx, ale_entry);
-	return 0;
+	return idx;
 }
 
 static void cpsw_ale_vlan_del_modify_int(struct cpsw_ale *ale,  u32 *ale_entry,
@@ -779,7 +779,7 @@ int cpsw_ale_vlan_add_modify(struct cpsw_ale *ale, u16 vid, int port_mask,
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
 	int reg_mcast_members, unreg_mcast_members;
 	int vlan_members, untag_members;
-	int idx, ret = 0;
+	int idx;
 
 	idx = cpsw_ale_match_vlan(ale, vid);
 	if (idx >= 0)
@@ -800,16 +800,16 @@ int cpsw_ale_vlan_add_modify(struct cpsw_ale *ale, u16 vid, int port_mask,
 	reg_mcast_members = (reg_mcast_members & ~port_mask) | reg_mask;
 	unreg_mcast_members = (unreg_mcast_members & ~port_mask) | unreg_mask;
 
-	ret = cpsw_ale_add_vlan(ale, vid, vlan_members, untag_members,
+	idx = cpsw_ale_add_vlan(ale, vid, vlan_members, untag_members,
 				reg_mcast_members, unreg_mcast_members);
-	if (ret) {
+	if (idx < 0) {
 		dev_err(ale->params.dev, "Unable to add vlan\n");
-		return ret;
+		return idx;
 	}
 	dev_dbg(ale->params.dev, "port mask 0x%x untag 0x%x\n", vlan_members,
 		untag_mask);
 
-	return ret;
+	return idx;
 }
 
 void cpsw_ale_set_unreg_mcast(struct cpsw_ale *ale, int unreg_mcast_mask,
@@ -1340,33 +1340,33 @@ static const struct reg_field ale_fields_cpsw_nu[] = {
 	/* CPSW_ALE_POLICER_PORT_OUI_REG */
 	[POL_PORT_MEN]	= REG_FIELD(ALE_POLICER_PORT_OUI, 31, 31),
 	[POL_TRUNK_ID]	= REG_FIELD(ALE_POLICER_PORT_OUI, 30, 30),
-	[POL_PORT_NUM]	= REG_FIELD(ALE_POLICER_PORT_OUI, 25, 25),
+	[POL_PORT_NUM]	= REG_FIELD(ALE_POLICER_PORT_OUI, 25, 28),
 	[POL_PRI_MEN]	= REG_FIELD(ALE_POLICER_PORT_OUI, 19, 19),
 	[POL_PRI_VAL]	= REG_FIELD(ALE_POLICER_PORT_OUI, 16, 18),
 	[POL_OUI_MEN]	= REG_FIELD(ALE_POLICER_PORT_OUI, 15, 15),
-	[POL_OUI_INDEX]	= REG_FIELD(ALE_POLICER_PORT_OUI, 0, 5),
+	[POL_OUI_INDEX]	= REG_FIELD(ALE_POLICER_PORT_OUI, 0, 9),
 
 	/* CPSW_ALE_POLICER_DA_SA_REG */
 	[POL_DST_MEN]	= REG_FIELD(ALE_POLICER_DA_SA, 31, 31),
-	[POL_DST_INDEX]	= REG_FIELD(ALE_POLICER_DA_SA, 16, 21),
+	[POL_DST_INDEX]	= REG_FIELD(ALE_POLICER_DA_SA, 16, 25),
 	[POL_SRC_MEN]	= REG_FIELD(ALE_POLICER_DA_SA, 15, 15),
-	[POL_SRC_INDEX]	= REG_FIELD(ALE_POLICER_DA_SA, 0, 5),
+	[POL_SRC_INDEX]	= REG_FIELD(ALE_POLICER_DA_SA, 0, 9),
 
 	/* CPSW_ALE_POLICER_VLAN_REG */
 	[POL_OVLAN_MEN]		= REG_FIELD(ALE_POLICER_VLAN, 31, 31),
-	[POL_OVLAN_INDEX]	= REG_FIELD(ALE_POLICER_VLAN, 16, 21),
+	[POL_OVLAN_INDEX]	= REG_FIELD(ALE_POLICER_VLAN, 16, 25),
 	[POL_IVLAN_MEN]		= REG_FIELD(ALE_POLICER_VLAN, 15, 15),
-	[POL_IVLAN_INDEX]	= REG_FIELD(ALE_POLICER_VLAN, 0, 5),
+	[POL_IVLAN_INDEX]	= REG_FIELD(ALE_POLICER_VLAN, 0, 9),
 
 	/* CPSW_ALE_POLICER_ETHERTYPE_IPSA_REG */
 	[POL_ETHERTYPE_MEN]	= REG_FIELD(ALE_POLICER_ETHERTYPE_IPSA, 31, 31),
-	[POL_ETHERTYPE_INDEX]	= REG_FIELD(ALE_POLICER_ETHERTYPE_IPSA, 16, 21),
+	[POL_ETHERTYPE_INDEX]	= REG_FIELD(ALE_POLICER_ETHERTYPE_IPSA, 16, 25),
 	[POL_IPSRC_MEN]		= REG_FIELD(ALE_POLICER_ETHERTYPE_IPSA, 15, 15),
-	[POL_IPSRC_INDEX]	= REG_FIELD(ALE_POLICER_ETHERTYPE_IPSA, 0, 5),
+	[POL_IPSRC_INDEX]	= REG_FIELD(ALE_POLICER_ETHERTYPE_IPSA, 0, 9),
 
 	/* CPSW_ALE_POLICER_IPDA_REG */
 	[POL_IPDST_MEN]		= REG_FIELD(ALE_POLICER_IPDA, 31, 31),
-	[POL_IPDST_INDEX]	= REG_FIELD(ALE_POLICER_IPDA, 16, 21),
+	[POL_IPDST_INDEX]	= REG_FIELD(ALE_POLICER_IPDA, 16, 25),
 
 	/* CPSW_ALE_POLICER_TBL_CTL_REG */
 	/**
@@ -1673,80 +1673,142 @@ static void cpsw_ale_policer_thread_idx_enable(struct cpsw_ale *ale, u32 idx,
 	regmap_field_write(ale->fields[ALE_THREAD_ENABLE], enable ? 1 : 0);
 }
 
-/* Disable all policer entries and thread mappings */
-static void cpsw_ale_policer_reset(struct cpsw_ale *ale)
+static void cpsw_ale_policer_reset_entry(struct cpsw_ale *ale, u32 idx)
 {
 	int i;
 
-	for (i = 0; i < ale->params.num_policers ; i++) {
-		cpsw_ale_policer_read_idx(ale, i);
-		regmap_field_write(ale->fields[POL_PORT_MEN], 0);
-		regmap_field_write(ale->fields[POL_PRI_MEN], 0);
-		regmap_field_write(ale->fields[POL_OUI_MEN], 0);
-		regmap_field_write(ale->fields[POL_DST_MEN], 0);
-		regmap_field_write(ale->fields[POL_SRC_MEN], 0);
-		regmap_field_write(ale->fields[POL_OVLAN_MEN], 0);
-		regmap_field_write(ale->fields[POL_IVLAN_MEN], 0);
-		regmap_field_write(ale->fields[POL_ETHERTYPE_MEN], 0);
-		regmap_field_write(ale->fields[POL_IPSRC_MEN], 0);
-		regmap_field_write(ale->fields[POL_IPDST_MEN], 0);
-		regmap_field_write(ale->fields[POL_EN], 0);
-		regmap_field_write(ale->fields[POL_RED_DROP_EN], 0);
-		regmap_field_write(ale->fields[POL_YELLOW_DROP_EN], 0);
-		regmap_field_write(ale->fields[POL_PRIORITY_THREAD_EN], 0);
-
-		cpsw_ale_policer_thread_idx_enable(ale, i, 0, 0);
-	}
+	cpsw_ale_policer_read_idx(ale, idx);
+	for (i = 0; i < CPSW_ALE_POLICER_ENTRY_WORDS; i++)
+		writel_relaxed(0, ale->params.ale_regs +
+			       ALE_POLICER_PORT_OUI + 4 * i);
+	cpsw_ale_policer_thread_idx_enable(ale, idx, 0, 0);
+	cpsw_ale_policer_write_idx(ale, idx);
 }
 
-/* Default classifier is to map 8 user priorities to N receive channels */
-void cpsw_ale_classifier_setup_default(struct cpsw_ale *ale, int num_rx_ch)
+/* Disable all policer entries and thread mappings */
+void cpsw_ale_policer_reset(struct cpsw_ale *ale)
 {
-	int pri, idx;
+	int i;
 
-	/* Reference:
-	 * IEEE802.1Q-2014, Standard for Local and metropolitan area networks
-	 *    Table I-2 - Traffic type acronyms
-	 *    Table I-3 - Defining traffic types
-	 * Section I.4 Traffic types and priority values, states:
-	 * "0 is thus used both for default priority and for Best Effort, and
-	 *  Background is associated with a priority value of 1. This means
-	 * that the value 1 effectively communicates a lower priority than 0."
-	 *
-	 * In the table below, Priority Code Point (PCP) 0 is assigned
-	 * to a higher priority thread than PCP 1 wherever possible.
-	 * The table maps which thread the PCP traffic needs to be
-	 * sent to for a given number of threads (RX channels). Upper threads
-	 * have higher priority.
-	 * e.g. if number of threads is 8 then user priority 0 will map to
-	 * pri_thread_map[8-1][0] i.e. thread 1
+	for (i = 0; i < ale->params.num_policers ; i++)
+		cpsw_ale_policer_reset_entry(ale, i);
+}
+
+#define HOST_PORT_NUM 0
+
+/* Clear Policer and associated ALE table entries */
+void cpsw_ale_policer_clr_entry(struct cpsw_ale *ale, u32 policer_idx,
+				struct cpsw_ale_policer_cfg *cfg)
+{
+	cpsw_ale_policer_reset_entry(ale, policer_idx);
+
+	/* We do not delete ALE entries that were added in set_entry
+	 * as they might still be in use by the port e.g. VLAN id
+	 * or port MAC address
 	 */
 
-	int pri_thread_map[8][8] = {   /* BK,BE,EE,CA,VI,VO,IC,NC */
-					{ 0, 0, 0, 0, 0, 0, 0, 0, },
-					{ 0, 0, 0, 0, 1, 1, 1, 1, },
-					{ 0, 0, 0, 0, 1, 1, 2, 2, },
-					{ 0, 0, 1, 1, 2, 2, 3, 3, },
-					{ 0, 0, 1, 1, 2, 2, 3, 4, },
-					{ 1, 0, 2, 2, 3, 3, 4, 5, },
-					{ 1, 0, 2, 3, 4, 4, 5, 6, },
-					{ 1, 0, 2, 3, 4, 5, 6, 7 } };
+	/* clear BLOCKED in case we set it */
+	if ((cfg->match_flags & CPSW_ALE_POLICER_MATCH_MACSRC) && cfg->drop)
+		cpsw_ale_add_ucast(ale, cfg->src_addr, HOST_PORT_NUM, 0, 0);
 
-	cpsw_ale_policer_reset(ale);
+	if ((cfg->match_flags & CPSW_ALE_POLICER_MATCH_MACDST) && cfg->drop)
+		cpsw_ale_add_ucast(ale, cfg->dst_addr, HOST_PORT_NUM, 0, 0);
+}
 
-	/* use first 8 classifiers to map 8 (DSCP/PCP) priorities to channels */
-	for (pri = 0; pri < 8; pri++) {
-		idx = pri;
+int cpsw_ale_policer_set_entry(struct cpsw_ale *ale, u32 policer_idx,
+			       struct cpsw_ale_policer_cfg *cfg)
+{
+	int ale_idx;
+	u16 ale_flags = cfg->drop ? ALE_BLOCKED : 0;
 
-		/* Classifier 'idx' match on priority 'pri' */
-		cpsw_ale_policer_read_idx(ale, idx);
-		regmap_field_write(ale->fields[POL_PRI_VAL], pri);
+	/* A single policer can support multiple match types simultaneously
+	 * There can be only one ALE entry per address
+	 */
+	cpsw_ale_policer_reset_entry(ale, policer_idx);
+	cpsw_ale_policer_read_idx(ale, policer_idx);
+
+	if (cfg->match_flags & CPSW_ALE_POLICER_MATCH_MACSRC) {
+		ale_idx = cpsw_ale_add_ucast(ale, cfg->src_addr, HOST_PORT_NUM,
+					     ale_flags, 0);
+		if (ale_idx < 0)
+			return -ENOENT;
+
+		/* update policer entry */
+		regmap_field_write(ale->fields[POL_SRC_INDEX], ale_idx);
+		regmap_field_write(ale->fields[POL_SRC_MEN], 1);
+	}
+
+	if (cfg->match_flags & CPSW_ALE_POLICER_MATCH_MACDST) {
+		ale_idx = cpsw_ale_add_ucast(ale, cfg->dst_addr, HOST_PORT_NUM,
+					     ale_flags, 0);
+		if (ale_idx < 0)
+			return -ENOENT;
+
+		/* update policer entry */
+		regmap_field_write(ale->fields[POL_DST_INDEX], ale_idx);
+		regmap_field_write(ale->fields[POL_DST_MEN], 1);
+	}
+
+	if (cfg->match_flags & CPSW_ALE_POLICER_MATCH_OVLAN) {
+		/* VLAN ID based flow routing not yet working,
+		 * only PCP matching for now
+		 */
+		if (cfg->vid > 0)
+			return -EINVAL;
+
+		regmap_field_write(ale->fields[POL_PRI_VAL], cfg->vlan_prio);
 		regmap_field_write(ale->fields[POL_PRI_MEN], 1);
+	}
+
+	cpsw_ale_policer_write_idx(ale, policer_idx);
+
+	/* Map to thread id provided by the config */
+	if (!cfg->drop) {
+		cpsw_ale_policer_thread_idx_enable(ale, policer_idx,
+						   cfg->thread_id, true);
+	}
+
+	return 0;
+}
+
+void cpsw_ale_policer_save(struct cpsw_ale *ale, u32 *data)
+{
+	int i, idx;
+
+	for (idx = 0; idx < ale->params.num_policers; idx++) {
+		cpsw_ale_policer_read_idx(ale, idx);
+
+		for (i = 0; i < CPSW_ALE_POLICER_ENTRY_WORDS; i++)
+			data[i] = readl_relaxed(ale->params.ale_regs +
+						ALE_POLICER_PORT_OUI + 4 * i);
+
+		regmap_field_write(ale->fields[ALE_THREAD_CLASS_INDEX], idx);
+		data[i++] = readl_relaxed(ale->params.ale_regs +
+					ALE_THREAD_VAL);
+		data += i;
+	}
+
+	data[0] = readl_relaxed(ale->params.ale_regs + ALE_THREAD_DEF);
+}
+
+void cpsw_ale_policer_restore(struct cpsw_ale *ale, u32 *data)
+{
+	int i, idx;
+
+	for (idx = 0; idx < ale->params.num_policers; idx++) {
+		cpsw_ale_policer_read_idx(ale, idx);
+
+		for (i = 0; i < CPSW_ALE_POLICER_ENTRY_WORDS; i++)
+			writel_relaxed(data[i], ale->params.ale_regs +
+				       ALE_POLICER_PORT_OUI + 4 * i);
+
 		cpsw_ale_policer_write_idx(ale, idx);
 
-		/* Map Classifier 'idx' to thread provided by the map */
-		cpsw_ale_policer_thread_idx_enable(ale, idx,
-						   pri_thread_map[num_rx_ch - 1][pri],
-						   1);
+		regmap_field_write(ale->fields[ALE_THREAD_CLASS_INDEX], idx);
+		writel_relaxed(data[i++], ale->params.ale_regs +
+						 ALE_THREAD_VAL);
+		data += i;
 	}
+
+	writel_relaxed(data[0], ale->params.ale_regs + ALE_THREAD_DEF);
 }

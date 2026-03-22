@@ -156,6 +156,35 @@ enum cpsw_ale_port_state {
 #define ALE_ENTRY_BITS		68
 #define ALE_ENTRY_WORDS	DIV_ROUND_UP(ALE_ENTRY_BITS, 32)
 
+/* Policer */
+#define CPSW_ALE_POLICER_ENTRY_WORDS	8
+
+/* Policer match flags */
+#define CPSW_ALE_POLICER_MATCH_PORT	BIT(0)
+#define CPSW_ALE_POLICER_MATCH_PRI	BIT(1)
+#define CPSW_ALE_POLICER_MATCH_OUI	BIT(2)
+#define CPSW_ALE_POLICER_MATCH_MACDST	BIT(3)
+#define CPSW_ALE_POLICER_MATCH_MACSRC	BIT(4)
+#define CPSW_ALE_POLICER_MATCH_OVLAN	BIT(5)
+#define CPSW_ALE_POLICER_MATCH_IVLAN	BIT(6)
+#define CPSW_ALE_POLICER_MATCH_ETHTYPE	BIT(7)
+#define CPSW_ALE_POLICER_MATCH_IPSRC	BIT(8)
+#define CPSW_ALE_POLICER_MATCH_IPDST	BIT(9)
+
+#define CPSW_ALE_POLICER_ENTRY_WORDS	8
+
+struct cpsw_ale_policer_cfg {
+	u32 match_flags;
+	u16 ether_type;
+	u16 vid;
+	u8 vlan_prio;
+	u8 src_addr[ETH_ALEN];
+	u8 dst_addr[ETH_ALEN];
+	bool drop;
+	u64 thread_id;
+	int port_id;
+};
+
 struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params);
 
 void cpsw_ale_start(struct cpsw_ale *ale);
@@ -194,6 +223,12 @@ int cpsw_ale_vlan_add_modify(struct cpsw_ale *ale, u16 vid, int port_mask,
 int cpsw_ale_vlan_del_modify(struct cpsw_ale *ale, u16 vid, int port_mask);
 void cpsw_ale_set_unreg_mcast(struct cpsw_ale *ale, int unreg_mcast_mask,
 			      bool add);
-void cpsw_ale_classifier_setup_default(struct cpsw_ale *ale, int num_rx_ch);
+void cpsw_ale_policer_reset(struct cpsw_ale *ale);
+int cpsw_ale_policer_set_entry(struct cpsw_ale *ale, u32 policer_idx,
+			       struct cpsw_ale_policer_cfg *cfg);
+void cpsw_ale_policer_clr_entry(struct cpsw_ale *ale, u32 policer_idx,
+				struct cpsw_ale_policer_cfg *cfg);
+void cpsw_ale_policer_save(struct cpsw_ale *ale, u32 *data);
+void cpsw_ale_policer_restore(struct cpsw_ale *ale, u32 *data);
 
 #endif

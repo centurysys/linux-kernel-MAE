@@ -13,6 +13,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am625-beagleplay.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am625-beagleplay-csi2-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am625-beagleplay-csi2-tevi-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am625-beagleplay-lincolntech-lcd185-panel.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am625-minimal.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am625-phyboard-lyra-rdk.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am625-sk-m2-cc3351.dtbo
@@ -57,6 +58,12 @@ dtb-$(CONFIG_ARCH_K3) += k3-am62a7-sk-ub954-evm-ov2312.dtb
 # Boards with AM62Dx SoC
 dtb-$(CONFIG_ARCH_K3) += k3-am62d2-evm.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62d2-evm-dsp-controlled-audio.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-ecap-capture.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-epaper.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-eqep.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-mcan.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-pwm.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-badge.dtb
 
 # Boards with AM62Lx SoCs
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm.dtb
@@ -65,6 +72,8 @@ dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-lpm-wkup-sources.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-m2-cc3351.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-nand.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-tida-010939.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-evm-idle-states.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62l3-minimal.dtb
 
 # Boards with AM62Px SoC
 dtb-$(CONFIG_ARCH_K3) += k3-am62p5-sk.dtb
@@ -108,6 +117,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am62x-sk-pwm.dtbo
 
 # Boards with AM64x SoC
 dtb-$(CONFIG_ARCH_K3) += k3-am642-evm.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-icssg0.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-icssg1-dualemac.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-icssg1-dualemac-mii.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-onboard-clkgen-pcie-serdes.dtbo
@@ -118,6 +128,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am642-hummingboard-t-pcie.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am642-hummingboard-t-usb3.dtb
 k3-am642-evm-nand-dtbs := k3-am642-evm.dtb k3-am642-evm-nand.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-nand.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-sk-cpsw3g-pps.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-phyboard-electra-rdk.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am642-phyboard-electra-gpio-fan.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-phyboard-electra-pcie-usb2.dtbo
@@ -192,6 +203,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am68-phyboard-izar.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-base-board.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-base-board-pcie1-ep.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-v3link-fusion.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-v3link-fusion-dual-csitx.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am68-sk-bb-csi2-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-j721s2-common-proc-board.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-j721s2-evm-fusion.dtbo
@@ -212,6 +224,8 @@ dtb-$(CONFIG_ARCH_K3) += k3-j722s-evm-csi2-quad-tevi-ov5640.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-j722s-evm-fpdlink-fusion.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-j722s-evm-fpdlink-iv-fusion.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-j722s-evm-v3link-fusion.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-j722s-evm-dsi-rpi-7inch-panel.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-j722s-evm-microtips-mf101hie-panel.dtbo
 
 # Boards with J784s4 SoC
 dtb-$(CONFIG_ARCH_K3) += k3-am69-sk.dtb
@@ -289,6 +303,8 @@ k3-am62p5-sk-microtips-mf101hie-panel-dtbs := k3-am62p5-sk.dtb \
 	k3-am62p5-sk-microtips-mf101hie-panel.dtbo
 k3-am62p5-sk-microtips-mf103hie-lcd2-dtbs := k3-am62p5-sk.dtb \
 	k3-am62p5-sk-microtips-mf103hie-lcd2.dtbo
+k3-am642-evm-icssg0-dtbs := \
+	k3-am642-evm.dtb k3-am642-evm-icssg0.dtbo
 k3-am642-evm-icssg1-dualemac-dtbs := \
 	k3-am642-evm.dtb k3-am642-evm-icssg1-dualemac.dtbo
 k3-am642-evm-icssg1-dualemac-mii-dtbs := \
@@ -313,6 +329,10 @@ k3-am642-phyboard-electra-x27-gpio1-spi1-uart3-dtbs := \
 	k3-am642-phyboard-electra-rdk.dtb k3-am642-phyboard-electra-x27-gpio1-spi1-uart3.dtbo
 k3-am642-phyboard-electra-peb-c-010-dtbs := \
 	k3-am642-phyboard-electra-rdk.dtb k3-am642-phyboard-electra-peb-c-010.dtbo
+k3-am642-evm-cpsw3g-pps-dtbs := \
+	k3-am642-evm.dtb k3-am642-evm-sk-cpsw3g-pps.dtbo
+k3-am642-sk-cpsw3g-pps-dtbs := \
+	k3-am642-sk.dtb k3-am642-evm-sk-cpsw3g-pps.dtbo
 k3-am642-tqma64xxl-mbax4xxl-sdcard-dtbs := \
 	k3-am642-tqma64xxl-mbax4xxl.dtb k3-am64-tqma64xxl-mbax4xxl-sdcard.dtbo
 k3-am642-tqma64xxl-mbax4xxl-wlan-dtbs := \
@@ -385,6 +405,10 @@ k3-j722s-evm-fpdlink-iv-fusion-dtbs := k3-j722s-evm.dtb \
 	k3-j722s-evm-fpdlink-iv-fusion.dtbo
 k3-j722s-evm-v3link-fusion-dtbs := k3-j722s-evm.dtb \
 	k3-j722s-evm-v3link-fusion.dtbo
+k3-j722s-evm-dsi-rpi-7inch-panel-dtbs := k3-j722s-evm.dtb \
+	k3-j722s-evm-dsi-rpi-7inch-panel.dtbo
+k3-j722s-evm-microtips-mf101hie-panel-dtbs := k3-j722s-evm.dtb \
+	k3-j722s-evm-microtips-mf101hie-panel.dtbo
 k3-j742s2-evm-ethfw-dtbs := k3-j742s2-evm.dtb \
 	k3-j742s2-evm-ethfw.dtbo
 k3-j742s2-evm-mcspi-loopback-dtbs := k3-j742s2-evm.dtb \
@@ -413,6 +437,8 @@ k3-am62l3-evm-nand-dtbs := k3-am62l3-evm.dtb \
 	k3-am62l3-evm-nand.dtbo
 k3-am62l3-evm-tida-010939-dtbs := k3-am62l3-evm.dtb \
 	k3-am62l3-evm-tida-010939.dtbo
+k3-am62l3-evm-idle-states-dtbs := k3-am62l3-evm.dtb \
+	k3-am62l3-evm-idle-states.dtbo
 dtb- += k3-am625-beagleplay-csi2-ov5640.dtb \
 	k3-am625-beagleplay-csi2-tevi-ov5640.dtb \
 	k3-am625-beagleplay-lincolntech-lcd185-panel.dtb \
@@ -438,10 +464,13 @@ dtb- += k3-am625-beagleplay-csi2-ov5640.dtb \
 	k3-am62p5-sk-ethfw.dtb \
 	k3-am62p5-sk-microtips-mf101hie-panel.dtb \
 	k3-am62p5-sk-microtips-mf103hie-lcd2.dtb \
+	k3-am642-evm-icssg0.dtb \
 	k3-am642-evm-icssg1-dualemac.dtb \
 	k3-am642-evm-icssg1-dualemac-mii.dtb \
 	k3-am642-evm-onboard-clkgen-pcie-serdes.dtb \
 	k3-am642-evm-pcie0-ep.dtb \
+	k3-am642-evm-cpsw3g-pps.dtb \
+	k3-am642-sk-cpsw3g-pps.dtb \
 	k3-am642-tqma64xxl-mbax4xxl-sdcard.dtb \
 	k3-am642-tqma64xxl-mbax4xxl-wlan.dtb \
 	k3-am68-sk-base-board-csi2-dual-imx219.dtb \
@@ -478,6 +507,8 @@ dtb- += k3-am625-beagleplay-csi2-ov5640.dtb \
 	k3-j722s-evm-fpdlink-fusion.dtb \
 	k3-j722s-evm-fpdlink-iv-fusion.dtb \
 	k3-j722s-evm-v3link-fusion.dtb \
+	k3-j722s-evm-dsi-rpi-7inch-panel.dtb \
+	k3-j722s-evm-microtips-mf101hie-panel.dtb \
 	k3-j742s2-evm-ethfw.dtb \
 	k3-j742s2-evm-usb0-type-a.dtb \
 	k3-j742s2-evm-mcspi-loopback.dtb \
@@ -490,7 +521,8 @@ dtb- += k3-am625-beagleplay-csi2-ov5640.dtb \
 	k3-j784s4-evm-usb0-type-a.dtb \
 	k3-j784s4-evm-usxgmii-exp1-exp2.dtb \
 	k3-am62l3-evm-dsi-rpi-7inch-panel.dtb \
-	k3-am62l3-evm-tida-010939.dtb
+	k3-am62l3-evm-tida-010939.dtb \
+	k3-am62l3-evm-idle-states.dtb
 
 # FPDLink Sensors
 dtb-$(CONFIG_ARCH_K3) += k3-fpdlink-ov2312-0-0.dtbo \
@@ -530,3 +562,31 @@ dtb-$(CONFIG_ARCH_K3) += k3-v3link-imx219-0-0.dtbo \
 
 # Enable support for device-tree overlays
 DTC_FLAGS := -@
+DTC_FLAGS_k3-am625-beagleplay += -@
+DTC_FLAGS_k3-am625-phyboard-lyra-rdk += -@
+DTC_FLAGS_k3-am62a7-phyboard-lyra-rdk += -@
+DTC_FLAGS_k3-am625-sk += -@
+DTC_FLAGS_k3-am62-lp-sk += -@
+DTC_FLAGS_k3-am62a7-sk += -@
+DTC_FLAGS_k3-am62p5-sk += -@
+DTC_FLAGS_k3-am642-evm += -@
+DTC_FLAGS_k3-am642-phyboard-electra-rdk += -@
+DTC_FLAGS_k3-am642-tqma64xxl-mbax4xxl += -@
+DTC_FLAGS_k3-am6548-iot2050-advanced-m2 += -@
+DTC_FLAGS_k3-am68-sk-base-board += -@
+DTC_FLAGS_k3-am68-sk-v3link-fusion += -@
+DTC_FLAGS_k3-am69-sk += -@
+DTC_FLAGS_k3-j7200-common-proc-board += -@
+DTC_FLAGS_k3-j721e-beagleboneai64 += -@
+DTC_FLAGS_k3-j721e-evm-fusion += -@
+DTC_FLAGS_k3-j721e-common-proc-board += -@
+DTC_FLAGS_k3-j721e-evm-pcie0-ep += -@
+DTC_FLAGS_k3-j721e-evm-ub954 += -@
+DTC_FLAGS_k3-j721e-sk += -@
+DTC_FLAGS_k3-j721e-sk-fpdlink-fusion += -@
+DTC_FLAGS_k3-j721s2-common-proc-board += -@
+DTC_FLAGS_k3-j721s2-evm-fusion += -@
+DTC_FLAGS_k3-j721s2-evm-ub954 += -@
+DTC_FLAGS_k3-j722s-evm += -@
+DTC_FLAGS_k3-j784s4-evm += -@
+DTC_FLAGS_k3-j742s2-evm += -@
