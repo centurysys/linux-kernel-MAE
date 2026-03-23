@@ -334,6 +334,7 @@ uart_update_timeout(struct uart_port *port, unsigned int cflag,
 		    unsigned int baud)
 {
 	unsigned int bits;
+	u64 temp;
 
 	/* byte size and parity */
 	switch (cflag & CSIZE) {
@@ -366,6 +367,9 @@ uart_update_timeout(struct uart_port *port, unsigned int cflag,
 	 * Add .02 seconds of slop
 	 */
 	port->timeout = (HZ * bits) / baud + HZ/50;
+
+	temp = (u64)tty_get_frame_size(cflag) * (u64)NSEC_PER_SEC;
+	port->frame_time = (unsigned int)DIV64_U64_ROUND_UP(temp, baud);
 }
 
 EXPORT_SYMBOL(uart_update_timeout);

@@ -2183,6 +2183,7 @@
 		#size-cells = <1>;
 		reg-offset = <0x0>;
 		clock-frequency = <7372800>;
+		fifo-size = <16>;
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
@@ -2211,6 +2212,7 @@
 		#size-cells = <1>;
 		reg-offset = <0x0>;
 		clock-frequency = <7372800>;
+		fifo-size = <16>;
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
@@ -2236,6 +2238,7 @@
 		#size-cells = <1>;
 		reg-offset = <0x0>;
 		clock-frequency = <7372800>;
+		fifo-size = <16>;
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
@@ -2261,6 +2264,7 @@
 		#size-cells = <1>;
 		reg-offset = <0x0>;
 		clock-frequency = <7372800>;
+		fifo-size = <16>;
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
@@ -2281,6 +2285,7 @@
 		#size-cells = <1>;
 		reg-offset = <0x0>;
 		clock-frequency = <7372800>;
+		fifo-size = <16>;
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
@@ -2324,6 +2329,7 @@
 		#size-cells = <1>;
 		reg-offset = <0x0>;
 		clock-frequency = <7372800>;
+		fifo-size = <16>;
 
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio0>;
