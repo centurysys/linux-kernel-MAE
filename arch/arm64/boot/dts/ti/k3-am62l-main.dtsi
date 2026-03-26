@@ -913,10 +913,10 @@
 					<GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "tx", "rx";
 
-		clocks = <&scmi_clk 192>;
+		clocks = <&scmi_clk 194>;
 		clock-names = "fck";
-		assigned-clocks = <&scmi_clk 192>;
-		assigned-clock-parents = <&scmi_clk 1>;
+		assigned-clocks = <&scmi_clk 194>;
+		assigned-clock-parents = <&scmi_clk 193>;
 		dmas = <&main_bcdma 0 0 0xc500 0>, <&main_bcdma 0 0 0x4500 0>;
 		dma-names = "tx", "rx";
 		power-domains = <&scmi_pds 50>;
