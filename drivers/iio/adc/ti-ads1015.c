@@ -134,6 +134,10 @@ static const int ads1115_scale[] = {	/* 16bit ADC */
 	6144, 15
 };
 
+static const int tla2021_scale[] = {   /* 12bit ADC */
+	2048, 11,
+};
+
 /*
  * Translation from COMP_QUE field value to the number of successive readings
  * exceed the threshold values before an interrupt is generated
@@ -352,6 +356,11 @@ static const struct iio_chan_spec ads1115_channels[] = {
 		       ads1015_events, ARRAY_SIZE(ads1015_events)),
 	ADS1015_V_CHAN(3, ADS1015_AIN3, 16, 0,
 		       ads1015_events, ARRAY_SIZE(ads1015_events)),
+	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
+};
+
+static const struct iio_chan_spec tla2021_channels[] = {
+	ADS1015_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1, 12, 4, NULL, 0),
 	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
 };
 
@@ -1117,6 +1126,17 @@ static const struct ads1015_chip_data ads1115_data = {
 	.has_comparator	= true,
 };
 
+static const struct ads1015_chip_data tla2021_data = {
+	.channels       = tla2021_channels,
+	.num_channels   = ARRAY_SIZE(tla2021_channels),
+	.info           = &tla2024_info,
+	.data_rate      = ads1015_data_rate,
+	.data_rate_len  = ARRAY_SIZE(ads1015_data_rate),
+	.scale          = tla2021_scale,
+	.scale_len      = ARRAY_SIZE(tla2021_scale),
+	.has_comparator	= false,
+};
+
 static const struct ads1015_chip_data tla2024_data = {
 	.channels	= tla2024_channels,
 	.num_channels	= ARRAY_SIZE(tla2024_channels),
@@ -1131,6 +1151,7 @@ static const struct ads1015_chip_data tla2024_data = {
 static const struct i2c_device_id ads1015_id[] = {
 	{ "ads1015", (kernel_ulong_t)&ads1015_data },
 	{ "ads1115", (kernel_ulong_t)&ads1115_data },
+	{ "tla2021", (kernel_ulong_t)&tla2021_data },
 	{ "tla2024", (kernel_ulong_t)&tla2024_data },
 	{ }
 };
@@ -1139,6 +1160,7 @@ MODULE_DEVICE_TABLE(i2c, ads1015_id);
 static const struct of_device_id ads1015_of_match[] = {
 	{ .compatible = "ti,ads1015", .data = &ads1015_data },
 	{ .compatible = "ti,ads1115", .data = &ads1115_data },
+	{ .compatible = "ti,tla2021", .data = &tla2021_data },
 	{ .compatible = "ti,tla2024", .data = &tla2024_data },
 	{ }
 };
