@@ -345,7 +345,7 @@
 		init_sw: init_sw {
 			label = "INIT_SW";
 			linux,code = <BTN_0>;
-			gpios = <&main_gpio0 13 GPIO_ACTIVE_HIGH>;
+			gpios = <&main_gpio0 35 GPIO_ACTIVE_LOW>;
 		};
 
 		opt_sw: opt_sw {
@@ -426,6 +426,10 @@
 			J722S_IOPAD(0x01b0, PIN_OUTPUT, 2)		/* (F24) MCASP0_ACLKR.UART1_TXD */
 			J722S_IOPAD(0x0194, PIN_INPUT, 2)		/* (A25) MCASP0_AXR3.UART1_CTSn */
 			J722S_IOPAD(0x0198, PIN_OUTPUT, 2)		/* (A26) MCASP0_AXR2.UART1_RTSn */
+			J722S_IOPAD(0x01a0, PIN_OUTPUT, 7)		/* (F23) MCASP0_AXR0.GPIO1_10 */
+			J722S_IOPAD(0x019c, PIN_INPUT, 7)		/* (B25) MCASP0_AXR1.GPIO1_9 */
+			J722S_IOPAD(0x01a4, PIN_INPUT, 7)		/* (D25) MCASP0_ACLKX.GPIO1_11 */
+			J722S_IOPAD(0x01a8, PIN_INPUT, 7)		/* (C26) MCASP0_AFSX.GPIO1_12 */
 		>;
 		bootph-all;
 	};
@@ -661,6 +665,10 @@
 &main_uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
+	dsr-gpios = <&main_gpio1 9 GPIO_ACTIVE_LOW>;
+	dtr-gpios = <&main_gpio1 10 GPIO_ACTIVE_LOW>;
+	dcd-gpios = <&main_gpio1 11 GPIO_ACTIVE_LOW>;
+	rng-gpios = <&main_gpio1 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
 	bootph-all;
 };
@@ -981,8 +989,8 @@
 	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
-		spi-tx-bus-width = <8>;
-		spi-rx-bus-width = <8>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 		spi-max-frequency = <166000000>;
 		cdns,tshsl-ns = <60>;
 		cdns,tsd2d-ns = <60>;
