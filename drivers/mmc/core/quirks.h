@@ -50,6 +50,11 @@ static const struct mmc_fixup __maybe_unused mmc_sd_fixups[] = {
 	MMC_FIXUP(CID_NAME_ANY, CID_MANFID_SANDISK_SD, 0x5344, add_quirk_sd,
 		  MMC_QUIRK_BROKEN_SD_DISCARD),
 
+	MMC_FIXUP("L1BM1", CID_MANFID_SWISSBIT, 0x5342, add_limit_speed_quirk,
+		  SD_MODE_UHS_SDR104 | SD_MODE_UHS_DDR50),
+	MMC_FIXUP("0016G", CID_MANFID_SWISSBIT, 0x5342, add_limit_speed_quirk,
+		  SD_MODE_UHS_SDR104 | SD_MODE_UHS_DDR50),
+
 	END_FIXUP
 };
 
