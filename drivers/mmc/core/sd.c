@@ -460,6 +460,10 @@ static void sd_update_bus_speed_mode(struct mmc_card *card)
 		return;
 	}
 
+	if (card->quirk_disabled_mode != 0) {
+		card->sw_caps.sd3_bus_mode &= ~card->quirk_disabled_mode;
+	}
+
 	if ((card->host->caps & MMC_CAP_UHS_SDR104) &&
 	    (card->sw_caps.sd3_bus_mode & SD_MODE_UHS_SDR104)) {
 			card->sd_bus_speed = UHS_SDR104_BUS_SPEED;
