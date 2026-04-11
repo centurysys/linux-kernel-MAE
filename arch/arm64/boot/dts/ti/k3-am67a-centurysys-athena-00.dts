@@ -438,8 +438,7 @@
 		pinctrl-single,pins = <
 			J722S_IOPAD(0x005c, PIN_INPUT, 2)		/* (U27) GPMC0_AD8.UART2_RXD */
 			J722S_IOPAD(0x0060, PIN_OUTPUT, 2)		/* (U26) GPMC0_AD9.UART2_TXD */
-			J722S_IOPAD(0x0074, PIN_INPUT, 8)		/* (V22) GPMC0_AD14.UART2_CTSn */
-			J722S_IOPAD(0x0078, PIN_OUTPUT, 8)		/* (V23) GPMC0_AD15.UART2_RTSn */
+			J722S_IOPAD(0x0078, PIN_OUTPUT, 7)		/* (V23) GPMC0_AD15.GPIO0_30 */
 		>;
 		bootph-all;
 	};
@@ -637,7 +636,7 @@
 	gpio-line-names = "", "", "", "", "", "", "", "",
 			  "", "", "", "", "", "INIT_SW", "", "USBHUB_RESET_N",
 			  "POWER_LED_G", "", "LEDDRV_EN", "SE050_ENA", "CPSW_RGMII1_RESET_N", "CPSW_RGMII2_RESET_N", "", "",
-			  "", "", "", "", "", "", "", "MSP430_IRQ_N",
+			  "", "", "", "", "", "", "RS485_TXEN", "MSP430_IRQ_N",
 			  "OPT_SWITCH", "CPSW_RGMII1_INT_N", "XIO_IRQ1_N", "INIT_SWITCH_N", "", "CPSW_RGMII2_INT_N", "XIO_IRQ0_N", "XIO_IRQ2_N",
 			  "RTC_IRQ_N", "MSP430_SHDN_N", "EXT_CONSOLE_ENB", "", "", "DIN_S1", "DIN_S0", "DIN_T1",
 			  "DIN_T0", "MSP430_RST", "MSP430_TEST", "", "", "", "", "",
@@ -683,6 +682,8 @@
 &main_uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart2_pins_default>;
+	linux,rs485-enabled-at-boot-time;
+	rts-gpios = <&main_gpio0 30 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 	bootph-all;
 };
