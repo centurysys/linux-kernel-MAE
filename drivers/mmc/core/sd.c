@@ -1458,8 +1458,6 @@ retry:
 	if (host->ops->init_card)
 		host->ops->init_card(host, card);
 
-	mmc_fixup_device(card, sd_card_init_methods);
-
 	/*
 	 * For native busses:  get card RCA and quit open drain mode.
 	 */
