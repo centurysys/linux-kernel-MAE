@@ -139,6 +139,21 @@ dtb-$(CONFIG_ARCH_K3) += k3-am642-sk-pwm.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-tqma64xxl-mbax4xxl.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am64-tqma64xxl-mbax4xxl-sdcard.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am64-tqma64xxl-mbax4xxl-wlan.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-00.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-01.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-02.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-03.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-20.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-01.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-02.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-03.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-04.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-05.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-06.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-01.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-02.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-03.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-pse-01.dtbo
 
 # Common overlays for the phyCORE-AM6* family of boards
 dtb-$(CONFIG_ARCH_K3) += k3-am6xx-phycore-disable-eth-phy.dtbo
