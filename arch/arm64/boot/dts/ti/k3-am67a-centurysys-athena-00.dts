@@ -1091,11 +1091,27 @@
 	};
 };
 
+&serdes_refclk {
+	clock-frequency = <100000000>;
+};
+
 &serdes_wiz1 {
 	status = "okay";
+
+	assigned-clocks = <&k3_clks 280 1>;
+	assigned-clock-parents = <&k3_clks 280 3>; /* EXT_REFCLK1 */
 };
 
 &serdes1 {
+	status = "okay";
+
+	assigned-clocks = <&serdes_wiz1 TI_WIZ_PLL0_REFCLK>,
+			  <&serdes_wiz1 TI_WIZ_PLL1_REFCLK>,
+			  <&serdes_wiz1 TI_WIZ_REFCLK_DIG>;
+	assigned-clock-parents = <&serdes_refclk>,
+				 <&serdes_refclk>,
+				 <&serdes_refclk>;
+
 	serdes1_pcie_link: phy@0 {
 		reg = <0>;
 		cdns,num-lanes = <1>;
