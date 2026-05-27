@@ -25,8 +25,6 @@
    For e-mail suggestions :  lcgamboa@yahoo.com
    ######################################################################## */
 
-
-
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -48,24 +46,24 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 
 static int user_termios_to_kernel_termios(struct ktermios *k,
-						 struct termios2 __user *u)
+					  struct termios2 __user *u)
 {
 	return copy_from_user(k, u, sizeof(struct termios2));
 }
 
 static int kernel_termios_to_user_termios(struct termios2 __user *u,
-						 struct ktermios *k)
+					  struct ktermios *k)
 {
 	return copy_to_user(u, k, sizeof(struct termios2));
 }
 static int user_termios_to_kernel_termios_1(struct ktermios *k,
-						   struct termios __user *u)
+					    struct termios __user *u)
 {
 	return copy_from_user(k, u, sizeof(struct termios));
 }
 
 static int kernel_termios_to_user_termios_1(struct termios __user *u,
-						   struct ktermios *k)
+					    struct ktermios *k)
 {
 	return copy_to_user(u, k, sizeof(struct termios));
 }
@@ -90,42 +88,39 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-
-#define TTY0TTY_MAJOR		0	/* dynamic allocation of major number */
-#define TTY0TTY_MINORS		8	/* device number, always even*/
+#define TTY0TTY_MAJOR 0 /* dynamic allocation of major number */
+#define TTY0TTY_MINORS 8 /* device number, always even*/
 
 /* fake UART values */
 //out
-#define MCR_DTR		0x01
-#define MCR_RTS		0x02
-#define MCR_LOOP	0x04
+#define MCR_DTR 0x01
+#define MCR_RTS 0x02
+#define MCR_LOOP 0x04
 //in
-#define MSR_CTS		0x10
-#define MSR_CD		0x20
-#define MSR_DSR		0x40
-#define MSR_RI		0x80
-
+#define MSR_CTS 0x10
+#define MSR_CD 0x20
+#define MSR_DSR 0x40
+#define MSR_RI 0x80
 
 static struct tty_port tport[TTY0TTY_MINORS];
 
 struct tty0tty_serial {
-	struct tty_struct	*tty;		/* pointer to the tty for this device */
-	int			open_count;	/* number of times this port has been opened */
-	struct semaphore	sem;		/* locks this structure */
+	struct tty_struct *tty; /* pointer to the tty for this device */
+	int open_count; /* number of times this port has been opened */
+	struct semaphore sem; /* locks this structure */
 
 	/* for tiocmget and tiocmset functions */
-	int			msr;		/* MSR shadow */
-	int			mcr;		/* MCR shadow */
+	int msr; /* MSR shadow */
+	int mcr; /* MCR shadow */
 
 	/* for ioctl fun */
-	struct serial_struct	serial;
-	wait_queue_head_t	wait;
-	struct async_icount	icount;
+	struct serial_struct serial;
+	wait_queue_head_t wait;
+	struct async_icount icount;
 };
 
-static struct tty0tty_serial *tty0tty_table[TTY0TTY_MINORS];	/* initially all NULL */
-
-
+static struct tty0tty_serial
+	*tty0tty_table[TTY0TTY_MINORS]; /* initially all NULL */
 
 /*attributes*/
 
@@ -139,8 +134,9 @@ static struct tty0tty_serial *tty0tty_table[TTY0TTY_MINORS];	/* initially all NU
 static struct device *tty0tty_dev[TTY0TTY_MINORS];
 
 /* Sysfs attribute */
-static ssize_t baudrate_show(struct device *dev,
-			    struct device_attribute *attr, char *buf){
+static ssize_t baudrate_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
 	int baud = 0;
 	struct tty0tty_serial *tty0tty = dev_get_drvdata(dev);
 
@@ -151,12 +147,11 @@ static ssize_t baudrate_show(struct device *dev,
 	if (!tty0tty)
 		return sprintf(buf, "%i\n", baud);
 
-    if (!tty0tty->tty)
+	if (!tty0tty->tty)
 		return sprintf(buf, "%i\n", baud);
 
-    down(&tty0tty->sem);
-	if (tty0tty->open_count) 
-	{
+	down(&tty0tty->sem);
+	if (tty0tty->open_count) {
 		baud = tty_get_baud_rate(tty0tty->tty);
 	}
 	up(&tty0tty->sem);
@@ -166,25 +161,22 @@ static ssize_t baudrate_show(struct device *dev,
 
 static DEVICE_ATTR_RO(baudrate);
 
-static struct attribute *tty0tty_dev_attrs[] = {
-	&dev_attr_baudrate.attr,
-	NULL
-};
+static struct attribute *tty0tty_dev_attrs[] = { &dev_attr_baudrate.attr,
+						 NULL };
 
 ATTRIBUTE_GROUPS(tty0tty_dev);
-
 
 static struct tty0tty_serial *get_shadow_tty(int index)
 {
 	struct tty0tty_serial *shadow = NULL;
 	int shadow_idx = index ^ 1;
 
-	if ((index < TTY0TTY_MINORS) &&
-		(tty0tty_table[shadow_idx] != NULL) &&
-		(tty0tty_table[shadow_idx]->open_count > 0)) {
+	if ((index < TTY0TTY_MINORS) && (tty0tty_table[shadow_idx] != NULL) &&
+	    (tty0tty_table[shadow_idx]->open_count > 0)) {
 		shadow = tty0tty_table[shadow_idx];
 #ifdef SCULL_DEBUG
-		printk(KERN_DEBUG "%s - shadow idx: %d\n", __FUNCTION__, shadow_idx);
+		printk(KERN_DEBUG "%s - shadow idx: %d\n", __FUNCTION__,
+		       shadow_idx);
 #endif
 	}
 
@@ -200,13 +192,13 @@ static void update_shadow_msr(int index, int msr)
 #endif
 
 	if ((shadow = get_shadow_tty(index)) != NULL) {
-		if((shadow->msr & MSR_CTS) != (msr & MSR_CTS))
+		if ((shadow->msr & MSR_CTS) != (msr & MSR_CTS))
 			shadow->icount.cts++;
 
-		if((shadow->msr & MSR_DSR) != (msr & MSR_DSR))
+		if ((shadow->msr & MSR_DSR) != (msr & MSR_DSR))
 			shadow->icount.dsr++;
 
-		if((shadow->msr & MSR_CD) != (msr & MSR_CD))
+		if ((shadow->msr & MSR_CD) != (msr & MSR_CD))
 			shadow->icount.dcd++;
 
 		if (msr != shadow->msr) {
@@ -221,11 +213,11 @@ static int tty0tty_open(struct tty_struct *tty, struct file *file)
 	struct tty0tty_serial *tty0tty;
 	struct tty0tty_serial *shadow;
 	int index;
-	int msr=0;
-	int mcr=0;
+	int msr = 0;
+	int mcr = 0;
 
 #ifdef SCULL_DEBUG
-	printk(KERN_DEBUG "%s - tnt%i \n", __FUNCTION__,tty->index);
+	printk(KERN_DEBUG "%s - tnt%i \n", __FUNCTION__, tty->index);
 #endif
 	/* initialize the pointer in case something fails */
 	tty->driver_data = NULL;
@@ -233,21 +225,19 @@ static int tty0tty_open(struct tty_struct *tty, struct file *file)
 	/* get the serial object associated with this tty pointer */
 	index = tty->index;
 	tty0tty = tty0tty_table[index];
-	tport[index].tty=tty;
+	tport[index].tty = tty;
 	tty->port = &tport[index];
 
 	if ((shadow = get_shadow_tty(index)) != NULL)
 		mcr = shadow->mcr;
 
-//null modem connection
+	//null modem connection
 
-	if( (mcr & MCR_RTS) == MCR_RTS )
-	{
+	if ((mcr & MCR_RTS) == MCR_RTS) {
 		msr |= MSR_CTS;
 	}
 
-	if( (mcr & MCR_DTR) == MCR_DTR )
-	{
+	if ((mcr & MCR_DTR) == MCR_DTR) {
 		msr |= MSR_DSR;
 		msr |= MSR_CD;
 	}
@@ -270,11 +260,12 @@ static int tty0tty_open(struct tty_struct *tty, struct file *file)
 
 	up(&tty0tty->sem);
 
-    /* Notify open*/
-	if (tty0tty_dev[index]){
+	/* Notify open*/
+	if (tty0tty_dev[index]) {
 		sysfs_notify(&tty0tty_dev[index]->kobj, NULL, "baudrate");
 #ifdef SCULL_DEBUG
-	    printk(KERN_DEBUG "%s - %s\n", __FUNCTION__, "sysfs_notify baudrate (open)");
+		printk(KERN_DEBUG "%s - %s\n", __FUNCTION__,
+		       "sysfs_notify baudrate (open)");
 #endif
 	}
 
@@ -283,10 +274,10 @@ static int tty0tty_open(struct tty_struct *tty, struct file *file)
 
 static void do_close(struct tty0tty_serial *tty0tty)
 {
-	unsigned int msr=0;
+	unsigned int msr = 0;
 
 #ifdef SCULL_DEBUG
-	printk(KERN_DEBUG "%s - tnt%i\n", __FUNCTION__,tty0tty->tty->index);
+	printk(KERN_DEBUG "%s - tnt%i\n", __FUNCTION__, tty0tty->tty->index);
 #endif
 	update_shadow_msr(tty0tty->tty->index, msr);
 
@@ -297,10 +288,12 @@ static void do_close(struct tty0tty_serial *tty0tty)
 	up(&tty0tty->sem);
 
 	/* Notify close*/
-	if (tty0tty_dev[tty0tty->tty->index]){
-		sysfs_notify(&tty0tty_dev[tty0tty->tty->index]->kobj, NULL, "baudrate");
+	if (tty0tty_dev[tty0tty->tty->index]) {
+		sysfs_notify(&tty0tty_dev[tty0tty->tty->index]->kobj, NULL,
+			     "baudrate");
 #ifdef SCULL_DEBUG
-	    printk(KERN_DEBUG "%s - %s\n", __FUNCTION__, "sysfs_notify baudrate (close)");
+		printk(KERN_DEBUG "%s - %s\n", __FUNCTION__,
+		       "sysfs_notify baudrate (close)");
 #endif
 	}
 
@@ -318,33 +311,33 @@ static void tty0tty_close(struct tty_struct *tty, struct file *file)
 		do_close(tty0tty);
 }
 
-static int tty0tty_write(struct tty_struct *tty, const unsigned char *buffer, int count)
+static int tty0tty_write(struct tty_struct *tty, const unsigned char *buffer,
+			 int count)
 {
 	struct tty0tty_serial *tty0tty = tty->driver_data;
 	struct tty0tty_serial *shadow;
-	struct tty_struct  *ttyx = NULL;
+	struct tty_struct *ttyx = NULL;
 
 #ifdef SCULL_DEBUG
 	int i;
-	printk(KERN_DEBUG "%s -tnt%i  [%02i] \n", __FUNCTION__,tty->index, count);
-	for(i=0;i<count;i++)
-		printk(KERN_DEBUG " 0x%02X \n",buffer[i]);
+	printk(KERN_DEBUG "%s -tnt%i  [%02i] \n", __FUNCTION__, tty->index,
+	       count);
+	for (i = 0; i < count; i++)
+		printk(KERN_DEBUG " 0x%02X \n", buffer[i]);
 #endif
 
 	if (!tty0tty)
 		return -ENODEV;
 
 	down(&tty0tty->sem);
-	if (tty0tty->open_count)
-	{
-	  if ((shadow = get_shadow_tty(tty0tty->tty->index)) != NULL)
-	  	  ttyx = shadow->tty;
-//        tty->low_latency=1;
-	  if(ttyx != NULL)
-	  {
-		  tty_insert_flip_string(ttyx->port, buffer, count);
-		  tty_flip_buffer_push(ttyx->port);
-	  }
+	if (tty0tty->open_count) {
+		if ((shadow = get_shadow_tty(tty0tty->tty->index)) != NULL)
+			ttyx = shadow->tty;
+		//        tty->low_latency=1;
+		if (ttyx != NULL) {
+			tty_insert_flip_string(ttyx->port, buffer, count);
+			tty_flip_buffer_push(ttyx->port);
+		}
 	}
 	up(&tty0tty->sem);
 	return count;
@@ -358,7 +351,7 @@ static int tty0tty_write_room(struct tty_struct *tty)
 {
 	struct tty0tty_serial *tty0tty = tty->driver_data;
 	int room = 0;
-	
+
 #ifdef SCULL_DEBUG
 //	printk(KERN_DEBUG "%s - tnt%i\n", __FUNCTION__,tty->index);
 #endif
@@ -367,22 +360,22 @@ static int tty0tty_write_room(struct tty_struct *tty)
 		return -ENODEV;
 
 	down(&tty0tty->sem);
-	if (tty0tty->open_count) 
-	{
+	if (tty0tty->open_count) {
 		/* calculate how much room is left in the device */
-	    room = 255;
+		room = 255;
 	}
 	up(&tty0tty->sem);
 	return room;
 }
 
-
-
-#define RELEVANT_IFLAG(iflag) ((iflag) & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
+#define RELEVANT_IFLAG(iflag)                                                  \
+	((iflag) & (IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK))
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-static void tty0tty_set_termios(struct tty_struct *tty, const struct ktermios *old_termios)
+static void tty0tty_set_termios(struct tty_struct *tty,
+				const struct ktermios *old_termios)
 #else
-static void tty0tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
+static void tty0tty_set_termios(struct tty_struct *tty,
+				struct ktermios *old_termios)
 #endif
 {
 	unsigned int cflag;
@@ -408,19 +401,19 @@ static void tty0tty_set_termios(struct tty_struct *tty, struct ktermios *old_ter
 #ifdef SCULL_DEBUG
 	/* get the byte size */
 	switch (cflag & CSIZE) {
-		case CS5:
-			printk(KERN_DEBUG " - data bits = 5\n");
-			break;
-		case CS6:
-			printk(KERN_DEBUG " - data bits = 6\n");
-			break;
-		case CS7:
-			printk(KERN_DEBUG " - data bits = 7\n");
-			break;
-		default:
-		case CS8:
-			printk(KERN_DEBUG " - data bits = 8\n");
-			break;
+	case CS5:
+		printk(KERN_DEBUG " - data bits = 5\n");
+		break;
+	case CS6:
+		printk(KERN_DEBUG " - data bits = 6\n");
+		break;
+	case CS7:
+		printk(KERN_DEBUG " - data bits = 7\n");
+		break;
+	default:
+	case CS8:
+		printk(KERN_DEBUG " - data bits = 8\n");
+		break;
 	}
 
 	/* determine the parity */
@@ -448,38 +441,39 @@ static void tty0tty_set_termios(struct tty_struct *tty, struct ktermios *old_ter
 	/* if we are implementing XON/XOFF, set the start and
 	 * stop character in the device */
 	if (I_IXOFF(tty) || I_IXON(tty)) {
-		unsigned char stop_char  = STOP_CHAR(tty);
+		unsigned char stop_char = STOP_CHAR(tty);
 		unsigned char start_char = START_CHAR(tty);
 
 		/* if we are implementing INBOUND XON/XOFF */
 		if (I_IXOFF(tty))
 			printk(KERN_DEBUG " - INBOUND XON/XOFF is enabled, "
-				"XON = %2x, XOFF = %2x\n", start_char, stop_char);
+					  "XON = %2x, XOFF = %2x\n",
+			       start_char, stop_char);
 		else
-			printk(KERN_DEBUG" - INBOUND XON/XOFF is disabled\n");
+			printk(KERN_DEBUG " - INBOUND XON/XOFF is disabled\n");
 
 		/* if we are implementing OUTBOUND XON/XOFF */
 		if (I_IXON(tty))
-			printk(KERN_DEBUG" - OUTBOUND XON/XOFF is enabled, "
-				"XON = %2x, XOFF = %2x\n", start_char, stop_char);
+			printk(KERN_DEBUG " - OUTBOUND XON/XOFF is enabled, "
+					  "XON = %2x, XOFF = %2x\n",
+			       start_char, stop_char);
 		else
-			printk(KERN_DEBUG" - OUTBOUND XON/XOFF is disabled\n");
+			printk(KERN_DEBUG " - OUTBOUND XON/XOFF is disabled\n");
 	}
 
 	/* get the baud rate wanted */
 	printk(KERN_DEBUG " - baud rate = %d\n", tty_get_baud_rate(tty));
 #endif
 
-    /* Notify speed*/
-	if (tty0tty_dev[tty->index]){
+	/* Notify speed*/
+	if (tty0tty_dev[tty->index]) {
 		sysfs_notify(&tty0tty_dev[tty->index]->kobj, NULL, "baudrate");
 #ifdef SCULL_DEBUG
-	    printk(KERN_DEBUG "%s - %s\n", __FUNCTION__, "sysfs_notify baudrate (change)");
+		printk(KERN_DEBUG "%s - %s\n", __FUNCTION__,
+		       "sysfs_notify baudrate (change)");
 #endif
 	}
-
 }
-
 
 static int tty0tty_tiocmget(struct tty_struct *tty)
 {
@@ -489,68 +483,60 @@ static int tty0tty_tiocmget(struct tty_struct *tty)
 	unsigned int msr = tty0tty->msr;
 	unsigned int mcr = tty0tty->mcr;
 
-
-	result = ((mcr & MCR_DTR)  ? TIOCM_DTR  : 0) |	/* DTR is set */
-		((mcr & MCR_RTS)  ? TIOCM_RTS  : 0) |	/* RTS is set */
-		((mcr & MCR_LOOP) ? TIOCM_LOOP : 0) |	/* LOOP is set */
-		((msr & MSR_CTS)  ? TIOCM_CTS  : 0) |	/* CTS is set */
-		((msr & MSR_CD)   ? TIOCM_CAR  : 0) |	/* Carrier detect is set*/
-		((msr & MSR_RI)   ? TIOCM_RI   : 0) |	/* Ring Indicator is set */
-		((msr & MSR_DSR)  ? TIOCM_DSR  : 0);	/* DSR is set */
+	result = ((mcr & MCR_DTR) ? TIOCM_DTR : 0) | /* DTR is set */
+		 ((mcr & MCR_RTS) ? TIOCM_RTS : 0) | /* RTS is set */
+		 ((mcr & MCR_LOOP) ? TIOCM_LOOP : 0) | /* LOOP is set */
+		 ((msr & MSR_CTS) ? TIOCM_CTS : 0) | /* CTS is set */
+		 ((msr & MSR_CD) ? TIOCM_CAR : 0) | /* Carrier detect is set*/
+		 ((msr & MSR_RI) ? TIOCM_RI : 0) | /* Ring Indicator is set */
+		 ((msr & MSR_DSR) ? TIOCM_DSR : 0); /* DSR is set */
 
 #ifdef SCULL_DEBUG
-	printk(KERN_DEBUG "%s - tnt%i 0x%08X \n", __FUNCTION__, tty->index, result);
+	printk(KERN_DEBUG "%s - tnt%i 0x%08X \n", __FUNCTION__, tty->index,
+	       result);
 #endif
 
 	return result;
 }
 
-
-
-
-
-static int tty0tty_tiocmset(struct tty_struct *tty,
-			unsigned int set, unsigned int clear)
+static int tty0tty_tiocmset(struct tty_struct *tty, unsigned int set,
+			    unsigned int clear)
 {
 	struct tty0tty_serial *tty0tty = tty->driver_data;
 	struct tty0tty_serial *shadow;
 	unsigned int mcr = tty0tty->mcr;
-	unsigned int msr=0;
+	unsigned int msr = 0;
 
 #ifdef SCULL_DEBUG
-	printk(KERN_DEBUG "%s - tnt%i set=0x%08X clear=0x%08X \n", __FUNCTION__,tty->index, set ,clear);
+	printk(KERN_DEBUG "%s - tnt%i set=0x%08X clear=0x%08X \n", __FUNCTION__,
+	       tty->index, set, clear);
 #endif
 	if ((shadow = get_shadow_tty(tty0tty->tty->index)) != NULL)
 		msr = shadow->msr;
 
-//null modem connection
+	//null modem connection
 
-	if (set & TIOCM_RTS)
-	{
+	if (set & TIOCM_RTS) {
 		mcr |= MCR_RTS;
 		msr |= MSR_CTS;
 	}
 
-	if (set & TIOCM_DTR)
-	{
+	if (set & TIOCM_DTR) {
 		mcr |= MCR_DTR;
 		msr |= MSR_DSR;
 		msr |= MSR_CD;
 	}
 
-	if (clear & TIOCM_RTS)
-	{
+	if (clear & TIOCM_RTS) {
 		mcr &= ~MCR_RTS;
 		msr &= ~MSR_CTS;
 	}
 
-	if (clear & TIOCM_DTR)
-	{
+	if (clear & TIOCM_DTR) {
 		mcr &= ~MCR_DTR;
 		msr &= ~MSR_DSR;
 		msr &= ~MSR_CD;
 	}
-
 
 	/* set the new MCR value in the device */
 	tty0tty->mcr = mcr;
@@ -560,9 +546,7 @@ static int tty0tty_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-
-static int tty0tty_ioctl_tiocgserial(struct tty_struct *tty,
-			unsigned long arg)
+static int tty0tty_ioctl_tiocgserial(struct tty_struct *tty, unsigned long arg)
 {
 	struct tty0tty_serial *tty0tty = tty->driver_data;
 	struct serial_struct tmp;
@@ -576,28 +560,28 @@ static int tty0tty_ioctl_tiocgserial(struct tty_struct *tty,
 
 	memset(&tmp, 0, sizeof(tmp));
 
-	tmp.type		= tty0tty->serial.type;
-	tmp.line		= tty0tty->serial.line;
-	tmp.port		= tty0tty->serial.port;
-	tmp.irq			= tty0tty->serial.irq;
-	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
-	tmp.xmit_fifo_size	= tty0tty->serial.xmit_fifo_size;
-	tmp.baud_base		= tty0tty->serial.baud_base;
-	tmp.close_delay		= 5*HZ;
-	tmp.closing_wait	= 30*HZ;
-	tmp.custom_divisor	= tty0tty->serial.custom_divisor;
-	tmp.hub6		= tty0tty->serial.hub6;
-	tmp.io_type		= tty0tty->serial.io_type;
+	tmp.type = tty0tty->serial.type;
+	tmp.line = tty0tty->serial.line;
+	tmp.port = tty0tty->serial.port;
+	tmp.irq = tty0tty->serial.irq;
+	tmp.flags = ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
+	tmp.xmit_fifo_size = tty0tty->serial.xmit_fifo_size;
+	tmp.baud_base = tty0tty->serial.baud_base;
+	tmp.close_delay = 5 * HZ;
+	tmp.closing_wait = 30 * HZ;
+	tmp.custom_divisor = tty0tty->serial.custom_divisor;
+	tmp.hub6 = tty0tty->serial.hub6;
+	tmp.io_type = tty0tty->serial.io_type;
 
-	if (copy_to_user((void __user *)arg, &tmp, sizeof(struct serial_struct)))
+	if (copy_to_user((void __user *)arg, &tmp,
+			 sizeof(struct serial_struct)))
 		return -EFAULT;
 	return 0;
 }
 
-static int tty0tty_ioctl_tiocsserial(struct tty_struct *tty,
-			unsigned long arg)
+static int tty0tty_ioctl_tiocsserial(struct tty_struct *tty, unsigned long arg)
 {
-/*
+	/*
 	struct tty0tty_serial *tty0tty = tty->driver_data;
 	struct serial_struct tmp;
 
@@ -627,11 +611,10 @@ static int tty0tty_ioctl_tiocsserial(struct tty_struct *tty,
 		return -EFAULT;
 	return 0;
 */
-	return -EFAULT;//TODO
+	return -EFAULT; //TODO
 }
 
-static int tty0tty_ioctl_tiocmiwait(struct tty_struct *tty,
-			unsigned long arg)
+static int tty0tty_ioctl_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 {
 	struct tty0tty_serial *tty0tty = tty->driver_data;
 	DECLARE_WAITQUEUE(wait, current);
@@ -658,16 +641,15 @@ static int tty0tty_ioctl_tiocmiwait(struct tty_struct *tty,
 			return -EIO; /* no change => error */
 		if (((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
 		    ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-		    ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
-		    ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts)) ) {
+		    ((arg & TIOCM_CD) && (cnow.dcd != cprev.dcd)) ||
+		    ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts))) {
 			return 0;
 		}
 		cprev = cnow;
 	}
 }
 
-static int tty0tty_ioctl_tiocgicount(struct tty_struct *tty,
-			unsigned long arg)
+static int tty0tty_ioctl_tiocgicount(struct tty_struct *tty, unsigned long arg)
 {
 	struct tty0tty_serial *tty0tty = tty->driver_data;
 	struct async_icount cnow = tty0tty->icount;
@@ -677,16 +659,16 @@ static int tty0tty_ioctl_tiocgicount(struct tty_struct *tty,
 	printk(KERN_DEBUG "%s - tnt%i\n", __FUNCTION__, tty->index);
 #endif
 
-	icount.cts	= cnow.cts;
-	icount.dsr	= cnow.dsr;
-	icount.rng	= cnow.rng;
-	icount.dcd	= cnow.dcd;
-	icount.rx	= cnow.rx;
-	icount.tx	= cnow.tx;
-	icount.frame	= cnow.frame;
-	icount.overrun	= cnow.overrun;
-	icount.parity	= cnow.parity;
-	icount.brk	= cnow.brk;
+	icount.cts = cnow.cts;
+	icount.dsr = cnow.dsr;
+	icount.rng = cnow.rng;
+	icount.dcd = cnow.dcd;
+	icount.rx = cnow.rx;
+	icount.tx = cnow.tx;
+	icount.frame = cnow.frame;
+	icount.overrun = cnow.overrun;
+	icount.parity = cnow.parity;
+	icount.brk = cnow.brk;
 	icount.buf_overrun = cnow.buf_overrun;
 
 	if (copy_to_user((void __user *)arg, &icount, sizeof(icount)))
@@ -694,8 +676,8 @@ static int tty0tty_ioctl_tiocgicount(struct tty_struct *tty,
 	return 0;
 }
 
-static int tty0tty_ioctl_tcgets(struct tty_struct *tty,
-			unsigned long arg, unsigned int opt)
+static int tty0tty_ioctl_tcgets(struct tty_struct *tty, unsigned long arg,
+				unsigned int opt)
 {
 	struct ktermios kterm;
 #ifdef SCULL_DEBUG
@@ -705,21 +687,20 @@ static int tty0tty_ioctl_tcgets(struct tty_struct *tty,
 	kterm = tty->termios;
 	up_read(&tty->termios_rwsem);
 
-	if(opt){
-		if (kernel_termios_to_user_termios((struct termios2 __user *)arg, &kterm))
-			return  -EFAULT;
-	}
-	else{
-		if (kernel_termios_to_user_termios_1((struct termios __user *)arg, &kterm))
-			return  -EFAULT;
+	if (opt) {
+		if (kernel_termios_to_user_termios(
+			    (struct termios2 __user *)arg, &kterm))
+			return -EFAULT;
+	} else {
+		if (kernel_termios_to_user_termios_1(
+			    (struct termios __user *)arg, &kterm))
+			return -EFAULT;
 	}
 	return 0;
-
-
 }
 
-static int tty0tty_ioctl_tcsets(struct tty_struct *tty,
-			unsigned long arg, unsigned int opt)
+static int tty0tty_ioctl_tcsets(struct tty_struct *tty, unsigned long arg,
+				unsigned int opt)
 {
 	struct ktermios tmp_termios;
 	int retval = tty_check_change(tty);
@@ -728,7 +709,6 @@ static int tty0tty_ioctl_tcsets(struct tty_struct *tty,
 	printk(KERN_DEBUG "%s - tnt%i\n", __FUNCTION__, tty->index);
 #endif
 
-
 	if (retval)
 		return retval;
 
@@ -736,14 +716,13 @@ static int tty0tty_ioctl_tcsets(struct tty_struct *tty,
 	tmp_termios = tty->termios;
 	up_read(&tty->termios_rwsem);
 
-	if(opt){
-		if (user_termios_to_kernel_termios(&tmp_termios,
-						(struct termios2 __user *)arg))
+	if (opt) {
+		if (user_termios_to_kernel_termios(
+			    &tmp_termios, (struct termios2 __user *)arg))
 			return -EFAULT;
-	}
-	else{
-		if (user_termios_to_kernel_termios_1(&tmp_termios,
-						(struct termios __user *)arg))
+	} else {
+		if (user_termios_to_kernel_termios_1(
+			    &tmp_termios, (struct termios __user *)arg))
 			return -EFAULT;
 	}
 
@@ -755,14 +734,14 @@ static int tty0tty_ioctl_tcsets(struct tty_struct *tty,
 	return 0;
 }
 
-static int tty0tty_ioctl_tcflsh(struct tty_struct *tty,
-			unsigned long arg)
+static int tty0tty_ioctl_tcflsh(struct tty_struct *tty, unsigned long arg)
 {
 	struct tty_ldisc *ld = tty->ldisc;
 	int retval = tty_check_change(tty);
 
 #ifdef SCULL_DEBUG
-	printk(KERN_DEBUG "%s - tnt%i 0x%08lX\n", __FUNCTION__,tty->index, arg);
+	printk(KERN_DEBUG "%s - tnt%i 0x%08lX\n", __FUNCTION__, tty->index,
+	       arg);
 #endif
 
 	if (retval)
@@ -779,7 +758,7 @@ static int tty0tty_ioctl_tcflsh(struct tty_struct *tty,
 		if (ld && ld->ops->flush_buffer) {
 			ld->ops->flush_buffer(tty);
 			tty_unthrottle(tty);
-	 	        tty_driver_flush_buffer(tty);
+			tty_driver_flush_buffer(tty);
 		}
 #if defined(__has_attribute)
 #if __has_attribute(__fallthrough__)
@@ -795,11 +774,12 @@ static int tty0tty_ioctl_tcflsh(struct tty_struct *tty,
 	return 0;
 }
 
-static int tty0tty_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg)
+static int tty0tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+			 unsigned long arg)
 {
 #ifdef SCULL_DEBUG
-	printk(KERN_DEBUG "%s - tnt%i  cmd=0x%04X\n", __FUNCTION__, tty->index, cmd);
+	printk(KERN_DEBUG "%s - tnt%i  cmd=0x%04X\n", __FUNCTION__, tty->index,
+	       cmd);
 #endif
 	switch (cmd) {
 	case TIOCGSERIAL:
@@ -813,16 +793,16 @@ static int tty0tty_ioctl(struct tty_struct *tty,
 	case TCGETS:
 		return tty0tty_ioctl_tcgets(tty, arg, 0);
 	case TCSETS:
-		return tty0tty_ioctl_tcsets(tty, arg ,0);
+		return tty0tty_ioctl_tcsets(tty, arg, 0);
 	case TCFLSH:
 		return tty0tty_ioctl_tcflsh(tty, arg);
 	case TCGETS2:
 		return tty0tty_ioctl_tcgets(tty, arg, 1);
 	case TCSETS2:
-		return tty0tty_ioctl_tcsets(tty, arg ,1);
+		return tty0tty_ioctl_tcsets(tty, arg, 1);
 #ifdef SCULL_DEBUG
 	default:
-		printk(KERN_DEBUG "ioctl 0x%04X Not Implemented!\n",cmd);
+		printk(KERN_DEBUG "ioctl 0x%04X Not Implemented!\n", cmd);
 		break;
 #endif
 	}
@@ -830,16 +810,14 @@ static int tty0tty_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
-
-static int tty0tty_break_ctl(struct tty_struct *tty, int state){
-
+static int tty0tty_break_ctl(struct tty_struct *tty, int state)
+{
 #ifdef SCULL_DEBUG
 	printk(KERN_DEBUG "%s - %i \n", __FUNCTION__, state);
 #endif
 
 	return 0;
 }
-
 
 static struct tty_operations serial_ops = {
 	.open = tty0tty_open,
@@ -852,7 +830,6 @@ static struct tty_operations serial_ops = {
 	.ioctl = tty0tty_ioctl,
 	.break_ctl = tty0tty_break_ctl,
 };
-
 
 static struct tty_driver *tty0tty_tty_driver;
 
@@ -878,7 +855,8 @@ static int __init tty0tty_init(void)
 	tty0tty_tty_driver->major = TTY0TTY_MAJOR;
 	tty0tty_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	tty0tty_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	tty0tty_tty_driver->flags = TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_REAL_RAW ;
+	tty0tty_tty_driver->flags =
+		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_REAL_RAW;
 	/* no more devfs subsystem */
 	tty0tty_tty_driver->init_termios = tty_std_termios;
 	tty0tty_tty_driver->init_termios.c_iflag = 0;
@@ -890,10 +868,9 @@ static int __init tty0tty_init(void)
 
 	tty_set_operations(tty0tty_tty_driver, &serial_ops);
 
-	for(i=0;i<TTY0TTY_MINORS;i++)
-	{
+	for (i = 0; i < TTY0TTY_MINORS; i++) {
 		tty_port_init(&tport[i]);
-		tty_port_link_device(&tport[i],tty0tty_tty_driver, i);
+		tty_port_link_device(&tport[i], tty0tty_tty_driver, i);
 	}
 
 	retval = tty_register_driver(tty0tty_tty_driver);
@@ -904,20 +881,22 @@ static int __init tty0tty_init(void)
 	}
 
 	for (i = 0; i < TTY0TTY_MINORS; i++) {
-        /* first time accessing this device, let's create it */
-        tty0tty = kmalloc(sizeof(*tty0tty), GFP_KERNEL);
-        if (!tty0tty)
-           return -ENOMEM;
-        tty0tty_table[i] = tty0tty;
-        sema_init(&tty0tty->sem, 1);
-        tty0tty_table[i]->open_count = 0;
+		/* first time accessing this device, let's create it */
+		tty0tty = kmalloc(sizeof(*tty0tty), GFP_KERNEL);
+		if (!tty0tty)
+			return -ENOMEM;
+		tty0tty_table[i] = tty0tty;
+		sema_init(&tty0tty->sem, 1);
+		tty0tty_table[i]->open_count = 0;
 
-        tty0tty_dev[i] = tty_register_device_attr(tty0tty_tty_driver, i, NULL, tty0tty, tty0tty_dev_groups);
-        if (IS_ERR(tty0tty_dev[i])) {
-            tty_unregister_device(tty0tty_tty_driver, i);
-            return PTR_ERR(tty0tty_dev[i]);
-        }
-    }
+		tty0tty_dev[i] =
+			tty_register_device_attr(tty0tty_tty_driver, i, NULL,
+						 tty0tty, tty0tty_dev_groups);
+		if (IS_ERR(tty0tty_dev[i])) {
+			tty_unregister_device(tty0tty_tty_driver, i);
+			return PTR_ERR(tty0tty_dev[i]);
+		}
+	}
 
 	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION "\n");
 	return retval;
@@ -931,8 +910,7 @@ static void __exit tty0tty_exit(void)
 #ifdef SCULL_DEBUG
 	printk(KERN_DEBUG "%s - \n", __FUNCTION__);
 #endif
-	for (i = 0; i < TTY0TTY_MINORS; ++i)
-	{
+	for (i = 0; i < TTY0TTY_MINORS; ++i) {
 		tty_port_destroy(&tport[i]);
 		tty_unregister_device(tty0tty_tty_driver, i);
 	}
