@@ -840,8 +840,8 @@
 		compatible = "ti,tps62873";
 		reg = <0x43>;
 		regulator-name = "VDD_CORE_0V8";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <800000>;
+		regulator-min-microvolt = <830000>;
+		regulator-max-microvolt = <830000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
