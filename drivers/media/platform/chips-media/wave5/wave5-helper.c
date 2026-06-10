@@ -141,6 +141,7 @@ int wave5_vpu_queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue 
 	dst_vq->drv_priv = inst;
 	dst_vq->lock = &inst->dev->dev_lock;
 	dst_vq->dev = inst->dev->v4l2_dev.dev;
+	dst_vq->allow_cache_hints = 1;
 	ret = vb2_queue_init(dst_vq);
 	if (ret)
 		return ret;
