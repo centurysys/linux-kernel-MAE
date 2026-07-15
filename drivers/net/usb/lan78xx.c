@@ -1923,9 +1923,10 @@ static const struct ethtool_ops lan78xx_ethtool_ops = {
 static int lan78xx_init_mac_address(struct lan78xx_net *dev)
 {
 	u32 addr_lo, addr_hi;
-	u8 addr[6];
+	u8 addr[6] = {0};
 	int ret;
 
+#if 0
 	ret = lan78xx_read_reg(dev, RX_ADDRL, &addr_lo);
 	if (ret < 0)
 		return ret;
@@ -1940,6 +1941,7 @@ static int lan78xx_init_mac_address(struct lan78xx_net *dev)
 	addr[3] = (addr_lo >> 24) & 0xFF;
 	addr[4] = addr_hi & 0xFF;
 	addr[5] = (addr_hi >> 8) & 0xFF;
+#endif
 
 	if (!is_valid_ether_addr(addr)) {
 		if (!eth_platform_get_mac_address(&dev->udev->dev, addr)) {
