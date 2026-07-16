@@ -82,6 +82,12 @@
 			alignment = <0x1000>;
 			no-map;
 		};
+
+		lpm_memory_region: lpm-memory@a4800000 {
+			reg = <0x00 0xa4800000 0x00 0x00300000>;
+			no-map;
+			bootph-all;
+		};
 	};
 
 	mux0: mux-controller-0 {
@@ -258,6 +264,7 @@
 	mboxes = <&mailbox0_cluster0 &mbox_mcu_r5fss0_core0>;
 	memory-region = <&mcu_r5fss0_core0_dma_memory_region>,
 			<&mcu_r5fss0_core0_memory_region>;
+	ti,rproc-attach-only;
 };
 
 &mcu_r5fss0_core1 {

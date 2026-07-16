@@ -841,6 +841,9 @@
 
 		enable-gpios = <&exp2 1 GPIO_ACTIVE_HIGH>;
 
+		interrupt-parent = <&exp2>;
+		interrupts = <11 IRQ_TYPE_EDGE_RISING>;
+
 		vpll-supply = <&vsys_io_1v8>;
 		vccio-supply = <&vsys_io_1v8>;
 		vcca-supply = <&vsys_io_1v2>;
@@ -1090,6 +1093,7 @@
 	mboxes = <&mailbox0_cluster0 &mbox_wkup_r5_0>;
 	memory-region = <&wkup_r5fss0_core0_dma_memory_region>,
 			<&wkup_r5fss0_core0_memory_region>;
+	ti,rproc-attach-only;
 };
 
 &mcu_r5fss0 {
