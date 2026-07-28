@@ -1131,8 +1131,14 @@ static int ads1015_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct ads1015_data *data = iio_priv(indio_dev);
+	int ret;
 
-	return ads1015_set_conv_mode(data, ADS1015_SINGLESHOT);
+	ret = ads1015_set_conv_mode(data, ADS1015_SINGLESHOT);
+	if (ret)
+		dev_warn_ratelimited(dev, "Failed to enter power-down mode (%pe)\n",
+				     ERR_PTR(ret));
+
+	return 0;
 }
 
 static int ads1015_runtime_resume(struct device *dev)
