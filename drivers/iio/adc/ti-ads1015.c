@@ -974,11 +974,20 @@ static int ads1015_probe(struct i2c_client *client)
 	 * Set default lower and upper threshold to min and max value
 	 * respectively.
 	 */
-	for (i = 0; i < ADS1015_CHANNELS; i++) {
-		int realbits = indio_dev->channels[i].scan_type.realbits;
+	if (chip->has_comparator) {
+		for (i = 0; i < indio_dev->num_channels; i++) {
+			const struct iio_chan_spec *chan = &indio_dev->channels[i];
+			int realbits;
 
-		data->thresh_data[i].low_thresh = -1 << (realbits - 1);
-		data->thresh_data[i].high_thresh = (1 << (realbits - 1)) - 1;
+			if (chan->type != IIO_VOLTAGE)
+				continue;
+
+			realbits = chan->scan_type.realbits;
+			data->thresh_data[chan->address].low_thresh =
+				-1 << (realbits - 1);
+			data->thresh_data[chan->address].high_thresh =
+				(1 << (realbits - 1)) - 1;
+		}
 	}
 
 	/* we need to keep this ABI the same as used by hwmon ADS1015 driver */
@@ -1081,8 +1090,14 @@ static int ads1015_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct ads1015_data *data = iio_priv(indio_dev);
+	int ret;
 
-	return ads1015_set_conv_mode(data, ADS1015_SINGLESHOT);
+	ret = ads1015_set_conv_mode(data, ADS1015_SINGLESHOT);
+	if (ret)
+		dev_warn_ratelimited(dev, "Failed to enter power-down mode (%pe)\n",
+				     ERR_PTR(ret));
+
+	return 0;
 }
 
 static int ads1015_runtime_resume(struct device *dev)
