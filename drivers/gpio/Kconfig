@@ -549,6 +549,17 @@ config GPIO_PL061
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device.
 
+config GPIO_PLUM_DI
+	tristate "Century Systems PLUM external DI GPIO support"
+	depends on OF
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	select COUNTER
+	help
+	  Say Y or M here to enable the GPIO/IRQ controller for the
+	  Century Systems PLUM external digital-input block. Hardware
+	  pulse counters are exposed through the Generic Counter subsystem.
+
 config GPIO_PXA
 	bool "PXA GPIO support"
 	depends on ARCH_PXA || ARCH_MMP || COMPILE_TEST
@@ -799,6 +810,15 @@ config GPIO_XILINX
 	depends on OF_GPIO
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device.
+
+config GPIO_XIOIRQ
+	tristate "Century Systems MA-E3xx XIO IRQ GPIO support"
+	depends on OF
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to enable the GPIO/IRQ controller used by
+	  Century Systems MA-E3xx external I/O (XIO) boards.
 
 config GPIO_XLP
 	tristate "Cavium ThunderX2 GPIO support"
