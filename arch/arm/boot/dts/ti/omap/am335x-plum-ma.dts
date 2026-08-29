@@ -3772,11 +3772,6 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
 
-		reset-gpios = <&gpio3 18 GPIO_ACTIVE_LOW>;
-		/* Conservative defaults; verify against the fitted PHY datasheet. */
-		reset-assert-us = <1000>;
-		reset-deassert-us = <30000>;
-
 		rxc-skew-ps = <1020>;
 		txc-skew-ps = <1140>;
 		rxdv-skew-ps = <420>;
@@ -3796,11 +3791,6 @@
 
 		interrupt-parent = <&gpio0>;
 		interrupts = <20 IRQ_TYPE_LEVEL_LOW>;
-
-		reset-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
-		/* Conservative defaults; verify against the fitted PHY datasheet. */
-		reset-assert-us = <1000>;
-		reset-deassert-us = <30000>;
 
 		rxc-skew-ps = <1140>;
 		txc-skew-ps = <1440>;
@@ -3937,5 +3927,21 @@
 	status = "okay";
 	adc {
 		ti,adc-channels = <0 1>;
+	};
+};
+
+&gpio3 {
+	phy0-reset-hog {
+		gpio-hog;
+		gpios = <18 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "phy0-reset-n";
+	};
+
+	phy1-reset-hog {
+		gpio-hog;
+		gpios = <19 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "phy1-reset-n";
 	};
 };
