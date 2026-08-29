@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-0c-overlay.dtso - Device Tree Overlay for Century Systems Gemini board
+ *
+ * Copyright (C) 2023-2026 Century Systems
+ */
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/at91.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+};
+
+/*
+ * xio_id 0x0c (LoRa option)
+ *
+ * The Linux 5.15 overlay only instantiated a debug spidev device.  The
+ * production LoRa configuration has no DT-managed device in this overlay,
+ * so this remains intentionally empty.
+ */

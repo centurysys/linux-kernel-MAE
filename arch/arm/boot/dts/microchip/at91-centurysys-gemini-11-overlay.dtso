@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-11-overlay.dtso - Device Tree Overlay for Century Systems Gemini board
+ *
+ * Copyright (C) 2025-2026 Century Systems
+ */
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/at91.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+};
+
+&pioA {
+	pinctrl_flx3_uart_default: flx3_usart_default {
+		pinmux = <PIN_PC20__FLEXCOM3_IO0>, /* TX */
+			 <PIN_PC19__FLEXCOM3_IO1>, /* RX */
+			 <PIN_PC21__FLEXCOM3_IO3>; /* CTS */
+		bias-disable;
+	};
+};
+
+&flx3 {
+	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+	status = "okay";
+};
+
+/* uart8 is the FLX3 USART child in Linux 6.12. */
+&uart8 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flx3_uart_default>;
+	status = "okay";
+};

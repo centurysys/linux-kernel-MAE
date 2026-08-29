@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-01.dts - Device Tree file for Century Systems Gemini board
+ *
+ * Copyright (C) 2023-2026 Century Systems
+ */
+/dts-v1/;
+#include "at91-centurysys-gemini-common.dtsi"
+
+/ {
+	model = "Century Systems Gemini";
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+};
+
+/ {
+	aliases {
+		serial4 = &uart0;
+	};
+};
+
+/* BG96 GNSS */
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart0_default>;
+	atmel,use-dma-rx;
+	atmel,use-dma-tx;
+	status = "okay";
+};
+
+&pioA {
+	pinctrl_uart0_default: uart0_default {
+		pinmux = <PIN_PB26__URXD0>,
+			 <PIN_PB27__UTXD0>;
+		bias-disable;
+	};
+};

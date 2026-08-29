@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-0d-overlay.dtso - Device Tree Overlay for Century Systems Gemini board
+ *
+ * Copyright (C) 2023-2026 Century Systems
+ */
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/at91.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+};
+
+&pioA {
+	pinctrl_spi6_halow_default: spi6_halow_default {
+		gpio {
+			pinmux = <PIN_PC20__GPIO>,
+				 <PIN_PC21__GPIO>,
+				 <PIN_PC22__GPIO>;
+			atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+			bias-pull-up;
+			output-high;
+		};
+	};
+};
+
+&i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	tca9538: tca9538@70 {
+		compatible = "nxp,pca9538";
+		reg = <0x70>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "WLAN_LED_R",
+				  "WLAN_LED_G",
+				  "Reserved2",
+				  "Reserved3",
+				  "WLAN_Power",
+				  "Reserved5",
+				  "Reserved6",
+				  "WL_RESET_N";
+	};
+};
+
+&spi6 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	mm610x_spi: mm610x_spi@0 {
+		compatible = "morse,mm610x-spi";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_spi6_halow_default>;
+		reset-gpios = <&pioA PIN_PC20 GPIO_ACTIVE_LOW>;
+		power-gpios = <&pioA PIN_PC22 GPIO_ACTIVE_HIGH>,
+			      <&pioA PIN_PC21 GPIO_ACTIVE_HIGH>;
+		spi-irq-gpios = <&pioA PIN_PC17 GPIO_ACTIVE_LOW>;
+		#gpio-cells = <2>;
+		interrupt-parent = <&pioA>;
+		interrupts = <PIN_PC17 IRQ_TYPE_LEVEL_LOW>;
+		status = "okay";
+	};
+};
+
+&leds {
+	halow_power {
+		label = "WL_Power";
+		gpios = <&tca9538 4 GPIO_ACTIVE_HIGH>;
+		default-state = "on";
+	};
+
+	halow_green {
+		label = "WLAN_G";
+		gpios = <&tca9538 1 GPIO_ACTIVE_LOW>;
+	};
+
+	halow_red {
+		label = "WLAN_R";
+		gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
+	};
+
+	halow_reset {
+		label = "HALOW_RESET";
+		gpios = <&pioA PIN_PC20 GPIO_ACTIVE_LOW>;
+	};
+};

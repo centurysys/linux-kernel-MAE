@@ -4,6 +4,11 @@ DTC_FLAGS_at91-sam9x60_curiosity := -@
 DTC_FLAGS_at91-sam9x60ek := -@
 DTC_FLAGS_at91-sam9x75_curiosity := -@
 DTC_FLAGS_at91-sam9x75eb := -@
+DTC_FLAGS_at91-centurysys-gemini-00 := -@
+DTC_FLAGS_at91-centurysys-gemini-01 := -@
+DTC_FLAGS_at91-centurysys-gemini-02 := -@
+DTC_FLAGS_at91-centurysys-gemini-03 := -@
+DTC_FLAGS_at91-centurysys-gemini2-02 := -@
 DTC_FLAGS_at91-sama5d27_som1_ek := -@
 DTC_FLAGS_at91-sama5d27_wlsom1_ek := -@
 DTC_FLAGS_at91-sama5d29_curiosity := -@
@@ -78,6 +83,23 @@ dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-sama5d2_icp.dtb \
 	at91-sama5d2_ptc_ek.dtb \
 	at91-sama5d2_xplained.dtb \
+	at91-centurysys-gemini-00.dtb \
+	at91-centurysys-gemini-01.dtb \
+	at91-centurysys-gemini-02.dtb \
+	at91-centurysys-gemini-03.dtb \
+	at91-centurysys-gemini2-02.dtb \
+	at91-centurysys-gemini-01-overlay.dtbo \
+	at91-centurysys-gemini-02-overlay.dtbo \
+	at91-centurysys-gemini-03-overlay.dtbo \
+	at91-centurysys-gemini-06-overlay.dtbo \
+	at91-centurysys-gemini-07-overlay.dtbo \
+	at91-centurysys-gemini-08-overlay.dtbo \
+	at91-centurysys-gemini-09-overlay.dtbo \
+	at91-centurysys-gemini-0a-overlay.dtbo \
+	at91-centurysys-gemini-0c-overlay.dtbo \
+	at91-centurysys-gemini-0d-overlay.dtbo \
+	at91-centurysys-gemini-10-overlay.dtbo \
+	at91-centurysys-gemini-11-overlay.dtbo \
 	at91-sama5d3_eds.dtb \
 	at91-sama5d3_ksz9477_evb.dtb \
 	at91-sama5d3_xplained.dtb \

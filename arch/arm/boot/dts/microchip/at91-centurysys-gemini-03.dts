@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-03.dts - Device Tree file for Century Systems Gemini board
+ *
+ * Copyright (C) 2023-2026 Century Systems
+ */
+/dts-v1/;
+#include "at91-centurysys-gemini-common.dtsi"
+
+/ {
+	model = "Century Systems Gemini";
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+};
+
+&pioA {
+	pinctrl_flx3_spi_default: flx3_spi_default {
+		pinmux = <PIN_PC18__FLEXCOM3_IO2>,
+			 <PIN_PC19__FLEXCOM3_IO1>,
+			 <PIN_PC20__FLEXCOM3_IO0>,
+			 <PIN_PC21__FLEXCOM3_IO3>,
+			 <PIN_PC22__FLEXCOM3_IO4>;
+		atmel,drive-strength = <ATMEL_PIO_DRVSTR_LO>;
+		bias-disable;
+	};
+};

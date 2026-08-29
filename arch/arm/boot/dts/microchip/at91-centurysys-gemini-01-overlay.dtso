@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91-centurysys-gemini-01-overlay.dtso - Device Tree Overlay for Century Systems Gemini board
+ *
+ * Copyright (C) 2020-2026 Century Systems
+ */
+/dts-v1/;
+/plugin/;
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/at91.h>
+
+/ {
+	compatible = "atmel,sama5d2-gemini", "atmel,sama5d2", "atmel,sama5";
+};
+
+&i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	/* WLAN/BLE Option (xio_id: 0x01) */
+	tca9538: tca9538@70 {
+		compatible = "nxp,pca9538";
+		reg = <0x70>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "WLAN_LED_R",
+				  "WLAN_LED_G",
+				  "Reserved2",
+				  "Reserved3",
+				  "Reserved4",
+				  "USB_VBUS_STAT",
+				  "ULP_WAKEUP",
+				  "WL_RESET_N";
+	};
+};
+
+&leds {
+	tca953x_wlan_red {
+		label = "WLAN_R";
+		gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
+	};
+
+	tca953x_wlan_green {
+		label = "WLAN_G";
+		gpios = <&tca9538 1 GPIO_ACTIVE_LOW>;
+	};
+
+	tca953x_ulp_wakeup {
+		label = "ULP_WAKEUP";
+		gpios = <&tca9538 6 GPIO_ACTIVE_HIGH>;
+	};
+
+	tca953x_wl_reset_n {
+		label = "WL_RESET";
+		gpios = <&tca9538 7 GPIO_ACTIVE_LOW>;
+		linux,default-trigger = "oneshot";
+		led-pattern = <500 100>;
+		default-state = "off";
+	};
+};
