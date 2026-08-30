@@ -22,8 +22,8 @@
 #include "rsi_hal.h"
 #include "rsi_coex.h"
 
-/* Default operating mode is wlan STA + BT */
-static u16 dev_oper_mode = DEV_OPMODE_STA_BT_DUAL;
+/* Default operating mode is Wi-Fi alone */
+static u16 dev_oper_mode = DEV_OPMODE_WIFI_ALONE;
 module_param(dev_oper_mode, ushort, 0444);
 MODULE_PARM_DESC(dev_oper_mode, DEV_OPMODE_PARAM_DESC);
 
