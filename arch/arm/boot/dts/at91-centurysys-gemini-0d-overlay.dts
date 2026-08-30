@@ -109,11 +109,6 @@
 				label = "WLAN_R";
 				gpios = <&tca9538 0 GPIO_ACTIVE_LOW>;
 			};
-
-			halow_reset {
-				label = "HALOW_RESET";
-				gpios = <&pioA PIN_PC20 GPIO_ACTIVE_LOW>;
-			};
 		};
 	};
 };
