@@ -403,6 +403,7 @@ static const struct {
 	{ .n = "pioD_clk",	.id = 44, },
 	{ .n = "tcb1_clk",	.id = 45, },
 	{ .n = "dbgu_clk",	.id = 47, },
+	{ .n = "pmecc_clk",	.id = 48, },
 	/*
 	 * mpddr_clk feeds DDR controller and is enabled by bootloader thus we
 	 * need to keep it enabled in case there is no Linux consumer for it.
@@ -564,6 +565,15 @@ static const struct {
 	},
 
 	{
+		.n = "gmac_gclk",
+		.id = 24,
+		.pp = { "audiopll_divpmcck", "plla_div2pmcck", },
+		.pp_mux_table = { 6, 8, },
+		.pp_count = 2,
+		.pp_chg_id = INT_MIN,
+	},
+
+	{
 		.n = "lcd_gclk",
 		.id = 25,
 		.r = { .max = 75000000 },
@@ -694,15 +704,6 @@ static const struct {
 		.pp = { "plla_div2pmcck", },
 		.pp_mux_table = { 8, },
 		.pp_count = 1,
-		.pp_chg_id = INT_MIN,
-	},
-
-	{
-		.n = "gmac_gclk",
-		.id = 67,
-		.pp = { "audiopll_divpmcck", "plla_div2pmcck", },
-		.pp_mux_table = { 6, 8, },
-		.pp_count = 2,
 		.pp_chg_id = INT_MIN,
 	},
 };

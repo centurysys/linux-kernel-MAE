@@ -113,6 +113,10 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 	scmi_pd_data->domains = domains;
 	scmi_pd_data->num_domains = num_domains;
 
+	ret = of_genpd_add_provider_onecell(np, scmi_pd_data);
+	if (ret)
+		goto err_rm_genpds;
+
 	dev_set_drvdata(dev, scmi_pd_data);
 
 	ret = of_genpd_add_provider_onecell(np, scmi_pd_data);
@@ -122,6 +126,10 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 	/* check for (optional) subdomain mapping with power-domain-map */
 	for (i = 0; i < num_domains; i++, scmi_pd++)
 		of_genpd_add_subdomain_map(np, domains[i], i);
+	return 0;
+err_rm_genpds:
+	for (i = num_domains - 1; i >= 0; i--)
+		pm_genpd_remove(domains[i]);
 
 	return ret;
 }
