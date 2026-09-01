@@ -627,10 +627,10 @@ void cfg80211_mgmt_registrations_update_wk(struct work_struct *wk)
 	rdev = container_of(wk, struct cfg80211_registered_device,
 			    mgmt_registrations_update_wk);
 
-	wiphy_lock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
+
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
 		cfg80211_mgmt_registrations_update(wdev);
-	wiphy_unlock(&rdev->wiphy);
 }
 
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
@@ -1194,10 +1194,10 @@ cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
 			      const struct cfg80211_chan_def *chandef,
 			      enum nl80211_radar_event event)
 {
-	wiphy_lock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
+
 	__cfg80211_background_cac_event(rdev, rdev->background_radar_wdev,
 					chandef, event);
-	wiphy_unlock(&rdev->wiphy);
 }
 
 void cfg80211_background_cac_done_wk(struct work_struct *work)
@@ -1269,6 +1269,25 @@ cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rde
 			   msecs_to_jiffies(cac_time_ms));
 
 	return 0;
+}
+
+void cfg80211_stop_radar_detection(struct wireless_dev *wdev)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	int link_id;
+
+	for_each_valid_link(wdev, link_id) {
+		struct cfg80211_chan_def chandef;
+
+		if (!wdev->links[link_id].cac_started)
+			continue;
+
+		chandef = *wdev_chandef(wdev, link_id);
+		rdev_end_cac(rdev, wdev->netdev, link_id);
+		nl80211_radar_notify(rdev, &chandef, NL80211_RADAR_CAC_ABORTED,
+				     wdev->netdev, GFP_KERNEL);
+	}
 }
 
 void cfg80211_stop_background_radar_detection(struct wireless_dev *wdev)

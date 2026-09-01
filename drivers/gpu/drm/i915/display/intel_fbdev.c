@@ -183,7 +183,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		.type = I915_GTT_VIEW_NORMAL,
 	};
 	intel_wakeref_t wakeref;
-	struct fb_info *info;
+	struct fb_info *info = helper->info;
 	struct i915_vma *vma;
 	unsigned long flags = 0;
 	bool prealloc = false;
@@ -234,13 +234,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;
-	}
-
-	info = drm_fb_helper_alloc_info(helper);
-	if (IS_ERR(info)) {
-		drm_err(&dev_priv->drm, "Failed to allocate fb_info (%pe)\n", info);
-		ret = PTR_ERR(info);
-		goto out_unpin;
 	}
 
 	ifbdev->helper.fb = &fb->base;
@@ -589,11 +582,8 @@ static int intel_fbdev_restore_mode(struct drm_i915_private *dev_priv)
 static void intel_fbdev_client_unregister(struct drm_client_dev *client)
 {
 	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
-	struct drm_device *dev = fb_helper->dev;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	if (fb_helper->info) {
-		vga_switcheroo_client_fb_set(pdev, NULL);
 		drm_fb_helper_unregister_info(fb_helper);
 	} else {
 		drm_fb_helper_unprepare(fb_helper);
@@ -620,7 +610,6 @@ static int intel_fbdev_client_hotplug(struct drm_client_dev *client)
 {
 	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
 	struct drm_device *dev = client->dev;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 
 	if (dev->fb_helper)
@@ -633,8 +622,6 @@ static int intel_fbdev_client_hotplug(struct drm_client_dev *client)
 	ret = drm_fb_helper_initial_config(fb_helper);
 	if (ret)
 		goto err_drm_fb_helper_fini;
-
-	vga_switcheroo_client_fb_set(pdev, fb_helper->info);
 
 	return 0;
 
