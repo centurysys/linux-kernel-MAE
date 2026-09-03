@@ -70,7 +70,7 @@ static inline int rsi_create_kthread(struct rsi_common *common,
 static inline void rsi_kill_thread(struct rsi_thread *handle)
 {
 	if (atomic_read(&handle->thread_done) > 0)
-		return 0;
+		return;
 	atomic_inc(&handle->thread_done);
 	rsi_set_event(&handle->event);
 	wait_for_completion(&handle->completion);
