@@ -603,6 +603,11 @@ static void option_instat_callback(struct urb *urb);
 #define AMTELECOM_PRODUCT_AML574_MBIM		0x0209
 #define AMTELECOM_PRODUCT_AML574_RMNET		0x020b
 
+/* UNISOC (Spreadtrum) products */
+#define UNISOC_VENDOR_ID			0x1782
+/* TOZED LT70-C based on UNISOC SL8563 uses UNISOC's vendor ID */
+#define TOZED_PRODUCT_LT70C			0x4055
+
 /* Device flags */
 
 /* Highest interface number which can be used with NCTRL() and RSVD() */
@@ -2260,6 +2265,7 @@ static const struct usb_device_id option_ids[] = {
 					0xff, 0xff, 0x04) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(AMTELECOM_VENDOR_ID, AMTELECOM_PRODUCT_AML574_RMNET,
 					0xff, 0xff, 0x06) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(UNISOC_VENDOR_ID, TOZED_PRODUCT_LT70C, 0xff, 0, 0) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
