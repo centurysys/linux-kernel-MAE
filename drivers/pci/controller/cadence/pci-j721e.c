@@ -6,15 +6,12 @@
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
-#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
-#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/pci.h>
@@ -30,17 +27,6 @@
 #define LINK_DOWN		BIT(1)
 #define J7200_LINK_DOWN		BIT(10)
 
-#define EOI_REG			0x10
-
-#define ENABLE_REG_SYS_0	0x100
-#define STATUS_REG_SYS_0	0x500
-#define STATUS_CLR_REG_SYS_0	0x700
-#define INTx_EN(num)		(1 << (num))
-
-#define ENABLE_REG_SYS_1	0x104
-#define STATUS_REG_SYS_1	0x504
-#define SYS1_INTx_EN(num)	(1 << (22 + (num)))
-
 #define J721E_PCIE_USER_CMD_STATUS	0x4
 #define LINK_TRAINING_ENABLE		BIT(0)
 
@@ -54,30 +40,21 @@ enum link_status {
 	LINK_UP_DL_COMPLETED,
 };
 
-#define USER_EOI_REG		0xC8
-enum eoi_reg {
-	EOI_DOWNSTREAM_INTERRUPT,
-	EOI_FLR_INTERRUPT,
-	EOI_LEGACY_INTERRUPT,
-	EOI_POWER_STATE_INTERRUPT,
-};
-
 #define J721E_MODE_RC			BIT(7)
+#define LANE_COUNT_MASK			BIT(8)
 #define LANE_COUNT(n)			((n) << 8)
 
 #define GENERATION_SEL_MASK		GENMASK(1, 0)
 
+#define MAX_LANES			2
+
 struct j721e_pcie {
 	struct device		*dev;
-	struct clk		*refclk;
 	u32			mode;
-	u32			max_lanes;
 	u32			num_lanes;
 	struct cdns_pcie	*cdns_pcie;
 	void __iomem		*user_cfg_base;
 	void __iomem		*intd_cfg_base;
-	struct irq_domain	*legacy_irq_domain;
-	bool			is_intc_v1;
 	u32			linkdown_irq_regfield;
 };
 
@@ -88,12 +65,10 @@ enum j721e_pcie_mode {
 
 struct j721e_pcie_data {
 	enum j721e_pcie_mode	mode;
-	bool			is_intc_v1;
 	unsigned int		quirk_retrain_flag:1;
 	unsigned int		quirk_detect_quiet_flag:1;
 	u32			linkdown_irq_regfield;
 	unsigned int		byte_access_allowed:1;
-	unsigned int		max_lanes;
 };
 
 static inline u32 j721e_pcie_user_readl(struct j721e_pcie *pcie, u32 offset)
@@ -143,117 +118,6 @@ static void j721e_pcie_config_link_irq(struct j721e_pcie *pcie)
 	j721e_pcie_intd_writel(pcie, ENABLE_REG_SYS_2, reg);
 }
 
-static void j721e_pcie_legacy_irq_handler(struct irq_desc *desc)
-{
-	struct j721e_pcie *pcie = irq_desc_get_handler_data(desc);
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	int virq;
-	u32 reg;
-	int i;
-
-	chained_irq_enter(chip, desc);
-
-	for (i = 0; i < PCI_NUM_INTX; i++) {
-		reg = j721e_pcie_intd_readl(pcie, STATUS_REG_SYS_1);
-		if (!(reg & SYS1_INTx_EN(i)))
-			continue;
-
-		virq = irq_find_mapping(pcie->legacy_irq_domain, i);
-		generic_handle_irq(virq);
-		j721e_pcie_user_writel(pcie, USER_EOI_REG,
-				       EOI_LEGACY_INTERRUPT);
-	}
-
-	chained_irq_exit(chip, desc);
-}
-
-static void j721e_pcie_v1_legacy_irq_handler(struct irq_desc *desc)
-{
-	struct j721e_pcie *pcie = irq_desc_get_handler_data(desc);
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	int virq, i;
-	u32 reg;
-
-	chained_irq_enter(chip, desc);
-
-	for (i = 0; i < PCI_NUM_INTX; i++) {
-		reg = j721e_pcie_intd_readl(pcie, STATUS_REG_SYS_0);
-		if (!(reg & INTx_EN(i)))
-			continue;
-
-		virq = irq_find_mapping(pcie->legacy_irq_domain, 3 - i);
-		generic_handle_irq(virq);
-		j721e_pcie_intd_writel(pcie, STATUS_CLR_REG_SYS_0, INTx_EN(i));
-		j721e_pcie_intd_writel(pcie, EOI_REG, 3 - i);
-	}
-
-	chained_irq_exit(chip, desc);
-}
-
-static int j721e_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
-			       irq_hw_number_t hwirq)
-{
-	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
-	irq_set_chip_data(irq, domain->host_data);
-
-	return 0;
-}
-
-static const struct irq_domain_ops j721e_pcie_intx_domain_ops = {
-	.map = j721e_pcie_intx_map,
-};
-
-static int j721e_pcie_config_legacy_irq(struct j721e_pcie *pcie)
-{
-	struct irq_domain *legacy_irq_domain;
-	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *intc_node;
-	int irq, i;
-	u32 reg;
-
-	intc_node = of_get_child_by_name(node, "interrupt-controller");
-	if (!intc_node) {
-		dev_WARN(dev, "legacy-interrupt-controller node is absent\n");
-		return -EINVAL;
-	}
-
-	irq = irq_of_parse_and_map(intc_node, 0);
-	if (!irq) {
-		dev_err(dev, "Failed to parse and map legacy irq\n");
-		return -EINVAL;
-	}
-
-	if (pcie->is_intc_v1)
-		irq_set_chained_handler_and_data(irq, j721e_pcie_v1_legacy_irq_handler, pcie);
-	else
-		irq_set_chained_handler_and_data(irq, j721e_pcie_legacy_irq_handler, pcie);
-
-	legacy_irq_domain = irq_domain_add_linear(intc_node, PCI_NUM_INTX,
-						  &j721e_pcie_intx_domain_ops, NULL);
-	if (!legacy_irq_domain) {
-		dev_err(dev, "Failed to add irq domain for legacy irqs\n");
-		return -EINVAL;
-	}
-	pcie->legacy_irq_domain = legacy_irq_domain;
-
-	if (pcie->is_intc_v1) {
-		for (i = 0; i < PCI_NUM_INTX; i++) {
-			reg = j721e_pcie_intd_readl(pcie, ENABLE_REG_SYS_0);
-			reg |= INTx_EN(i);
-			j721e_pcie_intd_writel(pcie, ENABLE_REG_SYS_0, reg);
-		}
-	} else {
-		for (i = 0; i < PCI_NUM_INTX; i++) {
-			reg = j721e_pcie_intd_readl(pcie, ENABLE_REG_SYS_1);
-			reg |= SYS1_INTx_EN(i);
-			j721e_pcie_intd_writel(pcie, ENABLE_REG_SYS_1, reg);
-		}
-	}
-
-	return 0;
-}
-
 static int j721e_pcie_start_link(struct cdns_pcie *cdns_pcie)
 {
 	struct j721e_pcie *pcie = dev_get_drvdata(cdns_pcie->dev);
@@ -295,14 +159,7 @@ static const struct cdns_pcie_ops j721e_pcie_ops = {
 	.link_up = j721e_pcie_link_up,
 };
 
-static const struct cdns_pcie_ops j7200_pcie_ops = {
-	.start_link = j721e_pcie_start_link,
-	.stop_link = j721e_pcie_stop_link,
-	.link_up = j721e_pcie_link_up,
-};
-
-static int j721e_pcie_set_mode(struct j721e_pcie *pcie, struct regmap *syscon,
-			       unsigned int offset)
+static int j721e_pcie_set_mode(struct j721e_pcie *pcie, struct regmap *syscon)
 {
 	struct device *dev = pcie->dev;
 	u32 mask = J721E_MODE_RC;
@@ -313,7 +170,7 @@ static int j721e_pcie_set_mode(struct j721e_pcie *pcie, struct regmap *syscon,
 	if (mode == PCI_MODE_RC)
 		val = J721E_MODE_RC;
 
-	ret = regmap_update_bits(syscon, offset, mask, val);
+	ret = regmap_update_bits(syscon, 0, mask, val);
 	if (ret)
 		dev_err(dev, "failed to set pcie mode\n");
 
@@ -321,7 +178,7 @@ static int j721e_pcie_set_mode(struct j721e_pcie *pcie, struct regmap *syscon,
 }
 
 static int j721e_pcie_set_link_speed(struct j721e_pcie *pcie,
-				     struct regmap *syscon, unsigned int offset)
+				     struct regmap *syscon)
 {
 	struct device *dev = pcie->dev;
 	struct device_node *np = dev->of_node;
@@ -334,7 +191,7 @@ static int j721e_pcie_set_link_speed(struct j721e_pcie *pcie,
 		link_speed = 2;
 
 	val = link_speed - 1;
-	ret = regmap_update_bits(syscon, offset, GENERATION_SEL_MASK, val);
+	ret = regmap_update_bits(syscon, 0, GENERATION_SEL_MASK, val);
 	if (ret)
 		dev_err(dev, "failed to set link speed\n");
 
@@ -342,19 +199,15 @@ static int j721e_pcie_set_link_speed(struct j721e_pcie *pcie,
 }
 
 static int j721e_pcie_set_lane_count(struct j721e_pcie *pcie,
-				     struct regmap *syscon, unsigned int offset)
+				     struct regmap *syscon)
 {
 	struct device *dev = pcie->dev;
 	u32 lanes = pcie->num_lanes;
-	u32 mask = GENMASK(8, 8);
 	u32 val = 0;
 	int ret;
 
-	if (pcie->max_lanes == 4)
-		mask = GENMASK(9, 8);
-
 	val = LANE_COUNT(lanes - 1);
-	ret = regmap_update_bits(syscon, offset, mask, val);
+	ret = regmap_update_bits(syscon, 0, LANE_COUNT_MASK, val);
 	if (ret)
 		dev_err(dev, "failed to set link count\n");
 
@@ -365,8 +218,6 @@ static int j721e_pcie_ctrl_init(struct j721e_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;
-	struct of_phandle_args args;
-	unsigned int offset = 0;
 	struct regmap *syscon;
 	int ret;
 
@@ -376,27 +227,46 @@ static int j721e_pcie_ctrl_init(struct j721e_pcie *pcie)
 		return PTR_ERR(syscon);
 	}
 
-	/* Do not error out to maintain old DT compatibility */
-	ret = of_parse_phandle_with_fixed_args(node, "ti,syscon-pcie-ctrl", 1,
-					       0, &args);
-	if (!ret)
-		offset = args.args[0];
+	/*
+	 * The PCIe Controller's registers have different "reset-values"
+	 * depending on the "strap" settings programmed into the PCIEn_CTRL
+	 * register within the CTRL_MMR memory-mapped register space.
+	 * The registers latch onto a "reset-value" based on the "strap"
+	 * settings sampled after the PCIe Controller is powered on.
+	 * To ensure that the "reset-values" are sampled accurately, power
+	 * off the PCIe Controller before programming the "strap" settings
+	 * and power it on after that. The runtime PM APIs namely
+	 * pm_runtime_put_sync() and pm_runtime_get_sync() will decrement and
+	 * increment the usage counter respectively, causing GENPD to power off
+	 * and power on the PCIe Controller.
+	 */
+	ret = pm_runtime_put_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "Failed to power off PCIe Controller\n");
+		return ret;
+	}
 
-	ret = j721e_pcie_set_mode(pcie, syscon, offset);
+	ret = j721e_pcie_set_mode(pcie, syscon);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set pci mode\n");
 		return ret;
 	}
 
-	ret = j721e_pcie_set_link_speed(pcie, syscon, offset);
+	ret = j721e_pcie_set_link_speed(pcie, syscon);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set link speed\n");
 		return ret;
 	}
 
-	ret = j721e_pcie_set_lane_count(pcie, syscon, offset);
+	ret = j721e_pcie_set_lane_count(pcie, syscon);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set num-lanes\n");
+		return ret;
+	}
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "Failed to power on PCIe Controller\n");
 		return ret;
 	}
 
@@ -432,59 +302,36 @@ static struct pci_ops cdns_ti_pcie_host_ops = {
 static const struct j721e_pcie_data j721e_pcie_rc_data = {
 	.mode = PCI_MODE_RC,
 	.quirk_retrain_flag = true,
-	.is_intc_v1 = true,
 	.byte_access_allowed = false,
 	.linkdown_irq_regfield = LINK_DOWN,
-	.max_lanes = 2,
 };
 
 static const struct j721e_pcie_data j721e_pcie_ep_data = {
 	.mode = PCI_MODE_EP,
 	.linkdown_irq_regfield = LINK_DOWN,
-	.max_lanes = 2,
 };
 
 static const struct j721e_pcie_data j7200_pcie_rc_data = {
 	.mode = PCI_MODE_RC,
 	.quirk_detect_quiet_flag = true,
-	.is_intc_v1 = false,
-	.byte_access_allowed = true,
 	.linkdown_irq_regfield = J7200_LINK_DOWN,
-	.max_lanes = 2,
+	.byte_access_allowed = true,
 };
 
 static const struct j721e_pcie_data j7200_pcie_ep_data = {
 	.mode = PCI_MODE_EP,
 	.quirk_detect_quiet_flag = true,
-	.max_lanes = 2,
 };
 
 static const struct j721e_pcie_data am64_pcie_rc_data = {
 	.mode = PCI_MODE_RC,
 	.linkdown_irq_regfield = J7200_LINK_DOWN,
 	.byte_access_allowed = true,
-	.max_lanes = 1,
 };
 
 static const struct j721e_pcie_data am64_pcie_ep_data = {
 	.mode = PCI_MODE_EP,
 	.linkdown_irq_regfield = J7200_LINK_DOWN,
-	.max_lanes = 1,
-};
-
-static const struct j721e_pcie_data j784s4_pcie_rc_data = {
-	.mode = PCI_MODE_RC,
-	.quirk_retrain_flag = true,
-	.is_intc_v1 = true,
-	.byte_access_allowed = false,
-	.linkdown_irq_regfield = LINK_DOWN,
-	.max_lanes = 4,
-};
-
-static const struct j721e_pcie_data j784s4_pcie_ep_data = {
-	.mode = PCI_MODE_EP,
-	.linkdown_irq_regfield = LINK_DOWN,
-	.max_lanes = 4,
 };
 
 static const struct of_device_id of_j721e_pcie_match[] = {
@@ -512,14 +359,6 @@ static const struct of_device_id of_j721e_pcie_match[] = {
 		.compatible = "ti,am64-pcie-ep",
 		.data = &am64_pcie_ep_data,
 	},
-	{
-		.compatible = "ti,j784s4-pcie-host",
-		.data = &j784s4_pcie_rc_data,
-	},
-	{
-		.compatible = "ti,j784s4-pcie-ep",
-		.data = &j784s4_pcie_ep_data,
-	},
 	{},
 };
 
@@ -535,7 +374,6 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 	struct cdns_pcie_ep *ep;
 	struct gpio_desc *gpiod;
 	void __iomem *base;
-	struct clk *clk;
 	u32 num_lanes;
 	u32 mode;
 	int ret;
@@ -553,7 +391,6 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 
 	pcie->dev = dev;
 	pcie->mode = mode;
-	pcie->is_intc_v1 = data->is_intc_v1;
 	pcie->linkdown_irq_regfield = data->linkdown_irq_regfield;
 
 	base = devm_platform_ioremap_resource_byname(pdev, "intd_cfg");
@@ -567,18 +404,8 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 	pcie->user_cfg_base = base;
 
 	ret = of_property_read_u32(node, "num-lanes", &num_lanes);
-	if (ret) {
-		dev_warn(dev, "no num-lanes defined, defaulting to 1\n");
+	if (ret || num_lanes > MAX_LANES)
 		num_lanes = 1;
-	}
-
-	if (num_lanes > data->max_lanes) {
-		dev_warn(dev, "defined num-lanes %d is greater than the "
-			      "allowed maximum of %d, defaulting to 1\n",
-			      num_lanes, data->max_lanes);
-		num_lanes = 1;
-	}
-	pcie->max_lanes = data->max_lanes;
 	pcie->num_lanes = num_lanes;
 
 	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48)))
@@ -618,10 +445,6 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 			goto err_get_sync;
 		}
 
-		ret = j721e_pcie_config_legacy_irq(pcie);
-		if (ret < 0)
-			goto err_get_sync;
-
 		bridge = devm_pci_alloc_host_bridge(dev, sizeof(*rc));
 		if (!bridge) {
 			ret = -ENOMEM;
@@ -653,20 +476,6 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 			goto err_get_sync;
 		}
 
-		clk = devm_clk_get_optional(dev, "pcie_refclk");
-		if (IS_ERR(clk)) {
-			dev_err(dev, "failed to get pcie_refclk\n");
-			ret = PTR_ERR(clk);
-			goto err_pcie_setup;
-		}
-
-		ret = clk_prepare_enable(clk);
-		if (ret) {
-			dev_err(dev, "failed to enable pcie_refclk\n");
-			goto err_get_sync;
-		}
-		pcie->refclk = clk;
-
 		/*
 		 * "Power Sequencing and Reset Signal Timings" table in
 		 * PCI EXPRESS CARD ELECTROMECHANICAL SPECIFICATION, REV. 3.0
@@ -681,10 +490,8 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 		}
 
 		ret = cdns_pcie_host_setup(rc);
-		if (ret < 0) {
-			clk_disable_unprepare(pcie->refclk);
+		if (ret < 0)
 			goto err_pcie_setup;
-		}
 
 		break;
 	case PCI_MODE_EP:
@@ -738,10 +545,6 @@ static int j721e_pcie_remove(struct platform_device *pdev)
 	struct cdns_pcie *cdns_pcie = pcie->cdns_pcie;
 	struct device *dev = &pdev->dev;
 
-	if (pcie->legacy_irq_domain)
-		irq_domain_remove(pcie->legacy_irq_domain);
-
-	clk_disable_unprepare(pcie->refclk);
 	cdns_pcie_disable_phy(cdns_pcie);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
@@ -758,7 +561,4 @@ static struct platform_driver j721e_pcie_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-module_platform_driver(j721e_pcie_driver);
-
-MODULE_AUTHOR("Kishon Vijay Abraham I <kishon@ti.com>");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(j721e_pcie_driver);
