@@ -68,9 +68,11 @@
 #define PCI_ENDPOINT_TEST_FLAGS			0x2c
 #define FLAG_USE_DMA				BIT(0)
 
+#define PCI_DEVICE_ID_TI_J721E			0xb00d
 #define PCI_DEVICE_ID_TI_AM654			0xb00c
 #define PCI_DEVICE_ID_TI_J7200			0xb00f
 #define PCI_DEVICE_ID_TI_AM64			0xb010
+#define PCI_DEVICE_ID_TI_J721S2		0xb013
 #define PCI_DEVICE_ID_LS1088A			0x80c0
 
 #define is_am654_pci_dev(pdev)		\
@@ -81,9 +83,6 @@
 #define PCI_DEVICE_ID_RENESAS_R8A774C0		0x002d
 #define PCI_DEVICE_ID_RENESAS_R8A774E1		0x0025
 #define PCI_DEVICE_ID_RENESAS_R8A779F0		0x0031
-
-#define is_j721e_pci_dev(pdev)         \
-		((pdev)->device == PCI_DEVICE_ID_TI_J721E)
 
 static DEFINE_IDA(pci_endpoint_test_ida);
 
@@ -842,11 +841,9 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	if (!(is_am654_pci_dev(pdev) || is_j721e_pci_dev(pdev))) {
-		if (!pci_endpoint_test_alloc_irq_vectors(test, irq_type)) {
-			err = -EINVAL;
-			goto err_disable_irq;
-		}
+	if (!pci_endpoint_test_alloc_irq_vectors(test, irq_type)) {
+		err = -EINVAL;
+		goto err_disable_irq;
 	}
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
@@ -884,11 +881,9 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 		goto err_ida_remove;
 	}
 
-	if (!(is_am654_pci_dev(pdev) || is_j721e_pci_dev(pdev))) {
-		if (!pci_endpoint_test_request_irq(test)) {
-			err = -EINVAL;
-			goto err_kfree_test_name;
-		}
+	if (!pci_endpoint_test_request_irq(test)) {
+		err = -EINVAL;
+		goto err_kfree_test_name;
 	}
 
 	misc_device = &test->miscdev;
@@ -1014,6 +1009,9 @@ static const struct pci_device_id pci_endpoint_test_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_AM64),
 	  .driver_data = (kernel_ulong_t)&j721e_data,
 	},
+	{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_J721S2),
+	  .driver_data = (kernel_ulong_t)&j721e_data,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pci_endpoint_test_tbl);
@@ -1023,7 +1021,6 @@ static struct pci_driver pci_endpoint_test_driver = {
 	.id_table	= pci_endpoint_test_tbl,
 	.probe		= pci_endpoint_test_probe,
 	.remove		= pci_endpoint_test_remove,
-	.sriov_configure = pci_sriov_configure_simple,
 };
 module_pci_driver(pci_endpoint_test_driver);
 
