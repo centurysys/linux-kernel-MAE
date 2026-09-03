@@ -1853,6 +1853,14 @@ int wilc_wlan_init(struct net_device *dev)
 		release_bus(wilc, WILC_BUS_RELEASE_ONLY, DEV_WIFI);
 	}
 
+	if (!wilc->vmm_table)
+		wilc->vmm_table = kcalloc(WILC_VMM_TBL_SIZE, sizeof(u32), GFP_KERNEL);
+
+	if (!wilc->vmm_table) {
+		ret = -ENOBUFS;
+		goto fail;
+	}
+
 	if (!wilc->tx_buffer)
 		wilc->tx_buffer = kmalloc(WILC_TX_BUFF_SIZE, GFP_KERNEL);
 
