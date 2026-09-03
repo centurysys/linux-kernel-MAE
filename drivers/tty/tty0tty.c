@@ -69,7 +69,7 @@ static int kernel_termios_to_user_termios_1(struct termios __user *u,
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 200)
 int tty_check_change(struct tty_struct *tty);
 speed_t tty_termios_input_baud_rate(struct ktermios *termios);
 #else

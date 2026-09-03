@@ -58,7 +58,6 @@ struct rpmsg_channel_info {
 struct rpmsg_device {
 	struct device dev;
 	struct rpmsg_device_id id;
-	char *driver_override;
 	char desc[RPMSG_NAME_SIZE];
 	const char *driver_override;
 	u32 src;
