@@ -105,7 +105,7 @@ static int m_can_plat_probe(struct platform_device *pdev)
 	if (IS_ERR(transceiver)) {
 		ret = PTR_ERR(transceiver);
 		dev_err_probe(&pdev->dev, ret, "failed to get phy\n");
-		return ret;
+		goto probe_fail;
 	}
 
 	if (transceiver)
