@@ -432,7 +432,13 @@ int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 				shifts[STATIC_MAC_FWD_PORTS];
 		alu->is_override =
 			(data_hi & masks[STATIC_MAC_TABLE_OVERRIDE]) ? 1 : 0;
-		data_hi >>= 1;
+
+		/* KSZ8795 family switches have STATIC_MAC_TABLE_USE_FID and
+		 * STATIC_MAC_TABLE_FID definitions off by 1 when doing read on the
+		 * static MAC table compared to doing write.
+		 */
+		if (dev->chip_id == KSZ8795_CHIP_ID)
+			data_hi >>= 1;
 		alu->is_static = true;
 		alu->is_use_fid =
 			(data_hi & masks[STATIC_MAC_TABLE_USE_FID]) ? 1 : 0;
