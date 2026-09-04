@@ -3961,6 +3961,15 @@
 	wakeup-source;
 };
 
+&gpio1 {
+	led-reset-hog {
+		gpio-hog;
+		gpios = <28 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "i2c-led-reset-n";
+	};
+};
+
 &gpu_target {
 	status = "disabled";
 };
