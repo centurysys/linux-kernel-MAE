@@ -634,7 +634,7 @@
 
 &main_gpio0 {
 	gpio-line-names = "", "", "", "", "", "", "", "",
-			  "", "", "", "", "", "INIT_SW", "", "USBHUB_RESET_N",
+			  "", "", "", "", "", "", "", "USBHUB_RESET_N",
 			  "POWER_LED_G", "", "LEDDRV_EN", "SE050_ENA", "CPSW_RGMII1_RESET_N", "CPSW_RGMII2_RESET_N", "", "",
 			  "", "", "", "", "", "", "RS485_TXEN", "MSP430_IRQ_N",
 			  "OPT_SWITCH", "CPSW_RGMII1_INT_N", "XIO_IRQ1_N", "INIT_SWITCH_N", "", "CPSW_RGMII2_INT_N", "XIO_IRQ0_N", "XIO_IRQ2_N",
