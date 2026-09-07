@@ -389,6 +389,15 @@
 };
 
 &main_pmx0 {
+	main_gpio0_pins_default: main-gpio0-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x00b8, PIN_INPUT, 7) /* (W27) VOUT0_DATA0 */
+			J722S_IOPAD(0x00bc, PIN_INPUT, 7) /* (W25) VOUT0_DATA1 */
+			J722S_IOPAD(0x00c0, PIN_INPUT, 7) /* (W24) VOUT0_DATA2 */
+			J722S_IOPAD(0x00c4, PIN_INPUT, 7) /* (W23) VOUT0_DATA3 */
+		>;
+	};
+
 	main_i2c0_pins_default: main-i2c0-default-pins {
 		pinctrl-single,pins = <
 			J722S_IOPAD(0x01e0, PIN_INPUT_PULLUP, 0)	/* (D23) I2C0_SCL */
@@ -633,6 +642,9 @@
 };
 
 &main_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_gpio0_pins_default>;
+
 	gpio-line-names = "", "", "", "", "", "", "", "",
 			  "", "", "", "", "", "", "", "USBHUB_RESET_N",
 			  "POWER_LED_G", "", "LEDDRV_EN", "SE050_ENA", "CPSW_RGMII1_RESET_N", "CPSW_RGMII2_RESET_N", "", "",
