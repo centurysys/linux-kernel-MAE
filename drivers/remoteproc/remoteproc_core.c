@@ -61,6 +61,7 @@ static int rproc_release_carveout(struct rproc *rproc,
 
 /* Unique indices for remoteproc devices */
 static DEFINE_IDA(rproc_dev_index);
+static struct workqueue_struct *rproc_recovery_wq;
 
 static const char * const rproc_crash_names[] = {
 	[RPROC_MMUFAULT]	= "mmufault",
@@ -185,12 +186,12 @@ EXPORT_SYMBOL(rproc_va_to_pa);
  * translations on the internal remoteproc memory regions through a platform
  * implementation specific da_to_va ops, if present.
  *
- * The function returns a valid kernel address on success or NULL on failure.
- *
  * Note: phys_to_virt(iommu_iova_to_phys(rproc->domain, da)) will work too,
  * but only on kernel direct mapped RAM memory. Instead, we're just using
  * here the output of the DMA API for the carveouts, which should be more
  * correct.
+ *
+ * Return: a valid kernel address on success or NULL on failure
  */
 void *rproc_da_to_va(struct rproc *rproc, u64 da, size_t len)
 {
@@ -563,7 +564,7 @@ static int copy_dma_range_map(struct device *to, struct device *from)
  * use RSC_DEVMEM resource entries to map their required @da to the physical
  * address of their base CMA region (ouch, hacky!).
  *
- * Returns 0 on success, or an appropriate error code otherwise
+ * Return: 0 on success, or an appropriate error code otherwise
  */
 static int rproc_handle_vdev(struct rproc *rproc, void *ptr,
 			     int offset, int avail)
@@ -786,7 +787,7 @@ copy_and_exit:
  * support dynamically allocating this address using the generic
  * DMA API (but currently there isn't a use case for that).
  *
- * Returns 0 on success, or an appropriate error code otherwise
+ * Return: 0 on success, or an appropriate error code otherwise
  */
 static int rproc_handle_trace(struct rproc *rproc, void *ptr,
 			      int offset, int avail)
@@ -863,6 +864,8 @@ static int rproc_handle_trace(struct rproc *rproc, void *ptr,
  * tell us ranges of physical addresses the firmware is allowed to request,
  * and not allow firmwares to request access to physical addresses that
  * are outside those ranges.
+ *
+ * Return: 0 on success, or an appropriate error code otherwise
  */
 static int rproc_handle_devmem(struct rproc *rproc, void *ptr,
 			       int offset, int avail)
@@ -926,6 +929,8 @@ out:
  *
  * This function allocate specified memory entry @mem using
  * dma_alloc_coherent() as default allocator
+ *
+ * Return: 0 on success, or an appropriate error code otherwise
  */
 static int rproc_alloc_carveout(struct rproc *rproc,
 				struct rproc_mem_entry *mem)
@@ -1032,6 +1037,8 @@ dma_free:
  *
  * This function releases specified memory entry @mem allocated via
  * rproc_alloc_carveout() function by @rproc.
+ *
+ * Return: 0 on success, or an appropriate error code otherwise
  */
 static int rproc_release_carveout(struct rproc *rproc,
 				  struct rproc_mem_entry *mem)
@@ -1061,6 +1068,8 @@ static int rproc_release_carveout(struct rproc *rproc,
  * (e.g. CMA) more efficiently, and also minimizes the number of TLB entries
  * needed to map it (in case @rproc is using an IOMMU). Reducing the TLB
  * pressure is important; it may have a substantial impact on performance.
+ *
+ * Return: 0 on success, or an appropriate error code otherwise
  */
 static int rproc_handle_carveout(struct rproc *rproc,
 				 void *ptr, int offset, int avail)
@@ -1149,6 +1158,8 @@ EXPORT_SYMBOL(rproc_add_carveout);
  *
  * This function allocates a rproc_mem_entry struct and fill it with parameters
  * provided by client.
+ *
+ * Return: a valid pointer on success, or NULL on failure
  */
 __printf(8, 9)
 struct rproc_mem_entry *
@@ -1193,6 +1204,8 @@ EXPORT_SYMBOL(rproc_mem_entry_init);
  *
  * This function allocates a rproc_mem_entry struct and fill it with parameters
  * provided by client.
+ *
+ * Return: a valid pointer on success, or NULL on failure
  */
 __printf(5, 6)
 struct rproc_mem_entry *
@@ -1253,60 +1266,55 @@ static rproc_handle_resource_t rproc_loading_handlers[RSC_LAST] = {
 	[RSC_VDEV] = rproc_handle_vdev,
 };
 
+struct rproc_rsc_cb_data {
+	struct rproc *rproc;
+	rproc_handle_resource_t *handlers;
+};
+
+static int rproc_handle_rsc_entry(u32 type, void *rsc, int offset,
+				  int avail, void *data)
+{
+	struct rproc_rsc_cb_data *d = data;
+	struct rproc *rproc = d->rproc;
+	struct device *dev = &rproc->dev;
+	rproc_handle_resource_t handler;
+	int ret;
+
+	dev_dbg(dev, "rsc: type %d\n", type);
+
+	if (type >= RSC_VENDOR_START && type <= RSC_VENDOR_END) {
+		ret = rproc_handle_rsc(rproc, type, rsc, offset, avail);
+		if (ret == RSC_HANDLED)
+			return 0;
+		if (ret < 0)
+			return ret;
+		dev_warn(dev, "unsupported vendor resource %d\n", type);
+		return 0;
+	}
+
+	if (type >= RSC_LAST) {
+		dev_warn(dev, "unsupported resource %d\n", type);
+		return 0;
+	}
+
+	handler = d->handlers[type];
+	if (!handler)
+		return 0;
+
+	return handler(rproc, rsc, offset, avail);
+}
+
 /* handle firmware resource entries before booting the remote processor */
 static int rproc_handle_resources(struct rproc *rproc,
 				  rproc_handle_resource_t handlers[RSC_LAST])
 {
-	struct device *dev = &rproc->dev;
-	rproc_handle_resource_t handler;
-	int ret = 0, i;
+	struct rproc_rsc_cb_data d = { .rproc = rproc, .handlers = handlers };
 
 	if (!rproc->table_ptr)
 		return 0;
 
-	for (i = 0; i < rproc->table_ptr->num; i++) {
-		int offset = rproc->table_ptr->offset[i];
-		struct fw_rsc_hdr *hdr = (void *)rproc->table_ptr + offset;
-		int avail = rproc->table_sz - offset - sizeof(*hdr);
-		void *rsc = (void *)hdr + sizeof(*hdr);
-
-		/* make sure table isn't truncated */
-		if (avail < 0) {
-			dev_err(dev, "rsc table is truncated\n");
-			return -EINVAL;
-		}
-
-		dev_dbg(dev, "rsc: type %d\n", hdr->type);
-
-		if (hdr->type >= RSC_VENDOR_START &&
-		    hdr->type <= RSC_VENDOR_END) {
-			ret = rproc_handle_rsc(rproc, hdr->type, rsc,
-					       offset + sizeof(*hdr), avail);
-			if (ret == RSC_HANDLED)
-				continue;
-			else if (ret < 0)
-				break;
-
-			dev_warn(dev, "unsupported vendor resource %d\n",
-				 hdr->type);
-			continue;
-		}
-
-		if (hdr->type >= RSC_LAST) {
-			dev_warn(dev, "unsupported resource %d\n", hdr->type);
-			continue;
-		}
-
-		handler = handlers[hdr->type];
-		if (!handler)
-			continue;
-
-		ret = handler(rproc, rsc, offset + sizeof(*hdr), avail);
-		if (ret)
-			break;
-	}
-
-	return ret;
+	return rsc_table_for_each_entry(rproc->table_ptr, rproc->table_sz,
+					&rproc->dev, rproc_handle_rsc_entry, &d);
 }
 
 static int rproc_prepare_subdevices(struct rproc *rproc)
@@ -1939,18 +1947,21 @@ static void rproc_auto_boot_callback(const struct firmware *fw, void *context)
 	release_firmware(fw);
 }
 
+static void rproc_attach_work(struct work_struct *work)
+{
+	struct rproc *rproc = container_of(work, struct rproc, attach_work);
+
+	rproc_boot(rproc);
+}
+
 static int rproc_trigger_auto_boot(struct rproc *rproc)
 {
 	int ret;
 
-	/*
-	 * Since the remote processor is in a detached state, it has already
-	 * been booted by another entity.  As such there is no point in waiting
-	 * for a firmware image to be loaded, we can simply initiate the process
-	 * of attaching to it immediately.
-	 */
-	if (rproc->state == RPROC_DETACHED)
-		return rproc_boot(rproc);
+	if (rproc->state == RPROC_DETACHED) {
+		schedule_work(&rproc->attach_work);
+		return 0;
+	}
 
 	/*
 	 * We're initiating an asynchronous firmware loading, so we can
@@ -2074,6 +2085,8 @@ static int __rproc_detach(struct rproc *rproc)
  * remoteproc functional again.
  *
  * This function can sleep, so it cannot be called from atomic context.
+ *
+ * Return: 0 on success or a negative value upon failure
  */
 int rproc_trigger_recovery(struct rproc *rproc)
 {
@@ -2084,6 +2097,11 @@ int rproc_trigger_recovery(struct rproc *rproc)
 	ret = mutex_lock_interruptible(&rproc->lock);
 	if (ret)
 		return ret;
+
+	if (READ_ONCE(rproc->deleting)) {
+		ret = -ENODEV;
+		goto unlock_mutex;
+	}
 
 	/* State could have changed before we got the mutex */
 	if (rproc->state != RPROC_CRASHED)
@@ -2133,6 +2151,11 @@ static void rproc_crash_handler_work(struct work_struct *work)
 	dev_dbg(dev, "enter %s\n", __func__);
 
 	mutex_lock(&rproc->lock);
+
+	if (READ_ONCE(rproc->deleting)) {
+		mutex_unlock(&rproc->lock);
+		goto out;
+	}
 
 	if (rproc->state == RPROC_CRASHED) {
 		/* handle only the first crash detected */
@@ -2198,7 +2221,7 @@ EXPORT_SYMBOL(rproc_get_id);
  * If the remote processor is already powered on, this function immediately
  * returns (successfully).
  *
- * Returns 0 on success, and an appropriate error value otherwise.
+ * Return: 0 on success, and an appropriate error value otherwise
  */
 int rproc_boot(struct rproc *rproc)
 {
@@ -2219,9 +2242,9 @@ int rproc_boot(struct rproc *rproc)
 		return ret;
 	}
 
-	if (rproc->state == RPROC_DELETED) {
+	if (READ_ONCE(rproc->deleting)) {
 		ret = -ENODEV;
-		dev_err(dev, "can't boot deleted rproc %s\n", rproc->name);
+		dev_err(dev, "can't boot deleting rproc %s\n", rproc->name);
 		goto unlock_mutex;
 	}
 
@@ -2339,6 +2362,8 @@ EXPORT_SYMBOL(rproc_shutdown);
  * no longer available.  From there it should be possible to remove the
  * platform driver and even power cycle the application processor (if the HW
  * supports it) without needing to switch off the remote processor.
+ *
+ * Return: 0 on success, and an appropriate error value otherwise
  */
 int rproc_detach(struct rproc *rproc)
 {
@@ -2391,7 +2416,7 @@ EXPORT_SYMBOL(rproc_detach);
  * This function increments the remote processor's refcount, so always
  * use rproc_put() to decrement it back once rproc isn't needed anymore.
  *
- * Returns the rproc handle on success, and NULL on failure.
+ * Return: rproc handle on success, and NULL on failure
  */
 #ifdef CONFIG_OF
 struct rproc *rproc_get_by_phandle(phandle phandle)
@@ -2548,8 +2573,6 @@ static int rproc_validate(struct rproc *rproc)
  * This is called by the platform-specific rproc implementation, whenever
  * a new remote processor device is probed.
  *
- * Returns 0 on success and an appropriate error code otherwise.
- *
  * Note: this function initiates an asynchronous firmware loading
  * context, which will look for virtio devices supported by the rproc's
  * firmware.
@@ -2557,6 +2580,8 @@ static int rproc_validate(struct rproc *rproc)
  * If found, those virtio devices will be created and added, so as a result
  * of registering this remote processor, additional virtio drivers might be
  * probed.
+ *
+ * Return: 0 on success and an appropriate error code otherwise
  */
 int rproc_add(struct rproc *rproc)
 {
@@ -2610,7 +2635,7 @@ static void devm_rproc_remove(void *rproc)
  * This function performs like rproc_add() but the registered rproc device will
  * automatically be removed on driver detach.
  *
- * Returns: 0 on success, negative errno on failure
+ * Return: 0 on success, negative errno on failure
  */
 int devm_rproc_add(struct device *dev, struct rproc *rproc)
 {
@@ -2714,10 +2739,10 @@ static int rproc_alloc_ops(struct rproc *rproc, const struct rproc_ops *ops)
  * implementations should then call rproc_add() to complete
  * the registration of the remote processor.
  *
- * On success the new rproc is returned, and on failure, NULL.
- *
  * Note: _never_ directly deallocate @rproc, even if it was not registered
  * yet. Instead, when you need to unroll rproc_alloc(), use rproc_free().
+ *
+ * Return: new rproc pointer on success, and NULL on failure
  */
 struct rproc *rproc_alloc(struct device *dev, const char *name,
 			  const struct rproc_ops *ops,
@@ -2775,7 +2800,9 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&rproc->subdevs);
 	INIT_LIST_HEAD(&rproc->dump_segments);
 
+	INIT_WORK(&rproc->attach_work, rproc_attach_work);
 	INIT_WORK(&rproc->crash_handler, rproc_crash_handler_work);
+	spin_lock_init(&rproc->crash_handler_lock);
 
 	rproc->state = RPROC_OFFLINE;
 
@@ -2831,21 +2858,24 @@ EXPORT_SYMBOL(rproc_put);
  * of the outstanding reference created by rproc_alloc. To decrement that
  * one last refcount, one still needs to call rproc_free().
  *
- * Returns 0 on success and -EINVAL if @rproc isn't valid.
+ * Return: 0 on success and -EINVAL if @rproc isn't valid
  */
 int rproc_del(struct rproc *rproc)
 {
+	unsigned long flags;
+
 	if (!rproc)
 		return -EINVAL;
 
-	/* if rproc is marked always-on, rproc_add() booted it */
-	/* TODO: make sure this works with rproc->power > 1 */
-	if (rproc->auto_boot)
-		rproc_shutdown(rproc);
+	spin_lock_irqsave(&rproc->crash_handler_lock, flags);
+	WRITE_ONCE(rproc->deleting, true);
+	spin_unlock_irqrestore(&rproc->crash_handler_lock, flags);
 
-	mutex_lock(&rproc->lock);
-	rproc->state = RPROC_DELETED;
-	mutex_unlock(&rproc->lock);
+	if (cancel_work_sync(&rproc->crash_handler))
+		pm_relax(rproc->dev.parent);
+
+	/* TODO: make sure this works with rproc->power > 1 */
+	rproc_shutdown(rproc);
 
 	rproc_delete_debug_dir(rproc);
 
@@ -2880,7 +2910,7 @@ static void devm_rproc_free(struct device *dev, void *res)
  * This function performs like rproc_alloc() but the acquired rproc device will
  * automatically be released on driver detach.
  *
- * Returns: new rproc instance, or NULL on failure
+ * Return: new rproc instance, or NULL on failure
  */
 struct rproc *devm_rproc_alloc(struct device *dev, const char *name,
 			       const struct rproc_ops *ops,
@@ -2932,7 +2962,7 @@ EXPORT_SYMBOL(rproc_remove_subdev);
  * rproc_get_by_child() - acquire rproc handle of @dev's ancestor
  * @dev:	child device to find ancestor of
  *
- * Returns the ancestor rproc instance, or NULL if not found.
+ * Return: the ancestor rproc instance, or NULL if not found
  */
 struct rproc *rproc_get_by_child(struct device *dev)
 {
@@ -2958,20 +2988,26 @@ EXPORT_SYMBOL(rproc_get_by_child);
  */
 void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
 {
+	unsigned long flags;
+
 	if (!rproc) {
 		pr_err("NULL rproc pointer\n");
 		return;
 	}
 
+	spin_lock_irqsave(&rproc->crash_handler_lock, flags);
+	if (READ_ONCE(rproc->deleting)) {
+		spin_unlock_irqrestore(&rproc->crash_handler_lock, flags);
+		return;
+	}
+
 	/* Prevent suspend while the remoteproc is being recovered */
 	pm_stay_awake(rproc->dev.parent);
+	queue_work(rproc_recovery_wq, &rproc->crash_handler);
+	spin_unlock_irqrestore(&rproc->crash_handler_lock, flags);
 
 	dev_err(&rproc->dev, "crash detected in %s: type %s\n",
 		rproc->name, rproc_crash_to_string(type));
-
-	/* create a new task to handle the error if not scheduled already */
-	if (!work_busy(&rproc->crash_handler))
-		schedule_work(&rproc->crash_handler);
 }
 EXPORT_SYMBOL(rproc_report_crash);
 
@@ -3020,6 +3056,13 @@ static void __exit rproc_exit_panic(void)
 
 static int __init remoteproc_init(void)
 {
+	rproc_recovery_wq = alloc_workqueue("rproc_recovery_wq",
+						WQ_UNBOUND | WQ_FREEZABLE, 0);
+	if (!rproc_recovery_wq) {
+		pr_err("remoteproc: creation of rproc_recovery_wq failed\n");
+		return -ENOMEM;
+	}
+
 	rproc_init_sysfs();
 	rproc_init_debugfs();
 	rproc_init_cdev();
@@ -3033,9 +3076,13 @@ static void __exit remoteproc_exit(void)
 {
 	ida_destroy(&rproc_dev_index);
 
+	if (!rproc_recovery_wq)
+		return;
+
 	rproc_exit_panic();
 	rproc_exit_debugfs();
 	rproc_exit_sysfs();
+	destroy_workqueue(rproc_recovery_wq);
 }
 module_exit(remoteproc_exit);
 
