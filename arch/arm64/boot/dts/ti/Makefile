@@ -151,6 +151,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-03.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-04.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-05.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-06.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-ext-07.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-01.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-02.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am642-centurysys-metis-mod-03.dtbo

@@ -1,0 +1,284 @@
+// SPDX-License-Identifier: GPL-2.0
+/**
+ * DT overlay for EG95/BLE/Audio expansion board on Century Systems MA-X3xx
+ *
+ * Copyright (C) 2026 Century Systems
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/net/microchip-lan78xx.h>
+#include "k3-pinctrl.h"
+
+&main_pmx0 {
+	main_uart2_rs232_pins_default: main-uart2-rs232-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x003c, PIN_INPUT, 2) 		/* (T20) UART2_RXD */
+			AM64X_IOPAD(0x0040, PIN_OUTPUT, 2)		/* (U21) UART2_TXD */
+			AM64X_IOPAD(0x0044, PIN_OUTPUT, 2)		/* (T18) UART2_RTS */
+			AM64X_IOPAD(0x005c, PIN_INPUT, 2)		/* (V19) UART2_CTS */
+			AM64X_IOPAD(0x0068, PIN_INPUT, 7)		/* (W20) GPIO0_26 (EG95 DCD) */
+		>;
+	};
+
+	eg95_ctrl_status_pins_default: eg95-ctrl-status-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x008c, PIN_OUTPUT, 7)		/* (T21) GPIO0_34 (EG95 DTR) */
+		>;
+	};
+
+	main_i2c2_tca9539_74_pins_default: main-i2c2-tca9539-74-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x01c8, PIN_INPUT, 7) /* (R5) PRG0_PRU1_GPO6.GPIO1_26 */
+		>;
+	};
+
+	main_i2c2_tca9539_75_pins_default: main-i2c2-tca9539-75-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x021c, PIN_INPUT, 7) /* (B14) SPI1_CS0.GPIO1_47 */
+		>;
+	};
+};
+
+&main_i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c2_pins_default>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	tca9539_74: tca9539@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_tca9539_74_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "MobileLED:G0",
+				  "MobileLED:G1",
+				  "MobileLED:G2",
+				  "MobileLED:R0",
+				  "MobileLED:R1",
+				  "MobileLED:R2",
+				  "", "",
+				  "SIM_CD",
+				  "Mobile_Status_N",
+				  "Mobile_Reset",
+				  "Mobile_PWRKEY",
+				  "UARTBUF_Enable",
+				  "ADC_RESETn",
+				  "ADC_PowerFault",
+				  "ADC_PowerCtrl";
+	};
+
+	tca9539_75: tca9539@75 {
+		compatible = "ti,tca9539";
+		reg = <0x75>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_tca9539_75_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <47 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "MSP430_EXT1_RST",
+				  "MSP430_EXT1_TEST",
+				  "USBHUB1_Enable",
+				  "USBHUB2_Enable",
+				  "ExtUSB_Power_Enable",
+				  "ExtUSB_Hub1_RESET",
+				  "ExtUSB_Hub2_RESET",
+				  "",
+				  "PAIRING_SW_N",
+				  "BT_LED1_G",
+				  "BT_LED1_Y",
+				  "BT_LED1_R",
+				  "BT_LED0_G",
+				  "BT_LED0_Y",
+				  "BT_LED0_R",
+				  "BT_RESET_n";
+	};
+};
+
+&main_uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart2_rs232_pins_default>;
+	dcd-gpios = <&main_gpio0 26 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&{/} {
+	leds_ext1: leds_ext1 {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		led_g1 {
+			label = "MobileLED_G1";
+			gpios = <&tca9539_74 0 GPIO_ACTIVE_LOW>;
+		};
+
+		led_g2 {
+			label = "MobileLED_G2";
+			gpios = <&tca9539_74 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led_g3 {
+			label = "MobileLED_G3";
+			gpios = <&tca9539_74 2 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r1 {
+			label = "MobileLED_R1";
+			gpios = <&tca9539_74 3 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r2 {
+			label = "MobileLED_R2";
+			gpios = <&tca9539_74 4 GPIO_ACTIVE_LOW>;
+		};
+
+		led_r3 {
+			label = "MobileLED_R3";
+			gpios = <&tca9539_74 5 GPIO_ACTIVE_LOW>;
+		};
+
+		mobile_reset {
+			label = "Mobile_RESETN";
+			gpios = <&tca9539_74 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <500 100>;
+		};
+
+		mobile_pwrkey {
+			label = "Mobile_PWRKEY";
+			gpios = <&tca9539_74 11 GPIO_ACTIVE_HIGH>;
+		};
+
+		led_UARTBUF {
+			label = "UARTBUF_Enable";
+			gpios = <&tca9539_74 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		adc_reset_n {
+			label = "ADC_RESET";
+			gpios = <&tca9539_74 13 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+		};
+
+		adc_power {
+			label = "ADC_Power";
+			gpios = <&tca9539_74 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds_ext2: leds_ext2 {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		msp430_ext1_rst {
+			label = "MSP430_EXT1_RST";
+			gpios = <&tca9539_75 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		msp430_ext1_test {
+			label = "MSP430_EXT1_TEST";
+			gpios = <&tca9539_75 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		usb_hub1_enable {
+			label = "USB_HUB1_Enable";
+			gpios = <&tca9539_75 2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		usb_hub2_enable {
+			label = "USB_HUB2_Enable";
+			gpios = <&tca9539_75 3 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		extusb_enable {
+			label = "ExtUSB_Enable";
+			gpios = <&tca9539_75 4 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		usb_hub1_reset {
+			label = "ExtUSBHub1_Reset";
+			gpios = <&tca9539_75 5 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <50 100>;
+		};
+
+		usb_hub2_reset {
+			label = "ExtUSBHub2_Reset";
+			gpios = <&tca9539_75 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "oneshot";
+			led-pattern = <50 100>;
+		};
+
+		bt_led1_g {
+			label = "BT_LED1_G";
+			gpios = <&tca9539_75 9 GPIO_ACTIVE_LOW>;
+		};
+
+		bt_led1_y {
+			label = "BT_LED1_Y";
+			gpios = <&tca9539_75 10 GPIO_ACTIVE_LOW>;
+		};
+
+		bt_led1_r {
+			label = "BT_LED1_R";
+			gpios = <&tca9539_75 11 GPIO_ACTIVE_LOW>;
+		};
+
+		bt_led0_g {
+			label = "BT_LED0_G";
+			gpios = <&tca9539_75 12 GPIO_ACTIVE_LOW>;
+		};
+
+		bt_led0_y {
+			label = "BT_LED0_Y";
+			gpios = <&tca9539_75 13 GPIO_ACTIVE_LOW>;
+		};
+
+		bt_led0_r {
+			label = "BT_LED0_R";
+			gpios = <&tca9539_75 14 GPIO_ACTIVE_LOW>;
+		};
+
+		bt_reset_n {
+			label = "BT_Reset";
+			gpios = <&tca9539_75 15 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "oneshot";
+			led-pattern = <500 100>;
+		};
+	};
+
+	leds_eg95: eg95-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&eg95_ctrl_status_pins_default>;
+		status = "okay";
+
+		led_eg95_DTR {
+			label = "EG95_Wakeup";
+			gpios = <&main_gpio0 34 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
