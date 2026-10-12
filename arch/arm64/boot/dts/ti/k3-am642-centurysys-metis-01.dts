@@ -142,37 +142,6 @@
 			led-pattern = <10 10>;
 		};
 
-/*
-		led_g1 {
-			label = "MobileLED_G1";
-			gpios = <&main_gpio1 8 GPIO_ACTIVE_LOW>;
-		};
-
-		led_g2 {
-			label = "MobileLED_G2";
-			gpios = <&main_gpio1 9 GPIO_ACTIVE_LOW>;
-		};
-
-		led_g3 {
-			label = "MobileLED_G3";
-			gpios = <&main_gpio1 10 GPIO_ACTIVE_LOW>;
-		};
-
-		led_r1 {
-			label = "MobileLED_R1";
-			gpios = <&main_gpio1 11 GPIO_ACTIVE_LOW>;
-		};
-
-		led_r2 {
-			label = "MobileLED_R2";
-			gpios = <&main_gpio1 12 GPIO_ACTIVE_LOW>;
-		};
-
-		led_r3 {
-			label = "MobileLED_R3";
-			gpios = <&main_gpio1 13 GPIO_ACTIVE_LOW>;
-		};
-*/
 		shutdown_req {
 			label = "SHUTDOWN_REQ";
 			gpios = <&main_gpio1 21 GPIO_ACTIVE_LOW>;
@@ -203,6 +172,14 @@
 	leds_msp430: leds-msp430 {
 		compatible = "gpio-leds";
 		status = "okay";
+
+		ext_mobile_power_msp {
+			label = "Ext_MobilePowerMSP";
+			gpios = <&io_exp 1 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "on";
+		};
 
 		has_pcie {
 			label = "Has_PCIe";
