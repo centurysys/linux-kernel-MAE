@@ -40,6 +40,12 @@
 			AM64X_IOPAD(0x021c, PIN_INPUT, 7) /* (B14) SPI1_CS0.GPIO1_47 */
 		>;
 	};
+
+	main_i2c2_pca9505_3e_pins_default: main-i2c2-pca9505-3e-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0220, PIN_INPUT, 7) /* (D14) SPI1_CS1.GPIO1_48 */
+		>;
+	};
 };
 
 &main_i2c2 {
@@ -49,6 +55,31 @@
 	pinctrl-0 = <&main_i2c2_pins_default>;
 	clock-frequency = <400000>;
 	status = "okay";
+
+	pca9505_3e: pca9505@3e {
+		compatible = "nxp,pca9505";
+		reg = <0x3e>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&main_i2c2_pca9505_3e_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <48 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio-line-names = "EXT_DI0", "EXT_DI1", "EXT_DI2", "EXT_DI3",
+				  "", "", "", "",
+				  "", "", "", "",
+				  "", "", "EXT_CounterINT1", "EXT_24V_Fail",
+				  "Filtered_DI0", "Filtered_DI1", "Filtered_DI2", "Filtered_DI3",
+				  "", "", "", "",
+				  "", "", "", "",
+				  "", "", "", "",
+				  "EXT_DO0", "EXT_DO1", "EXT_DO2", "EXT_DO3",
+				  "", "", "", "EXT_24V_ON";
+	};
 
 	tca9539_74: tca9539@74 {
 		compatible = "ti,tca9539";
@@ -279,6 +310,51 @@
 		led_eg95_DTR {
 			label = "EG95_Wakeup";
 			gpios = <&main_gpio0 34 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds_ext_3e: leds_ext_3e {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		ext_do0 {
+			label = "EXT_DO0";
+			gpios = <&pca9505_3e 32 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do1 {
+			label = "EXT_DO1";
+			gpios = <&pca9505_3e 33 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do2 {
+			label = "EXT_DO2";
+			gpios = <&pca9505_3e 34 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_do3 {
+			label = "EXT_DO3";
+			gpios = <&pca9505_3e 35 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
+		};
+
+		ext_24v_on {
+			label = "EXT_24V_ON";
+			gpios = <&pca9505_3e 39 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			retain-state-shutdown;
+			default-state = "keep";
 		};
 	};
 };
