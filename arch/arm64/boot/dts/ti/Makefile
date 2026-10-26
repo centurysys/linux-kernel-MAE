@@ -103,6 +103,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am62p5-sk-microtips-mf103hie-lcd2.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62p5-sk-dsi-rpi-7inch-panel.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62p5-sk-dss-shared-mode.dtbo
 dtb-$(CONFIG_ARCH_K3) += k3-am62p5-sk-dsi-simplefb.dtbo
+dtb-$(CONFIG_ARCH_K3) += k3-am62p5-sk-hdmi-oldi-simplefb.dtbo
 
 # Common overlays for SK-AM62* family of boards
 dtb-$(CONFIG_ARCH_K3) += k3-am62x-sk-csi2-ov5640.dtbo
