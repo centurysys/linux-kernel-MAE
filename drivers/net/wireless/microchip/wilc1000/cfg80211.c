@@ -1243,6 +1243,13 @@ bool wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size)
 	if (!ieee80211_is_public_action((struct ieee80211_hdr *)buff, size))
 		goto out_rx_mgmt;
 
+	/* ieee80211_is_public_action() only validates up to the category
+	 * byte, so reject frames too short for the P2P public action header
+	 * before dereferencing it or computing size - ie_offset.
+	 */
+	if (size < ie_offset)
+		goto out_rx_mgmt;
+
 	d = (struct wilc_p2p_pub_act_frame *)(&mgmt->u.action);
 	PRINT_D(vif->ndev, GENERIC_DBG,
 		"Rx Action action: %x category %x oui type %x sub_type[%d]\n",
@@ -1422,6 +1429,13 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 		goto out_set_timeout;
 	}
+
+	/* ieee80211_is_public_action() only validates up to the category
+	 * byte, so reject frames too short for the P2P public action header
+	 * before dereferencing it or computing len - ie_offset.
+	 */
+	if (len < ie_offset)
+		goto out_set_timeout;
 
 	PRINT_INFO(vif->ndev, GENERIC_DBG, "ACTION FRAME:%x\n",
 		   (u16)mgmt->frame_control);
