@@ -289,7 +289,7 @@ static const struct dev_pm_ops k3_dsp_pm_ops = {
 
 static struct platform_driver k3_dsp_rproc_driver = {
 	.probe	= k3_dsp_rproc_probe,
-	.remove_new = k3_dsp_rproc_remove,
+	.remove = k3_dsp_rproc_remove,
 	.driver	= {
 		.name = "k3-dsp-rproc",
 		.pm = &k3_dsp_pm_ops,
