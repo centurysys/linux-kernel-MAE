@@ -1,0 +1,23 @@
+Cross-compile driver
+--------------------
+
+To cross-compile, you will need a compiled kernel to build against.
+
+To compile the driver, make sure your cross-compiler is in your PATH.
+
+Then build the driver:
+
+(Update ARCH, CROSS_COMPILE and KERNEL_SRC as appropriate)
+
+    make MORSE_TRACE_PATH=`pwd` ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KERNEL_SRC=~/linux CONFIG_WLAN_VENDOR_MORSE=m CONFIG_MORSE_SDIO=y CONFIG_MORSE_USER_ACCESS=y
+
+Build compile commands
+----------------------
+
+To build compile commands, use the kernel's gen compile commands script.
+
+(Update DRIVER and KERNEL_SRC as appropriate)
+
+    DRIVER="~/morse_driver"
+    KERNEL_SRC="~/linux"
+    python3 "$KERNEL_SRC/scripts/clang-tools/gen_compile_commands.py" -d "$KERNEL_SRC" -o "$DRIVER/compile_commands.json" "$DRIVER"

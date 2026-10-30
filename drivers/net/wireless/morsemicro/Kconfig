@@ -1,0 +1,223 @@
+config WLAN_VENDOR_MORSE
+	tristate "Morse Micro driver"
+	select WANT_DEV_COREDUMP
+	help
+	  If you have a wireless card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if WLAN_VENDOR_MORSE
+
+config MORSE_SDIO
+	bool "SDIO support"
+	help
+	  This driver supports wireless cards connected over SDIO.
+
+	  The kernel device tree must be configured appropriately
+	  for the host/device interface.
+	  Both SDIO and SPI drivers may be enabled simultaneously.
+
+config MORSE_USB
+	bool "USB support"
+	help
+	  This driver supports wireless cards connected over USB.
+
+config MORSE_SDIO_ALIGNMENT
+	int "Alignment requirements for bulk SDIO reads/writes"
+	default 2
+	range 2 8
+	help
+	  Number of bytes to align data buffers for bulk SDIO transactions. Some hosts have
+	  specific alignment requirements for DMA, use this setting to
+	  adjust the alignment required.
+
+	  Must be a power of 2.
+
+config MORSE_SPI
+	bool "SPI support"
+	help
+	  This driver supports wireless cards connected over SPI.
+
+	  The kernel device tree must be configured appropriately
+	  for the host/device interface.
+	  Both SDIO and SPI drivers may be enabled simultaneously.
+
+config MORSE_SPI_RK3288
+	bool "SPI support for Rockchip 3288"
+	default n
+	depends on MORSE_SPI
+	help
+	  This driver supports the Rockchip 3288 SPI interface.
+
+	  Special handling is required for this board because initialisation
+	  of the Morse chip in SPI mode requires a handshake with the SPI CS
+	  line held high, which is not supported in the Rockchip driver.
+
+	  When enabled, the Morse SPI driver must be brought up before the
+	  Rockchip SPI driver.
+
+config MORSE_USER_ACCESS
+	bool "User space access support"
+	help
+	  Enable user-space access to wireless cards.
+
+config MORSE_VENDOR_COMMAND
+	bool "Morse vendor commands"
+	default n
+	help
+	  Allow vendor-specific commands from userspace applications such as iw.
+
+config MORSE_COUNTRY
+	string "Country code for regulatory compliance"
+	default "AU"
+	help
+	  Two-character country code.
+
+config MORSE_DEBUG_MASK
+	int "Debug mask"
+	default 8
+	help
+	  Set the Morse driver debug level.
+	  Choose any combination of 8 (Error), 4 (Warning), 2 (Informational) and 1 (Debug).
+	  The minimum debug level applied is 8 (Error).
+	  Note that increasing debug level can impact performance.
+
+config MORSE_SDIO_RESET_TIME
+	int "Time to wait after SDIO reset (ms)"
+	default 400
+	range 0 400
+	help
+	  Reduce the wait time after SDIO reset to reduce boot time.
+	  Can cause instability and load failure if set too low for the device.
+
+config MORSE_POWERSAVE_MODE
+	int "Power Save mode"
+	default 2
+	range 0 2
+	help
+	  Choose 0 to disable Power Save, 1 to enable the Power Save protocol, or 2 to fully enable
+	  Power Save mode.
+
+config MORSE_CHANNELIZATION_SCHEME
+	int "Default channelization scheme"
+	default 3
+	range 1 3
+	help
+	  Channelization scheme for countries which have multiple channelization schemes.
+	  Choose 1 for IEEE 802.11-2020 channelization,
+	  2 for IEEE 802.11-2024 channelization, or
+	  3 for IEEE 802.11mf channelization.
+	  Use channelization_scheme={1,2,3} modparam when loading the morse module to override this default.
+
+config MORSE_DHCP_OFFLOAD
+	bool "Offload DHCP lease renewal processing to the firmware"
+	default n
+	help
+	  When enabled, DHCP lease renewal and discovery is handled by the firmware, with no
+	  interaction with the host device. Only basic DHCP options are supported.
+
+config MORSE_DHCPC_LEASE_UPDATE_SCRIPT
+	string "DHCP lease update script"
+	default "/morse/scripts/dhcpc_update.sh"
+	help
+	  Script to be invoked when DHCP offload has obtained a new DHCP lease.
+
+config MORSE_ARP_OFFLOAD
+	bool "Offload ARP packet handling to the firmware"
+	default n
+	help
+	  When enabled, the firmware will directly respond to ARP requests for the wireless
+	  interface's IP address, with no interaction with the host device. All other ARP requests
+	  are ignored.
+
+config MORSE_WATCHDOG_RESET_DEFAULT_DISABLED
+	bool "Disable driver reset from watchdog by default"
+	default n
+	help
+	  When not set, if the watchdog detects an unrecoverable error, the default behaviour is to
+	  reset the firmware. When set, the default behaviour is to not reset the firmware.
+	  This setting can be overridden when loading the driver, by setting the enable_watchdog
+	  parameter.
+
+config MORSE_DISABLE_CHANNEL_SURVEY
+	bool "Disable channel survey"
+	default n
+	help
+	  When set, the firmware will not perform channel surveys.
+
+config ANDROID
+	bool "Android build"
+	default n
+	help
+	  Enable to compile driver for android.
+
+config MORSE_MONITOR
+	bool "Monitor mode support"
+	default n
+	help
+	  Enable to monitor traffic in a wireless channel.
+
+config MORSE_ENABLE_TEST_MODES
+	bool "Driver test modes for debugging firmware"
+	default n
+	help
+	  Enables a test_mode modparam for debugging purposes.
+
+config MORSE_DEBUGFS
+	bool "DebugFS support"
+	default n
+	help
+	  Enable for debugging support.
+
+config MORSE_DEBUG_IRQ
+	bool "Count IRQs in DebugFS"
+	default n
+	help
+	  Export IRQ counters in DebugFS.
+
+config MORSE_DEBUG_TXSTATUS
+	bool "Count tx status in DebugFS"
+	default n
+	help
+	  Export tx status counters in DebugFS.
+
+config MORSE_ENABLE_WIPHY
+	bool "Enable FullMAC mode by default"
+	default n
+	help
+	  FullMAC mode is selected by the enable_wiphy modparam.
+	  Say Y here to use FullMAC mode by default when the enable_wiphy modparam is absent.
+	  Otherwise SoftMAC mode is used by default.
+
+
+config MORSE_REATTACH_HW
+	bool "Enable HW reattach mode by default"
+	default n
+	help
+	  HW reattach mode is selected by the reattach_hw modparam.
+	  Say Y here to use HW reattach mode by default when the reattach_hw modparam is absent.
+	  Otherwise firmware is reloaded on every probe.
+
+config DISABLE_MORSE_FULLMAC
+	bool "Disable FullMAC support at build time"
+	default n
+	help
+	  Disable FullMAC support at build time. This may be necessary to build against
+	  older unpatched kernel that lacks some features required for FullMAC.
+
+config MORSE_KUNIT_TEST
+	tristate "KUnit tests for Morse driver" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Build KUnit tests for the Morse driver.
+
+	  For more information on KUnit and unit tests in general, please
+	  refer to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
+endif # WLAN_VENDOR_MORSE
