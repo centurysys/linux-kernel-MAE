@@ -292,37 +292,20 @@ static u8 *morse_spi_rx_ptr(struct morse_spi *mspi, const u8 *tx_ptr)
  * morse_spi_initsequence() - Initialisation sequence to bring up the chip in SPI mode.
  * @mspi: Morse SPI structure
  *
- * Do a burst with chipselect active-high.  We need to do this to meet the requirement of 74 clock
- * cycles with both chipselect and CMD (MOSI) high before CMD0 ... after the card has been powered
- * up to Vdd(min), and so is ready to take commands.
- *
- * Some cards are particularly needy of this (e.g. Viking "SD256") while most others don't seem to
- * care.
- *
- * Note that this is one of the places MMC/SD plays games with the SPI protocol.  Another is that
- * when chipselect is released while the card returns BUSY status, the clock must issue several
- * cycles with chipselect high before the card will stop driving its output.
+ * SDIO SPI initialization requires at least 74 clocks with CS inactive
+ * and MOSI high before CMD0/CMD63. On the SAMA5D2 native-CS controller,
+ * SPI_CS_HIGH cannot be enabled, so suppress CS assertion for the training
+ * transfer instead. The atmel-spi driver must honor SPI_NO_CS.
  */
 static void morse_spi_initsequence(struct morse_spi *mspi)
 {
 	struct spi_device *spi = mspi->spi;
 
-	spi->mode |= SPI_CS_HIGH;
-	if (spi_setup(spi) != 0) {
-		/* Just warn; most cards work without it. */
-		dev_warn(&spi->dev, "can't change chip-select polarity\n");
-		spi->mode &= ~SPI_CS_HIGH;
-	} else {
-		/* We will send only 0xFF for training */
-		memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
-		morse_spi_xfer(mspi, 18);
-
-		spi->mode &= ~SPI_CS_HIGH;
-		if (spi_setup(spi) != 0) {
-			/* Wot, we can't get the same setup we had before? */
-			dev_err(&spi->dev, "can't restore chip-select polarity\n");
-		}
-	}
+	spi->mode |= SPI_NO_CS;
+	memset(mspi->data, 0xFF, MM610X_BUF_SIZE);
+	memset(mspi->data_rx, 0xFF, MM610X_BUF_SIZE);
+	morse_spi_xfer(mspi, 18);
+	spi->mode &= ~SPI_NO_CS;
 }
 
 static void morse_spi_xfer_init(struct morse_spi *mspi)
