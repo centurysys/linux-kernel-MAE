@@ -43,8 +43,9 @@ struct morse_spi {
 	u32 register_addr_base;
 	struct spi_device *spi;
 
-	/* Memory for command/response transfers */
+	/* Separate transmit and receive buffers for SPI DMA transfers */
 	u8 *data;
+	u8 *data_rx;
 
 	/* for bulk data transfers */
 	struct spi_transfer t;
@@ -276,9 +277,15 @@ static int morse_spi_xfer(struct morse_spi *mspi, unsigned int len)
 	ret = spi_sync_locked(mspi->spi, &mspi->m);
 
 	if (is_rk3288)
-		morse_shift_buffer(mspi->data, len, 1);
+		morse_shift_buffer(mspi->data_rx, len, 1);
 
 	return ret;
+}
+
+/* Translate a position in the TX buffer to the corresponding RX position. */
+static u8 *morse_spi_rx_ptr(struct morse_spi *mspi, const u8 *tx_ptr)
+{
+	return mspi->data_rx + (tx_ptr - mspi->data);
 }
 
 /**
@@ -320,14 +327,14 @@ static void morse_spi_initsequence(struct morse_spi *mspi)
 
 static void morse_spi_xfer_init(struct morse_spi *mspi)
 {
-	/* setup message from a single data buffer */
+	/* setup message with separate transmit and receive buffers */
 	spi_message_init(&mspi->m);
 
 #if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
 	mspi->m.is_dma_mapped = false;
 #endif
 	mspi->t.tx_buf = mspi->data;
-	mspi->t.rx_buf = mspi->data;
+	mspi->t.rx_buf = mspi->data_rx;
 	mspi->t.cs_change = 0;
 
 	spi_message_add_tail(&mspi->t, &mspi->m);
@@ -425,8 +432,8 @@ static int morse_spi_cmd(struct morse_spi *mspi, u8 cmd, u32 arg)
 	 * first byte.  After STOP_TRANSMISSION command it may include
 	 * two data bits, but otherwise it's all ones.
 	 */
-	return morse_spi_find_response(mspi, mspi->data + SPI_RESP_OFFSET,
-				       mspi->data + buffer_size, NULL);
+	return morse_spi_find_response(mspi, mspi->data_rx + SPI_RESP_OFFSET,
+				       mspi->data_rx + buffer_size, NULL);
 }
 
 static int morse_spi_cmd52(struct morse_spi *mspi, u8 fn, u8 data, u32 address)
@@ -625,8 +632,11 @@ static int morse_spi_cmd53_read(struct morse_spi *mspi, u8 fn, u32 address, u8 *
 
 	morse_spi_xfer(mspi, end - mspi->data);
 
+	resp = morse_spi_rx_ptr(mspi, resp);
+	end = morse_spi_rx_ptr(mspi, end);
+
 	/*
-	 * Response will already be stored in the data buffer.  It's
+	 * Response will already be stored in the receive buffer.  It's
 	 * somewhere after the command and the first byte we read after
 	 * it. We ignore that first byte.
 	 */
@@ -658,7 +668,7 @@ exit:
 #if KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE
 /**
  * morse_spi_wait_chip_ready() - Poll MISO until the chip is ready after a CMD53 write.
- * @mspi: Morse SPI structure containing the shared data buffer and SPI transfer state.
+ * @mspi: Morse SPI structure containing separate TX/RX buffers and transfer state.
  *
  * After a CMD53 write the chip holds MISO=0 while committing received data internally.
  * The SDIO SPI protocol requires MISO to return to 0xFF before the next command is issued.
@@ -679,7 +689,7 @@ static int morse_spi_wait_chip_ready(struct morse_spi *mspi)
 			return -EIO;
 
 		for (j = 0; j < SPI_CHIP_BUSY_POLL_BYTES; j++) {
-			if (mspi->data[j] == 0xFF)
+			if (mspi->data_rx[j] == 0xFF)
 				return 0;
 		}
 	}
@@ -769,6 +779,10 @@ static int morse_spi_cmd53_write(struct morse_spi *mspi, u8 fn, u32 address, u8 
 	end = cp;
 
 	morse_spi_xfer(mspi, end - mspi->data);
+
+	resp = morse_spi_rx_ptr(mspi, resp);
+	ack = morse_spi_rx_ptr(mspi, ack);
+	end = morse_spi_rx_ptr(mspi, end);
 
 	/* Time to verify */
 	if (morse_spi_find_response(mspi, resp, end, &cp))
@@ -1364,6 +1378,7 @@ static void morse_spi_remove(struct spi_device *spi)
 		}
 
 		morse_spi_remove_irq(mspi);
+		kfree(mspi->data_rx);
 		kfree(mspi->data);
 #ifdef CONFIG_MORSE_USER_ACCESS
 		uaccess_device_unregister(mors);
@@ -1463,6 +1478,7 @@ static int morse_spi_probe(struct spi_device *spi)
 	bool irq_enabled = false;
 	bool if_initiated = false;
 	bool mspi_data_allocated = false;
+	bool mspi_data_rx_allocated = false;
 #ifdef CONFIG_MORSE_USER_ACCESS
 	bool uaccess_allocated = false;
 	bool uaccess_registered = false;
@@ -1515,6 +1531,15 @@ static int morse_spi_probe(struct spi_device *spi)
 		goto err_exit;
 	}
 	mspi_data_allocated = true;
+
+	mspi->data_rx = kmalloc(MM610X_BUF_SIZE, GFP_KERNEL);
+	if (!mspi->data_rx) {
+		MORSE_SPI_ERR(mors, "%s Failed to allocate RX DMA buffer (size=%d bytes)\n",
+			      __func__, MM610X_BUF_SIZE);
+		ret = -ENOMEM;
+		goto err_exit;
+	}
+	mspi_data_rx_allocated = true;
 
 	mspi->spi = spi;
 	mspi->inter_block_delay_bytes =
@@ -1775,6 +1800,8 @@ err_exit:
 		morse_spi_uaccess = NULL;
 	}
 #endif
+	if (mspi_data_rx_allocated)
+		kfree(mspi->data_rx);
 	if (mspi_data_allocated)
 		kfree(mspi->data);
 	if (sysfs_init)
