@@ -18,6 +18,7 @@ obj-$(CONFIG_WLAN_VENDOR_QUANTENNA) += quantenna/
 obj-$(CONFIG_WLAN_VENDOR_RALINK) += ralink/
 obj-$(CONFIG_WLAN_VENDOR_REALTEK) += realtek/
 obj-$(CONFIG_WLAN_VENDOR_RSI) += rsi/
+obj-$(CONFIG_WLAN_VENDOR_RSI_9116) += rsi_9116/
 obj-$(CONFIG_WLAN_VENDOR_SILABS) += silabs/
 obj-$(CONFIG_WLAN_VENDOR_ST) += st/
 obj-$(CONFIG_WLAN_VENDOR_TI) += ti/
