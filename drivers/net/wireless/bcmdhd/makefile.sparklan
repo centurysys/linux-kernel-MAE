@@ -1,0 +1,61 @@
+
+KERNEL_LIB ?= /lib/modules/$(shell uname -r)
+KERNEL_SRC ?= $(KERNEL_LIB)/build
+KERNEL_MOD ?= kernel/drivers/net/wireless
+KMODPATH_ARG :=
+INSTALL_DIR := ~/BCM_driver/$(shell uname -r)
+#INSTALL_DIR := $(shell pwd)
+
+KBUILD_OPTIONS := CONFIG_BCMDHD=m
+DRV_VER=_101_6E
+
+#INTERFACE = sdio
+INTERFACE := pcie
+
+ifeq ("$(origin if)", "command line")
+  INTERFACE = $(if)
+endif
+
+ifeq ($(INTERFACE),pcie)
+KBUILD_OPTIONS += CONFIG_BCMDHD_PCIE=y
+DRV=$(DRV_VER)_$(INTERFACE)
+else
+ifeq ($(INTERFACE),usb)
+KBUILD_OPTIONS += CONFIG_BCMDHD_USB=y
+DRV=$(DRV_VER)_$(INTERFACE)
+else
+DRV=$(DRV_VER)
+KBUILD_OPTIONS += CONFIG_BCMDHD_SDIO=y
+# SPKL SparkLAN - CONFIG_BCMDHD_OOB=y doesn't work on EVB, remove it
+#KBUILD_OPTIONS += CONFIG_BCMDHD_OOB=y
+# SPKL SparkLAN - CONFIG_BCMDHD_SDIO_IRQ=y, add for test EVB on NB
+KBUILD_OPTIONS += CONFIG_BCMDHD_SDIO_IRQ=y
+
+# /* SDIO 3.0 should use multi-desc mode */ - default is copy mode
+#KBUILD_OPTIONS += CONFIG_SparkLAN_SDTXGLOM_MDSEC=y
+endif
+endif
+
+KBUILD_OPTIONS += CONFIG_OUT_OF_KERNEL=y
+#KBUILD_OPTIONS += CONFIG_BCMDHD_FW_PATH="/lib/firmware/bcmdhd/"
+#KBUILD_OPTIONS += CONFIG_BCMDHD_NVRAM_PATH="/lib/firmware/bcmdhd/"
+# the path set in the dhd_config.h - default path is /lib/firmware/bcmdhd/
+
+all:
+	$(MAKE) -C $(KERNEL_SRC) M=$(shell pwd) modules $(KBUILD_OPTIONS)
+	cp bcmdhd.ko bcmdhd$(DRV).ko
+ifneq ($(INSTALL_DIR),)
+	mkdir -p $(INSTALL_DIR)
+	cp bcmdhd$(DRV).ko $(INSTALL_DIR)/bcmdhd$(DRV).ko
+endif
+
+.PHONY: install
+install:
+	$(MAKE) INSTALL_MOD_STRIP=1 -C $(KERNEL_SRC) M=$(shell pwd) INSTALL_MOD_DIR=$(KERNEL_MOD) $(KMODPATH_ARG) modules_install
+	depmod -a
+
+.PHONY: modules_install
+modules_install: install
+
+clean:
+	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
